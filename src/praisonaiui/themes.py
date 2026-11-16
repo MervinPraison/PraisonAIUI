@@ -356,6 +356,9 @@ def inject_theme_css(
     :func:`get_seed_theme_css`. ``dark_mode`` is accepted for API
     compatibility; the default mode is applied by the page's theme bootstrap
     (``__AIUI_DARK_DEFAULT__``), and every colour has light and dark values.
+    The docs site draws in the Pro tokens (styles/pro.css), so the preset's
+    Pro accent seeds (:func:`get_pro_seed_css`, empty for the Pro default)
+    follow the classic seeds.
 
     Args:
         output_dir: Build output directory
@@ -364,6 +367,9 @@ def inject_theme_css(
         radius: Border radius (a CSS length or a radius preset name)
     """
     css = get_seed_theme_css(preset, radius)
+    pro = get_pro_seed_css(preset)
+    if pro:
+        css = f"{css}\n{pro}\n" if css else f"{pro}\n"
 
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"
@@ -583,7 +589,8 @@ def get_seed_theme_css(
 # ── PraisonAI Pro token system (selectable layouts, ADR 0003 F4) ────────
 # The Pro palette of the design files (.claude/ui-reset/design/canvas/project/
 # Pro*.dc.html, renderVals). styles/pro.css holds these values as `--pro-*`
-# defaults scoped to html[data-aiui-shell="react"][data-aiui-tokens="pro"] and
+# defaults scoped to the app shell or the docs site with data-aiui-tokens="pro"
+# (html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"]) and
 # maps them onto the shadcn variables; themes.ts mirrors the tables.
 # tests/unit/test_seed_theme.py keeps the three equal and
 # tests/unit/test_light_mode_contrast.py checks them against WCAG AA.

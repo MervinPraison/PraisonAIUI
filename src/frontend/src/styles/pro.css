@@ -1,7 +1,11 @@
 /* PraisonAI Pro token system: the visual system of the selectable layouts
  * (ADR 0003, track F4). See src/frontend/DESIGN.md "PraisonAI Pro tokens".
  *
- * SCOPE. Every rule is scoped to html[data-aiui-shell="react"][data-aiui-tokens="pro"].
+ * SCOPE. Every rule is scoped to
+ *   html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"]
+ * i.e. the app shell (style: app) or the docs site (style: docs, which sets
+ * data-aiui-docs from App.tsx and imports this file through docs/docs.css),
+ * and only once the Pro system is switched on.
  * themes.ts setTokenSystem('pro') sets the attribute and setTokenSystem(null)
  * removes it. Without the attribute this file matches nothing, so the classic
  * frame, the dashboard and every other style render exactly as before.
@@ -32,7 +36,7 @@
      :root seeds (set_brand_color) from everything below it. A nested .dark
      subtree gets the dark palette below, and the mapping rule recomputes in
      every [data-aiui-scope] and .dark subtree. */
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] {
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"] {
     --pro-background: #ffffff;
     --pro-foreground: #18181b;
     --pro-sidebar: #f7f7f8;
@@ -82,8 +86,8 @@
   }
 
   /* ── P0 dark palette ──────────────────────────────────────────────────── */
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"].dark,
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark {
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"].dark,
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"] .dark {
     --pro-background: #0e0e11;
     --pro-foreground: #ededf0;
     --pro-sidebar: #09090b;
@@ -125,9 +129,9 @@
 
   /* ── Mapping onto the classic seeds, tiers and shadcn variables ───────────
      Mode-independent: each name reads the P0/P1 value of the current mode. */
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"],
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] [data-aiui-scope],
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .dark {
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"],
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"] [data-aiui-scope],
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"] .dark {
     /* classic seeds, so the derived alpha tiers (fills, strokes, text-tier-4,
        row hover) are computed from the Pro neutrals */
     --seed-ink: var(--pro-foreground);
@@ -219,7 +223,7 @@
   }
 
   /* Body copy: 15px on a 1.6 line height (classic: 1.55). */
-  html[data-aiui-shell="react"][data-aiui-tokens="pro"] .aiui-app {
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"] .aiui-app {
     line-height: 1.6;
   }
 }

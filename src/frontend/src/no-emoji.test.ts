@@ -4,7 +4,8 @@
 // currentColor); a page without a lucide icon shows its initial.
 //
 // Scope: the layouts, layout features, first-party browser plugins, the
-// app-shell pages, the page templates and the chat's layout presentation.
+// app-shell pages, the page templates, the chat's layout presentation and
+// the docs style's chrome.
 // The legacy vanilla views (templates/frontend/plugins/views) are the
 // default dashboard's own output and stay byte-for-byte (R6); the app shell
 // replaces the ones a layout shows first with React pages (src/app-pages).
@@ -14,7 +15,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 const ROOT = path.resolve(process.cwd(), 'src')
-const DIRS = ['app-layouts', 'layout-features', 'builtin', 'app-pages', 'components/page', 'chat-engine/presentation']
+const DIRS = ['app-layouts', 'layout-features', 'builtin', 'app-pages', 'components/page', 'chat-engine/presentation', 'docs']
+// The docs style's chrome (DESIGN.md "Docs style"), outside those folders.
+const FILES = ['App.tsx', 'Header.tsx', 'Sidebar.tsx', 'Toc.tsx', 'Footer.tsx', 'Content.tsx', 'components/theme-toggle.tsx']
 const PICTOGRAPH = /\p{Extended_Pictographic}/u
 
 function files(dir: string): string[] {
@@ -27,7 +30,7 @@ function files(dir: string): string[] {
 }
 
 test('no pictograph (emoji) in the app shell’s React chrome', () => {
-  const scanned = DIRS.flatMap((d) => files(path.join(ROOT, d)))
+  const scanned = [...DIRS.flatMap((d) => files(path.join(ROOT, d))), ...FILES.map((f) => path.join(ROOT, f))]
   assert.ok(scanned.length > 50, 'the folders were scanned')
   const hits = scanned.flatMap((f) =>
     readFileSync(f, 'utf8')

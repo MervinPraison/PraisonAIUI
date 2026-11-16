@@ -1,14 +1,18 @@
-// Sidebar component — Mintlify-style navigation tree
-import { ChevronRight } from 'lucide-react'
-import { ScrollArea } from '@/components/ui/scroll-area'
+// Docs sidebar: the nav tree, as a sticky column on desktop and a sheet on phones.
+// Styles: docs/docs.css (.aiui-docs-sidebar, .aiui-docs-nav*), Pro tokens.
+import { useEffect, useRef } from 'react'
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
 import { normalizeDocPath } from './pathUtils'
-import type { DocsNav, NavItem } from './types'
+import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
+import { BrandMark } from './docs/BrandMark'
+import { docsChromeModel, isExternal } from './docs/chrome'
 
 interface NavTreeProps {
     nav: DocsNav
@@ -18,70 +22,64 @@ interface NavTreeProps {
 
 export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
     const renderItem = (item: NavItem, depth = 0) => {
-        const isActive = (item.path || item.title) === activeItem
-        const hasChildren = item.children && item.children.length > 0
-
-        if (hasChildren) {
+        const key = item.title + (item.path || '')
+        if (item.children && item.children.length > 0) {
             return (
-                <div key={item.title + (item.path || '')} className="mb-4">
-                    <div className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
-                        {item.title}
-                    </div>
-                    <div className="space-y-0.5 mt-1">
-                        {item.children!.map((child) => renderItem(child, depth + 1))}
+                <div key={key} className="aiui-docs-group">
+                    <div className="aiui-docs-group-label">{item.title}</div>
+                    <div className="aiui-docs-group-items">
+                        {item.children.map((child) => renderItem(child, depth + 1))}
                     </div>
                 </div>
             )
         }
 
+        const isActive = (item.path || item.title) === activeItem
         const href = normalizeDocPath(item.path || '/')
-
         return (
             <a
-                key={item.title + (item.path || '')}
+                key={key}
                 href={href}
                 data-nav-path={item.path || ''}
+                aria-current={isActive ? 'page' : undefined}
+                className="aiui-docs-navitem"
+                style={{ '--depth': Math.max(0, depth - 1) } as React.CSSProperties}
                 onClick={(event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
                     event.preventDefault()
                     onItemClick(item)
                 }}
-                className={`group flex items-center gap-1.5 w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors ${isActive
-                    ? 'text-primary font-medium bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                    }`}
-                style={{ paddingLeft: `${12 + depth * 10}px` }}
             >
-                {depth > 0 && (
-                    <ChevronRight className={`h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 ${isActive ? 'opacity-60 text-primary' : ''}`} />
-                )}
-                <span className="truncate">{item.title}</span>
+                {item.title}
             </a>
         )
     }
 
-    return (
-        <nav className="space-y-0.5 pb-6">
-            {nav.items?.map((group) => renderItem(group))}
-        </nav>
-    )
+    return <nav className="aiui-docs-nav" aria-label="Documentation">{nav.items?.map((group) => renderItem(group))}</nav>
 }
 
-interface SidebarProps extends NavTreeProps {
-    nav: DocsNav
+/** Scroll a nav column so its active page shows (the column only, never the page). */
+function revealActive(box: HTMLElement | null) {
+    const el = box?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!box || !el) return
+    const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+    if (top < box.scrollTop || top + el.offsetHeight > box.scrollTop + box.clientHeight) {
+        box.scrollTop = Math.max(0, top - box.clientHeight / 3)
+    }
 }
 
-export function Sidebar({ nav, activeItem, onItemClick }: SidebarProps) {
+function useActiveInView(activeItem: string) {
+    const ref = useRef<HTMLDivElement>(null)
+    useEffect(() => revealActive(ref.current), [activeItem])
+    return ref
+}
+
+export function Sidebar({ nav, activeItem, onItemClick }: NavTreeProps) {
+    const scrollRef = useActiveInView(activeItem)
     return (
-        <aside className="docs-sidebar w-[17rem] min-w-[17rem] shrink-0 hidden md:block border-r border-border/40">
-            {/* The sticky wrapper is a plain div: ScrollArea's own `relative` would
-                win the class merge and turn top-14 into a 56px downward shift. */}
-            <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
-                <ScrollArea className="h-full">
-                    {/* Same top padding as the article (docs-main-inner py-8), so the nav lines up with the H1. */}
-                    <div className="pt-8 pb-5 px-2">
-                        <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
-                    </div>
-                </ScrollArea>
+        <aside className="aiui-docs-sidebar docs-sidebar">
+            <div ref={scrollRef} className="aiui-docs-sidebar-scroll">
+                <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
             </div>
         </aside>
     )
@@ -91,16 +89,56 @@ interface MobileNavSheetProps extends NavTreeProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     title?: string
+    config?: UIConfig
+    templateKey?: string
+    navTabs?: NavTabConfig[]
+    activeTabIndex?: number
+    onTabChange?: (index: number) => void
 }
 
-export function MobileNavSheet({ open, onOpenChange, nav, activeItem, onItemClick, title = 'Navigation' }: MobileNavSheetProps) {
+export function MobileNavSheet({
+    open,
+    onOpenChange,
+    nav,
+    activeItem,
+    onItemClick,
+    title = 'Navigation',
+    config,
+    templateKey,
+    navTabs = [],
+    activeTabIndex = 0,
+    onTabChange,
+}: MobileNavSheetProps) {
+    const chrome = config ? docsChromeModel(config, templateKey) : null
+    const scrollRef = useRef<HTMLDivElement>(null)
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="left" className="w-72 p-0">
-                <SheetHeader className="border-b px-4 py-3">
-                    <SheetTitle>{title}</SheetTitle>
+            <SheetContent
+                side="left"
+                className="aiui-docs aiui-docs-drawer p-0"
+                // The sheet mounts in a portal: reveal the active page once it is laid out.
+                onOpenAutoFocus={() => requestAnimationFrame(() => revealActive(scrollRef.current))}
+            >
+                <SheetHeader className="aiui-docs-drawer-head">
+                    <BrandMark name={chrome?.logoText ?? title} src={chrome?.logoSrc} />
+                    <SheetTitle className="truncate text-sm">{title}</SheetTitle>
+                    <SheetDescription className="sr-only">Documentation pages</SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-4rem)] px-2 py-4">
+                <div ref={scrollRef} className="aiui-docs-drawer-body">
+                    {navTabs.length > 1 && (
+                        <div className="aiui-docs-drawer-tabs" role="group" aria-label="Documentation sections">
+                            {navTabs.map((tab, index) => (
+                                <button
+                                    key={tab.tab}
+                                    type="button"
+                                    aria-pressed={index === activeTabIndex}
+                                    onClick={() => onTabChange?.(index)}
+                                >
+                                    {tab.tab}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <NavTree
                         nav={nav}
                         activeItem={activeItem}
@@ -109,7 +147,27 @@ export function MobileNavSheet({ open, onOpenChange, nav, activeItem, onItemClic
                             onOpenChange(false)
                         }}
                     />
-                </ScrollArea>
+                </div>
+                {chrome && (chrome.primary || chrome.links.length > 0) && (
+                    <div className="aiui-docs-drawer-foot">
+                        {chrome.links.map((link) => (
+                            <a
+                                key={link.href}
+                                href={link.href}
+                                className="aiui-docs-navlink"
+                                target={isExternal(link.href) ? '_blank' : undefined}
+                                rel={isExternal(link.href) ? 'noopener noreferrer' : undefined}
+                            >
+                                {link.label}
+                            </a>
+                        ))}
+                        {chrome.primary && (
+                            <Button asChild size="sm" className="ml-auto">
+                                <a href={chrome.primary.href}>{chrome.primary.label ?? 'Get started'}</a>
+                            </Button>
+                        )}
+                    </div>
+                )}
             </SheetContent>
         </Sheet>
     )

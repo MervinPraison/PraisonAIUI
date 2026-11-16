@@ -140,6 +140,17 @@ const defaultLayoutFirstScreen = [
   },
 ]
 
+// The Pro type (styles/fonts.css): Geist and Geist Mono from
+// @fontsource-variable (OFL-1.1), latin woff2 only, fetched by the Pro pages
+// (layouts, docs site) on first paint and by nothing else. woff2 is already
+// compressed, so the budget is the served bytes: 52.53 kB measured + 10%.
+const PRO_FONTS = Object.keys(manifest)
+  .filter((key) => /@fontsource-variable\/geist(-mono)?\/files\/[\w-]+\.woff2$/.test(key))
+  .map((key) => manifest[key].file)
+if (PRO_FONTS.length !== 2) {
+  throw new Error(`.size-limit.mjs: expected the two Geist woff2 files in the build, found ${PRO_FONTS.length}`)
+}
+
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
@@ -157,9 +168,13 @@ export default [
   // card-merged row, the transport's reconnect() for Retry, and the
   // connection field on the chat feed.
   { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141 kB', gzip: true },
-  // +1 kB (251.48 kB measured): builtin.artifacts joins the boot list (its
-  // record and the lazy ArtifactsPage loader in pluginLoaders/mount), and the
-  // new-chat hero draws the PraisonAI glyph instead of the emoji mascot.
+  // 252 kB, two raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
+  // joins the boot list (its record and the lazy ArtifactsPage loader in
+  // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
+  // instead of the emoji mascot. The docs Pro restyle (docs/pro-style) then
+  // added two paths to the entry's preload map for the lazy legacy App chunk
+  // (its docs/docs.css stylesheet and the Spinner chunk): 251.53 kB measured
+  // with both, inside the 252 kB #373 set, so the larger need stands alone.
   { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
@@ -173,6 +188,7 @@ export default [
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
+  { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
   { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
 ]

@@ -8,16 +8,22 @@ import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
 import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/LazyMarkdown'
 import { MobileToc } from './Toc'
 import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
-import type { UIConfig, NavItem, RouteManifest } from './types'
+import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
+import { prepareDocSource } from './docs/docSource'
+import { docSection } from './docs/docNav'
+import { DocsPager } from './docs/DocsPager'
 
 interface ContentProps {
     config: UIConfig
     routes: RouteManifest
     selectedItem: NavItem | null
     currentPath: string
+    /** The nav in reading order: adds the section eyebrow and previous / next links. */
+    nav?: DocsNav
+    onNavigate?: (item: NavItem) => void
 }
 
-export function Content({ config, routes, selectedItem, currentPath }: ContentProps) {
+export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
     const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
@@ -51,7 +57,7 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
                 const response = await fetch(mdUrl, { signal: controller.signal })
                 if (controller.signal.aborted) return
                 if (response.ok) {
-                    const content = preprocessMkdocsMarkdown(await response.text())
+                    const content = preprocessMkdocsMarkdown(prepareDocSource(await response.text(), urlPath))
                     // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
                     // unstyled-code flash); grammars and mermaid stay lazy.
                     await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])
@@ -98,12 +104,14 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
     const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
 
     if (selectedItem) {
+        const section = nav ? docSection(nav, currentPath) : null
         return (
-            <main id="main-content" className="docs-main flex-1 min-w-0">
-                <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
+            <main id="main-content" className="aiui-docs-main docs-main">
+                <div className="aiui-docs-column docs-main-inner">
                     <MobileToc selectedItem={selectedItem} />
+                    {section && <p className="aiui-docs-eyebrow">{section}</p>}
                     {loadingContent && (
-                        <div className="space-y-3" role="status" aria-label="Loading content">
+                        <div className="aiui-docs-skeleton" role="status" aria-label="Loading content">
                             <Skeleton className="h-8 w-2/3" />
                             <Skeleton className="h-4 w-full" />
                             <Skeleton className="h-4 w-11/12" />
@@ -123,12 +131,13 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
                             <Markdown variant="docs">{markdown}</Markdown>
                         </article>
                     )}
+                    {contentReady && nav && onNavigate && (
+                        <DocsPager nav={nav} path={currentPath} onNavigate={onNavigate} />
+                    )}
                     {!loadingContent && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
-                        <div className="bg-muted/50 border rounded-lg p-6">
-                            <p className="text-muted-foreground">
-                                Content for <strong className="text-primary">{selectedItem.title}</strong> would be displayed here.
-                            </p>
-                        </div>
+                        <p className="aiui-docs-notice">
+                            Content for <strong>{selectedItem.title}</strong> would be displayed here.
+                        </p>
                     )}
                 </div>
             </main>
@@ -136,8 +145,8 @@ export function Content({ config, routes, selectedItem, currentPath }: ContentPr
     }
 
     return (
-        <main id="main-content" className="docs-main flex-1 min-w-0">
-            <div className="docs-main-inner mx-auto w-full max-w-[720px] px-6 py-8 lg:px-8">
+        <main id="main-content" className="aiui-docs-main docs-main">
+            <div className="aiui-docs-column docs-main-inner">
             <h1 className="text-4xl font-bold tracking-tight mb-4">
                 {config.site?.title || 'Documentation'}
             </h1>

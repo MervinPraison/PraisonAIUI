@@ -26,6 +26,8 @@ Where things live:
 | --- | --- |
 | Token layer (seeds, tiers, shadcn vars, `@theme` utilities) | `src/styles/theme.css` |
 | PraisonAI Pro tokens (the layouts' system, see [below](#praisonai-pro-tokens)) | `src/styles/pro.css` |
+| Pro fonts (self-hosted Geist and Geist Mono) | `src/styles/fonts.css` |
+| Docs style chrome and article (see [below](#docs-style)) | `src/docs/docs.css` |
 | Entry stylesheet (imports, class sources, prose rules) | `src/index.css` |
 | Runtime theme API (presets → seeds, legacy HSL upgrade) | `src/themes.ts` |
 | Primitives (shadcn on unified `radix-ui`) | `src/components/ui/*` |
@@ -359,7 +361,8 @@ the `renderVals()` palette, identical in all nine). It reuses the token
 layer above: same utilities, same primitives, different values.
 
 **When it applies.** `styles/pro.css` is scoped to
-`html[data-aiui-shell="react"][data-aiui-tokens="pro"]`. `setTokenSystem('pro')`
+`html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"]`:
+the app shell, or the docs site ([Docs style](#docs-style)). `setTokenSystem('pro')`
 (`proTokens.ts`, re-exported by `themes.ts`) sets the attribute and `setTokenSystem(null)` removes it. The
 shell's layout host (`shell/LayoutHost.tsx`, which imports `pro.css` in the
 shell chunk) switches Pro on while a layout frame is mounted and off for the
@@ -445,9 +448,18 @@ They set only `--seed-pro-*`, so the classic frame is unaffected.
 ### Type, spacing, radius
 
 - Sans `"Geist"`, mono `"Geist Mono"`, each followed by the system stack
-  (`--aiui-font-sans` / `--aiui-font-mono`). The font files are not bundled
-  yet, so viewers without Geist installed get the system font
-  **(planned: self-hosted Geist woff2)**.
+  (`--aiui-font-sans` / `--aiui-font-mono`). Self-hosted in
+  `src/styles/fonts.css`: the variable fonts from `@fontsource-variable/geist`
+  and `@fontsource-variable/geist-mono` (SIL OFL 1.1, 5.3.0), latin subset
+  only, one woff2 each (29.4 kB sans, 23.1 kB mono; the "Pro fonts" budget in
+  `.size-limit.mjs`), `font-display: swap`, no preload and no CDN. They are
+  build assets, so `npm run sync`, the wheel and `aiui build` output carry
+  them (the OFL text: `templates/frontend/LICENSE-fonts.txt`). `shell/LayoutHost.tsx` and `docs/docs.css` import `fonts.css` next
+  to `pro.css`; a face downloads only when something is drawn in it, and
+  only `pro.css` names these families, so the classic frame, the dashboard
+  and the chat, agents and playground styles keep the system stack. Text
+  outside the latin range falls back to the system stack, and italic is
+  synthesised.
 - Scale: the classic scale already matches the design: 12 `text-2xs` (kbd,
   counts), 13 `text-xs` (meta), 14 `text-sm` (chrome, nav, buttons), 15
   `text-base` (body), 17 `text-lg` (section titles), 20 `text-xl` (page
@@ -492,6 +504,40 @@ every preset and a set of extreme custom accents, the on-accent text, the
 link on every surface and on the soft fill, and a 3:1 focus ring.
 `tests/unit/test_seed_theme.py` keeps `pro.css`, `themes.ts` (and `proTokens.ts`) and `themes.py`
 equal and checks that every `pro.css` rule is scoped and layered.
+
+## Docs style
+
+The YAML-driven docs site (`style: docs`, `aiui build`; `style: custom`
+shares its chrome) draws in the Pro tokens. `App.tsx` sets
+`data-aiui-docs` and `data-aiui-tokens="pro"` on `<html>` for those two
+styles, and `src/docs/docs.css` imports `pro.css`, so the docs site gets the
+same palette, accent swatches, fonts, radii and hairlines as the layouts.
+`docs.css` ships in the legacy App chunk (never in `index.css`), and every
+rule is scoped to the `.aiui-docs` root, so the chat, agents and playground
+styles keep the classic look. The build's `assets/theme.css` adds the
+preset's Pro accent seeds (`themes.inject_theme_css`), so `site.theme.preset`
+still picks the accent; custom CSS stays unlayered and wins.
+
+| Part | Contract |
+| --- | --- |
+| Header | 56px, sticky, the page colour at 82% with a blur, one hairline under it. Brand tile (24px, radius 7, the accent with the site initial, or the logo), section tabs with an ink underline on the hairline, a 32px field-shaped search button with a ⌘K key (an icon button on phones), links, the call to action (`Button` `sm`, hidden on phones), the theme menu (`Button` ghost `icon-sm`) |
+| Sidebar | 256px on the sunken sidebar colour with a hairline. Group labels 13/600; rows 32px, 14px, radius 8, row hover, the active page on the active-row fill with weight 500 (`aria-current="page"`). Long titles wrap. The active page scrolls into view inside the column |
+| Article | A 70ch column (plus gutters), 15px on 1.7. Title 30/600 at -0.022em, sections 22/600 with 48px above, subsections 17/600; the paragraph under the title is the lede (17px, secondary text). Links in the link colour with a 35% underline that firms up on hover. Inline code on the muted fill with a hairline, radius 5. Lists with tier-3 markers. Blockquotes: a 2px input-colour rule and secondary text, never italic |
+| Code blocks | The Streamdown pipeline unchanged; one hairline panel, radius 12, on the code background, a 36px header row (language in tier-3, copy on the right), 13px mono on 1.7 |
+| Tables | One hairline frame, radius 10, a soft muted header row (13/500, secondary text), hairlines between rows, 14px cells; wide tables scroll inside the frame |
+| Callouts | MkDocs admonitions: the tone's soft fill, a tone hairline, radius 10, a 16px line icon in the tone (a CSS mask, so it needs no colour literal), title 600. Info (note, info, abstract…), success (tip, hint…), warning (warning, caution…), danger (danger, error, bug…), accent for the rest |
+| Images | Block, radius 12, one hairline |
+| On this page | 240px from 1280px wide; 13px tier-3 links on a hairline rail, the current section in the foreground with an accent bar (`aria-current="location"`). A heading is current once it rises into the top quarter of the window; at the bottom of the page the last one is. Below 1280px it folds into a disclosure above the article |
+| Previous / next | Two hairline cards (radius 12) under the article, in sidebar reading order within the active tab: "Previous" / "Next" in tier-3 with a chevron, the title 15/500 |
+| Footer | One hairline; the YAML `footer.links` columns, then the brand tile, the footer text and the footer component's links and `footer.socials` |
+| Phone (< 768px) | The menu button opens a left sheet (288px, at most 85% of the width): brand, the section tabs as a segmented control, the nav tree (the active page scrolled into view), and the links and call to action at the bottom |
+| Search | ⌘K / Ctrl+K or the search button open a command dialog (lazy chunk) that finds pages by title or section across every tab. A page that handles `aiui:search-open` itself calls `preventDefault()` on it to take over |
+
+Focus: links, plain buttons, tabs and disclosures get a 2px ring in the
+ring colour with a 2px offset; primitives keep their own ring. Page source
+fixes (`src/docs/docSource.ts`): YAML frontmatter never shows as text, and
+relative link and image targets resolve against the page's own folder
+(`quickstart.md` → `/docs/getting-started/quickstart`).
 
 ## Legacy dashboard isolation
 
