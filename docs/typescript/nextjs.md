@@ -1,76 +1,68 @@
 # Next.js Adapter
 
-Integrate PraisonAIUI with Next.js.
+Helpers for using an `aiui build` output in a Next.js app, from the
+`praisonaiui` TypeScript package. Read the [overview](index.md) first: the
+package is optional and built from `src/praisonaiui-ts`.
 
-## Installation
+## withAIUI
 
-```bash
-npm install praisonaiui next react react-dom
-```
-
-## Configuration
-
-Wrap your Next.js config:
+Wrap your Next.js config.
 
 ```typescript
 // next.config.ts
 import { withAIUI } from 'praisonaiui/next';
 
-export default withAIUI({
-  // your Next.js config options
-});
+export default withAIUI(
+  { /* your Next.js config */ },
+  { configPath: './aiui' },   // optional, default './aiui'
+);
 ```
 
-## Page Setup
+It does two things:
+
+- adds a webpack alias `@aiui` pointing at `configPath`, so you can
+  `import uiConfig from '@aiui/ui-config.json'`; your own `webpack` function
+  still runs;
+- adds `md` and `mdx` to `pageExtensions`.
+
+It does not add an MDX loader. To compile `.mdx` pages, configure one yourself
+(for example `@next/mdx`).
+
+## getDocsPageProps
+
+Turn a catch-all route's `slug` into a docs path.
+
+```typescript
+import { getDocsPageProps } from 'praisonaiui/next';
+
+const { props } = await getDocsPageProps({ slug: ['guide', 'install'] });
+// props = { path: "/docs/guide/install", slug: "guide/install" }
+```
+
+It returns only the path and slug; load the page content yourself (for
+example the Markdown that `aiui build` copies to `<output>/docs/`).
 
 ### App Router
 
-```typescript
+```tsx
 // app/docs/[...slug]/page.tsx
 import { getDocsPageProps } from 'praisonaiui/next';
-import { DocsPage } from 'praisonaiui/components';
+import { DocContent } from 'praisonaiui/components';
 
-export default async function Page({ params }) {
-  const props = await getDocsPageProps(params.slug);
-  return <DocsPage {...props} />;
-}
-
-export async function generateStaticParams() {
-  // Generate paths from docs-nav.json
+export default async function Page({ params }: { params: { slug?: string[] } }) {
+  const { props } = await getDocsPageProps(params);
+  const html = await renderMarkdown(props.slug);   // your own loader
+  return <DocContent html={html} />;
 }
 ```
 
 ### Pages Router
 
-```typescript
+```tsx
 // pages/docs/[...slug].tsx
 import { getDocsPageProps } from 'praisonaiui/next';
-import { DocsPage } from 'praisonaiui/components';
 
-export default function Page(props) {
-  return <DocsPage {...props} />;
+export async function getStaticProps({ params }: { params: { slug?: string[] } }) {
+  return getDocsPageProps(params);   // already { props: { path, slug } }
 }
-
-export async function getStaticProps({ params }) {
-  return {
-    props: await getDocsPageProps(params.slug)
-  };
-}
-
-export async function getStaticPaths() {
-  // Generate paths
-}
-```
-
-## MDX Support
-
-Enable MDX:
-
-```typescript
-// next.config.ts
-import { withAIUI } from 'praisonaiui/next';
-
-export default withAIUI({
-  // MDX is enabled by default
-});
 ```

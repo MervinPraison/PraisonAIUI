@@ -1,48 +1,61 @@
+---
+order: -1
+---
+
 # TypeScript SDK Overview
 
-The TypeScript SDK provides React components and runtime utilities for rendering PraisonAIUI sites.
+`src/praisonaiui-ts` is a small TypeScript package, named `praisonaiui`, for
+rendering an `aiui build` site inside your own React or Next.js app. It reads
+the JSON manifests the build writes and gives you layout and slot components.
 
-## Installation
+!!! note "Status"
+    You do not need this package to use PraisonAIUI. `aiui run` and
+    `aiui build` ship their own UI inside the Python wheel, and nothing in the
+    current UI is published to npm. The `praisonaiui` package on npm is version
+    0.1.0 (January 2026); the source in the repository is 0.2.0 and is not
+    published. The package is not built or tested in CI.
+
+    To extend the UI that `aiui run` serves, write a plugin against `@aiui/sdk`
+    instead; see [UI plugins](../features/plugins.md).
+
+## Build it from the repository
 
 ```bash
-npm install praisonaiui
+git clone https://github.com/MervinPraison/PraisonAIUI.git
+cd PraisonAIUI/src/praisonaiui-ts
+npm install
+npm install --no-save next@14   # the type declarations import Next.js types
+npm run build                   # tsup, output in dist/
 ```
 
-## Features
+Without `next` installed, `npm run build` writes the JavaScript but fails at
+the type-declaration step. React 18 or later is a peer dependency; Next.js 14
+or later is optional at runtime.
 
-- **React Components** - Pre-built slot components
-- **Next.js Adapter** - Zero-config Next.js integration
-- **Runtime** - Manifest loading and template resolution
-- **TypeScript** - Full type definitions
+## Package exports
 
-## Quick Start
+| Export | Contents |
+|--------|----------|
+| `praisonaiui` | `createAIUI`, `resolveTemplate`, `SlotRegistry`, and the types `Config`, `UIConfig`, `NavTree`, `RouteManifest` |
+| `praisonaiui/runtime` | `createAIUI`, `resolveTemplate`, `SlotRegistry` |
+| `praisonaiui/next` | `withAIUI`, `getDocsPageProps` |
+| `praisonaiui/components` | `ThreeColumnLayout`, `DefaultLayout`, `Header`, `Footer`, `DocsSidebar`, `Toc`, `DocContent` |
+
+## Example
 
 ```typescript
-import { createAIUI } from 'praisonaiui/runtime';
-import { withAIUI } from 'praisonaiui/next';
+import { createAIUI, resolveTemplate } from 'praisonaiui/runtime';
 
-// Initialize runtime
-const aiui = createAIUI({
-  manifestPath: './aiui'
-});
+// The folder written by `aiui build` (ui-config.json, docs-nav.json, route-manifest.json)
+const aiui = createAIUI({ configPath: '/aiui' });
+await aiui.load();
 
-// Use in Next.js
-export default withAIUI({
-  // next.config options
-});
+const match = resolveTemplate('/docs/getting-started', aiui.routes!, aiui.config!.templates);
+// { template: "docs", layout: "ThreeColumnLayout", slots: {...}, slotOverrides: undefined }
 ```
 
-## Package Exports
+## Next steps
 
-| Export | Description |
-|--------|-------------|
-| `praisonaiui` | Main entry, types |
-| `praisonaiui/runtime` | Runtime utilities |
-| `praisonaiui/next` | Next.js adapter |
-| `praisonaiui/components` | React components |
-
-## Next Steps
-
-- [Runtime](runtime.md) - Core runtime utilities
-- [Next.js Adapter](nextjs.md) - Next.js integration
-- [Components](components.md) - Built-in components
+- [Runtime](runtime.md): `createAIUI`, `resolveTemplate`, `SlotRegistry`
+- [Next.js Adapter](nextjs.md): `withAIUI`, `getDocsPageProps`
+- [Components](components.md): layouts and slot components

@@ -1,20 +1,23 @@
 # Components
 
-Built-in React components for PraisonAIUI.
+React components in `praisonaiui/components`. Read the
+[overview](index.md) first: the package is optional and built from
+`src/praisonaiui-ts`. The components render plain markup with `aiui-*` class
+names and ship no CSS.
 
-## Layout Components
+## Layouts
 
 ### ThreeColumnLayout
 
-Documentation layout with sidebar and TOC.
+Header, left column, main, right column and footer.
 
 ```tsx
 import { ThreeColumnLayout } from 'praisonaiui/components';
 
 <ThreeColumnLayout
   header={<Header />}
-  left={<Sidebar />}
-  main={<Content />}
+  left={<DocsSidebar />}
+  main={<DocContent />}
   right={<Toc />}
   footer={<Footer />}
 />
@@ -22,20 +25,17 @@ import { ThreeColumnLayout } from 'praisonaiui/components';
 
 ### DefaultLayout
 
-Simple layout for landing pages.
+Header, hero, main and footer.
 
 ```tsx
 import { DefaultLayout } from 'praisonaiui/components';
 
-<DefaultLayout
-  header={<Header />}
-  hero={<Hero />}
-  main={<Content />}
-  footer={<Footer />}
-/>
+<DefaultLayout header={<Header />} hero={<Hero />} main={<Content />} footer={<Footer />} />
 ```
 
-## Slot Components
+Every layout prop is optional.
+
+## Slot components
 
 ### Header
 
@@ -44,12 +44,12 @@ import { Header } from 'praisonaiui/components';
 
 <Header
   logoText="My Site"
-  logoHref="/"
+  logoImage="/logo.svg"
   links={[
-    { label: "Docs", href: "/docs" },
-    { label: "Blog", href: "/blog" }
+    { label: 'Docs', href: '/docs' },
+    { label: 'GitHub', href: 'https://github.com/...', external: true },
   ]}
-  cta={{ label: "Get Started", href: "/start" }}
+  cta={{ label: 'Get Started', href: '/start' }}
 />
 ```
 
@@ -58,12 +58,7 @@ import { Header } from 'praisonaiui/components';
 ```tsx
 import { Footer } from 'praisonaiui/components';
 
-<Footer
-  text="© 2024 My Company"
-  links={[
-    { label: "GitHub", href: "https://github.com" }
-  ]}
-/>
+<Footer text="© 2026 My Company" links={[{ label: 'GitHub', href: 'https://github.com' }]} />
 ```
 
 ### DocsSidebar
@@ -71,46 +66,48 @@ import { Footer } from 'praisonaiui/components';
 ```tsx
 import { DocsSidebar } from 'praisonaiui/components';
 
-<DocsSidebar
-  items={navItems}
-  currentPath="/docs/getting-started"
-  collapsible={true}
-  searchable={true}
-/>
+<DocsSidebar items={aiui.nav?.items} collapsible showSearch />
 ```
+
+| Prop | Default | Description |
+|------|---------|-------------|
+| `items` | `[]` | `NavItem[]` (`{ title, path, children? }`), for example `docs-nav.json`'s `items` |
+| `collapsible` | `true` | Items with children can fold |
+| `showSearch` | `false` | Show a search box (markup only; filtering is up to you) |
+| `source` | none | Accepted for parity with the YAML `source: docs-nav`; not used |
 
 ### Toc
 
 ```tsx
 import { Toc } from 'praisonaiui/components';
 
-<Toc headings={pageHeadings} />
+<Toc headings={[{ id: 'install', text: 'Install', level: 2 }]} minLevel={2} maxLevel={4} />
 ```
+
+Renders nothing when no heading falls between `minLevel` and `maxLevel`.
 
 ### DocContent
 
 ```tsx
 import { DocContent } from 'praisonaiui/components';
 
-<DocContent content={htmlContent} />
+<DocContent html={htmlString} />      // inserted as HTML: sanitize it first
+<DocContent>{children}</DocContent>   // or render children
 ```
 
-## Styling Components
+## CSS classes
 
-All components use semantic CSS classes prefixed with `aiui-`. Style them with your preferred CSS approach:
-
-| Component | CSS Classes |
-|-----------|-------------|
-| Layouts | `aiui-layout`, `aiui-layout-three-column`, `aiui-layout-header`, `aiui-layout-main` |
-| Header | `aiui-header`, `aiui-header-logo`, `aiui-header-nav`, `aiui-header-cta` |
-| Footer | `aiui-footer`, `aiui-footer-links` |
-| Sidebar | `aiui-sidebar`, `aiui-sidebar-item`, `aiui-sidebar-group` |
-| Toc | `aiui-toc`, `aiui-toc-item` |
-| Content | `aiui-content`, `aiui-content-body` |
+| Component | Classes |
+|-----------|---------|
+| Layouts | `aiui-layout`, `aiui-layout-three-column`, `aiui-layout-default`, `aiui-layout-header`, `aiui-layout-hero`, `aiui-layout-body`, `aiui-layout-left`, `aiui-layout-main`, `aiui-layout-right`, `aiui-layout-footer` |
+| Header | `aiui-header`, `aiui-header-content`, `aiui-header-logo`, `aiui-header-nav`, `aiui-header-cta` |
+| Footer | `aiui-footer`, `aiui-footer-content`, `aiui-footer-text`, `aiui-footer-links` |
+| DocsSidebar | `aiui-sidebar`, `aiui-sidebar-search`, `aiui-sidebar-nav`, `aiui-nav-item`, `aiui-nav-item-header`, `aiui-nav-toggle`, `aiui-nav-children` |
+| Toc | `aiui-toc`, `aiui-toc-title`, `aiui-toc-nav`, `aiui-toc-link` |
+| DocContent | `aiui-doc-content` |
 
 ```css
-/* Example custom styling */
 .aiui-header {
-  background: linear-gradient(to right, #6366f1, #8b5cf6);
+  border-bottom: 1px solid #e5e7eb;
 }
 ```

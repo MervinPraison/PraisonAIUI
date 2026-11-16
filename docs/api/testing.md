@@ -1,19 +1,20 @@
 # API Testing Guide
 
-Test all 16 PraisonAIUI feature APIs using curl. Each example creates real data and verifies backend processing.
+Exercise the feature APIs with curl. Each example creates real data on a
+running server.
 
 ## Quick Start
 
+Start any app on port 8082 (the port `aiui test` uses by default), for example
+[`examples/python/01-chat`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/01-chat/app.py):
+
 ```bash
-# Start the server
-cd /path/to/PraisonAIUI
-PYTHONPATH=src python3 -c "
-import uvicorn
-from praisonaiui.server import create_app
-app = create_app()
-uvicorn.run(app, host='0.0.0.0', port=8082)
-"
+aiui run app.py --port 8082
 ```
+
+Replace `{id}`-style placeholders with an id returned by the create call. The
+server binds to `127.0.0.1`; see [Deployment](../features/deployment.md)
+before exposing it.
 
 ---
 
@@ -53,7 +54,7 @@ curl http://localhost:8082/api/agents/definitions
 
 # List available models
 curl http://localhost:8082/api/agents/models
-# → 200 OK, returns {"models":[...]} with 13 models (GPT, Claude, Gemini, O1/O3)
+# → 200 OK, returns {"models":[...],"default":"gpt-4o-mini"}
 
 # Run an agent (requires praisonaiagents installed)
 curl -X POST http://localhost:8082/api/agents/run/{agent_id} \
@@ -96,14 +97,14 @@ curl http://localhost:8082/api/approvals/history
 curl -X POST http://localhost:8082/api/jobs \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Analyze AI trends","config":{"model":"gpt-4o-mini"}}'
-# → 202 Accepted, returns {"job_id":"run_...","status":"running"}
+# → 202 Accepted, returns {"job_id":"run_...","status":"queued","poll_url":...,"stream_url":...}
 
 # List jobs
 curl http://localhost:8082/api/jobs
 
 # Get job statistics
 curl http://localhost:8082/api/jobs/stats
-# → {"total_jobs":1,"status_counts":{"running":1}}
+# → {"total_jobs":1,"status_counts":{"running":1},...}
 ```
 
 ## 5. Schedules
@@ -130,7 +131,7 @@ curl -X POST http://localhost:8082/api/usage/track \
 
 # Get summary (includes by_model breakdown)
 curl http://localhost:8082/api/usage
-# → {"total_requests":1,"usage":{"by_model":{"gpt-4o-mini":{...}}},...}
+# → {"total_requests":1,"total_tokens":700,"total_cost_usd":...,...}
 
 # Cost table
 curl http://localhost:8082/api/usage/costs
@@ -147,11 +148,11 @@ curl http://localhost:8082/api/usage/timeseries  # Time-series chart data
 ```bash
 # List all skills
 curl http://localhost:8082/api/skills
-# → {"skills":[...],"count":18}
+# → {"skills":[...],"count":N}  (N depends on the installed PraisonAI tools)
 
 # List by category
 curl http://localhost:8082/api/skills/categories
-# → {"categories":[{"name":"code","count":3},{"name":"search","count":4},...]}
+# → {"categories":[{"name":"code","count":...},...]}
 ```
 
 ## 8. Config
@@ -178,8 +179,8 @@ curl -X PATCH http://localhost:8082/api/config/runtime \
 # Get runtime config
 curl http://localhost:8082/api/config/runtime
 
-# All config changes are persisted to ~/.praisonaiui/config.yaml
-# and survive server restarts. See: concepts/configuration.md
+# Runtime config is saved to config.yaml in the data directory
+# (~/.praisonaiui, or AIUI_DATA_DIR) and survives restarts.
 ```
 
 ## 9. Auth
@@ -187,7 +188,7 @@ curl http://localhost:8082/api/config/runtime
 ```bash
 # Check auth status
 curl http://localhost:8082/api/auth/status
-# → {"mode":"none","authenticated":true,...}
+# → {"authenticated":true,"mode":"none","user":null}
 
 # Get auth config
 curl http://localhost:8082/api/auth/config
@@ -248,7 +249,7 @@ curl http://localhost:8082/api/sessions/test-session/preview
 curl http://localhost:8082/api/memory
 # → {"memories":[],"count":0}
 
-# Add a memory
+# Add a memory (the first call can take a few seconds while the backend starts)
 curl -X POST http://localhost:8082/api/memory \
   -H "Content-Type: application/json" \
   -d '{"text":"User prefers dark mode","memory_type":"preference"}'
@@ -294,7 +295,7 @@ curl http://localhost:8082/api/workflows
 ```bash
 # List all registered features
 curl http://localhost:8082/api/features
-# → {"features":[...],"count":16}
+# → {"features":[...],"count":N}
 ```
 
 ---
@@ -317,70 +318,29 @@ aiui test all --server http://127.0.0.1:8082
 
 ### Available Subcommands
 
-| Command | What It Tests |
+| Command | What it tests |
 |---------|---------------|
-| `aiui test endpoints` | API endpoint availability (/health, /api/features, /api/sessions, /api/chat) |
-| `aiui test chat` | Message sending, session history isolation, context recall |
-| `aiui test memory` | Cross-session persistent memory: the fact reaches `/api/memory`, then recall in a new session (recall is skipped, not failed, when the fact is stored but the model does not use it) |
-| `aiui test sessions` | Session persisted in the server's datastore (`GET /sessions/{id}`, any backend or `AIUI_DATA_DIR`) |
-| `aiui test all` | Runs all of the above in sequence |
+| `aiui test endpoints` | That the feature endpoints answer: health, features, sessions, chat, provider, channels, agents, config, skills, memory, schedules, approvals, auth, knowledge, guardrails, i18n, telemetry, security, logs, usage and more |
+| `aiui test features` | Create, read, update and delete for guardrails, knowledge, memory, workflows, channels and eval |
+| `aiui test chat` | Sends messages, checks the reply lands in the session history and that two sessions stay separate |
+| `aiui test memory` | Stores a fact in one session and recalls it in another (recall is skipped, not failed, when the fact is stored but the model does not use it) |
+| `aiui test sessions` | The session is persisted in the server's datastore (`GET /sessions/{id}`, any backend or `AIUI_DATA_DIR`) |
+| `aiui test all` | All of the above in sequence |
 
-### Options
+The only option is `--server` / `-s` (default `http://127.0.0.1:8082`).
+`chat` and `memory` need an app that replies with a model.
 
-- `--server` / `-s` — Server URL (default: `http://127.0.0.1:8082`)
-- `--timeout` / `-t` — Response timeout in seconds (default: `30`)
-
-### Example Output
-
-```
-╭───────────────────── Endpoint Tests ──────────────────────╮
-│ 6 passed, 0 failed, 2 skipped                            │
-╰───────────────────────────────────────────────────────────╯
-
-╭──────────────────────── Chat Tests ───────────────────────╮
-│ 8 passed, 0 failed                                       │
-╰───────────────────────────────────────────────────────────╯
-
-╭─────────────────────── Memory Tests ──────────────────────╮
-│ 2 passed, 0 failed                                       │
-╰───────────────────────────────────────────────────────────╯
-
-╭──────────────────── Sessions Tests ───────────────────────╮
-│ 4 passed, 0 failed                                       │
-╰───────────────────────────────────────────────────────────╯
-
-All tests passed! ✓
-```
-
-### Test Details
-
-**Endpoints** (6 checks, 2 optional skips):
-- `GET /api/features` — Feature registry health
-- `GET /api/sessions` — Session listing
-- `GET /api/chat/history` — Empty session history
-- `POST /api/chat/send` — Chat message dispatch
-- `GET /api/provider/health` — _(optional, skipped if no provider)_
-- `GET /api/provider/agents` — _(optional, skipped if no provider)_
-- `GET /health` — Server health check
-
-**Chat** (8 checks):
-- Sends a message to Session A, verifies response in history
-- Creates Session B, verifies history isolation (no cross-session leakage)
-- Verifies Session A retains context from earlier messages
-
-**Memory** (2 checks):
-- Sends a fact to Session 1 ("remember my name")
-- Asks a recall question in Session 2, verifies cross-session memory
-
-**Sessions** (4 checks):
-- Sends a message and verifies session file is created on disk
-- Verifies history API returns persisted messages
+Each suite prints one line per check and a summary box, for example
+`34 passed, 0 failed, 1 skipped` for `endpoints`; optional checks such as
+`GET /api/provider/agents` are skipped when the provider does not offer them.
 
 ---
 
 ## Running the Full API Test Suite
 
-Use the example at `examples/python/14-all-features/app.py` which tests all 16 features programmatically:
+[`examples/python/14-all-features/app.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/14-all-features/app.py)
+calls 16 feature APIs in-process with Starlette's `TestClient` (no server
+needed), then runs one real agent call, which needs `OPENAI_API_KEY`:
 
 ```bash
 cd examples/python/14-all-features
@@ -390,21 +350,20 @@ python app.py
 
 ## Expected Results
 
-| Feature | Endpoints | Expected |
-|---------|-----------|----------|
-| Channels | 4 | All 200/201 |
-| Agents | 3+ | 201 create, 200 list, 501 run (no praisonaiagents) |
-| Approvals | 6 | Auto-approve low-risk, manual approve high-risk |
-| Jobs | 3 | 202 submit, 200 list/stats |
-| Schedules | 2 | 201 create, 200 list |
-| Usage | 4+ | 201 track, 200 summary with by_model breakdown |
-| Skills | 2 | 18 skills, 7 categories |
-| Config | 5 | Schema, defaults, validate, runtime set/get |
-| Auth | 4 | API key generation, multi-mode auth |
-| OpenAI API | 2 | 11 endpoints, 13 models |
-| Logs | 2 | 5 log levels |
-| Sessions | 3 | State save/get/preview |
-| Memory | 6 | List, add, search, context, session-scoped, status |
-| Hooks | 1 | 200 (empty until registered) |
-| Workflows | 1 | 200 (empty until created) |
-| Features | 1 | 16 features registered |
+| Feature | Expected |
+|---------|----------|
+| Channels | 201 create, 200 list, get and update |
+| Agents | 201 create, 200 list and models; run needs `praisonaiagents` |
+| Approvals | Low-risk requests are approved automatically, high-risk ones stay pending |
+| Jobs | 202 submit, 200 list and stats |
+| Schedules | 201 create, 200 list |
+| Usage | 201 track, 200 summary, costs, models, sessions, timeseries |
+| Skills | 200 list and categories |
+| Config | Schema, defaults, validate, runtime set and get |
+| Auth | Status, config, API key create and list |
+| OpenAI-compatible API | `/v1` lists its endpoints, `/v1/models` the models |
+| Logs | Levels and stats |
+| Sessions | State save, get and preview |
+| Memory | List, add, search, context, session-scoped, status |
+| Hooks, Workflows | 200 with empty lists until something is registered |
+| Features | The registered features with their health |

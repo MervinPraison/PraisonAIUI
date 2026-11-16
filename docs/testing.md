@@ -1,94 +1,82 @@
 # Testing
 
-PraisonAIUI uses [pytest](https://pytest.org) for all testing. Tests are split into unit and integration categories.
+How the PraisonAIUI test suites are laid out and how to run them. To test a
+running server from the outside, see [API Testing](api/testing.md).
 
-## Running Tests
+## Python tests
 
 ```bash
-# Install dev dependencies
 pip install -e ".[dev]"
 
-# Run all tests
-pytest tests/unit tests/integration -v
-
-# Run with coverage report
+pytest tests/unit -v                        # fast, isolated
+pytest tests/unit tests/integration -v      # everything
 pytest tests/unit tests/integration -v --cov=src/praisonaiui --cov-report=term-missing
 ```
 
-## Test Categories
+CI runs `ruff check src/praisonaiui`, then
+`pytest tests/unit -v --no-cov --timeout=60`, then a short agentic round trip
+(`tests/integration/test_agentic_roundtrip.py`,
+`tests/test_feature_sdk_backends.py`).
 
-### Unit Tests (`tests/unit/`)
+| Folder | What is in it |
+|--------|---------------|
+| `tests/unit/` | Isolated tests: schema, compiler, docs scanner, serve, server and app-shell manifest, plugins, CLI, each feature. They use `tmp_path` and Starlette's `TestClient`, and start no server |
+| `tests/unit/fixtures/` | Golden files, such as the default dashboard HTML and the built-in page snapshot |
+| `tests/integration/` | End-to-end tests: the `validate → build → serve` pipeline through Typer's `CliRunner`, endpoints, agentic round trips, attachments. Some need `praisonaiagents` or an API key and skip without them |
+| `tests/` (top level) | Feature-level tests for each domain API |
 
-Fast, isolated tests that do not start servers or make network calls.
+The suites grow with every change, so count them instead of trusting a
+number written here:
 
-| Module | File | Count | Description |
-|--------|------|-------|-------------|
-| Schema Models | `test_schema.py` | 9 | Validates all Pydantic models: `SiteConfig`, `ContentConfig`, `TemplateConfig`, `RouteConfig`, `Config`. Covers defaults, all-fields, and `model_validate()` |
-| Validators | `test_validators.py` | 4 | Tests `validate_config()` — broken component refs, missing template refs in routes, missing docs directories |
-| Compiler | `test_compiler.py` | 16 | Tests the full compilation pipeline: `ui-config.json`, `route-manifest.json`, template slot serialization, validation failures, output files, minification, `docs-nav.json` |
-| Docs Scanner | `test_scanner.py` | 7 | Tests `DocsScanner` — empty dirs, frontmatter extraction, index files, nested structures, exclude patterns, number-prefix ordering |
-| Serve | `test_serve.py` | 9 | Tests serve command registration, port handling, SPA fallback, JSON manifest serving, auto-build toggle |
-| Plugins | `test_plugins.py` | 8 | Tests `PluginManager` registration, hooks, chaining, `BasePlugin` defaults, global singleton |
-| i18n & a11y | `test_i18n_a11y.py` | 9 | Tests internationalization and accessibility config models |
-
-**Total: 62 unit tests**
-
-### Integration Tests (`tests/integration/`)
-
-End-to-end tests that exercise the full CLI pipeline using temporary directories.
-
-| Module | File | Count | Description |
-|--------|------|-------|-------------|
-| CLI Pipeline | `test_cli.py` | 11 | Full `validate → build → serve` pipeline, init command, error handling |
-
-**Total: 11 integration tests**
-
-### Manual / Browser Tests
-
-These are not automated but are documented here for completeness:
-
-| Test | How to Run | What to Verify |
-|------|-----------|----------------|
-| Live serve | `aiui build && aiui serve` | Page loads, sidebar navigates, TOC updates |
-| SPA routing | Click sidebar items | URL updates without page reload |
-| Path traversal | `curl --path-as-is 'http://localhost:8000/%2e%2e/etc/passwd'` | Returns 403 |
-| CORS | `curl -sI -H 'Origin: http://evil.com' http://localhost:8000/` | No access-control headers |
-| SSL | `aiui serve --ssl-certfile cert.pem --ssl-keyfile key.pem` | HTTPS URL shown in output |
-| All docs serve | Visit each sidebar link | Markdown content renders |
-| Favicon | Check browser tab | SVG icon visible |
-
-## Architecture Diagram
-
-```
-aiui.template.yaml
-        │
-        ▼
-┌───────────────┐     tests/unit/test_schema.py
-│  Schema Models│◄──── tests/unit/test_validators.py
-│  (Pydantic)   │
-└──────┬────────┘
-       │
-       ▼
-┌───────────────┐     tests/unit/test_compiler.py
-│   Compiler    │◄──── tests/unit/test_scanner.py
-│  (Pipeline)   │
-└──────┬────────┘
-       │
-       ▼
-┌───────────────┐     tests/unit/test_serve.py
-│  Serve (CLI)  │◄──── tests/integration/test_cli.py
-│ Starlette+Uvi │
-└───────────────┘
-
-┌───────────────┐     tests/unit/test_plugins.py
-│  Plugin System│
-└───────────────┘
-
-┌───────────────┐     tests/unit/test_i18n_a11y.py
-│  i18n & a11y  │
-└───────────────┘
+```bash
+pytest tests/unit --collect-only -q | tail -1
 ```
 
-## Writing Tests
+## Frontend tests
 
-See the `tests/README.md` file in the repository for conventions, examples, and templates.
+From `src/frontend` (Node version in `.nvmrc`):
+
+```bash
+npm ci
+npx tsc -b                 # type-check
+npm test                   # unit tests (src/**/*.test.ts(x))
+npm run test:scripts       # build-script tests
+npm run build
+npm run size               # gzip budgets
+npm run check:closure      # heavy libraries stay out of the first screen
+npm run check:bundle       # committed bundle matches a fresh build
+```
+
+## Browser tests
+
+Playwright suites in `src/frontend/e2e/` start real servers (with a scripted
+provider instead of a model) and drive Chromium against the default
+dashboard, the app shell, the chat style, the docs site and the layouts.
+They serve `dist/`, so build first:
+
+```bash
+cd src/frontend
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+The projects, servers and baselines are described in
+[`src/frontend/e2e/README.md`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/e2e/README.md).
+
+## Manual checks for a docs site
+
+| Check | How | Expected |
+|-------|-----|----------|
+| Site loads | `aiui build && aiui serve` | Page renders, the sidebar navigates, the table of contents lists the headings |
+| Path traversal | `curl --path-as-is 'http://127.0.0.1:8000/%2e%2e/etc/passwd'` | Not served (404) |
+| Cross-origin | `curl -sI -H 'Origin: http://evil.com' http://127.0.0.1:8000/` | No `Access-Control-*` headers |
+| HTTPS | `aiui serve --ssl-certfile cert.pem --ssl-keyfile key.pem` | An `https://` URL is printed |
+
+## Where to add a test
+
+Every change ships with a test (rule R12 in
+[ARCHITECTURE.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/ARCHITECTURE.md)).
+A Python change goes in `tests/unit/`, a CLI pipeline change in
+`tests/integration/test_cli.py`, a React change next to the code as
+`*.test.ts(x)`, and a whole-page behaviour in `src/frontend/e2e/specs/`.
