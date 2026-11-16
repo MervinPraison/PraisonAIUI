@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { useLayoutData } from '@/sdk/layouts'
 import type { ApprovalItem, Feed, RunKpis, RunSummary, AgentStatus } from '@/sdk/layoutTypes'
 import { navigate, useManifest } from '@/sdk/services'
-import { ago, inLayoutOnly, PageBody, Pill, Section, StatusDot, toMs, useJson, useNow, type AppPageProps, type Tone } from '../shared'
+import { ago, inLayoutOnly, PageBody, Pill, providerName, Section, StatusDot, toMs, useJson, useNow, type AppPageProps, type Tone } from '../shared'
 import { attentionLabel, featureHealth, formatCost, formatCount, formatMs, greeting, providerLine, series, sparkPath, summary } from './model'
 
 const NOTHING = { get: () => null, subscribe: () => () => {} }
@@ -56,16 +56,23 @@ function Spark({ values, label }: { values: readonly number[]; label: string }) 
   )
 }
 
-/** A KPI tile. `empty`: the value is zero, so it is muted and the line under it says what to do. */
+/**
+ * One cell of the KPI strip. `empty`: the value is zero, so it is muted and
+ * the line under it says what to do. `warn`: a warning dot and value colour
+ * (the strip's hairlines carry no per-cell border).
+ */
 function Tile({ label, value, sub, spark, tone, empty }: { label: string; value: string; sub?: string; spark?: { values: readonly number[]; label: string }; tone?: 'warn'; empty?: boolean }) {
   return (
-    <div className={cn('flex h-24 min-w-0 flex-col justify-between rounded-xl border bg-card px-4 py-3', tone === 'warn' ? '[border-color:var(--ui-warning-line)]' : 'border-border')} data-aiui-tile="" data-empty={empty || undefined}>
-      <span className="truncate text-xs text-muted-foreground">{label}</span>
+    <div className="flex min-h-24 min-w-0 flex-col justify-between gap-1 bg-card px-5 py-4" data-aiui-tile="" data-empty={empty || undefined} data-tone={tone}>
+      <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+        {tone === 'warn' && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" />}
+        <span className="truncate">{label}</span>
+      </span>
       <span className="flex items-end justify-between gap-2">
-        <span className={cn('text-[28px] leading-none tracking-[-0.02em] tabular-nums', empty ? 'font-medium text-tier-3' : 'font-semibold')}>{value}</span>
+        <span className={cn('text-2xl leading-8 tracking-[-0.02em] tabular-nums', empty ? 'font-medium text-tier-3' : 'font-semibold', tone === 'warn' && 'text-warning')}>{value}</span>
         {spark && !empty && <Spark {...spark} />}
       </span>
-      <span className="truncate text-xs text-tier-3">{sub || ' '}</span>
+      <span className="truncate text-xs text-tier-3">{sub || ' '}</span>
     </div>
   )
 }
@@ -156,22 +163,24 @@ function OverviewPage(_: AppPageProps) {
   return (
     <div className="min-h-0 min-w-0 flex-1" data-aiui-app-page="overview">
       <PageBody wide>
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="m-0 text-2xl font-semibold tracking-tight">{greeting(new Date(now))}</h2>
+            <h2 className="m-0 text-2xl leading-8 font-semibold tracking-tight">{greeting(new Date(now))}</h2>
             <p className="m-0 mt-1 text-sm text-muted-foreground">
               {summary({ waiting: pending.length, running, agentWaiting: pending[0]?.agentName, attention: unhealthy.length, keyMissing })}
             </p>
           </div>
           {/* Page-level New chat: the same small primary button with the sidebar's pencil, on every page that has one. */}
-          <Button size="sm" onClick={() => navigate('chat')}>
+          {/* Centred on the title's 32px line. */}
+          <Button size="sm" className="mt-0.5" onClick={() => navigate('chat')}>
             <SquarePen aria-hidden />
             New chat
           </Button>
         </div>
 
         <Section title="Today at a glance">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {/* One joined strip (ProOverview): hairline separators drawn by the 1px gaps over the border colour. */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-4">
             {kpis ? (
               <Tile label="Runs today" value={formatCount(kpis.runs)} sub={kpis.runsDelta ? `${kpis.runsDelta > 0 ? '+' : ''}${kpis.runsDelta} vs yesterday` : 'same as yesterday'} spark={{ values: requests, label: 'Requests per hour, last 24 hours' }} />
             ) : (
@@ -318,7 +327,7 @@ function OverviewPage(_: AppPageProps) {
             ) : undefined}>
               {/* The same source the Settings page and the chat's setup banner read (/api/provider/health). */}
               <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3" data-aiui-provider="">
-                <span className="text-sm font-medium">{health.data?.provider ?? 'Provider'}</span>
+                <span className="text-sm font-medium" title={health.data?.provider}>{providerName(health.data?.provider) || 'Provider'}</span>
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <StatusDot tone={health.loading ? 'idle' : provider.tone}>{health.loading ? 'Checking…' : provider.text}</StatusDot>
                   {provider.addKey && hasPage('config') && (
