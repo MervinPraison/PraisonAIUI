@@ -70,7 +70,8 @@ test('sidebar, section, frontmatter, relative links and previous / next', async 
   // Frontmatter is metadata, never text; relative links resolve against the page folder.
   await expect(article).not.toContainText('description:')
   await expect(article.getByRole('link', { name: 'second page' })).toHaveAttribute('href', '/docs/guide/second')
-  await expect(article.getByRole('link', { name: 'home page' })).toHaveAttribute('href', '/docs/index')
+  // ../index.md names its folder, as the compiler's slugs do (#402).
+  await expect(article.getByRole('link', { name: 'home page' })).toHaveAttribute('href', '/docs')
   await expect(article).not.toContainText('[blocked]')
 
   // Callouts carry their tone and a title.
