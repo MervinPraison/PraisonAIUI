@@ -1024,3 +1024,33 @@ img.aiui-docs-mark {
 .aiui-docs-feature-link:hover svg {
   transform: translateX(2px);
 }
+
+/* ── No page at this URL (docs/DocsNotFound.tsx) ───────────────────────── */
+.aiui-docs-empty {
+  padding-top: 1rem;
+}
+.aiui-docs-empty h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+.aiui-docs-empty p {
+  margin: 0 0 0.5rem;
+  max-width: 60ch;
+  color: var(--muted-foreground);
+}
+.aiui-docs-empty code {
+  font-family: var(--aiui-font-mono, ui-monospace, monospace);
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+.aiui-docs-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 1.25rem;
+}
+.aiui-docs-empty-actions a {
+  text-decoration: none;
+}

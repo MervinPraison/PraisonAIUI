@@ -12,6 +12,8 @@
  * Fenced code is never rewritten.
  */
 
+import { normalizeDocPath } from '../pathUtils'
+
 const FRONTMATTER = /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/
 
 /** Drop a leading YAML frontmatter block. */
@@ -34,7 +36,9 @@ export function resolveDocTarget(target: string, docPath: string): string {
     } catch {
         return target
     }
-    return pageRoute(url.pathname) + url.search + url.hash
+    // A page link names its route; the docs home page's route is the site root.
+    const route = pageRoute(url.pathname)
+    return (route !== url.pathname ? canonicalDocPath(route) : route) + url.search + url.hash
 }
 
 /**
@@ -127,4 +131,14 @@ export function resolveDocUrls(md: string, docPath: string): string {
 /** The source a docs page renders: frontmatter dropped, relative targets resolved. */
 export function prepareDocSource(md: string, docPath: string): string {
     return resolveDocUrls(stripFrontmatter(md), docPath)
+}
+
+/**
+ * The URL a docs path is shown at. The docs home page has one URL, the site
+ * root: `/docs`, `/docs/` and `/docs/index` all mean `/` (the compiler
+ * publishes it there too: sitemap, llms.txt, canonical links).
+ */
+export function canonicalDocPath(path: string, base = '/docs'): string {
+    const p = normalizeDocPath(path)
+    return p === base || p === `${base}/index` ? '/' : p
 }

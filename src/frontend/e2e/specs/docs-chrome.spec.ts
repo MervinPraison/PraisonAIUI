@@ -70,8 +70,8 @@ test('sidebar, section, frontmatter, relative links and previous / next', async 
   // Frontmatter is metadata, never text; relative links resolve against the page folder.
   await expect(article).not.toContainText('description:')
   await expect(article.getByRole('link', { name: 'second page' })).toHaveAttribute('href', '/docs/guide/second')
-  // ../index.md names its folder, as the compiler's slugs do (#402).
-  await expect(article.getByRole('link', { name: 'home page' })).toHaveAttribute('href', '/docs')
+  // ../index.md is the docs home page, whose one URL is the site root.
+  await expect(article.getByRole('link', { name: 'home page' })).toHaveAttribute('href', '/')
   await expect(article).not.toContainText('[blocked]')
 
   // Callouts carry their tone and a title.
@@ -142,5 +142,33 @@ test('phone: the drawer holds the nav and the page never scrolls sideways', asyn
   await expect(drawer).toBeHidden()
   await expect(page).toHaveURL(/\/docs\/guide\/second$/)
   expect(await hasHorizontalOverflow(page)).toBe(false)
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('the docs home has one URL: /docs and /docs/index move to /', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  for (const path of ['/', '/docs', '/docs/', '/docs/index']) {
+    await page.goto(path)
+    await expect(page.locator('#main-content article').getByRole('heading', { name: 'Home', level: 1 })).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/')
+    await expect(page.locator('#main-content')).not.toContainText('Theme Configuration')
+    // The sidebar's home entry links to the root.
+    await expect(page.locator('.aiui-docs-sidebar a[aria-current="page"]')).toHaveAttribute('href', '/')
+  }
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('a URL with no page shows "Page not found", never the config dump', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await page.goto('/docs/no/such/page')
+  const main = page.locator('#main-content')
+  await expect(main.getByRole('heading', { name: 'Page not found', level: 1 })).toBeVisible()
+  await expect(main).toContainText('/docs/no/such/page')
+  await expect(main).not.toContainText('Theme Configuration')
+  await expect(main).not.toContainText('Available Presets')
+  await expect(main.getByRole('link', { name: 'Go to the home page' })).toHaveAttribute('href', '/')
+  await expect(page).toHaveTitle(/Page not found/)
+  await main.getByRole('button', { name: 'Search the docs' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
