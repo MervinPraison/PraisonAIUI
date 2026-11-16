@@ -1,6 +1,8 @@
 # Chat Attachments
 
-Upload files to include with chat messages — PDFs, CSVs, images, and text files up to 50 MB per file. Uploaded files are **automatically processed** and their content is injected into the agent's prompt.
+Upload a file, then send a chat message with its id: PDFs and text files are
+read into the agent's prompt, images go to the model as multimodal input. The
+default limit is 10 MB per file.
 
 ![Attachments Panel](../images/attachments-panel.png)
 
@@ -8,136 +10,129 @@ Upload files to include with chat messages — PDFs, CSVs, images, and text file
 
 ```bash
 # 1. Upload a file
-RESP=$(curl -s -X POST http://localhost:8083/api/chat/attachments \
-  -F "file=@report.pdf" \
+RESP=$(curl -s -X POST http://localhost:8000/api/chat/attachments \
+  -F "file=@report.pdf;type=application/pdf" \
   -F "session_id=my-session")
 
 # 2. Send chat with the attachment
 ATT_ID=$(echo $RESP | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-curl -X POST http://localhost:8083/api/chat/send \
+curl -X POST http://localhost:8000/api/chat/send \
   -H "Content-Type: application/json" \
   -d "{\"content\":\"Summarize this document\",\"session_id\":\"my-session\",\"attachment_ids\":[\"$ATT_ID\"]}"
 ```
 
-The agent will receive the extracted PDF text prepended to the user message and can answer questions about the document's content.
+The agent receives the extracted PDF text before the user message. The reply
+streams to WebSocket clients (see [Gateway Chat](gateway-chat.md)).
 
 ## How It Works
 
 ```mermaid
 graph LR
     A["File Upload"] --> B["AttachmentManager"]
-    B --> C{"Validation"}
-    C -->|"Size OK"| D["Save to temp dir"]
-    C -->|"Type OK"| D
+    B --> C{"Size and type"}
+    C -->|"OK"| D["Save to temp dir"]
     C -->|"Rejected"| E["400 Error"]
-    D --> F["Return metadata + ID"]
+    D --> F["Return metadata + id"]
     F --> G["Send chat with attachment_ids"]
-    G --> H{"File Type?"}
+    G --> H{"Content type?"}
     H -->|"PDF"| I["Extract text via pypdf"]
     H -->|"Image"| J["Pass to multimodal LLM"]
-    H -->|"Text/Code"| K["Read file contents"]
+    H -->|"Other"| K["Read file contents"]
     I --> L["Prepend to agent prompt"]
     K --> L
 ```
 
 ## File Processing by Type
 
-When you send a chat message with `attachment_ids`, each attachment is processed based on its type:
+| Content type | Processing | What the agent sees |
+|--------------|------------|---------------------|
+| `application/pdf` | Text extracted with `pypdf` (a dependency of `aiui`) | `--- Attached PDF: name ---` block before the message |
+| `image/*` | File path passed to the agent's `attachments` | The image, for vision-capable models |
+| Anything else allowed | File read as text | `--- Attached File: name ---` block before the message |
 
-| File Type | Processing | What the Agent Sees |
-|-----------|-----------|-------------------|
-| **PDF** (`.pdf`) | Text extracted via `pypdf` | Full text content prepended to prompt |
-| **Images** (`.png`, `.jpg`, etc.) | Passed to SDK multimodal handler | Image sent as base64 to vision-capable LLMs |
-| **Text/Code** (`.txt`, `.py`, `.csv`, etc.) | File contents read directly | Full file content prepended to prompt |
+## Allowed Types
 
-!!! note "PDF Dependency"
-    PDF text extraction requires the `pypdf` package (`pip install pypdf`). If `pypdf` is not installed, a fallback message is shown instead of the extracted text. `pypdf` is included in PraisonAIUI's dependencies by default.
+The check is on the MIME type the client sends with the upload, not the file
+extension. Browsers set it; with `curl`, add `;type=...` to the `-F` value, or
+the file arrives as `application/octet-stream` and is rejected:
 
-## Supported File Types
+| Category | MIME types |
+|----------|------------|
+| Text | `text/plain`, `text/csv`, `text/markdown` |
+| Data | `application/json` |
+| Documents | `application/pdf` |
+| Images | `image/png`, `image/jpeg`, `image/gif`, `image/webp` |
 
-| Category | Extensions |
-|----------|-----------|
-| Documents | `.pdf`, `.doc`, `.docx`, `.txt`, `.md` |
-| Data | `.csv`, `.json`, `.xml`, `.yaml`, `.yml` |
-| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` |
-| Code | `.py`, `.js`, `.ts`, `.html`, `.css` |
+Any other type is rejected with `400 {"error": "Type not allowed: ..."}`, and a
+file over the size limit with `400 {"error": "File too large: ..."}`.
 
-!!! warning "Blocked Types"
-    Executable files (`.exe`, `.sh`, `.bat`, `.cmd`, `.com`) are rejected by default.
+Files are stored under the system temp directory
+(`<tmp>/praisonai_attachments/`), and the id registry is kept in memory: after a
+restart, earlier ids no longer resolve.
 
-## Configuration
+## Indexing into Knowledge
 
-```python
-from praisonaiui.features.attachments import AttachmentManager
+Add `-F "index_to_knowledge=true"` to the upload to also store the file in the
+knowledge base. The response then carries `knowledge_indexed` (and
+`knowledge_error` when it failed).
 
-# Custom limits
-mgr = AttachmentManager(
-    max_size_mb=100,          # Max file size in MB (default: 50)
-    allowed_types={"text/*", "image/*", "application/pdf"},
-)
-```
+## Custom Limits
+
+`AttachmentManager(storage_dir=None, max_size_mb=10, allowed_types=None)` takes
+the limits. The server creates its default instance with
+`praisonaiui.features.attachments.get_attachment_manager()`; there is no public
+setter for a custom one yet.
 
 ## REST API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/chat/attachments` | POST | Upload a file |
-| `/api/chat/attachments` | GET | List attachments for a session |
-| `/api/chat/attachments/{id}` | DELETE | Delete an attachment |
+| `/api/chat/attachments` | POST | Upload a file (multipart: `file`, optional `session_id`, `index_to_knowledge`) |
+| `/api/chat/attachments/{session_id}` | GET | List a session's attachments |
+| `/api/chat/attachments/{attachment_id}` | DELETE | Delete an attachment |
+| `/api/chat/media/{attachment_id}` | GET | Serve a stored generated-media file |
 
 ### Upload
 
 ```bash
-curl -X POST http://localhost:8083/api/chat/attachments \
-  -F "file=@data.csv" \
+curl -X POST http://localhost:8000/api/chat/attachments \
+  -F "file=@data.csv;type=text/csv" \
   -F "session_id=abc-123"
 ```
 
 Response:
+
 ```json
 {
-  "id": "att_a1b2c3d4",
+  "id": "0b6c1f0e-5f7e-4c0a-9d0b-2f1d9e1a7c11",
   "filename": "data.csv",
   "content_type": "text/csv",
   "size": 34800,
+  "path": "/tmp/praisonai_attachments/0b6c1f0e-5f7e-4c0a-9d0b-2f1d9e1a7c11.csv",
   "session_id": "abc-123"
 }
 ```
 
-### Send Chat with Attachments
-
-```bash
-curl -X POST http://localhost:8083/api/chat/send \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "What does this document say?",
-    "session_id": "abc-123",
-    "attachment_ids": ["att_a1b2c3d4"]
-  }'
-```
-
-The `attachment_ids` array links uploaded files to the chat message. The server extracts content from each attachment and prepends it to the user's message before sending to the agent.
-
 ### List
 
 ```bash
-curl http://localhost:8083/api/chat/attachments?session_id=abc-123
+curl http://localhost:8000/api/chat/attachments/abc-123
 ```
 
 ## WebSocket
 
-When sending messages via WebSocket, include `attachment_ids` in the message payload:
+Over the WebSocket, put `attachment_ids` in the chat frame:
 
 ```json
 {
   "type": "chat",
   "content": "Analyze this PDF",
   "session_id": "abc-123",
-  "attachment_ids": ["att_a1b2c3d4"]
+  "attachment_ids": ["0b6c1f0e-5f7e-4c0a-9d0b-2f1d9e1a7c11"]
 }
 ```
 
 ## Related
 
-- [Gateway Chat](gateway-chat.md) — Chat interface
-- [Sessions](sessions.md) — Session management
+- [Gateway Chat](gateway-chat.md): the chat interface
+- [Sessions](sessions.md): session management

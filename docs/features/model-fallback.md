@@ -1,64 +1,51 @@
 # Model Fallback
 
-Configure **model fallback chains** for high availability — if the primary LLM fails, automatically try the next model in the chain.
+The model fallback feature (`praisonaiui.features.model_fallback`) lists the
+available models and stores an ordered fallback chain that the UI can show and
+edit.
+
+!!! note "The chain is stored, not applied"
+    Nothing in PraisonAIUI reads the chain when it sends a request: the
+    provider still calls the agent's own model, and a failed call is not retried
+    on the next model. The chain is also kept in memory only, so a restart
+    clears it. Use it as a setting your own provider or `@aiui.reply` callback
+    reads (see below).
 
 ![Model Fallback Configuration](../images/model-fallback.png)
 
 ## Quick Start
 
 ```bash
-# List available models
-curl http://localhost:8083/api/models
+# List available models and the current chain
+curl http://localhost:8000/api/models
 
-# Set a fallback chain
-curl -X PUT http://localhost:8083/api/models/fallback \
+# Set the chain
+curl -X PUT http://localhost:8000/api/models/fallback \
   -H "Content-Type: application/json" \
   -d '{"models": ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet"]}'
 ```
 
-## How It Works
-
-```mermaid
-graph TD
-    A["User Request"] --> B["gpt-4o (Primary)"]
-    B -->|Success| C["Return Response"]
-    B -->|Failure| D["gpt-4o-mini (Fallback 1)"]
-    D -->|Success| C
-    D -->|Failure| E["claude-3-5-sonnet (Fallback 2)"]
-    E -->|Success| C
-    E -->|Failure| F["Error: All models failed"]
-```
-
-When a request is sent:
-
-1. Try the **primary model** first
-2. If it fails (rate limit, timeout, error), try **fallback 1**
-3. Continue down the chain until a model responds
-4. If all models fail, return an error
-
 ## Model Discovery
 
-The `ModelFallbackManager` tries to discover models automatically:
+The model list comes from `litellm.model_list` when LiteLLM is installed and
+has models configured. Otherwise it is a short static list: `gpt-4o`,
+`gpt-4o-mini`, `claude-3-5-sonnet` and `gemini-2.0-flash`.
 
-1. **LiteLLM** — If installed, reads `litellm.model_list` for configured models
-2. **Static catalog** — Falls back to common models (gpt-4o, gpt-4o-mini, claude-3-5-sonnet, gemini-2.0-flash)
+## Reading the Chain
 
-## Configuration
+Use the server's shared manager, not a new `ModelFallbackManager()`, so you see
+what the API set:
 
 ```python
-from praisonaiui.features.model_fallback import ModelFallbackManager
+from praisonaiui.features.model_fallback import get_fallback_manager
 
-mgr = ModelFallbackManager()
+mgr = get_fallback_manager()
 
-# Get available models
-models = mgr.get_models()
+mgr.get_models()
 # [{"id": "gpt-4o", "provider": "openai"}, ...]
 
-# Set fallback chain
 mgr.set_fallback_chain(["gpt-4o", "gpt-4o-mini"])
-
-# Get current chain
-chain = mgr.get_fallback_chain()
+mgr.get_fallback_chain()
 # ["gpt-4o", "gpt-4o-mini"]
 ```
 
@@ -66,14 +53,10 @@ chain = mgr.get_fallback_chain()
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/models` | GET | List available models + current fallback chain |
-| `/api/models/fallback` | PUT | Set the fallback chain |
+| `/api/models` | GET | Available models and the current fallback chain |
+| `/api/models/fallback` | PUT | Set the chain (`{"models": [...]}`; 400 if not a list) |
 
 ### List Models
-
-```bash
-curl http://localhost:8083/api/models
-```
 
 ```json
 {
@@ -89,5 +72,4 @@ curl http://localhost:8083/api/models
 
 ## Related
 
-- [Gateway Chat](gateway-chat.md) — Chat uses models via fallback chain
-- [Providers](../concepts/providers.md) — LLM provider configuration
+- [Providers](../concepts/providers.md): LLM provider configuration

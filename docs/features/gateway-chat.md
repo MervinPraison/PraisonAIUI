@@ -1,26 +1,29 @@
 # Gateway Chat
 
-Real-time AI agent chat with **WebSocket streaming**, markdown rendering, tool call display, and session management.
+The Chat page of the `dashboard` style (and of the app shell, which hosts the same view): real-time agent chat over a WebSocket, with markdown rendering, tool call cards and session history. The browser side is the vanilla `chat.js` view; the server side is the chat feature (`praisonaiui.features.chat`).
 
 ![Chat Interface](../images/chat-interface.png)
 
 ## Quick Start
 
 ```python
+# app.py
 import praisonaiui as aiui
-from praisonaiui.server import create_app
 
 aiui.set_style("dashboard")
-app = create_app()
 
-# Chat is auto-registered — just start the server
-# Navigate to the dashboard and open the Chat page
+@aiui.reply
+async def on_message(message: str):
+    await aiui.say(f"You said: {message}")
 ```
 
 ```bash
 aiui run app.py
-# → Dashboard with Chat page, WebSocket streaming, and session management
+# Open http://127.0.0.1:8000 and choose Chat in the sidebar
 ```
+
+Without a `@aiui.reply` callback the chat runs the configured agents through
+the PraisonAI provider (`pip install "aiui[praisonai]"`).
 
 ## How It Works
 
@@ -78,7 +81,7 @@ sequenceDiagram
 
 | File | Layer | Responsibility |
 |------|-------|----------------|
-| `aiui/plugins/views/chat.js` | Frontend | WS connection, DOM rendering, session history |
+| `src/praisonaiui/templates/frontend/plugins/views/chat.js` | Frontend | WS connection, DOM rendering, session history |
 | `src/praisonaiui/features/chat.py` | Backend | ChatManager, `_run_and_broadcast`, history API |
 | `src/praisonaiui/server.py` | Backend | SSE streaming path (`run_agent` endpoint) |
 | `src/praisonaiui/providers/__init__.py` | Provider | SDK → RunEvent bridge, `_run_direct_mode` |
@@ -94,10 +97,11 @@ graph TD
     B --> D["get_history()"]
     B --> E["abort_run()"]
     B --> F["broadcast()"]
-    G["PraisonAIChat (Feature)"] --> H["4 API Routes"]
+    G["ChatFeature"] --> H["API Routes"]
     H --> I["POST /api/chat/send"]
     H --> J["GET /api/chat/history/{session_id}"]
     H --> K["POST /api/chat/abort"]
+    H --> M["GET /api/chat/context-stats"]
     H --> L["WS /api/chat/ws"]
 ```
 
@@ -265,7 +269,8 @@ sequenceDiagram
 
 ### Message Abort
 
-- Click the **Stop** button (or send `chat_abort` via WebSocket) to cancel an in-progress agent run
+- Click the **Stop** button (or send `chat_abort` with the `run_id` over the WebSocket) to cancel a run
+- Only the connection that started a run may stop it or answer its prompts (or any client, once that connection is gone)
 - The partial response is preserved in history
 
 ### File Attachments
@@ -274,14 +279,10 @@ Upload files to include with your chat messages — see [Attachments](attachment
 
 ## Session Persistence
 
-Chat history is persisted via the `BaseDataStore` interface (`datastore.py`). Two implementations are available:
-
-| DataStore | Persistence | Default |
-|-----------|-------------|--------|
-| `MemoryDataStore` | Volatile (in-memory only) | Yes (fallback) |
-| `JSONFileDataStore` | Disk (`~/.praisonaiui/sessions/`) | Yes (when `data_dir` configured) |
-
-Each session is a JSON file containing:
+Chat history is stored through the `BaseDataStore` interface: by default the
+praisonaiagents session store, or JSON files, memory or SQL with
+`aiui run --datastore`. See [Session Management](sessions.md#data-persistence-options).
+Each stored session holds its messages, with `toolCalls` on assistant messages:
 
 ```json
 {
@@ -296,43 +297,58 @@ Each session is a JSON file containing:
 }
 ```
 
-Messages are appended via `add_message()` and retrieved via `get_messages()`. Both methods are `async` to support future database backends.
-
 ### Response Content Strategy
 
 The `content` field on assistant messages stores the SDK's final response from `agent.chat()` — the same text displayed by `finalizeDelta()` in the live view. This ensures the reloaded view matches what the user saw during streaming.
 
-> [!IMPORTANT]
-> During streaming, text tokens are accumulated in `full_response`. However, when `RUN_COMPLETED` arrives with `event.content` (the SDK's authoritative return value), it **replaces** the accumulated tokens for storage. This prevents intermediate narrative text from being duplicated on reload.
+!!! important
+    During streaming, text tokens are accumulated in `full_response`. When `RUN_COMPLETED` arrives with `event.content` (the SDK's authoritative return value), it **replaces** the accumulated tokens for storage. This prevents intermediate narrative text from being duplicated on reload.
 
 ## Chat Message Model
 
 ```python
 @dataclass
 class ChatMessage:
-    role: str              # "user" | "assistant" | "system"
-    content: str           # Message text
-    session_id: str        # Session identifier
-    message_id: str        # Auto-generated UUID
-    agent_name: str        # Optional agent name
-    timestamp: float       # Unix timestamp
-    metadata: Dict         # Optional metadata (tool calls, etc.)
+    role: str                          # "user" | "assistant" | "system" | "tool"
+    content: str                       # Message text
+    session_id: str                    # Session identifier
+    message_id: str                    # Auto-generated UUID
+    agent_name: Optional[str] = None   # Agent name
+    timestamp: float                   # Unix timestamp
+    metadata: Optional[Dict] = None    # Tool calls and other metadata
 ```
 
 ## WebSocket Protocol
 
+On a server with auth on, the browser first exchanges its key for a
+single-use ticket (`POST /api/auth/ws-ticket`) and connects with `?ticket=`;
+see [Deployment](deployment.md).
+
 ### Client → Server
 
 ```json
-// Send a message
+// Send a message (optional: agent_name, attachment_ids, client_turn_id, regenerate)
 {"type": "chat", "content": "Hello!", "session_id": "abc-123"}
 
-// Abort a run
-{"type": "chat_abort", "session_id": "abc-123"}
+// Abort a run: answered with {"type": "chat_abort_result", "status": ..., "run_id": ...}
+{"type": "chat_abort", "run_id": "run-1"}
+
+// Answer an agent's question: answered with {"type": "ask_response_ack", ...}
+{"type": "ask_response", "session_id": "abc-123", "run_id": "run-1", "response": "5.1"}
+
+// Is a run still active?
+{"type": "run_status", "run_id": "run-1"}
+
+// Receive only these sessions' events (default: every session)
+{"type": "subscribe", "session_ids": ["abc-123"]}
+{"type": "unsubscribe", "session_ids": ["abc-123"]}
 
 // Keepalive ping
 {"type": "ping"}
 ```
+
+A frame that is not a JSON object is answered with
+`{"type": "protocol_error", "error": ...}`; the connection stays open.
 
 ### Server → Client
 
@@ -403,15 +419,16 @@ All events include `session_id` and `run_id`.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/chat/send` | POST | Send a message (non-streaming) |
+| `/api/chat/send` | POST | Start a run; the reply streams to WebSocket clients |
 | `/api/chat/history/{session_id}` | GET | Get message history for a session |
-| `/api/chat/abort` | POST | Abort an active run |
+| `/api/chat/abort` | POST | Abort an active run (`{"run_id": ...}`) |
+| `/api/chat/context-stats` | GET | Context-window usage for a session |
 | `/api/chat/ws` | WebSocket | Real-time chat streaming |
 
 ### Send Message
 
 ```bash
-curl -X POST http://localhost:8083/api/chat/send \
+curl -X POST http://localhost:8000/api/chat/send \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello!", "session_id": "my-session"}'
 ```
@@ -419,7 +436,7 @@ curl -X POST http://localhost:8083/api/chat/send \
 ### Get History
 
 ```bash
-curl http://localhost:8083/api/chat/history/my-session
+curl http://localhost:8000/api/chat/history/my-session
 ```
 
 Response includes `toolCalls` on assistant messages:
@@ -443,29 +460,27 @@ Response includes `toolCalls` on assistant messages:
     }
   ]
 }
+```
 
 ## Frontend (chat.js)
 
-The chat frontend is a vanilla JavaScript plugin that auto-loads as a dashboard page. Two versions exist:
-
-| Version | Path | Notes |
-|---------|------|-------|
-| Plugin | `aiui/plugins/views/chat.js` | Used in development |
-| Template | `src/praisonaiui/templates/frontend/plugins/views/chat.js` | Bundled with package, has enriched UI |
+The chat frontend is a vanilla JavaScript view,
+`src/praisonaiui/templates/frontend/plugins/views/chat.js`, shipped as-is with
+the package (it is not generated by the frontend build).
 
 ### Core Functions
 
 | Function | Purpose |
 |----------|--------|
-| `connectWebSocket()` | Establish WS with auto-reconnect (3s delay) |
+| `connectWebSocket()` | Open the WS (with a ticket when auth is on); reconnects on close |
 | `handleWsMessage(data)` | Event dispatch — routes to rendering functions |
 | `appendMessage(role, content, agentName)` | Render a complete message (history load) |
 | `appendDelta(token, agentName)` | Streaming — append token to `currentDeltaEl` |
 | `finalizeDelta(content, agentName)` | End streaming — replace with final content |
-| `appendToolCall(name/data, args/status)` | Render tool call card |
-| `updateToolCall(name/data, result, status)` | Update card with result |
+| `appendToolCall(data, status)` | Render tool call card |
+| `updateToolCall(data, status)` | Update card with result |
 | `appendReasoning(step)` | Render thinking step |
-| `appendAskWidget(question, options)` | Render user-input prompt |
+| `appendAskWidget(question, options, sessionId, runId)` | Render user-input prompt |
 | `appendMemoryIndicator(text)` | Show memory update spinner |
 | `loadSession(sessionId)` | Fetch history → render messages + tool calls |
 | `restoreSessionHistory(sessionId)` | Same as above, on WS reconnect |

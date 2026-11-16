@@ -1,67 +1,48 @@
 # Hot Reload
 
-Instant rebuilds during development.
+Two commands reload during development: `aiui serve --watch` for a docs site and
+`aiui run --reload` for an app.
 
-## Dev Mode
-
-Start development mode with file watching:
-
-```bash
-aiui dev
-```
-
-## What Gets Watched
-
-The dev server watches:
-
-- `aiui.template.yaml` - Configuration changes
-- `docs/` - Content changes
-- Any configured content directories
-
-## Rebuild Triggers
-
-| Change Type | Action |
-|-------------|--------|
-| Config change | Full rebuild |
-| Doc added/removed | Nav rebuild |
-| Doc content change | Single page rebuild |
-
-## WebSocket Updates
-
-The dev server uses WebSocket for instant updates:
-
-```
-⏳ Watching aiui.template.yaml for changes...
-🔄 Config changed, rebuilding...
-✅ Rebuilt in 45ms
-```
-
-## Options
+## Docs sites: `aiui serve --watch`
 
 ```bash
-aiui dev --port 3000    # Change port
-aiui dev --no-open      # Don't open browser
-aiui dev --verbose      # Show all events
+aiui serve --watch
+aiui serve --config aiui.template.yaml --output aiui --port 8000 --watch
 ```
 
-## Integration with Next.js
+`--watch` watches the folder that holds the config file (the config, `docs/`
+and anything else under it) and runs a full `aiui build` into the output
+directory on every change:
 
-When using Next.js development:
+```
+↻ Detected changes, rebuilding...
+✓ Rebuild complete
+```
+
+The browser does not refresh itself; reload the page to see the new build.
+
+## Apps: `aiui run --reload`
 
 ```bash
-# Terminal 1: Watch aiui config
-aiui dev
-
-# Terminal 2: Run Next.js
-npm run dev
+aiui run app.py --reload
 ```
 
-Or use concurrently:
+Uvicorn restarts the server when a file in the folder of `app.py` changes, and
+the restarted server loads `app.py` again with the same style, datastore and
+config.
 
-```json
-{
-  "scripts": {
-    "dev": "concurrently \"aiui dev\" \"next dev\""
-  }
-}
+## `aiui dev`
+
+`aiui dev` is not a file watcher. It serves a small dashboard (default port
+9000) that switches between the example projects in a folder (each a directory
+with an `aiui.template.yaml`, default `examples/`):
+
+```bash
+aiui dev --examples examples --port 9000
 ```
+
+## Related
+
+- [Config Hot-Reload](config-hot-reload.md): reloading the runtime config of a
+  running server
+- [CLI](../getting-started/cli.md)
