@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatMessage, ChatConfig, ChatStarter } from '../types'
 import { useSSE } from '../hooks/useSSE'
 import { ChatMessages } from './ChatMessages'
@@ -17,6 +17,9 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [loadingHistory, setLoadingHistory] = useState(false)
     const [dynamicStarters, setDynamicStarters] = useState<ChatStarter[]>([])
+    // The session on screen now; stream callbacks compare against it, not a stale closure.
+    const viewedSessionRef = useRef(externalSessionId)
+    viewedSessionRef.current = externalSessionId
 
     // Fetch starters from backend API
     useEffect(() => {
@@ -80,11 +83,12 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
         onSessionId: (newSessionId) => {
             onSessionChange?.(newSessionId)
         },
-        onEnd: () => {
-            // When the stream ends for THIS session, reload its messages from server
-            // so the persisted assistant message appears in the list
-            if (externalSessionId) {
-                loadSessionMessages(externalSessionId)
+        onEnd: (endedSessionId) => {
+            // When the stream ends for the session on screen, reload its messages from
+            // the server so the persisted assistant message appears in the list. A new
+            // conversation gets its id mid-stream, so compare with the ref, not a closure.
+            if (endedSessionId && viewedSessionRef.current === endedSessionId) {
+                loadSessionMessages(endedSessionId)
             }
         },
     })
