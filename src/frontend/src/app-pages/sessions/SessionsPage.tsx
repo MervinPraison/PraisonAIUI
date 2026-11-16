@@ -11,13 +11,14 @@
  * rename/remove through the same store the frame's list reads).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Archive, ExternalLink, MoreHorizontal, PenLine, RotateCcw, SquarePen, Trash } from 'lucide-react'
+import { Archive, ExternalLink, MessagesSquare, MoreHorizontal, PenLine, RotateCcw, SquarePen, Trash } from 'lucide-react'
 import { ListDetail, ListPagination, type ListColumn, type ListSort } from '@/components/page/ListDetail'
 import { Facts, TemplateSearch } from '@/components/page/parts'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useLayoutData } from '@/sdk/layouts'
 import { fetchJson, navigate } from '@/sdk/services'
@@ -276,7 +277,7 @@ function SessionsPage(_: AppPageProps) {
         detail={current ? <SessionDetail row={current} now={now} /> : undefined}
         empty={
           list.loading ? (
-            <p className="m-0 text-sm text-muted-foreground">Loading sessions…</p>
+            <SessionsSkeleton />
           ) : rows.length === 0 ? (
             <EmptySessions />
           ) : (
@@ -320,12 +321,27 @@ function SessionsPage(_: AppPageProps) {
   )
 }
 
+/** Placeholder rows while the first page loads (never a bare "Loading…"). */
+function SessionsSkeleton() {
+  return (
+    <div role="status" aria-label="Loading sessions" className="flex w-full flex-col gap-2" data-aiui-skeleton="list">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} className="h-9 w-full" />
+      ))}
+    </div>
+  )
+}
+
+/** No session at all: the shell's empty state (icon tile, title, one line, action), centred. */
 function EmptySessions() {
   return (
-    <div className="flex flex-col items-center gap-3 py-10 text-center">
-      <p className="m-0 text-base font-medium text-foreground">No sessions yet: start a chat</p>
+    <div className="flex w-full flex-col items-center gap-2 py-10 text-center">
+      <span aria-hidden className="mb-1 grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground">
+        <MessagesSquare className="size-5" />
+      </span>
+      <p className="m-0 text-base font-medium text-foreground">No sessions yet</p>
       <p className="m-0 text-sm text-muted-foreground">Every conversation with an agent is kept here.</p>
-      <Button size="sm" onClick={newChat}>
+      <Button size="sm" className="mt-2" onClick={newChat}>
         <SquarePen aria-hidden />
         New chat
       </Button>

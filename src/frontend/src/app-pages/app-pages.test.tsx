@@ -11,7 +11,7 @@ import { prerender } from 'react-dom/static'
 import { activateLayout, registerLayout, resetLayoutsForTests } from '@/sdk/layouts'
 import type { ShellPage } from '@/sdk/manifest'
 import { appPageBuiltins } from '@/builtin/appPages'
-import { ago, toMs } from './shared'
+import { ago, providerName, toMs } from './shared'
 import { filterRows, sessionRows, sortRows } from './sessions/model'
 import { logEntries, logsAsText } from './logs/model'
 import { changedPaths, getPath, matchField, sentenceCase, setPath, settingsSections, valueOf } from './settings/model'
@@ -38,6 +38,16 @@ test('relative times read as words, never a raw timestamp', () => {
   assert.equal(ago(Number.NaN, NOW), '')
   assert.equal(toMs('2026-11-15T12:00:00Z'), NOW)
   assert.equal(toMs(NOW / 1000), NOW)
+})
+
+test('providers read as names people know, never a Python class or a raw id', () => {
+  assert.equal(providerName('PraisonAIProvider'), 'PraisonAI')
+  assert.equal(providerName('openai'), 'OpenAI')
+  assert.equal(providerName('litellm'), 'LiteLLM')
+  assert.equal(providerName('google'), 'Google Gemini')
+  assert.equal(providerName('MyGatewayProvider'), 'MyGateway')
+  assert.equal(providerName('my_gateway'), 'My gateway')
+  assert.equal(providerName(undefined), '')
 })
 
 // ── sessions ──
@@ -168,6 +178,9 @@ test('logs: buffer lines become viewer entries and a downloadable text', () => {
   assert.deepEqual([entries[0].level, entries[0].source, entries[0].message], ['WARNING', 'aiui', 'slow'])
   assert.equal(logsAsText(entries), '2026-11-15T12:00:01Z WARNING aiui slow\n')
   assert.deepEqual(logEntries({}), [])
+  // The server's "<logger> - " prefix is not repeated in the message (the source column has it).
+  const [prefixed] = logEntries({ logs: [{ timestamp: 1, level: 'ERROR', logger: 'praisonaiagents.memory', message: 'praisonaiagents.memory - store failed' }] })
+  assert.equal(prefixed.message, 'store failed')
 })
 
 // ── settings ──
@@ -197,7 +210,7 @@ test('settings: schema sections become a section list of fields with controls an
 })
 
 test('settings: a custom gateway is named under the provider heading; the built-in provider is not', () => {
-  assert.match(providerNote({ provider: 'MockProvider' }), /^Chats are answered by MockProvider\. These settings apply to the built-in PraisonAI provider\.$/)
+  assert.match(providerNote({ provider: 'MockProvider' }), /^Chats are answered by Mock\. These settings apply to the built-in PraisonAI provider\.$/)
   assert.equal(providerNote({ provider: 'PraisonAIProvider' }), '')
   assert.equal(providerNote(null), '')
 })

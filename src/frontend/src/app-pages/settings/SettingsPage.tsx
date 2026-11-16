@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { fetchJson } from '@/sdk/services'
-import { inLayoutOnly, StatusDot, useJson, type AppPageProps, type Tone } from '../shared'
+import { inLayoutOnly, providerName, StatusDot, useJson, type AppPageProps, type Tone } from '../shared'
 import { changedPaths, matchField, setPath, settingsSections, valueOf, type Config, type SettingsField } from './model'
 
 type Health = { status?: string; provider?: string; detail?: string; api_key?: string }
@@ -110,7 +110,8 @@ function SettingsPage({ page }: AppPageProps) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
         {/* The section nav runs the full height, so its divider does too. */}
         <nav aria-label="Settings sections" className="shrink-0 border-b border-border md:w-56 md:border-r md:border-b-0">
-          <ul className="m-0 flex list-none gap-1 overflow-x-auto p-2 md:flex-col md:p-3">
+          {/* A phone wraps the sections into rows (a scrolled strip hid the last ones). */}
+          <ul className="m-0 flex list-none flex-wrap gap-1 p-2 md:flex-col md:flex-nowrap md:p-3">
             {sections.map((s) => {
               const current = !searching && s.id === section?.id
               const dirty = changed.some((p) => p.startsWith(`${s.id}.`))
@@ -137,7 +138,7 @@ function SettingsPage({ page }: AppPageProps) {
           </ul>
         </nav>
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <div className="flex w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:px-8 sm:py-6">
             <div className="flex flex-wrap items-center gap-3">
               <Breadcrumb className="min-w-0 flex-1">
                 <BreadcrumbList>
@@ -210,7 +211,7 @@ function SettingsPage({ page }: AppPageProps) {
  */
 export function providerNote(h: Health | null | undefined): string {
   const name = h?.provider
-  return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${name}. These settings apply to the built-in PraisonAI provider.` : ''
+  return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${providerName(name)}. These settings apply to the built-in PraisonAI provider.` : ''
 }
 
 /** `envKey`: no key is saved here, but the server has one in its environment. */
@@ -228,7 +229,7 @@ function FieldRow({ field: f, value, dirty, envKey, onChange }: { field: Setting
         <SelectContent>
           {f.options.map((o) => (
             <SelectItem key={o} value={o}>
-              {o}
+              {f.path === 'provider.name' ? providerName(o) : o}
             </SelectItem>
           ))}
         </SelectContent>
@@ -323,7 +324,7 @@ function TestConnection() {
     try {
       const h = await fetchJson<Health>('/api/provider/health')
       const ok = /^(ok|healthy)$/i.test(h.status ?? '')
-      setState({ tone: ok ? 'ok' : 'warn', text: ok ? `Works · ${h.provider ?? 'provider'} answered` : `${h.provider ?? 'Provider'}: ${h.detail || h.status || 'no answer'}` })
+      setState({ tone: ok ? 'ok' : 'warn', text: ok ? `Works · ${providerName(h.provider) || 'the provider'} answered` : `${providerName(h.provider) || 'Provider'}: ${h.detail || h.status || 'no answer'}` })
     } catch (e) {
       setState({ tone: 'bad', text: `No answer: ${e instanceof Error ? e.message : String(e)}` })
     } finally {

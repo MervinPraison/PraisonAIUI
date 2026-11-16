@@ -324,9 +324,14 @@ views' own classes and never an id or a page id. They use tokens only;
 colours that arrive in inline styles are matched without their `#`.
 `!important` is used only against inline styles. Under a layout, legacy
 controls use the Pro accent: the primary clamped to a mid tone, so the white
-text the views paint on it stays readable. `legacy/page-types.test.ts`
-enforces the scoping, the template names (read from `page_types.py`) and the
-token rule.
+text the views paint on it stays readable. A view's empty placeholder is
+centred like `EmptyState` (an icon tile over its line), never a dashed box,
+and a stat-card row fits 180px tiles (two a row on a phone).
+`legacy/page-types.test.ts` enforces the scoping, the template names (read
+from `page_types.py`) and the token rule. In every app-shell frame,
+`legacy/bridge.css` gives legacy buttons and links the 2px focus ring and,
+below 768px, lets grid and flex children shrink and scrolls `pre` and tables
+inside their own box, so no legacy page scrolls sideways.
 
 ## Theming pipeline
 

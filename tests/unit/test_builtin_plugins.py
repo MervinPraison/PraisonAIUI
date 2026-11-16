@@ -64,7 +64,7 @@ def _manifest_pages(client: TestClient) -> list[dict]:
 
 
 #: Built-in pages whose shell ``layout`` comes from ``PageSpec.shell_layout``.
-SHELL_ONLY_LAYOUT = {"code-studio"}
+SHELL_ONLY_LAYOUT = {"code-studio", "runs", "work", "inbox", "replay"}
 
 
 def _without_shell_presentation(entry: dict) -> dict:
@@ -210,9 +210,12 @@ def test_full_bleed_builtins_carry_the_layout_in_the_manifest_only():
     client = _client()
     layouts = {p["id"]: p.get("layout") for p in _manifest_pages(client)}
     full_bleed = {i for i, v in layouts.items() if v == "full-bleed"}
-    assert full_bleed == {"chat", "chat-canvas", "code-studio"}
+    # The three-pane legacy views (runs, work, inbox, replay) fill the shell's
+    # content area too; the dashboard sizes them itself, so /api/pages has no layout.
+    assert full_bleed == {"chat", "chat-canvas", "code-studio", "runs", "work", "inbox", "replay"}
     api = {p["id"]: p for p in _api_pages(client)}
-    assert "layout" not in api["code-studio"]
+    for pid in ("code-studio", "runs", "work", "inbox", "replay"):
+        assert "layout" not in api[pid], pid
     assert api["chat"]["layout"] == "full-bleed"
 
 

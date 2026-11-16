@@ -111,6 +111,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   margin: 16px 0;
   padding: 20px 24px;
@@ -118,6 +119,11 @@
   border-radius: 12px;
   color: var(--muted-foreground);
   font-size: 14px;
+}
+/* Placeholder rows while loading: no empty-state frame around them. */
+.aiui-tpl-empty:has(> [data-aiui-skeleton]) {
+  padding: 0;
+  border: 0;
 }
 .aiui-tpl :focus-visible {
   outline: 2px solid var(--ring);
@@ -514,7 +520,8 @@
 .aiui-tpl-log-msg {
   min-width: 0;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* Break between words; a single token longer than the line still wraps. */
+  overflow-wrap: break-word;
 }
 .aiui-tpl-lvl {
   display: inline-flex;
@@ -1068,11 +1075,13 @@
   .aiui-tpl-log-head {
     display: none;
   }
+  /* Phone: time, level and the source (cut short, full name in its title)
+     on one line, the message on the full width below it. */
   .aiui-tpl-log-row {
     grid-template-columns: auto auto minmax(0, 1fr);
-    gap: 4px 12px;
+    gap: 2px 12px;
   }
-  .aiui-tpl-log-src {
-    display: none;
+  .aiui-tpl-log-msg {
+    grid-column: 1 / -1;
   }
 }

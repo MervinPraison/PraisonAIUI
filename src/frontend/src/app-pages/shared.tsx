@@ -138,6 +138,33 @@ export function useJson<T>(url: string | null, everyMs = 0): JsonState<T> {
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'idle' | 'info'
 
+/** Names people know for the provider ids and classes the server reports. */
+const PROVIDER_NAMES: Record<string, string> = {
+  praisonai: 'PraisonAI',
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google Gemini',
+  gemini: 'Google Gemini',
+  azure: 'Azure OpenAI',
+  ollama: 'Ollama',
+  litellm: 'LiteLLM',
+  mock: 'Mock',
+}
+
+/**
+ * A provider's display name: "openai" → "OpenAI", the class name
+ * "PraisonAIProvider" → "PraisonAI". An unknown id gets a capital letter, an
+ * unknown class keeps its name without the "Provider" suffix.
+ */
+export function providerName(raw: string | null | undefined): string {
+  const name = (raw ?? '').trim()
+  if (!name) return ''
+  const bare = name.replace(/_?provider$/i, '') || name
+  const known = PROVIDER_NAMES[bare.toLowerCase().replace(/[\s_-]/g, '')]
+  if (known) return known
+  return /[A-Z]/.test(bare) ? bare : bare.charAt(0).toUpperCase() + bare.slice(1).replace(/[_-]/g, ' ')
+}
+
 const DOT: Record<Tone, string> = {
   ok: 'bg-success',
   warn: 'bg-warning',
