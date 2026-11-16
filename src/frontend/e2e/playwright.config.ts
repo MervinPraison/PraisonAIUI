@@ -9,7 +9,8 @@
  *   project            server                                   specs
  *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity, legacy-dashboard
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
- *   chat-style         style chat, presets zinc and rose        theme-presets
+ *   chat-style         style chat, presets zinc and rose, and   theme-presets, chat-os-theme
+ *                      one with no set_theme() (follows the OS)
  *   docs               `aiui build` output on `aiui serve`      markdown, docs-chrome
  *   page-reload-*      the dashboard and app-shell servers      page-reload
  *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>
@@ -18,7 +19,7 @@
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
- *   AIUI_E2E_PORT          first of eight consecutive ports (default 8720)
+ *   AIUI_E2E_PORT          first of nine consecutive ports (default 8720)
  *   AIUI_E2E_PYTHON        Python interpreter (default python3, then python)
  *   AIUI_E2E_REUSE=1       reuse servers that are already listening
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
@@ -49,11 +50,13 @@ const PORTS = {
   baseline: BASE_PORT + 5,
   layouts: BASE_PORT + 6,
   pageTypes: BASE_PORT + 7,
+  chatSystem: BASE_PORT + 8,
 }
 const url = (port: number) => `http://127.0.0.1:${port}`
 
 // Specs read the second chat-style server from here.
 process.env.AIUI_E2E_ROSE_URL = url(PORTS.chatRose)
+process.env.AIUI_E2E_CHAT_SYSTEM_URL = url(PORTS.chatSystem)
 
 const PYTHON = process.env.AIUI_E2E_PYTHON || 'python3'
 const START = `node "${path.join(HERE, 'fixtures', 'start-server.mjs')}"`
@@ -117,6 +120,8 @@ export default defineConfig({
     { ...server(PORTS.app, '--shell app -- --plugin --custom-js'), env: { AIUI_LAYOUT: 'classic' } },
     server(PORTS.chatZinc, '-- --style chat --preset zinc'),
     server(PORTS.chatRose, '-- --style chat --preset rose'),
+    // What `aiui run app.py` serves: no set_theme(), so the page follows the OS.
+    server(PORTS.chatSystem, '-- --style chat'),
     server(PORTS.docs, '--docs'),
     // The layout host suite: its own server, with a third-party layout plugin.
     layoutServer(PORTS.layouts),
@@ -138,7 +143,7 @@ export default defineConfig({
     },
     {
       name: 'chat-style',
-      testMatch: /[\\/]theme-presets\.spec\.ts$/,
+      testMatch: /[\\/](theme-presets|chat-os-theme)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.chatZinc) },
     },
     {

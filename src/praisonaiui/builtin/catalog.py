@@ -840,12 +840,29 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
 # is ``disabled`` ("no layout needs it"), its feature module is never
 # imported and its routes answer 404. See docs/features/layout-data.md.
 BUILTIN_PLUGINS = BUILTIN_PLUGINS + (
-    # The shell-only ``artifacts`` page (layouts=("chat-canvas",)) is added
-    # with the React page that renders it (track A), not before: the shell
-    # would list a page nothing renders (as for the layout records above).
     BuiltinPlugin(
         "artifacts",
         "Code, tables and files from chats, with user-edited versions",
+        # The artifacts index, rendered by layout-features/artifacts/
+        # ArtifactsPage (registered by artifactsBuiltin in
+        # src/frontend/src/builtin/artifacts.ts). The shell lists it only
+        # while Chat and Canvas is on offer (it is in that layout's nav); its
+        # URL, where Share links land, renders under any layout. Shell-only:
+        # never in the page table, /api/pages or the dashboard (R6).
+        (
+            page(
+                "artifacts",
+                "Artifacts",
+                "🗂️",
+                "Agent",
+                "Every table, code block and file your chats made, with their versions",
+                1,
+                kind="native",
+                nav_icon="layers",
+                shell_only=True,
+                layouts=("chat-canvas",),
+            ),
+        ),
         feature_refs=(feature(".artifacts", "ArtifactsFeature"),),
         for_layouts=("chat-canvas",),
     ),

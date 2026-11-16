@@ -26,6 +26,9 @@ LAYOUT_IDS = ["chat-canvas", "workbench", "command", "guided", "mission"]
 LAYOUT_RECORDS = [f"builtin.layout-{i}" for i in LAYOUT_IDS]
 #: The layout records that own pages: those whose frame ships the React page.
 SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
+#: Shell-only pages that name a layout: page id -> (owning record, layouts).
+#: Each arrives with the React page that renders it.
+LAYOUT_PAGES = {"artifacts": ("builtin.artifacts", ["chat-canvas"])}
 
 
 @pytest.fixture(autouse=True)
@@ -72,11 +75,13 @@ def test_layout_records_add_only_their_shipped_pages_to_the_app_shell(layout, mo
     with_layouts = _manifest(_client())
     assert [p["id"] for p in with_layouts["pages"] if not p.get("layouts")] == without
     owned = {p["id"]: p for p in with_layouts["pages"] if p.get("layouts")}
-    assert sorted(owned) == sorted(i for ids in SHIPPED_LAYOUT_PAGES.values() for i in ids)
+    assert sorted(owned) == sorted([i for ids in SHIPPED_LAYOUT_PAGES.values() for i in ids] + list(LAYOUT_PAGES))
     for lid, ids in SHIPPED_LAYOUT_PAGES.items():
         for pid in ids:
             assert owned[pid]["layouts"] == [lid] and owned[pid]["kind"] == "native", pid
             assert owned[pid]["source"] == f"builtin.layout-{lid}", pid
+    for pid, (record, layouts) in LAYOUT_PAGES.items():
+        assert (owned[pid]["source"], owned[pid]["layouts"], owned[pid]["kind"]) == (record, layouts, "native")
     assert [s["id"] for s in with_layouts["layouts"]["available"]] == LAYOUT_IDS
     assert "ops-overview" not in owned  # arrives with the Mission frame
 

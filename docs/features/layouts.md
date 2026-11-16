@@ -187,6 +187,11 @@ registered by `builtin.overview`, `builtin.sessions`, `builtin.logs` and
 In the classic frame (`layout: classic`) these pages render their legacy
 view exactly as before, and the default `dashboard` style never loads them.
 
+The one layout page shipped today is `artifacts` (`layouts: [chat-canvas]`),
+owned by the data record `builtin.artifacts` rather than a layout record: the
+index of every chat's artifacts, where the canvas's Share links land. See
+[Layout data](layout-data.md).
+
 ## Data that only some layouts need
 
 A first-party record can declare `for_layouts=("command", "mission")`. It is

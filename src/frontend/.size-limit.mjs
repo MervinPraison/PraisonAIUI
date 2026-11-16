@@ -157,11 +157,14 @@ export default [
   // card-merged row, the transport's reconnect() for Retry, and the
   // connection field on the chat feed.
   { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141 kB', gzip: true },
-  // +0.5 kB (251.04 kB measured): the entry's preload map lists every file the
-  // lazy legacy App chunk needs, and the docs style (Pro restyle) gave that
-  // chunk its own stylesheet (docs/docs.css) and the Spinner chunk, two more
-  // paths in index.js. Neither the shell boot nor the chat route grew.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '251.5 kB', gzip: true },
+  // 252 kB, two raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
+  // joins the boot list (its record and the lazy ArtifactsPage loader in
+  // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
+  // instead of the emoji mascot. The docs Pro restyle (docs/pro-style) then
+  // added two paths to the entry's preload map for the lazy legacy App chunk
+  // (its docs/docs.css stylesheet and the Spinner chunk): 251.53 kB measured
+  // with both, inside the 252 kB #373 set, so the larger need stands alone.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives

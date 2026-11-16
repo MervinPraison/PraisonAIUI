@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
-import { applyTheme, applyStoredThemePreference } from './themes'
+import { applyTheme, applyStoredThemePreference, defaultThemeMode } from './themes'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
 import { Sidebar, MobileNavSheet } from './Sidebar'
@@ -325,15 +325,16 @@ export default function App() {
         setNav(navData)
         setRoutes(await routesRes.json())
 
-        // Apply theme from YAML config
+        // Apply theme from config. Colour mode: the viewer's stored choice,
+        // else the app's (set_theme / YAML), else the OS (mode 'system').
         const theme = configData.site?.theme
-        const yamlDark = theme?.darkMode !== false
+        const mode = defaultThemeMode(theme)
         applyTheme(
           theme?.preset || 'zinc',
-          yamlDark,
+          mode === 'dark',
           theme?.radius || 'md'
         )
-        applyStoredThemePreference(yamlDark)
+        applyStoredThemePreference(mode)
 
         // Handle initial URL path for SPA routing
         const initialPath = normalizeDocPath(window.location.pathname)

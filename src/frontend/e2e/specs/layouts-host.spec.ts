@@ -38,6 +38,8 @@ const BUILTIN_IDS = ['chat-canvas', 'workbench', 'command', 'guided', 'mission']
  * `lf-*` chunk). A layout not listed loads none.
  */
 const OWN_FEATURES: Record<string, string[]> = {
+  // The artifacts canvas (builtin.artifacts) beside the chat.
+  'chat-canvas': ['lf-artifacts'],
   // The command bar on every page; the run inspector on /chat only
   // (layout-command.spec.ts checks the per-page split).
   command: ['lf-command-bar', 'lf-run-inspector'],
@@ -148,7 +150,7 @@ test('the app shell opens in the default layout and downloads only its chunks', 
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
   expect(layoutGroups(scripts)).toEqual(['layout-chat-canvas', 'layout-kit'])
   expect(scripts.filter((s) => s.startsWith('/_plugins/layoutfx/'))).toEqual([])
-  expect(scripts.filter((s) => /^lf-/.test(s))).toEqual([])
+  expect(featureGroups(scripts)).toEqual(OWN_FEATURES['chat-canvas'])
 
   // A non-chat page renders in the same frame's outlet.
   await page.goto('/logs')

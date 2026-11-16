@@ -236,24 +236,36 @@ function followSystemScheme(follow: boolean): void {
     applyDarkMode(systemQuery.matches)
 }
 
+/** Apply a colour mode: 'system' follows the OS live, 'light'/'dark' pin it. */
+function applyThemeMode(mode: ThemePreference): void {
+    followSystemScheme(mode === 'system')
+    if (mode !== 'system') applyDarkMode(mode === 'dark')
+}
+
 /**
- * Apply stored user theme preference over YAML default dark mode.
+ * The app's colour mode for a viewer with no stored choice, from the
+ * manifest's `site.theme`. A live server sends `mode` (set_theme(dark_mode=...)
+ * or YAML `site.theme`, else 'system'; the app shell reads the same value from
+ * <html data-aiui-theme-default>). A static `aiui build` sends only `darkMode`.
  */
-export function applyStoredThemePreference(yamlDefaultDark: boolean): void {
+export function defaultThemeMode(theme?: { mode?: unknown; darkMode?: unknown } | null): ThemePreference {
+    const mode = theme?.mode
+    if (mode === 'light' || mode === 'dark' || mode === 'system') return mode
+    return theme?.darkMode === false ? 'light' : 'dark'
+}
+
+/**
+ * Apply the viewer's stored choice, else the app's default mode
+ * (see defaultThemeMode). Same storage key and values as next-themes.
+ */
+export function applyStoredThemePreference(defaultMode: ThemePreference): void {
     let stored: string | null = null
     try {
         stored = localStorage.getItem(THEME_STORAGE_KEY)
     } catch {
-        return
+        // storage blocked: the app default applies
     }
-    followSystemScheme(stored === 'system')
-    if (stored === 'light') {
-        applyDarkMode(false)
-    } else if (stored === 'dark') {
-        applyDarkMode(true)
-    } else if (stored !== 'system') {
-        applyDarkMode(yamlDefaultDark)
-    }
+    applyThemeMode(stored === 'light' || stored === 'dark' || stored === 'system' ? stored : defaultMode)
 }
 
 /**
@@ -265,8 +277,7 @@ export function setThemePreference(preference: ThemePreference): void {
     } catch {
         // ignore storage failures
     }
-    followSystemScheme(preference === 'system')
-    if (preference !== 'system') applyDarkMode(preference === 'dark')
+    applyThemeMode(preference)
 }
 
 /**

@@ -198,7 +198,7 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
 | `layout-kit` | 10 kB |
 | `lf-artifacts` / `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` | 30 / 14 / 6 / 6 / 22 kB |
 | `/chat` first screen with the default layout | 270 kB |
-| `/chat` first screen with the classic frame | 250 kB, unchanged |
+| `/chat` first screen with the classic frame | 252 kB (was 250: the app pages split two icon chunks, and `builtin.artifacts` joins the boot list) |
 
 ## Compatibility
 
