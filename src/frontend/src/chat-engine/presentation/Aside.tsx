@@ -32,7 +32,7 @@ export interface ChatAsideProps {
 /**
  * Dispatched on window to show or hide the aside: `{open: true}` (a phone
  * flips to the aside's side), `{open: false}`. The artifacts feature sends
- * it when a card opens an artifact; the canvas's own Close sends `false`.
+ * `{open: true}` when a card opens an artifact.
  */
 export const ASIDE_EVENT = 'aiui:chat-aside'
 
@@ -129,7 +129,7 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
     writeRatio(next)
   }, [])
 
-  // A card (or the canvas's Close) asks for the aside: open it, or on a phone show its side.
+  // A card asks for the aside (`{open: true}`): open it, or on a phone show its side; `{open: false}` hides it.
   useEffect(() => {
     const onAside = (e: Event) => {
       const want = (e as CustomEvent<{ open?: unknown }>).detail?.open !== false
@@ -196,8 +196,8 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
           aria-orientation="vertical"
           aria-label={`Resize ${label}`}
           aria-valuenow={Math.round(ratio * 100)}
-          aria-valuemin={20}
-          aria-valuemax={80}
+          aria-valuemin={0}
+          aria-valuemax={100}
           aria-valuetext={`${label} ${Math.round(ratio * 100)}% of the page`}
           tabIndex={0}
           onPointerDown={onPointerDown}
