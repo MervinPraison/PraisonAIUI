@@ -236,6 +236,18 @@ test('phone: the page head reads "Section › Page"; desktop shows the section o
   await expect(crumbs).toBeVisible()
 })
 
+test('code blocks in an article have no 200px placeholder: the first frame lays them out at their real height', async ({ page }) => {
+  await page.goto('/docs/markdown')
+  const block = page.locator('#main-content article.aiui-doc [data-streamdown="code-block"]').first()
+  await expect(block).toBeVisible()
+  const style = await block.evaluate((el) => {
+    const cs = getComputedStyle(el)
+    return { cv: cs.contentVisibility, cis: cs.containIntrinsicSize }
+  })
+  expect(style.cv).toBe('visible') // Streamdown's content-visibility: auto shifted everything below (CLS)
+  expect(style.cis).toBe('none')
+})
+
 test('links and buttons show a 2px focus ring', async ({ page }) => {
   await page.goto('/docs/guide/first')
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()

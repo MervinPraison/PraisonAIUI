@@ -236,5 +236,7 @@ export default [
   // markdown read from its HTML (docLoader.adoptInlinedDoc, +337 B).
   // 9,125,726 B (measured, raised by exactly the overage): docs sidebar icons
   // and the phone breadcrumb (+1,134 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9125726 B', brotli: false },
+  // 9,125,858 B (measured, raised by exactly the overage): docs code blocks laid
+  // out at their real height from the first frame (+132 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9125858 B', brotli: false },
 ]
