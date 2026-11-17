@@ -205,6 +205,13 @@ search:
 content:
   docs:
     dir: "./docs"
+    # The page footer: "Edit this page", the last commit's date and
+    # "Was this page helpful?" (a "No" opens an issue; nothing is stored).
+    editLink:
+      pattern: "https://github.com/MervinPraison/PraisonAIUI/edit/main/docs/:path"
+    lastUpdated: true
+    feedback:
+      issues: "https://github.com/MervinPraison/PraisonAIUI/issues/new"
     include:
       - "**/*.md"
       - "**/*.mdx"

@@ -86,6 +86,12 @@
   `<CodeGroup>` shows several fences as tabs with one copy button. Comments
   in docs code now keep 4.5:1 contrast in light and dark. See
   [Writing docs pages → Code blocks](docs/features/writing-docs.md#code-blocks).
+- **Docs page footer**: "Edit this page" (`content.docs.editLink.pattern`
+  with `:path`), the date of the page's last commit
+  (`content.docs.lastUpdated`, read from git by `aiui build`) and "Was this
+  page helpful?" (`content.docs.feedback.issues`; a "No" opens a prefilled
+  issue, nothing is stored). ui.praison.ai turns all three on. See
+  [Writing docs pages → Page footer](docs/features/writing-docs.md#page-footer).
 - **Theme preset `paper`** (the look of the Chat and Canvas screen) and
   `site.theme.mode: light | dark | system` for `aiui build`. A docs site with
   `preset: paper` draws in warm paper, a navy accent, Newsreader titles and

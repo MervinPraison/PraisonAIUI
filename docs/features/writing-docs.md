@@ -413,6 +413,31 @@ paste into an assistant. Its menu also has:
 Nothing to configure: they use the Markdown `aiui build` already publishes.
 Try it on this page.
 
+## Page footer
+
+Under each page, three optional parts, turned on in `aiui.yaml`:
+
+```yaml
+content:
+  docs:
+    editLink:
+      pattern: "https://github.com/acme/site/edit/main/docs/:path"
+    lastUpdated: true
+    feedback:
+      issues: "https://github.com/acme/site/issues/new"
+```
+
+- **Edit this page** links to `pattern` with `:path` replaced by the page's
+  file under the docs folder (`getting-started/quickstart.md`).
+- **Last updated** is the date of the last commit that changed the page.
+  `aiui build` reads it from git; a shallow clone has only one commit, so the
+  date is left out there rather than shown wrong. In GitHub Actions, check out
+  with `fetch-depth: 0` to get the dates.
+- **Was this page helpful?** stores nothing. "Yes" thanks the reader; "No"
+  offers a new issue at `issues` with the page's title and address filled in.
+
+The footer of this page shows all three.
+
 ## What the build publishes for assistants
 
 | File | What it holds |

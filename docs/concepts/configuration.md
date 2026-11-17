@@ -96,7 +96,16 @@ content:
       - "**/*.mdx"
     exclude:                         # Excluded patterns
       - "**/drafts/**"
+    editLink:                        # "Edit this page" under each page
+      pattern: "https://github.com/acme/site/edit/main/docs/:path"
+      text: "Edit this page"         # optional
+    lastUpdated: true                # the date of the page's last commit
+    feedback:                        # "Was this page helpful?"
+      issues: "https://github.com/acme/site/issues/new"
 ```
+
+The last three draw the page footer; see
+[Writing docs pages → Page footer](../features/writing-docs.md#page-footer).
 
 `indexFiles` and `nav` (`mode`, `sort`, `collapsible`, `maxDepth`) are accepted
 but not read by the build yet; see [Navigation](../features/navigation.md).

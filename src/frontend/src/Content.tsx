@@ -16,6 +16,7 @@ import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { DocsPre } from './docs/DocsPre'
 import { DocsDiv } from './docs/DocsBlocks'
+import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
@@ -196,6 +197,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS}>{markdown}</Markdown>
                         </article>
                     )}
+                    {contentReady && !home && <PageFooter item={selectedItem} config={config.pageFooter} />}
                     {contentReady && nav && onNavigate && (
                         <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}

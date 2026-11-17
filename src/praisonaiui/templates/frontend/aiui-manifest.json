@@ -2901,7 +2901,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-CORPlpKY.js",
+    "file": "assets/legacy-app-entry-C3na0gad.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -2940,7 +2940,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-BbAT7VbZ.css"
+      "assets/legacy-app-entry-Bjh5y1ov.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

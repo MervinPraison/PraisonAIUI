@@ -100,6 +100,23 @@ class NavConfig(BaseModel):
     max_depth: int = Field(default=4, alias="maxDepth", ge=1, le=10)
 
 
+class EditLinkConfig(BaseModel):
+    """"Edit this page" under each docs page."""
+
+    pattern: str = Field(
+        description="URL with :path for the page's source path, e.g. "
+        "https://github.com/acme/site/edit/main/docs/:path",
+    )
+    text: str = "Edit this page"
+
+
+class FeedbackConfig(BaseModel):
+    """"Was this page helpful?" under each docs page. Nothing is stored: a "No"
+    opens a new issue with the page filled in."""
+
+    issues: str = Field(description="New-issue URL, e.g. https://github.com/acme/site/issues/new")
+
+
 class ContentSourceConfig(BaseModel):
     """Configuration for a single content source (docs, blog, etc.)."""
 
@@ -110,6 +127,11 @@ class ContentSourceConfig(BaseModel):
         default_factory=lambda: ["index.md", "README.md"], alias="indexFiles"
     )
     nav: Optional[NavConfig] = None
+    edit_link: Optional[EditLinkConfig] = Field(default=None, alias="editLink")
+    last_updated: bool = Field(default=False, alias="lastUpdated")
+    feedback: Optional[FeedbackConfig] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ContentConfig(BaseModel):

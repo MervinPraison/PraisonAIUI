@@ -79,6 +79,7 @@ class Compiler:
         # Generate docs-nav.json if docs exist
         if self.config.content and self.config.content.docs:
             nav = self._generate_docs_nav()
+            self._annotate_page_footer(nav)
             self._write_json(output_dir / "docs-nav.json", nav, indent)
             files.append("docs-nav.json")
 
@@ -282,6 +283,14 @@ class Compiler:
                 ],
             }
 
+        # Page footer text and "Was this page helpful?" (per-page facts are in docs-nav.json)
+        docs = self.config.content.docs if self.config.content else None
+        if docs and (docs.edit_link or docs.feedback):
+            result["pageFooter"] = {
+                **({"editText": docs.edit_link.text} if docs.edit_link else {}),
+                **({"feedbackIssues": docs.feedback.issues} if docs.feedback else {}),
+            }
+
         # Docs home page layout (frontmatter `layout: home` on the docs index)
         docs_home = self._docs_home()
         if docs_home is not None:
@@ -409,6 +418,19 @@ class Compiler:
                 text = index.read_text(encoding="utf-8")
                 return docs_home_from_frontmatter(scanner._extract_frontmatter(text))
         return None
+
+    def _annotate_page_footer(self, nav: dict) -> None:
+        """Last updated and edit links for the page footer (compiler/page_meta.py)."""
+        from praisonaiui.compiler.page_meta import annotate_nav
+
+        docs = self.config.content.docs
+        annotate_nav(
+            nav,
+            self._resolve_md_source,
+            self.base_path / docs.dir,
+            edit_pattern=docs.edit_link.pattern if docs.edit_link else None,
+            last_updated=docs.last_updated,
+        )
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""
