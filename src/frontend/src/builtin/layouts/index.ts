@@ -8,6 +8,9 @@
  *     layout, plugin layouts included, and the classic frame;
  *   - Settings → Appearance: a select of the same, saved in this browser
  *     (`localStorage['aiui-layout']`), when the server allows a user choice;
+ *   - "Switch look: <Look>" / "Switch look: Pro" when an offered layout has
+ *     a look of its own (meta.look, Chat + Canvas's Paper), saved in this
+ *     browser (`localStorage['aiui-look']`, proTokens setLookChoice);
  *   - the four Pro accents (Pro Indigo, Blue, Teal, Graphite) as theme
  *     presets, when the shell has theme presets: they set only the
  *     `--seed-pro-*` seeds, so they recolour layouts and never the classic
@@ -20,7 +23,7 @@
 import { LayoutTemplate } from 'lucide-react'
 import { LAYOUT_STORAGE_KEY, parseLayoutChoice } from '@/sdk/layouts'
 import { CLASSIC_LAYOUT_ID, type ShellLayoutSpec, type ShellLayouts } from '@/sdk/manifest'
-import { proThemePresets } from '@/proTokens'
+import { proThemePresets, setLookChoice } from '@/proTokens'
 import type { BuiltinPlugin, BuiltinSdk } from '../types'
 import { chatLayout } from './chat'
 import { chatCanvasLayout } from './chat-canvas'
@@ -78,7 +81,7 @@ export function currentChoice(layouts: ShellLayouts, stored: string | null = rea
   return pick || CLASSIC_LAYOUT_ID
 }
 
-function registerPicker(sdk: BuiltinSdk, layouts: ShellLayouts): void {
+function registerPicker(sdk: BuiltinSdk, layouts: ShellLayouts, looks: readonly string[]): void {
   const choices = layoutChoices(layouts)
   // Without a user choice the server's default stands; a switch lasts for this tab (like ?layout=).
   const persist = layouts.userChoice
@@ -90,6 +93,18 @@ function registerPicker(sdk: BuiltinSdk, layouts: ShellLayouts): void {
       keywords: ['layout', 'frame', 'appearance', 'view', c.id || CLASSIC_LAYOUT_ID],
       icon: LayoutTemplate,
       run: () => sdk.setLayout(c.id, { persist }),
+    })
+  }
+  // The look: each layout's own (named when there is one look), or plain Pro.
+  const own = looks.length === 1 ? looks[0].charAt(0).toUpperCase() + looks[0].slice(1) : 'Layout default'
+  for (const choice of looks.length ? (['layout', 'pro'] as const) : []) {
+    sdk.registerCommand({
+      id: `layouts.look.${choice}`,
+      title: `Switch look: ${choice === 'pro' ? 'Pro' : own}`,
+      group: 'Layout',
+      keywords: ['look', 'theme', 'appearance', ...looks],
+      icon: LayoutTemplate,
+      run: () => setLookChoice(choice),
     })
   }
   if (!layouts.userChoice || !sdk.SDK_FEATURES.includes('settings')) return
@@ -120,13 +135,15 @@ function registerPicker(sdk: BuiltinSdk, layouts: ShellLayouts): void {
 export function activateLayouts(sdk: BuiltinSdk, layouts: ShellLayouts | undefined, descriptors = BUILTIN_LAYOUTS): string[] {
   if (!layouts || layouts.available.length === 0) return []
   const registered: string[] = []
+  const looks: string[] = []
   for (const spec of layouts.available) {
     const d = isBuiltinLayout(spec) && !spec.module ? descriptors.find((x) => x.id === spec.id) : undefined
     if (!d) continue
     sdk.registerLayout(d.id, d.meta, d.load)
     registered.push(d.id)
+    if (d.meta.look && !looks.includes(d.meta.look)) looks.push(d.meta.look)
   }
-  registerPicker(sdk, layouts)
+  registerPicker(sdk, layouts, looks)
   if (sdk.SDK_FEATURES.includes('theme-presets')) {
     for (const preset of proThemePresets()) sdk.registerThemePreset(preset)
   }

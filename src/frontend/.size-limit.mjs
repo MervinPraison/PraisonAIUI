@@ -53,10 +53,16 @@ const LAYOUT_BUDGETS = {
   // Design fixes round 2 (the connection dot in the top bar, one-line chat
   // rows with compact times, Share on the chat only, the brand tile):
   // 9.74 kB + 10%.
-  'layout-chat-canvas': '10.8 kB',
+  // Design parity part 3 (#418: two-line chat rows with artifact counts,
+  // More ⌘K, the connection line, the Canvas toggle slot) measured 10.99 kB;
+  // the owner approved 11.5 kB for the remaining parity work (the Paper look
+  // and the conversation land at 11.45 kB).
+  'layout-chat-canvas': '11.5 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
-  'layout-workbench': '10.4 kB',
+  // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
+  // Chat + Canvas too, splits into a shared kit chunk in this closure.
+  'layout-workbench': '10.5 kB',
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
@@ -151,6 +157,17 @@ if (PRO_FONTS.length !== 2) {
   throw new Error(`.size-limit.mjs: expected the two Geist woff2 files in the build, found ${PRO_FONTS.length}`)
 }
 
+// The Paper look's type (app-layouts/chat-canvas/paper.css): Newsreader,
+// Source Sans 3 and JetBrains Mono from @fontsource-variable (OFL-1.1),
+// latin woff2 only, fetched only while Chat + Canvas paints with its own
+// look. Served bytes (woff2 is compressed): PAPER_MEASURED + 10%.
+const PAPER_FONTS = Object.keys(manifest)
+  .filter((key) => /@fontsource-variable\/(newsreader|source-sans-3|jetbrains-mono)\/files\/[\w-]+\.woff2$/.test(key))
+  .map((key) => manifest[key].file)
+if (PAPER_FONTS.length !== 3) {
+  throw new Error(`.size-limit.mjs: expected the three Paper woff2 files in the build, found ${PAPER_FONTS.length}`)
+}
+
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
@@ -177,7 +194,10 @@ export default [
   // with both, inside the 252 kB #373 set, so the larger need stands alone.
   // +0.5 kB (252.02 kB measured, #387): the Knowledge page's registration
   // (one more lazy pagePlugin loader in builtin/appPages, next to Agents).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.5 kB', gzip: true },
+  // +0.1 kB (252.55 kB measured, #419, owner-approved): the layout host sets
+  // a layout's look (<html data-aiui-look>, Chat + Canvas's Paper) and
+  // builtin.layouts registers "Switch look: Paper / Pro".
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.6 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -191,6 +211,9 @@ export default [
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
+  { name: 'Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono, latin woff2, as served)', path: abs(PAPER_FONTS), limit: '140 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
+  // 9.1 MB (9.07 MB measured, #419, owner-approved): the Paper look's three
+  // woff2 files (127 kB).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9.1 MB', brotli: false },
 ]

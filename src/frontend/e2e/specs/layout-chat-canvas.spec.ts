@@ -114,6 +114,9 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await page.goto('/chat')
     await expect(frame(page)).toHaveAttribute('data-viewport', 'desktop')
     await expect(page.locator('html')).toHaveAttribute('data-aiui-tokens', 'pro')
+    // The layout's own look (Canvas.dc.html): paper neutrals and a serif title.
+    await expect(page.locator('html')).toHaveAttribute('data-aiui-look', 'paper')
+    expect(await title(page).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Newsreader/)
 
     // Regions and landmarks.
     const sidebar = page.getByRole('navigation', { name: 'Main' })
@@ -147,9 +150,12 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(bodySize).toBeGreaterThanOrEqual(14)
 
     // A conversation: table, code block, an approval decided on the card.
-    // The connection is chrome (the top bar's line), not a pill in the thread.
+    // The connection is chrome, not a pill in the thread: "Connected" at the
+    // sidebar's foot; the top bar's line names it only while it is not open.
     await expect(page.locator('[data-connection="open"]')).toBeAttached()
-    await expect(page.locator('[data-cc-connection="open"]')).toBeVisible()
+    await expect(sidebar.locator('[data-aiui-connection="online"]')).toContainText('Connected')
+    await expect(page.locator('[data-cc-connection]')).toHaveCount(0)
+    await expect(sidebar.locator('[data-cc-more]')).toContainText('More')
     const pillWidth = await page.locator('[data-aiui-chat] [data-connection]').evaluate((el) => el.getBoundingClientRect().width)
     expect(pillWidth, 'the chat page badge is for screen readers only').toBeLessThanOrEqual(1)
     await send(page, 'markdown apok')
@@ -169,6 +175,18 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(approve).toBeVisible()
     // One request, shown once: the card carries the tool row (tool, risk, Details).
     await expect(reply.locator('[data-approval-card] [data-approval-tool]')).toContainText('High risk')
+    // The design's order: Approve, Deny, then the pause note.
+    await expect(reply.getByRole('button', { name: 'Deny' })).toBeVisible()
+    await expect(reply.locator('[data-approval-card]')).toContainText('Paused until you choose')
+    // The composer: the text above a row of attach, model and a round Send.
+    {
+      const [text, send] = [
+        await page.getByRole('textbox', { name: 'Message' }).boundingBox(),
+        await page.getByRole('button', { name: 'Send' }).boundingBox(),
+      ]
+      expect(text && send && send.y >= text.y + text.height - 2, 'Send sits under the text').toBe(true)
+      expect(await page.getByRole('button', { name: 'Send' }).evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).not.toBe('0px')
+    }
     await expect(reply.locator('[data-tool] > button[aria-expanded]')).toHaveCount(0)
     await reply.locator('[data-approval-tool]').click()
     await expect(reply.getByText('Arguments')).toBeVisible()
@@ -188,7 +206,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     // The canvas, when the artifacts feature is in the build.
     if (HAS_CANVAS) {
       await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
-      await expect(page.locator('[data-chat-aside-toggle]')).toContainText('Canvas')
+      // The toggle sits in the top bar (pressed while open), the chat's row counts its artifacts.
+      const toggle = page.locator('header [data-chat-aside-toggle]')
+      await expect(toggle).toContainText('Canvas')
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+      await expect(open.locator('[data-cc-chat-meta]')).toContainText(/\d artifacts? · /)
     } else {
       await expect(page.locator('[data-chat-aside]')).toHaveCount(0)
     }
@@ -338,7 +360,7 @@ test('a non-chat page renders in the outlet with its title and downloads no feat
   expect([...new Set(scripts.filter((s) => /^layout-/.test(s)))].sort()).toEqual(['layout-chat-canvas', 'layout-kit'])
 })
 
-test('the composer is one quiet row at rest: after a desktop-to-phone switch, a model button, no loud ring', async ({ page }) => {
+test('the composer is two quiet rows at rest: after a desktop-to-phone switch, a model button, no loud ring', async ({ page }) => {
   await page.setViewportSize(DESKTOP)
   await page.goto('/chat')
   const input = page.getByRole('textbox', { name: 'Message' })
@@ -347,8 +369,11 @@ test('the composer is one quiet row at rest: after a desktop-to-phone switch, a 
   // Focused or not, the composer's halo is a soft 3px ring, never a 2px solid band.
   const shadow = await page.locator('form:has(textarea[aria-label="Message"])').evaluate((el) => getComputedStyle(el).boxShadow)
   expect(shadow).not.toMatch(/0px 0px 0px 2px/)
+  // Two rows of text (Canvas.dc.html), not a column the auto-height measured as a sliver.
   await page.setViewportSize(PHONE)
-  await expect.poll(async () => (await input.boundingBox())?.height ?? 0).toBeLessThan(40)
+  await expect.poll(async () => (await input.boundingBox())?.height ?? 0).toBeLessThan(72)
+  expect((await input.boundingBox())?.height ?? 0).toBeGreaterThan(40)
+  await expect(page.locator('[data-composer-model]')).toBeVisible()
 })
 
 test('⌘B hides the sidebar and it stays hidden after a reload; New chat starts an empty chat', async ({ page }) => {
@@ -377,6 +402,29 @@ test('⌘B hides the sidebar and it stays hidden after a reload; New chat starts
   await sidebar.getByRole('button', { name: /New chat/ }).click()
   await expect(title(page)).toHaveText('New chat')
   await expect(assistant(page)).toHaveCount(0)
+})
+
+test('the Paper look: another layout drops it, "Switch look: Pro" turns it off and it stays off', async ({ page }) => {
+  await page.setViewportSize(DESKTOP)
+  await setColorMode(page, 'light')
+  await page.goto('/chat')
+  const html = page.locator('html')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
+  const paper = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())
+  expect(paper).toBe('#f6f3ec')
+  await runPaletteCommand(page, 'Switch layout: Quiet Workbench')
+  await expect(page.locator('[data-aiui-layout-frame="workbench"]')).toBeVisible()
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await runPaletteCommand(page, 'Switch layout: Chat and Canvas')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
+  await runPaletteCommand(page, 'Switch look: Pro')
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await expect(html).toHaveAttribute('data-aiui-tokens', 'pro')
+  await page.reload()
+  await expect(frame(page)).toBeVisible()
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await runPaletteCommand(page, 'Switch look: Paper')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
 })
 
 test('switching to another layout and back leaks no connection, timer or listener', async ({ page }) => {

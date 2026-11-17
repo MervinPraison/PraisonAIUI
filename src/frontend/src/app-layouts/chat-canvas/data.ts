@@ -32,25 +32,52 @@ export function useChat(): ChatState | null {
   return useFeed<ChatState | null>(chat, null)
 }
 
+export interface ArtifactIndex {
+  /** Artifacts across every chat (the Artifacts row's count); undefined until known. */
+  total?: number
+  /** Artifacts per chat (the chat rows' "3 artifacts"). */
+  bySession: ReadonlyMap<string, number>
+}
+
+const NO_INDEX: ArtifactIndex = { bySession: new Map() }
+
+/** The server index's rows (no content) as counts. */
+export function countIndex(body: { count?: unknown; artifacts?: unknown } | null | undefined): ArtifactIndex {
+  const bySession = new Map<string, number>()
+  for (const a of Array.isArray(body?.artifacts) ? body.artifacts : []) {
+    const sid = (a as { sessionId?: unknown })?.sessionId
+    if (typeof sid === 'string' && sid) bySession.set(sid, (bySession.get(sid) ?? 0) + 1)
+  }
+  return { total: typeof body?.count === 'number' && body.count >= 0 ? body.count : undefined, bySession }
+}
+
+/** The open chat's live count (its artifacts before the server has them) over the index. */
+export function withLiveCount(index: ArtifactIndex, live: { sessionId: string; count: number } | null): ArtifactIndex {
+  if (!live) return index
+  const before = index.bySession.get(live.sessionId) ?? 0
+  if (before === live.count) return index
+  const bySession = new Map(index.bySession).set(live.sessionId, live.count)
+  return { total: index.total === undefined ? undefined : Math.max(0, index.total - before + live.count), bySession }
+}
+
 /**
- * Artifacts across every chat (`GET /api/artifacts`, builtin.artifacts), for
- * the nav count. `enabled` is false when the nav has no artifacts page (the
- * record is off); `refreshKey` changes when a run ends. Undefined until known
- * or when the server has no index.
+ * The artifacts index (`GET /api/artifacts`, builtin.artifacts): the nav's
+ * total and each chat's count. `enabled` is false when the nav has no
+ * artifacts page (the record is off); `refreshKey` changes when a run ends.
  */
-export function useArtifactTotal(enabled: boolean, refreshKey: string): number | undefined {
-  const [total, setTotal] = useState<number | undefined>(undefined)
+export function useArtifactIndex(enabled: boolean, refreshKey: string): ArtifactIndex {
+  const [index, setIndex] = useState<ArtifactIndex>(NO_INDEX)
   useEffect(() => {
     if (!enabled) return
     const ctl = new AbortController()
-    fetchJson<{ count?: unknown }>('/api/artifacts?limit=1', { signal: ctl.signal })
-      .then((r) => setTotal(typeof r?.count === 'number' && r.count >= 0 ? r.count : undefined))
+    fetchJson<{ count?: unknown; artifacts?: unknown }>('/api/artifacts?limit=1000', { signal: ctl.signal })
+      .then((r) => setIndex(countIndex(r)))
       .catch(() => {
-        // aborted, or no index on this server: no count
+        // aborted, or no index on this server: no counts
       })
     return () => ctl.abort()
   }, [enabled, refreshKey])
-  return enabled ? total : undefined
+  return enabled ? index : NO_INDEX
 }
 
 // ── the artifacts feed ───────────────────────────────────────────────

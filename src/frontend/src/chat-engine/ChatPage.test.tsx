@@ -172,14 +172,15 @@ test('approvals card: the explained card with "Why am I asked?", the command and
   withLayout({ approvals: 'card' })
   const out = await render()
   assert.match(out, /data-approval-card/)
-  assert.match(out, /Allow Researcher to use terminal\?/)
+  assert.match(out, /Researcher wants to run a command/)
+  assert.match(out, /data-approval-command[^>]*>.*\$ <\/span>pip install numpy/)
   assert.match(out, /Researcher wants to install numpy to run the benchmark\./)
   assert.match(out, /pip install numpy/)
   assert.match(out, /Why am I asked\?/)
   assert.match(out, /aria-expanded="false"[^>]*>Why am I asked\?/)
-  assert.match(out, />Not now</)
+  assert.match(out, />Deny</)
   assert.match(out, />Approve</)
-  assert.match(out, /medium/)
+  assert.match(out, /Medium risk/)
 })
 
 test('approvals keyboard: the paused strip with A and D', async () => {

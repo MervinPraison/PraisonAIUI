@@ -1,26 +1,31 @@
 /**
  * The Chat and Canvas sidebar (Canvas.dc.html): brand and collapse, New chat
- * (⌘N), the primary pages (the artifacts count on Artifacts), the chats, and
- * at the foot the footer pages, More (⌘K, the command palette with every
- * other page) and the theme switch. The same body fills the phone menu sheet
+ * (⌘N), the primary pages (the artifacts count on Artifacts), the chats
+ * with their artifact counts, and at the foot the footer pages, More (⌘K,
+ * the command palette with every other page), the theme switch (phone) and
+ * the connection line ("Connected · local"). The same body fills the phone menu sheet
  * with 44 px rows.
  */
 import { CircleEllipsis, PanelLeftClose, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BrandTile, isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
+import { BrandTile, ConnectionStatus, isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
 import type { LayoutChrome, LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatList } from './ChatList'
+import type { ArtifactIndex } from './data'
 import { NavIcon } from './icons'
 
 /** Page id of the artifacts index (builtin.artifacts), whose row carries the count. */
 export const ARTIFACTS_PAGE = 'artifacts'
 
+/** This page is served from this machine ("Connected · local"). */
+const isLocalHost = () => typeof location !== 'undefined' && /^(localhost|127(\.\d+){3}|\[::1\])$/.test(location.hostname)
+
 export function Brand({ chrome, size = 'default' }: { chrome: Pick<LayoutChrome, 'siteTitle' | 'siteLogo'>; size?: KitSize }) {
   return (
     <span className="flex min-w-0 items-center gap-2.5 text-foreground">
       <BrandTile chrome={chrome} className="size-[26px] rounded-[7px] text-sm" />
-      <span className={cn('truncate font-semibold tracking-tight', size === 'touch' ? 'text-lg' : 'text-[17px]')}>{chrome.siteTitle}</span>
+      <span className={cn('truncate font-display font-semibold tracking-tight', size === 'touch' ? 'text-xl' : 'text-lg')}>{chrome.siteTitle}</span>
     </span>
   )
 }
@@ -85,22 +90,22 @@ export interface SidebarBodyProps {
   size: KitSize
   /** The page New chat and a chat row open (the layout's home). */
   chatPage?: string
-  /** Every artifact across chats (the Artifacts row's count), when known. */
-  artifactTotal?: number
+  /** Artifacts across chats (the Artifacts row) and per chat (the chat rows), when known. */
+  artifacts?: ArtifactIndex
   /** Desktop only: hide the sidebar (⌘B). */
   onCollapse?(): void
   /** After any navigation (the phone sheet closes). */
   onNavigate?(): void
 }
 
-export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onCollapse, onNavigate }: SidebarBodyProps) {
+export function SidebarBody({ nav, chrome, size, chatPage, artifacts, onCollapse, onNavigate }: SidebarBodyProps) {
   const sessions = useSessions()
   const touch = size === 'touch'
   const openChat = () => {
     if (chatPage && nav.activeId !== chatPage) nav.go(chatPage)
     onNavigate?.()
   }
-  const badge = (item: LayoutNavItem) => (item.id === ARTIFACTS_PAGE ? artifactTotal : undefined)
+  const badge = (item: LayoutNavItem) => (item.id === ARTIFACTS_PAGE ? artifacts?.total : undefined)
   return (
     <>
       {onCollapse && (
@@ -136,7 +141,7 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onColl
         </Button>
       )}
       <NavRows items={nav.primary} go={nav.go} size={size} onNavigate={onNavigate} badge={badge} label="Primary" />
-      <ChatList size={size} onOpen={openChat} className="min-h-0 flex-1" />
+      <ChatList size={size} onOpen={openChat} counts={artifacts?.bySession} className="min-h-0 flex-1" />
       <div className="mt-auto flex flex-col gap-px pt-1">
         <NavRows items={nav.footer} go={nav.go} size={size} onNavigate={onNavigate} />
         <button
@@ -152,9 +157,10 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onColl
           }}
           data-cc-more=""
         >
-          {/* The header's search owns ⌘K; this row is the way to the pages not listed above. */}
+          {/* The command palette (⌘K, also the header's search): every page not listed above. */}
           <CircleEllipsis aria-hidden="true" className="size-4 shrink-0" />
-          <span className="flex-1">More pages</span>
+          <span className="flex-1">More</span>
+          {!touch && <ShortcutHint combo="mod+k" />}
         </button>
         {touch && (
           <button
@@ -166,6 +172,7 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifactTotal, onColl
             Switch light or dark theme
           </button>
         )}
+        <ConnectionStatus className="px-2.5 pt-2 pb-0.5" detail={isLocalHost() ? 'local' : undefined} />
         <chrome.Slot name="sidebar:footer" />
       </div>
     </>

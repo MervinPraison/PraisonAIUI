@@ -26,7 +26,7 @@ import { PhoneSheet, useSessions } from '@/app-layouts/kit'
 import type { LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatLine } from './ChatLine'
-import { useArtifactTotal, useProvideArtifacts } from './data'
+import { useArtifactIndex, useProvideArtifacts, withLiveCount } from './data'
 import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
 import { ARTIFACTS_PAGE, Brand, SidebarBody } from './Sidebar'
 import { PhoneTopBar, TopBar, type TitleLine } from './TopBar'
@@ -48,14 +48,14 @@ const SIDEBAR_KEY = 'aiui-chat-canvas-sidebar-hidden'
  * page, else the page's title. The line is a component of its own so the
  * chat and artifacts feeds (and the artifacts chunk) load only on the chat page.
  */
-function useTitleLine(onChat: boolean, pageTitle: string): TitleLine {
+function useTitleLine(onChat: boolean, pageTitle: string, onCount: (sessionId: string, count: number) => void, compact: boolean): TitleLine {
   const sessions = useSessions()
   if (!onChat) return { title: pageTitle }
   const activeId = sessions?.state.activeId ?? null
   const current = activeId ? sessions?.state.sessions.find((s) => s.id === activeId) : undefined
   return {
     title: current?.title ?? (activeId ? 'Chat' : 'New chat'),
-    subtitle: <ChatLine sessionId={activeId} running={!!activeId && !!sessions?.state.runningIds.has(activeId)} />,
+    subtitle: <ChatLine sessionId={activeId} running={!!activeId && !!sessions?.state.runningIds.has(activeId)} onCount={onCount} compact={compact} />,
   }
 }
 
@@ -73,8 +73,10 @@ export default function ChatCanvasFrame(props: LayoutProps) {
   const hasArtifactsPage = nav.primary.some((i) => i.id === ARTIFACTS_PAGE) || nav.groups.some((g) => g.items.some((i) => i.id === ARTIFACTS_PAGE))
   // A finished run may have made artifacts: the running set changing refreshes the count.
   const runningKey = sessions ? [...sessions.state.runningIds].sort().join(',') : ''
-  const artifactTotal = useArtifactTotal(hasArtifactsPage, runningKey)
-  const line = useTitleLine(onChat, page?.title ?? chrome.siteTitle)
+  const [live, setLive] = useState<{ sessionId: string; count: number } | null>(null)
+  const onCount = useCallback((sessionId: string, count: number) => setLive({ sessionId, count }), [])
+  const index = withLiveCount(useArtifactIndex(hasArtifactsPage, runningKey), hasArtifactsPage ? live : null)
+  const line = useTitleLine(onChat, page?.title ?? chrome.siteTitle, onCount, phone)
 
   const newChat = useCallback(() => {
     if (!sessions) return
@@ -121,7 +123,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
             chrome={chrome}
             size="default"
             chatPage={chatPage}
-            artifactTotal={artifactTotal}
+            artifacts={index}
             onCollapse={toggleSidebar}
           />
         </nav>
@@ -130,7 +132,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
         {phone ? (
           <PhoneTopBar line={line} canCreate={canCreate} onMenu={() => setMenuOpen(true)} onNewChat={newChat} />
         ) : (
-          <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} share={onChat && !!sessions?.state.activeId} />
+          <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} share={onChat && !!sessions?.state.activeId} onChatPage={onChat} />
         )}
         <main
           id={chrome.mainId}
@@ -147,7 +149,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
             chrome={chrome}
             size="touch"
             chatPage={chatPage}
-            artifactTotal={artifactTotal}
+            artifacts={index}
             onNavigate={() => setMenuOpen(false)}
           />
         </PhoneSheet>
