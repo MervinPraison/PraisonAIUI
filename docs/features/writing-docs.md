@@ -447,3 +447,7 @@ The footer of this page shows all three.
 | `/docs/<page>.md` | one page's Markdown |
 | `/search-index.json` | headings and text per page, for the site's own search |
 | `/sitemap.xml`, `/robots.txt` | for search engines |
+
+Each page's HTML also carries that page's Markdown (a JSON script,
+`id="aiui-initial-doc"`), so the first visit renders without a second request
+for it. Pages over 200 KB of Markdown are fetched as before.

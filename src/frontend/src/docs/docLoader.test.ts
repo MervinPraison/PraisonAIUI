@@ -3,6 +3,8 @@ import { afterEach, describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     DocLoadError,
+    INITIAL_DOC_ID,
+    adoptInlinedDoc,
     docHrefMarkdownUrl,
     fetchWithRetry,
     loadDoc,
@@ -172,5 +174,31 @@ describe('prefetchInitialDoc', () => {
         assert.equal(prefetchInitialDoc('/chat'), null)
         assert.equal(prefetchInitialDoc('/documents/x'), null)
         assert.equal(calls.length, 0)
+    })
+})
+
+
+describe('markdown inlined by aiui build', () => {
+    afterEach(() => resetDocCache())
+    function page(json: string | null) {
+        let removed = false
+        const el = json === null ? null : { textContent: json, remove: () => { removed = true } }
+        return { root: { getElementById: (id: string) => (id === INITIAL_DOC_ID ? el : null) }, removed: () => removed }
+    }
+
+    test('seeds the cache, so the page renders without a request', () => {
+        const p = page(JSON.stringify({ url: '/docs/guide/first.md', text: '# First\n' }))
+        assert.equal(adoptInlinedDoc(p.root), '/docs/guide/first.md')
+        assert.deepEqual(peekDoc('/docs/guide/first.md'), { ok: true, status: 200, text: '# First\n' })
+        assert.equal(p.removed(), true)
+    })
+
+    test('a missing or malformed block changes nothing', () => {
+        assert.equal(adoptInlinedDoc(page(null).root), null)
+        assert.equal(adoptInlinedDoc(page('{not json').root), null)
+        assert.equal(adoptInlinedDoc(page(JSON.stringify({ url: '/docs/x.md' })).root), null)
+        assert.equal(adoptInlinedDoc(page(JSON.stringify({ url: '/ui-config.json', text: '{}' })).root), null)
+        assert.equal(adoptInlinedDoc(undefined), null)
+        assert.equal(peekDoc('/docs/x.md'), undefined)
     })
 })
