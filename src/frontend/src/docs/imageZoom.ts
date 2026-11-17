@@ -62,16 +62,20 @@ function target(e: Event): HTMLImageElement | null {
 export function useImageZoom(active: boolean): void {
     useEffect(() => {
         if (!active) return
-        // Images arrive when the lazy renderer draws the article, which can be
-        // after aiui:content-loaded: mark them whenever the article changes.
+        // Images arrive when the lazy renderer draws the article, after
+        // aiui:content-loaded, and a re-render replaces them: watch the page,
+        // at most one (idempotent) pass per frame, as headingAnchors does.
         let frame = 0
-        const onLoaded = () => {
-            window.cancelAnimationFrame(frame)
-            frame = window.requestAnimationFrame(() => markZoomableImages())
+        const scan = () => {
+            if (frame) return
+            frame = window.requestAnimationFrame(() => {
+                frame = 0
+                markZoomableImages()
+            })
         }
-        const observer = new MutationObserver(onLoaded)
+        const observer = new MutationObserver(scan)
         observer.observe(document.body, { childList: true, subtree: true })
-        onLoaded()
+        scan()
         const onClick = (e: MouseEvent) => {
             const img = target(e)
             if (!img || e.button !== 0) return
@@ -84,13 +88,11 @@ export function useImageZoom(active: boolean): void {
             e.preventDefault()
             openZoom(img)
         }
-        window.addEventListener('aiui:content-loaded', onLoaded)
         document.addEventListener('click', onClick)
         document.addEventListener('keydown', onKey)
         return () => {
             observer.disconnect()
             window.cancelAnimationFrame(frame)
-            window.removeEventListener('aiui:content-loaded', onLoaded)
             document.removeEventListener('click', onClick)
             document.removeEventListener('keydown', onKey)
         }

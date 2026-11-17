@@ -5,8 +5,8 @@
 // shares is unchanged.
 import type { CSSProperties, ReactNode } from 'react'
 import { isExternal } from './chrome'
+import { cardHref } from './cardHref'
 import { DOCS_HOME_ICONS, DocsHomeIcon } from './docsHomeIcons'
-import { resolveDocTarget } from './docSource'
 
 interface DocsDivProps {
     itemType?: string
@@ -16,13 +16,6 @@ interface DocsDivProps {
     children?: ReactNode
     node?: unknown
     [key: string]: unknown
-}
-
-/** A card's link: external as written, a docs path resolved against the page on screen. */
-function cardHref(target: string): string {
-    if (isExternal(target) || target.startsWith('#')) return target
-    const here = typeof window === 'undefined' ? '/docs/index' : window.location.pathname
-    return resolveDocTarget(target, here === '/' ? '/docs/index' : here)
 }
 
 function Card({ title, icon, href, children }: { title?: string; icon?: string; href?: string; children?: ReactNode }) {
