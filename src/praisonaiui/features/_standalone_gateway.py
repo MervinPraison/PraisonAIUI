@@ -9,7 +9,9 @@ the same API surface as ``WebSocketGateway``:
     gw.list_agents() -> list[str]
     gw.get_agent(agent_id) -> agent | None
     gw.health() -> dict
-    gw._create_bot(platform, config, agent) -> bot | None
+    gw._create_bot(platform, token, agent, bot_config, ch_cfg) -> bot | None
+        (the WebSocketGateway signature ``channels.py`` calls; the older
+        ``_create_bot(platform, config, agent)`` form still works)
 
 This allows cron, channels, agents, and other features to work without
 the full WebSocketGateway from the praisonai wrapper.
@@ -84,13 +86,31 @@ class StandaloneGateway:
 
     # -- Bot creation (channel feature) -----------------------------------
 
-    def _create_bot(
-        self,
-        platform: str,
-        config: dict,
-        agent: Any,
-    ) -> Optional[Any]:
-        """Try to create a platform bot using pluggable registry or fallback imports."""
+    def _create_bot(self, platform: str, *args: Any) -> Optional[Any]:
+        """Try to create a platform bot using pluggable registry or fallback imports.
+
+        Accepts the ``WebSocketGateway`` signature that ``channels.py`` uses,
+        ``(platform, token, agent, bot_config, ch_cfg)``, and the older
+        ``(platform, config, agent)`` form. Both become one keyword set for the
+        bot constructor: ``token=``, ``agent=``, ``config=`` (when a bot config
+        is given) plus the channel's extra keys (``app_token``, ...).
+        """
+        if len(args) == 4:
+            token, agent, bot_config, ch_cfg = args
+            config: Dict[str, Any] = {
+                k: v for k, v in dict(ch_cfg or {}).items() if k != "token"
+            }
+            config["token"] = token
+            if bot_config is not None:
+                config["config"] = bot_config
+        elif len(args) == 2:
+            config, agent = args
+            config = dict(config or {})
+        else:
+            raise TypeError(
+                "_create_bot() takes (platform, token, agent, bot_config, ch_cfg) "
+                f"or (platform, config, agent); got {1 + len(args)} arguments"
+            )
         bot = None
 
         # Strategy 0: Check pluggable registry first
