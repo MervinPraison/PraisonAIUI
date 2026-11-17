@@ -76,7 +76,7 @@ export default function TableViewer({ content, label }: { content: string; label
               <tr key={i} className="border-b border-hairline last:border-b-0">
                 {r.map((cell, c) =>
                   c === 0 ? (
-                    <th key={c} scope="row" className="px-3.5 py-2.5 text-left font-medium">
+                    <th key={c} scope="row" className="px-3.5 py-2.5 text-left font-display text-base font-medium">
                       <Cell md={cell} />
                     </th>
                   ) : (

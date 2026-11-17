@@ -2,6 +2,12 @@ Fonts bundled in assets/ (geist-latin-wght-normal-*.woff2, geist-mono-latin-wght
 from @fontsource-variable/geist 5.3.0 and @fontsource-variable/geist-mono 5.3.0.
 Source: https://github.com/vercel/geist-font
 
+The Paper look (Chat + Canvas) adds newsreader-latin-wght-normal-*.woff2,
+source-sans-3-latin-wght-normal-*.woff2 and jetbrains-mono-latin-wght-normal-*.woff2
+from @fontsource-variable/newsreader 5.3.0, @fontsource-variable/source-sans-3 5.3.1
+and @fontsource-variable/jetbrains-mono 5.3.0; their notices are at the end of this
+file, under the same SIL Open Font License 1.1 (full text below, under Geist).
+
 ===== Geist =====
 
 Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font) Geist-Italic[wght].ttf: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
@@ -194,3 +200,21 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+===== Newsreader =====
+
+Copyright 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader)
+Source: https://github.com/productiontype/Newsreader
+This Font Software is licensed under the SIL Open Font License, Version 1.1 (text above).
+
+===== Source Sans 3 =====
+
+Copyright 2010-2020 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+Source: https://github.com/adobe-fonts/source-sans
+This Font Software is licensed under the SIL Open Font License, Version 1.1 (text above).
+
+===== JetBrains Mono =====
+
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+Source: https://github.com/JetBrains/JetBrainsMono
+This Font Software is licensed under the SIL Open Font License, Version 1.1 (text above).

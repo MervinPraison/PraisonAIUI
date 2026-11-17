@@ -39,6 +39,23 @@ A header with the menu (the sidebar's contents in a sheet, with 44 px rows),
 the chat title and its line, and New chat. On the chat page a
 **Chat | Canvas (n)** switch flips between the conversation and the canvas.
 
+## The look
+
+The layout paints with its own look, **Paper** (the design board's palette
+and type): warm paper neutrals with a navy accent in light and dark, titles,
+the wordmark, artifact titles and table row headers in Newsreader, text in
+Source Sans 3 and code in JetBrains Mono. The fonts ship with aiui (no font
+CDN) and download only while the look is on. Every other layout, and the
+classic frame, keep their own look.
+
+- Prefer the plain Pro look? Open the command palette (⌘K) and run
+  **Switch look: Pro**; **Switch look: Paper** brings it back. The choice is
+  saved in this browser.
+- A brand colour (`theme.accent`, `aiui.set_brand_color(...)`) and the Pro
+  accent presets replace the navy accent; the paper neutrals stay.
+- Theme authors: the look is `<html data-aiui-look="paper">` with the tokens
+  in `src/frontend/src/styles/paper.css`; see DESIGN.md "Looks".
+
 ## Artifacts and the canvas
 
 The canvas, the artifact cards under each answer and the artifacts index page

@@ -53,6 +53,9 @@
     --aiui-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
       sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     --aiui-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    /* Titles and wordmarks (`font-display`): the text face unless a look
+       names its own (Chat + Canvas's Paper look: a serif). */
+    --aiui-font-display: var(--aiui-font-sans);
   }
   .dark {
     --seed-accent: var(--seed-accent-dark, var(--seed-accent-light, var(--seed-ink)));
@@ -411,6 +414,7 @@
      Tailwind's default so the legacy dashboard (which loads this CSS) is unchanged. */
   --font-sans: var(--aiui-font-sans);
   --font-mono: var(--aiui-font-mono);
+  --font-display: var(--aiui-font-display);
   --default-font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
     "Noto Color Emoji";
   --default-mono-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
