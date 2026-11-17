@@ -799,10 +799,12 @@ class Compiler:
                 f"{seo_tags}\n{json_ld}{head_extra}\n</head>",
             )
 
-            # Inject noscript crawl content inside <div id="root">
+            # Inject noscript crawl content inside <div id="root">, and the page's
+            # markdown after it (docs/docLoader.ts adoptInlinedDoc)
             html = html.replace(
                 '<div id="root"></div>',
-                f'<div id="root"><noscript>{noscript_block}</noscript></div>',
+                f'<div id="root"><noscript>{noscript_block}</noscript></div>'
+                + self._inline_doc_script(output_dir, path),
             )
 
             page_file.write_text(html, encoding="utf-8")
@@ -1074,7 +1076,8 @@ class Compiler:
         if '<div id="root"></div>' in html:
             html = html.replace(
                 '<div id="root"></div>',
-                f'<div id="root"><noscript>{crawl_nav}</noscript></div>',
+                f'<div id="root"><noscript>{crawl_nav}</noscript></div>'
+                + self._inline_doc_script(output_dir, docs_home),
             )
         index_path.write_text(html, encoding="utf-8")
 
@@ -1189,6 +1192,29 @@ class Compiler:
                 "url": f"{site_url}/",
             }
         return f'  <script type="application/ld+json">{json.dumps(payload, ensure_ascii=False)}</script>'
+
+    # The JSON script docs/docLoader.ts adoptInlinedDoc() reads.
+    INITIAL_DOC_ID = "aiui-initial-doc"
+    # Largest page inlined; a bigger one is fetched as before.
+    INITIAL_DOC_MAX_BYTES = 200_000
+
+    def _inline_doc_script(self, output_dir: Path, path: str) -> str:
+        """The page's published markdown as a JSON script, so it renders without a request.
+
+        The URL is the file ``aiui build`` publishes next to the page; the
+        loader uses the text only when the app asks for that same URL. ``<``,
+        ``>`` and ``&`` are escaped so the text can never close the tag.
+        """
+        relative = path.strip("/")
+        for candidate in (output_dir / relative / "index.md", output_dir / f"{relative}.md"):
+            if candidate.is_file() and candidate.stat().st_size <= self.INITIAL_DOC_MAX_BYTES:
+                url = "/" + candidate.relative_to(output_dir).as_posix()
+                text = candidate.read_text(encoding="utf-8")
+                payload = json.dumps({"url": url, "text": text}, ensure_ascii=False)
+                payload = payload.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+                payload = payload.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+                return f'<script type="application/json" id="{self.INITIAL_DOC_ID}">{payload}</script>'
+        return ""
 
     def _get_noscript_content(self, output_dir: Path, path: str) -> str:
         """Load markdown file and convert to simple HTML for noscript block."""

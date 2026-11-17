@@ -214,6 +214,33 @@ export function prefetchDoc(url: string): void {
     startFlight(url, true)
 }
 
+/** The JSON script `aiui build` writes into each docs page: `{"url": "/docs/x.md", "text": "..."}`. */
+export const INITIAL_DOC_ID = 'aiui-initial-doc'
+
+interface InlinedDocSource {
+    getElementById(id: string): { textContent: string | null; remove(): void } | null
+}
+
+/**
+ * Seed the cache with the page's own markdown, inlined in its HTML by `aiui
+ * build`, so the first render needs no request. Read once (the element is
+ * removed); a missing or malformed block changes nothing and the page loads
+ * its markdown as before. Returns the URL it seeded, or null.
+ */
+export function adoptInlinedDoc(root: InlinedDocSource | undefined = typeof document === 'undefined' ? undefined : document): string | null {
+    const el = root?.getElementById(INITIAL_DOC_ID)
+    if (!el) return null
+    el.remove()
+    try {
+        const data = JSON.parse(el.textContent ?? '') as { url?: unknown; text?: unknown }
+        if (typeof data.url !== 'string' || typeof data.text !== 'string' || !data.url.endsWith('.md')) return null
+        remember(data.url, { ok: true, status: 200, text: data.text })
+        return data.url
+    } catch {
+        return null
+    }
+}
+
 /**
  * On a deep link under the docs base, start loading that page's markdown
  * while the app is still fetching its manifests, instead of one round trip
@@ -221,6 +248,7 @@ export function prefetchDoc(url: string): void {
  * site root is skipped: in the chat and agents styles `/` is not a docs page.
  */
 export function prefetchInitialDoc(pathname = window.location.pathname, base = '/docs'): string | null {
+    adoptInlinedDoc() // the page's markdown inlined by `aiui build`: no request at all
     const path = normalizeDocPath(pathname)
     if (path !== base && !path.startsWith(`${base}/`)) return null
     const url = docPathToMarkdown(canonicalDocPath(path, base))
