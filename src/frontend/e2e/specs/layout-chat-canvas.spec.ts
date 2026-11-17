@@ -175,6 +175,18 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(approve).toBeVisible()
     // One request, shown once: the card carries the tool row (tool, risk, Details).
     await expect(reply.locator('[data-approval-card] [data-approval-tool]')).toContainText('High risk')
+    // The design's order: Approve, Deny, then the pause note.
+    await expect(reply.getByRole('button', { name: 'Deny' })).toBeVisible()
+    await expect(reply.locator('[data-approval-card]')).toContainText('Paused until you choose')
+    // The composer: the text above a row of attach, model and a round Send.
+    {
+      const [text, send] = [
+        await page.getByRole('textbox', { name: 'Message' }).boundingBox(),
+        await page.getByRole('button', { name: 'Send' }).boundingBox(),
+      ]
+      expect(text && send && send.y >= text.y + text.height - 2, 'Send sits under the text').toBe(true)
+      expect(await page.getByRole('button', { name: 'Send' }).evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).not.toBe('0px')
+    }
     await expect(reply.locator('[data-tool] > button[aria-expanded]')).toHaveCount(0)
     await reply.locator('[data-approval-tool]').click()
     await expect(reply.getByText('Arguments')).toBeVisible()

@@ -48,14 +48,14 @@ const SIDEBAR_KEY = 'aiui-chat-canvas-sidebar-hidden'
  * page, else the page's title. The line is a component of its own so the
  * chat and artifacts feeds (and the artifacts chunk) load only on the chat page.
  */
-function useTitleLine(onChat: boolean, pageTitle: string, onCount: (sessionId: string, count: number) => void): TitleLine {
+function useTitleLine(onChat: boolean, pageTitle: string, onCount: (sessionId: string, count: number) => void, compact: boolean): TitleLine {
   const sessions = useSessions()
   if (!onChat) return { title: pageTitle }
   const activeId = sessions?.state.activeId ?? null
   const current = activeId ? sessions?.state.sessions.find((s) => s.id === activeId) : undefined
   return {
     title: current?.title ?? (activeId ? 'Chat' : 'New chat'),
-    subtitle: <ChatLine sessionId={activeId} running={!!activeId && !!sessions?.state.runningIds.has(activeId)} onCount={onCount} />,
+    subtitle: <ChatLine sessionId={activeId} running={!!activeId && !!sessions?.state.runningIds.has(activeId)} onCount={onCount} compact={compact} />,
   }
 }
 
@@ -76,7 +76,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
   const [live, setLive] = useState<{ sessionId: string; count: number } | null>(null)
   const onCount = useCallback((sessionId: string, count: number) => setLive({ sessionId, count }), [])
   const index = withLiveCount(useArtifactIndex(hasArtifactsPage, runningKey), hasArtifactsPage ? live : null)
-  const line = useTitleLine(onChat, page?.title ?? chrome.siteTitle, onCount)
+  const line = useTitleLine(onChat, page?.title ?? chrome.siteTitle, onCount, phone)
 
   const newChat = useCallback(() => {
     if (!sessions) return

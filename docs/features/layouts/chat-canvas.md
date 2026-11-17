@@ -25,7 +25,7 @@ layout: chat-canvas        # the default for style: app; this line is optional
 |---|---|
 | Sidebar (240 px) | The site name and a collapse button (⌘B / Ctrl+B); **New chat** (⌘N / Ctrl+N); the primary pages (chat, artifacts, agents, cron, knowledge, sessions, config; the Artifacts row shows how many artifacts exist across chats); **Chats**, your conversations as two-line rows (the title over "3 artifacts · now"), with a search button, the open one raised, a running one marked "Working…"; at the foot the footer pages, **More** (⌘K), which opens the command palette with every other page and command, and the connection line ("Connected · local" when the server is this machine). |
 | Top bar | On the chat page: the open chat's title over "Researcher · 3 artifacts · edited 2 min ago" (the agent of the latest answer, the chat's artifacts, their latest change; "reconnecting" joins it while the chat's connection is down). On other pages: the page title. Then **Search or run a command** (⌘K), on the chat page the **Canvas** toggle (pressed while the canvas is open, with the artifact count), **Share** (copies the link; a chat's link opens that chat) and the light/dark switch. |
-| The page | Any page renders here. The chat page uses speech-bubble messages, explained approval cards (what the agent wants to run, "Why am I asked?", Approve and Not now) and, when the artifacts feature is installed, the **Canvas** panel on the right. A new chat starts with the canvas collapsed; it opens once the chat has an artifact, and the toggle opens or closes it at any time. The "Chat + Canvas" page (`/chat-canvas`) is the same React chat in the app shell. |
+| The page | Any page renders here. The chat page uses speech-bubble messages under a header with the agent's letter tile, name and time; each tool call is one compact row (the call in mono, its state, how long it took); explained approval cards (the tool and its risk with Details, "Researcher wants to run a command" and why, the exact `$ command`, then **Approve**, **Deny**, "Why am I asked?" and "Paused until you choose"); the composer has the message on two rows above attach, the model and a round Send; and, when the artifacts feature is installed, the **Canvas** panel on the right. A new chat starts with the canvas collapsed; it opens once the chat has an artifact, and the toggle opens or closes it at any time. The "Chat + Canvas" page (`/chat-canvas`) is the same React chat in the app shell. |
 
 Open, the canvas is the main surface: it takes about 58% of the chat page
 and the chat a narrower column (never under about 400 px); with the canvas
@@ -36,7 +36,9 @@ keys, Home and End) to resize it; the share is kept in this browser. Hiding the 
 **Phone**
 
 A header with the menu (the sidebar's contents in a sheet, with 44 px rows),
-the chat title and its line, and New chat. On the chat page a
+the chat title centred over the agent's name, and New chat. Approval cards
+split the width into **Deny | Approve** (44 px), and the composer keeps the
+model on its bottom row. On the chat page a
 **Chat | Canvas (n)** switch flips between the conversation and the canvas.
 
 ## The look

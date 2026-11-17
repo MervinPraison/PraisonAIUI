@@ -1,8 +1,11 @@
 /**
- * The explained approval card (`meta.chat.approvals: 'card'`): what the agent
- * wants to do in plain words, what it will act on, a "Why am I asked?"
- * disclosure built from the server's description and risk level, then Not now
- * / Approve. A lazy chunk: the chat loads it only for a layout that asks.
+ * The explained approval card (`meta.chat.approvals: 'card'`), in the order
+ * of the design (Canvas.dc.html): the tool row (tool, risk, Details), then
+ * a shield tile with what the agent wants to do in plain words and why, the
+ * exact command as a `$` line, then Approve / Deny with "Why am I asked?"
+ * (a disclosure built from the server's description and risk level) and
+ * "Paused until you choose". On a phone Deny and Approve split the width as
+ * 44 px targets. A lazy chunk: the chat loads it only for a layout that asks.
  */
 import { useId, useState, type JSX } from 'react'
 import { useAuiState } from '@assistant-ui/react'
@@ -25,6 +28,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
   const agent = p.agent || msgAgent
   const tool = p.label || p.toolName
   const command = commandOf(p.args)
+  const shell = !!command && commandLabel(p.args) === 'Command'
   const high = isHighRisk(p.risk)
   // The tool's description says what it does; the gate's prompt says what is asked. Show both once.
   const lead = p.description && p.description !== p.prompt ? p.description : p.prompt
@@ -34,7 +38,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
       role="group"
       aria-labelledby={`${id}-h`}
       aria-describedby={`${id}-d`}
-      className="flex flex-col gap-3 rounded-xl border border-[var(--ui-warning-line)] bg-card p-4 text-sm text-foreground"
+      className="flex flex-col gap-2.5 rounded-xl border border-input bg-card p-3.5 text-sm text-foreground"
       data-approval-gate
       data-approval-card
       data-risk={p.risk || undefined}
@@ -60,45 +64,49 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
           <ChevronRight className={cn('size-3.5 shrink-0 motion-safe:transition-transform motion-safe:duration-[120ms]', p.expand.open && 'rotate-90')} aria-hidden />
         </button>
       )}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <span
-          className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', high ? 'bg-danger-soft text-destructive' : 'bg-warning-soft text-warning')}
+          className={cn('flex size-[30px] shrink-0 items-center justify-center rounded-lg', high ? 'bg-danger-soft text-destructive' : 'bg-warning-soft text-warning')}
           aria-hidden
         >
           <ShieldAlert className="size-4" />
         </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h3 id={`${id}-h`} className="text-base font-semibold break-words">{gateTitle(agent, p.toolName)}</h3>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h3 id={`${id}-h`} className="text-[15px] font-semibold break-words">{gateTitle(agent, p.toolName, shell)}</h3>
           <p id={`${id}-d`} className="break-words text-muted-foreground">{lead}</p>
         </div>
       </div>
-      {(command || (p.risk && !p.expand)) && (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 sm:ml-11">
-          {command && (
-            <>
-              <dt className="text-muted-foreground">{commandLabel(p.args)}</dt>
-              <dd className="min-w-0">
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">{command}</code>
-              </dd>
-            </>
-          )}
-          {p.risk && !p.expand && (
-            <>
-              <dt className="text-muted-foreground">Risk</dt>
-              <dd className={cn('capitalize', high && 'text-destructive')}>{p.risk}</dd>
-            </>
-          )}
-        </dl>
+      {/* The exact command (or the argument the gate is about), as a line of shell. */}
+      {command && (
+        <div className="rounded-lg bg-code px-2.5 py-2 font-mono text-[13.5px] break-all" data-approval-command>
+          <span className="sr-only">{commandLabel(p.args)}: </span>
+          {shell && <span className="text-tier-3" aria-hidden>$ </span>}
+          {command}
+        </div>
+      )}
+      {p.risk && !p.expand && (
+        <p className={cn('text-xs text-muted-foreground', high && 'text-destructive')}>{sentence(p.risk)} risk</p>
       )}
       {why && (
-        <div id={`${id}-why`} className="space-y-1 rounded-lg bg-muted px-3 py-2 sm:ml-11" data-why>
+        <div id={`${id}-why`} className="space-y-1 rounded-lg bg-muted px-3 py-2" data-why>
           {extra && <p className="break-words">{extra}</p>}
           {whyAsked(p.risk, tool, agent).map((line) => (
             <p key={line} className="break-words text-muted-foreground">{line}</p>
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 sm:ml-11">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Approve first (the design); on a phone Deny | Approve split the width. */}
+        <div className="flex gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
+          <Button type="button" className="max-sm:order-last" disabled={busy !== null} onClick={() => void act(true)}>
+            {busy === 'approve' && <Spinner className="size-3.5" />}
+            Approve
+          </Button>
+          <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void act(false)}>
+            {busy === 'deny' && <Spinner className="size-3.5" />}
+            Deny
+          </Button>
+        </div>
         <Button
           type="button"
           variant="link"
@@ -109,20 +117,10 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
         >
           Why am I asked?
         </Button>
-        {/* The two decisions stay together (they wrap as a pair on a phone). */}
-        <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" size="lg" disabled={busy !== null} onClick={() => void act(false)}>
-            {busy === 'deny' && <Spinner className="size-3.5" />}
-            Not now
-          </Button>
-          <Button type="button" size="lg" disabled={busy !== null} onClick={() => void act(true)}>
-            {busy === 'approve' && <Spinner className="size-3.5" />}
-            Approve
-          </Button>
-        </div>
+        <span className="ml-auto text-xs text-tier-3 max-sm:hidden">Paused until you choose</span>
       </div>
       {error && (
-        <p className="text-xs text-destructive sm:ml-11" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {error}
         </p>
       )}

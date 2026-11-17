@@ -289,7 +289,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
               {risk} risk
             </span>
           )}
-          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', pill.className)}>
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs', pill.className)} data-tool-pill>
             {state === 'running' && <Spinner className="size-3" />}
             {pill.label}
           </span>
