@@ -495,11 +495,14 @@ def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | 
 _jobs_api_config: dict[str, str] = {"apiBase": "/api/jobs", "backend": "aiui"}
 
 
-def set_jobs_proxy(url: str | None) -> None:
-    """Forward ``/api/jobs/*`` to an external jobs server ``/api/v1/runs/*``."""
+def set_jobs_proxy(url: str | None, *, token: str | None = None) -> None:
+    """Forward ``/api/jobs/*`` to an external jobs server ``/api/v1/runs/*``.
+
+    *token* is sent upstream as a Bearer credential; aiui's own credentials never are.
+    """
     from praisonaiui.jobs_proxy import set_jobs_proxy as _set
 
-    _set(url)
+    _set(url, token=token)
 
 
 def get_jobs_proxy_url() -> str | None:

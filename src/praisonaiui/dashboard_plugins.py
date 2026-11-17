@@ -101,9 +101,11 @@ def _resolve_plugin_file(
     for manifest in discover_dashboard_plugins(extra_dirs, allowed):
         if manifest["name"] != name:
             continue
-        root = Path(manifest["root"])
+        root = Path(manifest["root"]).resolve()
         target = (root / subpath).resolve()
-        if not str(target).startswith(str(root.resolve())):
+        # Path containment, not a string prefix: ``foo/../foo-private`` shares
+        # the prefix of ``foo`` but is outside it.
+        if not target.is_relative_to(root):
             return None
         if target.is_file():
             return target

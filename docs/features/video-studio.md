@@ -49,6 +49,12 @@ Each project is a directory containing:
 - `.praisonai/project.json` — metadata
 - `exports/` — rendered MP4 artefacts
 
+A project id is one folder name inside the projects folder: an id holding `/`,
+`\` or `..` is answered like an unknown project (404). A `projectPath` passed to
+`/lint`, `/compile` or `/preview/start` must be a project folder inside the
+projects folder, and the `out` name for `/render` must be a plain file name
+(400 otherwise).
+
 ## API routes
 
 All routes are under `/api/video/`:

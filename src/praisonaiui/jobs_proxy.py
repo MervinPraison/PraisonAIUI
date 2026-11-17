@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from urllib.parse import parse_qsl, quote, urlencode
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -16,6 +17,7 @@ if TYPE_CHECKING:  # httpx is only needed when the proxy is configured and used
 logger = logging.getLogger(__name__)
 
 _jobs_proxy_url: Optional[str] = None
+_jobs_proxy_token: Optional[str] = None
 
 _HOP_HEADERS = frozenset(
     {
@@ -32,11 +34,27 @@ _HOP_HEADERS = frozenset(
     }
 )
 
+# aiui's own credentials: they authenticate the caller to this server and are
+# never sent upstream (ARCHITECTURE R8). ``set_jobs_proxy(url, token=...)``
+# supplies the upstream credential instead.
+_CREDENTIAL_HEADERS = frozenset({"authorization", "cookie", "x-api-key"})
+_CREDENTIAL_HEADER_PREFIXES = ("proxy-", "x-auth-request-")
+_CREDENTIAL_QUERY_KEYS = frozenset({"token", "api_key", "ticket"})
 
-def set_jobs_proxy(url: str | None) -> None:
-    """Forward ``/api/jobs/*`` to ``{url}/api/v1/runs/*`` (split jobs server)."""
-    global _jobs_proxy_url
+# RFC 3986 pchar minus "/": what a path segment may hold unescaped.
+_SEGMENT_SAFE = "-._~!$&'()*+,;=:@"
+
+
+def set_jobs_proxy(url: str | None, *, token: str | None = None) -> None:
+    """Forward ``/api/jobs/*`` to ``{url}/api/v1/runs/*`` (split jobs server).
+
+    The caller's aiui credentials (``Authorization``, cookies, ``X-API-Key``,
+    ``?token=``) are not forwarded. Pass *token* to send
+    ``Authorization: Bearer <token>`` to the jobs server.
+    """
+    global _jobs_proxy_url, _jobs_proxy_token
     _jobs_proxy_url = url.rstrip("/") if url else None
+    _jobs_proxy_token = token if url else None
 
 
 def get_jobs_proxy_url() -> Optional[str]:
@@ -67,9 +85,44 @@ def _normalize_payload(data: Any) -> Any:
 def _forward_headers(request: Request) -> Dict[str, str]:
     out: Dict[str, str] = {}
     for key, value in request.headers.items():
-        if key.lower() not in _HOP_HEADERS:
-            out[key] = value
+        low = key.lower()
+        if (
+            low in _HOP_HEADERS
+            or low in _CREDENTIAL_HEADERS
+            or low.startswith(_CREDENTIAL_HEADER_PREFIXES)
+        ):
+            continue
+        out[key] = value
+    if _jobs_proxy_token:
+        out["Authorization"] = f"Bearer {_jobs_proxy_token}"
     return out
+
+
+def _upstream_suffix(path: str) -> Optional[str]:
+    """The part after ``/api/jobs``, re-encoded segment by segment.
+
+    ``None`` when a segment is ``.`` or ``..`` (or holds a backslash), which
+    would move the request off ``/api/v1/runs`` on the upstream host.
+    Starlette has already percent-decoded the path, so ``%2e%2e`` arrives as
+    ``..`` and ``%2F`` as ``/``.
+    """
+    suffix = path.removeprefix("/api/jobs")
+    if not suffix:
+        return ""
+    if not suffix.startswith("/"):
+        return None
+    segments = suffix[1:].split("/")
+    if any(seg in (".", "..") or "\\" in seg for seg in segments):
+        return None
+    return "/" + "/".join(quote(seg, safe=_SEGMENT_SAFE) for seg in segments)
+
+
+def _upstream_query(query: str) -> str:
+    """The query string without aiui credentials (unchanged when it has none)."""
+    pairs = parse_qsl(query, keep_blank_values=True)
+    if not any(k in _CREDENTIAL_QUERY_KEYS for k, _ in pairs):
+        return query
+    return urlencode([(k, v) for k, v in pairs if k not in _CREDENTIAL_QUERY_KEYS])
 
 
 def _response_headers(response: httpx.Response) -> Dict[str, str]:
@@ -85,10 +138,14 @@ async def _proxy_jobs(request: Request) -> Response:
     if not upstream:
         return JSONResponse({"error": "Jobs proxy not configured"}, status_code=503)
 
-    suffix = request.url.path.removeprefix("/api/jobs") or ""
+    # scope["path"] is the decoded path; request.url.path would re-split it at a decoded "?".
+    suffix = _upstream_suffix(request.scope["path"])
+    if suffix is None:
+        return JSONResponse({"error": "Invalid job path"}, status_code=400)
     target = f"{upstream}/api/v1/runs{suffix}"
-    if request.url.query:
-        target = f"{target}?{request.url.query}"
+    query = _upstream_query(request.scope.get("query_string", b"").decode("latin-1"))
+    if query:
+        target = f"{target}?{query}"
 
     try:
         import httpx  # lazy: a plain `pip install aiui` does not ship httpx

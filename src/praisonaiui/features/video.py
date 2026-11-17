@@ -27,6 +27,7 @@ from praisonaiui.video_client import (
     render as engine_render,
 )
 from praisonaiui.video_projects import (
+    confine_project_path,
     create_project,
     export_artifact_path,
     list_projects,
@@ -105,7 +106,8 @@ class VideoFeature(BaseFeatureProtocol):
                 path = str(resolve_project(body["projectId"]) / "scene.yaml")
                 issues = await lint(path=path, variables=body.get("variables"))
             elif body.get("projectPath"):
-                issues = await lint(path=str(Path(body["projectPath"]) / "scene.yaml"), variables=body.get("variables"))
+                path = str(confine_project_path(body["projectPath"]) / "scene.yaml")
+                issues = await lint(path=path, variables=body.get("variables"))
             else:
                 issues = await lint(yaml_text=body.get("yaml", ""), variables=body.get("variables"))
             return JSONResponse({"issues": issues})
@@ -122,7 +124,7 @@ class VideoFeature(BaseFeatureProtocol):
                 data = await compile_scene(path=path, variables=body.get("variables"))
             elif body.get("projectPath"):
                 data = await compile_scene(
-                    path=str(Path(body["projectPath"]) / "scene.yaml"),
+                    path=str(confine_project_path(body["projectPath"]) / "scene.yaml"),
                     variables=body.get("variables"),
                 )
             else:
@@ -134,6 +136,8 @@ class VideoFeature(BaseFeatureProtocol):
             if exc.detail:
                 return JSONResponse(exc.detail, status_code=exc.status_code)
             return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+        except FileNotFoundError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
 
     async def _preview_url(self, request: Request) -> JSONResponse:
         project_id = request.query_params.get("projectId")
@@ -157,11 +161,15 @@ class VideoFeature(BaseFeatureProtocol):
 
     async def _preview_start(self, request: Request) -> JSONResponse:
         body = await request.json()
-        project_path = body.get("projectPath")
-        if body.get("projectId"):
-            project_path = str(resolve_project(body["projectId"]))
-        if not project_path:
+        if not body.get("projectId") and not body.get("projectPath"):
             return JSONResponse({"error": "projectPath or projectId required"}, status_code=400)
+        try:
+            if body.get("projectId"):
+                project_path = str(resolve_project(body["projectId"]))
+            else:
+                project_path = str(confine_project_path(body["projectPath"]))
+        except FileNotFoundError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
         data = await preview_start(project_path)
         return JSONResponse(data)
 
@@ -175,7 +183,10 @@ class VideoFeature(BaseFeatureProtocol):
         except FileNotFoundError as exc:
             return JSONResponse({"error": str(exc)}, status_code=404)
 
-        out_path = export_artifact_path(project_id, body.get("out", "out.mp4"))
+        try:
+            out_path = export_artifact_path(project_id, body.get("out", "out.mp4"))
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         job_id = f"vid_{uuid.uuid4().hex[:12]}"
         now = time.time()
         job = {
@@ -350,12 +361,12 @@ class VideoFeature(BaseFeatureProtocol):
         project_id = request.path_params["project_id"]
         filename = request.path_params["filename"]
         try:
-            path = resolve_project(project_id) / "exports" / filename
+            path = export_artifact_path(project_id, filename)
             if not path.is_file():
                 return JSONResponse({"error": "Artifact not found"}, status_code=404)
             return FileResponse(path, media_type="video/mp4", filename=filename)
-        except FileNotFoundError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=404)
+        except (FileNotFoundError, ValueError):
+            return JSONResponse({"error": "Artifact not found"}, status_code=404)
 
 
 __all__ = ["VideoFeature"]

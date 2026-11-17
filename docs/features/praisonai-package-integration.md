@@ -118,6 +118,13 @@ aiui.set_jobs_proxy("http://127.0.0.1:9000")  # forwards to /api/v1/runs/*
 aiui.set_jobs_api(api_base="/api/jobs", backend="aiui")
 ```
 
+The proxy forwards only to `/api/v1/runs/*` on that host: a path with a `.` or
+`..` segment (encoded or not) is refused with 400. It never forwards aiui's own
+credentials (`Authorization`, cookies, `X-API-Key`, `?token=`/`?api_key=`/`?ticket=`).
+If the jobs server needs a credential, pass it:
+`aiui.set_jobs_proxy("http://127.0.0.1:9000", token="<jobs server key>")`
+sends `Authorization: Bearer <jobs server key>` upstream.
+
 Use when the dashboard and jobs server run on different ports. Prefer `set_jobs_backend("praisonai")` when the browser can call `/api/v1/runs` on the same origin.
 
 ### REST invoke (automation)

@@ -39,6 +39,32 @@ _EMBEDDING_ERROR_MARKERS = (
 )
 
 
+def _knowledge_roots() -> List[Path]:
+    """Folders POST /api/knowledge/add-file may read from.
+
+    The chat attachments folder (where uploads land) and every folder in
+    ``AIUI_KNOWLEDGE_ROOTS`` (``os.pathsep``-separated).
+    """
+    import sys
+    import tempfile
+
+    roots: List[str] = []
+    attachments = sys.modules.get("praisonaiui.features.attachments")
+    mgr = getattr(attachments, "_attachment_manager", None) if attachments else None
+    storage = getattr(mgr, "_storage_dir", None)
+    roots.append(storage or os.path.join(tempfile.gettempdir(), "praisonai_attachments"))
+    roots.extend(r for r in os.environ.get("AIUI_KNOWLEDGE_ROOTS", "").split(os.pathsep) if r.strip())
+    return [Path(r).expanduser().resolve() for r in roots]
+
+
+def _is_ingestable_path(file_path: str) -> bool:
+    try:
+        target = Path(file_path).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return any(target != root and target.is_relative_to(root) for root in _knowledge_roots())
+
+
 def _is_embedding_error(err_msg: str) -> bool:
     """True when an error string indicates an unavailable embedding model."""
     lowered = err_msg.lower()
@@ -829,12 +855,25 @@ class KnowledgeFeature(BaseFeatureProtocol):
         )
 
     async def _add_file(self, request: Request) -> JSONResponse:
-        """POST /api/knowledge/add-file — ingest a file."""
+        """POST /api/knowledge/add-file — ingest a file.
+
+        Only files under an allowed root (the chat attachments folder and the
+        ``AIUI_KNOWLEDGE_ROOTS`` folders) are accepted, so a caller cannot make
+        the server read an arbitrary file into the knowledge base.
+        """
         mgr = get_knowledge_manager()
         body = await request.json()
         file_path = body.get("file_path")
         if not file_path:
             return JSONResponse({"error": "file_path required"}, status_code=400)
+        if not _is_ingestable_path(str(file_path)):
+            return JSONResponse(
+                {
+                    "error": "file_path must be inside the attachments folder or "
+                    "a folder listed in AIUI_KNOWLEDGE_ROOTS"
+                },
+                status_code=400,
+            )
         result = await _off_loop(
             mgr.add_file,
             file_path=file_path,
