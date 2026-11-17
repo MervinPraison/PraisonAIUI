@@ -85,6 +85,35 @@ navigation:
 - The active tab is the one whose groups list the page; for a page no group
   lists, the folder `prefix` decides as in auto mode, then the first tab.
 
+## Sidebar Icons
+
+A group's `icon:` in the navigation YAML, or a page's frontmatter `icon:`,
+puts a 16px line icon before its title in the sidebar and the phone drawer.
+
+```yaml
+navigation:
+  tabs:
+    - tab: "Get started"
+      groups:
+        - group: "Get started"
+          icon: rocket
+          pages:
+            - getting-started/quickstart
+```
+
+```markdown
+---
+title: CLI
+icon: terminal
+---
+```
+
+- The names are lucide's: `message-square`, `panels-top-left`,
+  `layout-dashboard`, `book-open`, `plug`, `shield-check`, `code`,
+  `terminal`, `bot`, `zap`, `rocket` and `palette` (the same set as the home
+  page features). Any other name shows no icon.
+- Page icons work in both modes; group icons need `mode: manual`.
+
 ## Tabs
 
 `navigation.tabs` groups the sidebar sections into tabs in the header. A

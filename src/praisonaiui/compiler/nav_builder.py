@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,7 +18,17 @@ class NavItem:
     description: str = ""
     noindex: bool = False
     page_title: str = ""  # the page's own title when the sidebar shows a shorter `nav_title`
+    icon: str = ""  # a lucide icon name for the sidebar (group `icon:` in the YAML, page frontmatter `icon:`)
     children: list["NavItem"] = field(default_factory=list)
+
+
+_ICON_NAME = re.compile(r"[a-z0-9-]{1,40}")
+
+
+def icon_name(value: object) -> str:
+    """A sidebar icon name (lowercase letters, digits, hyphens), or "" for anything else."""
+    name = str(value).strip().lower() if isinstance(value, str) else ""
+    return name if _ICON_NAME.fullmatch(name) else ""
 
 
 class NavBuilder:
@@ -47,6 +58,7 @@ class NavBuilder:
                 path=full_path,
                 description=page.description,
                 noindex=page.noindex,
+                icon=icon_name(page.frontmatter.get("icon")),
             )
 
             # Determine parent path
@@ -111,6 +123,7 @@ class NavBuilder:
                 description=page.description,
                 noindex=page.noindex,
                 page_title=page.title if title != page.title else "",
+                icon=icon_name(page.frontmatter.get("icon")),
             )
 
         def lookup(name: str) -> DocPage | None:
@@ -133,7 +146,7 @@ class NavBuilder:
                     sub = section(entry)
                     if sub.children:
                         children.append(sub)
-            return NavItem(title=group.group, path="", children=children)
+            return NavItem(title=group.group, path="", children=children, icon=icon_name(group.icon))
 
         items = [s for s in (section(g) for g in groups) if s.children]
         items += [page_item(p) for p in self.pages if p.slug not in used]
@@ -150,6 +163,8 @@ class NavBuilder:
             result["noindex"] = True
         if item.page_title:
             result["pageTitle"] = item.page_title
+        if item.icon:
+            result["icon"] = item.icon
         if item.children:
             result["children"] = [self._item_to_dict(child) for child in item.children]
         return result

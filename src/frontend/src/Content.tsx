@@ -169,7 +169,15 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                     />
                     {!home && (
                         <div className="aiui-docs-pagehead">
-                            {section ? <p className="aiui-docs-eyebrow">{section}</p> : <span />}
+                            {section ? (
+                                // Section › Page: the page part shows on phones, where the sidebar is folded away.
+                                <nav className="aiui-docs-eyebrow aiui-docs-crumbs" aria-label="Breadcrumb">
+                                    <ol>
+                                        <li>{section}</li>
+                                        <li className="aiui-docs-crumb-page" aria-current="page">{selectedItem.title}</li>
+                                    </ol>
+                                </nav>
+                            ) : <span />}
                             <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} />
                         </div>
                     )}

@@ -65,6 +65,11 @@
 
 ### New
 
+- **Docs sidebar icons and a phone breadcrumb.** A nav group's `icon:` (the
+  navigation YAML already accepted it but nothing drew it) or a page's
+  frontmatter `icon:` shows a line icon before its title; on phones the page
+  head reads "Section › Page". ui.praison.ai gives its groups icons. See
+  [Navigation → Sidebar Icons](docs/features/navigation.md#sidebar-icons).
 - **Docs pages load their text with the page.** `aiui build` writes each
   page's Markdown into its HTML, so the first visit needs no request for it
   (the app reads it once and falls back to fetching).

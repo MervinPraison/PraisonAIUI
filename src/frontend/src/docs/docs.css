@@ -293,6 +293,17 @@ img.aiui-docs-mark {
   color: var(--ui-text-3);
   font-weight: 500;
 }
+/* Sidebar icons (`icon:` on a nav group or in a page's frontmatter): 16px line glyphs in tier 3; the current page's in its own colour. */
+.aiui-docs-navicon {
+  display: inline-flex;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  color: var(--ui-text-3);
+}
+.aiui-docs-navicon svg { width: 100%; height: 100%; }
+.aiui-docs-navitem[aria-current='page'] .aiui-docs-navicon { color: currentColor; }
 .aiui-docs-group-items {
   display: flex;
   flex-direction: column;
@@ -397,6 +408,21 @@ img.aiui-docs-mark {
   color: var(--ui-link);
   font-size: 0.8125rem;
   font-weight: 500;
+}
+/* Breadcrumb in the page head: the section on every width; "› Page" on phones only. */
+.aiui-docs-crumbs { min-width: 0; }
+.aiui-docs-crumbs ol { display: flex; align-items: center; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.aiui-docs-crumbs li { flex: none; white-space: nowrap; }
+.aiui-docs-crumbs .aiui-docs-crumb-page {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ui-text-3);
+}
+.aiui-docs-crumbs .aiui-docs-crumb-page::before { content: '›'; content: '›' / ''; margin-inline: 0.375rem; color: var(--ui-text-3); }
+@media (min-width: 768px) {
+  .aiui-docs-crumbs .aiui-docs-crumb-page { display: none; }
 }
 /* The row above the title: the section on the left, page actions on the right. */
 .aiui-docs-pagehead {

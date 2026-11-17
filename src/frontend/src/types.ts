@@ -12,6 +12,8 @@ export interface NavItem {
     lastUpdated?: string
     /** "Edit this page" link, from `content.docs.editLink.pattern`. */
     editUrl?: string
+    /** Sidebar icon (a lucide name from docs/docsHomeIcons.ts): group `icon:` in the nav YAML, page frontmatter `icon:`. */
+    icon?: string
     children?: NavItem[]
 }
 

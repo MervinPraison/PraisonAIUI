@@ -33,28 +33,29 @@ const WAIT_MS = 5000
  * arrives late rewraps the text above. Stops as soon as the reader scrolls.
  */
 function scrollWhenReady(isTouched: () => boolean): () => void {
-    let observer: MutationObserver | undefined
-    let timer: number | undefined
-    const stop = () => {
-        observer?.disconnect()
-        window.clearTimeout(timer)
-    }
-    const settle = () => {
-        stop()
+    // When the web fonts are in, scroll once more: a late face rewraps the text above.
+    const afterFonts = () => {
         void document.fonts?.ready.then(() => {
             if (!isTouched()) window.requestAnimationFrame(() => scrollToHash())
         })
     }
     if (scrollToHash()) {
-        settle()
-        return stop
+        afterFonts()
+        return () => {}
     }
-    observer = new MutationObserver(() => {
+    const observer = new MutationObserver(() => {
         if (isTouched()) stop()
-        else if (scrollToHash()) settle()
+        else if (scrollToHash()) {
+            stop()
+            afterFonts()
+        }
     })
+    const timer = window.setTimeout(() => stop(), WAIT_MS)
+    function stop() {
+        observer.disconnect()
+        window.clearTimeout(timer)
+    }
     observer.observe(document.getElementById('main-content') ?? document.body, { childList: true, subtree: true })
-    timer = window.setTimeout(stop, WAIT_MS)
     return stop
 }
 
