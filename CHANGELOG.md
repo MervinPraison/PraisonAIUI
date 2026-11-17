@@ -75,6 +75,12 @@
   words and opens the page at the section. Links with a `#section` now open
   the page scrolled there. See
   [Writing docs pages → Search](docs/features/writing-docs.md#search).
+- **Docs code blocks: file names, highlighted lines, code groups.**
+  ```` ```python title="app.py" {1,3-4} ```` (or `app.py {2}`, `hl_lines`,
+  `highlight`) puts the file name in the block's header and tints the lines;
+  `<CodeGroup>` shows several fences as tabs with one copy button. Comments
+  in docs code now keep 4.5:1 contrast in light and dark. See
+  [Writing docs pages → Code blocks](docs/features/writing-docs.md#code-blocks).
 - **Theme preset `paper`** (the look of the Chat and Canvas screen) and
   `site.theme.mode: light | dark | system` for `aiui build`. A docs site with
   `preset: paper` draws in warm paper, a navy accent, Newsreader titles and

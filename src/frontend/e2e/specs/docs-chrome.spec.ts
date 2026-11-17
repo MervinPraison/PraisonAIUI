@@ -5,7 +5,7 @@
  * DESIGN.md "Docs style" is the contract.
  */
 import { expect, test } from '@playwright/test'
-import { collectPageErrors, hasHorizontalOverflow, setColorMode, toRgb } from './support'
+import { collectPageErrors, contrastRatio, hasHorizontalOverflow, setColorMode, toRgb } from './support'
 
 const PRO_INDIGO_LIGHT = '#4f46e5'
 
@@ -337,3 +337,49 @@ test('phone: the page does not shift as the article and "On this page" arrive', 
   // The folded TOC is drawn from the first frame, not a frame after the article.
   expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBeLessThan(0.01)
 })
+
+for (const mode of ['light', 'dark'] as const) {
+  test(`code blocks (${mode}): file name, highlighted lines, AA comments, code groups`, async ({ page }) => {
+    const errors = collectPageErrors(page)
+    await setColorMode(page, mode)
+    await page.goto('/docs/markdown')
+    await expect(page.getByRole('heading', { name: 'Code titles', level: 2 })).toBeVisible()
+
+    // ```python title="app.py" {2}: the name in the header, line 2 tinted.
+    const frame = page.locator('.aiui-code-frame[data-titled]').first()
+    await frame.scrollIntoViewIfNeeded()
+    await expect(frame.locator('.aiui-code-title')).toHaveText('app.py')
+    const lines = frame.locator('[data-streamdown="code-block-body"] code > span')
+    await expect(lines).toHaveCount(3)
+    const bg = (i: number) => lines.nth(i).evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(await bg(1)).not.toBe(await bg(0))
+    expect(await bg(2)).toBe(await bg(0))
+
+    // Comments keep 4.5:1 on the code background.
+    const comment = frame.locator('span[style*="#6A737D" i]').first()
+    await expect(comment).toHaveText(/# a comment/)
+    const fg = await comment.evaluate((el) => getComputedStyle(el).color)
+    const codeBg = await frame.locator('[data-streamdown="code-block-body"]').evaluate((el) => {
+      for (let e: Element | null = el; e; e = e.parentElement) {
+        const c = getComputedStyle(e).backgroundColor
+        if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c
+      }
+      return 'rgb(255, 255, 255)'
+    })
+    expect(contrastRatio(await toRgb(page, fg), await toRgb(page, codeBg))).toBeGreaterThanOrEqual(4.5)
+
+    // <CodeGroup>: one tab per fence, the copy button in the tab strip.
+    const group = page.locator('.aiui-tabs').filter({ has: page.getByRole('tab', { name: 'uv' }) })
+    await group.scrollIntoViewIfNeeded()
+    await expect(group.getByRole('tab')).toHaveText(['pip', 'uv'])
+    await expect(group.getByRole('tabpanel')).toContainText('pip install aiui')
+    await group.getByRole('tab', { name: 'uv' }).click()
+    await expect(group.getByRole('tabpanel', { includeHidden: false })).toContainText('uv pip install aiui')
+    const copy = group.getByRole('button', { name: 'Copy Code' }).filter({ visible: true })
+    await expect(copy).toBeVisible()
+    const [strip, button] = await Promise.all([group.getByRole('tablist').boundingBox(), copy.boundingBox()])
+    expect(button!.y).toBeGreaterThanOrEqual(strip!.y)
+    expect(button!.y + button!.height).toBeLessThanOrEqual(strip!.y + strip!.height)
+    expect(errors.pageErrors).toEqual([])
+  })
+}

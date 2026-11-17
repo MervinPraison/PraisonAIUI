@@ -41,3 +41,23 @@ flowchart LR
 
 !!! note "Heads up"
     MkDocs admonitions are rendered too.
+
+## Code titles
+
+```python title="app.py" {2}
+import praisonaiui as aiui
+print("highlighted")
+# a comment
+```
+
+<CodeGroup>
+
+```bash pip
+pip install aiui
+```
+
+```bash uv
+uv pip install aiui
+```
+
+</CodeGroup>

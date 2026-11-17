@@ -133,7 +133,8 @@ same task in different tools or languages; arrow keys move between tabs.
 ## Code blocks
 
 Fence code with its language for highlighting and a copy button. 28 common
-languages are highlighted; the rest show as plain text.
+languages are highlighted; the rest show as plain text. Comments are drawn
+in a colour that keeps 4.5:1 contrast on the code background, light and dark.
 
 ````markdown
 ```python
@@ -145,13 +146,73 @@ async def on_message(message: str):
 ```
 ````
 
-```python
+### File names and highlighted lines
+
+After the language, name the file with `title="…"` (or just the name) and
+pick lines to highlight with `{…}`: single lines and ranges, separated by
+commas.
+
+````markdown
+```python title="app.py" {3-4}
 import praisonaiui as aiui
 
 @aiui.reply
 async def on_message(message: str):
     await aiui.say(f"You said: {message}")
 ```
+````
+
+```python title="app.py" {3-4}
+import praisonaiui as aiui
+
+@aiui.reply
+async def on_message(message: str):
+    await aiui.say(f"You said: {message}")
+```
+
+`app.py {3-4}` (the name without `title=`), `hl_lines="3 4"` and
+`highlight="3-4"` work too, so fences written for MkDocs or Mintlify carry
+over.
+
+### Code groups
+
+Put fences between `<CodeGroup>` and `</CodeGroup>` (each on its own line) to
+show them as tabs, one per fence, labelled with the file name or, without
+one, the language. Use it for the same step in different tools or languages.
+
+`````markdown
+<CodeGroup>
+
+```bash pip
+pip install aiui
+```
+
+```bash uv
+uv pip install aiui
+```
+
+```bash poetry
+poetry add aiui
+```
+
+</CodeGroup>
+`````
+
+<CodeGroup>
+
+```bash pip
+pip install aiui
+```
+
+```bash uv
+uv pip install aiui
+```
+
+```bash poetry
+poetry add aiui
+```
+
+</CodeGroup>
 
 ## Cards
 

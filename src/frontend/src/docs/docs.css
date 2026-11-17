@@ -635,6 +635,85 @@ img.aiui-docs-mark {
   line-height: 1.7;
 }
 
+/* Comments in code: the Shiki GitHub themes draw them #6a737d, under 4.5:1 on
+   the docs code fills (4.2:1 on light paper, 3.6:1 on dark). The tier-3 text
+   colour passes on every docs code fill, light and dark. The token carries the
+   colour inline, hence !important on the custom properties it reads. */
+.aiui-docs article.aiui-doc [data-streamdown='code-block-body'] span[style*='#6a737d' i] {
+  --sdm-c: var(--ui-text-3) !important;
+  --shiki-dark: var(--ui-text-3) !important;
+}
+
+/* A fence with a file name or highlighted lines (docs/DocsPre.tsx). */
+.aiui-docs article.aiui-doc .aiui-code-frame {
+  --aiui-code-hl: color-mix(in oklab, var(--primary) 11%, transparent);
+  --aiui-code-hl-edge: var(--primary);
+  position: relative;
+  margin-block: 1.25rem;
+}
+.aiui-docs article.aiui-doc .aiui-code-frame > [data-streamdown='code-block'] { margin-block: 0; }
+/* The file name takes the language's place in the header row. */
+.aiui-docs article.aiui-doc .aiui-code-title {
+  position: absolute;
+  z-index: 1;
+  top: 1px;
+  left: 1px;
+  display: flex;
+  align-items: center;
+  height: 2.25rem;
+  max-width: calc(100% - 5rem);
+  padding-inline: 1rem;
+  overflow: hidden;
+  color: var(--foreground);
+  font-family: var(--aiui-font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.aiui-docs article.aiui-doc .aiui-code-frame[data-titled] [data-streamdown='code-block-header'] > span { visibility: hidden; }
+/* Highlighted lines run to both edges of the code panel. */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-highlighted] code > span {
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+}
+
+/* Code groups (<CodeGroup>, or tabs that each hold one code block): the tab
+   strip is the code panel's header. */
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl, 12px);
+  background: var(--ui-code-bg);
+}
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > [role='tablist'] {
+  padding-inline: 0.5rem;
+  background: var(--ui-panel-head, color-mix(in oklab, var(--muted) 55%, var(--ui-code-bg)));
+}
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > [role='tabpanel'] {
+  padding-top: 0;
+}
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) :is(.aiui-code-frame, [data-streamdown='code-block']) {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.aiui-docs article.aiui-doc .aiui-tabs .aiui-code-title { display: none; }
+/* In a group the tab names the code, so the block's own header row goes and
+   its copy button moves up into the tab strip (2.375rem tall). Streamdown's
+   content-visibility: auto would clip it (paint containment). */
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] {
+  overflow: visible;
+  content-visibility: visible !important;
+}
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block-header'] {
+  display: none;
+}
+.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] > .absolute {
+  top: -1.9rem;
+}
+
 /* Tables: one hairline frame, a soft header row, hairlines between rows. */
 .aiui-docs article.aiui-doc [data-streamdown='table-wrapper'] { margin-block: 1.25rem; }
 .aiui-docs article.aiui-doc [data-streamdown='table-wrapper'] > .border-collapse {
