@@ -234,5 +234,7 @@ export default [
   // edit this page, last updated and was this page helpful (+3,469 B).
   // 9,124,592 B (measured, raised by exactly the overage): each docs page's
   // markdown read from its HTML (docLoader.adoptInlinedDoc, +337 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9124592 B', brotli: false },
+  // 9,125,726 B (measured, raised by exactly the overage): docs sidebar icons
+  // and the phone breadcrumb (+1,134 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9125726 B', brotli: false },
 ]
