@@ -230,5 +230,7 @@ export default [
   // 9,120,786 B (measured, raised by exactly the overage): docs authoring
   // components (callouts, steps, cards, tabs, accordions, frames) and image
   // zoom (+10,135 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9120786 B', brotli: false },
+  // 9,124,255 B (measured, raised by exactly the overage): docs page footer,
+  // edit this page, last updated and was this page helpful (+3,469 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9124255 B', brotli: false },
 ]
