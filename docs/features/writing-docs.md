@@ -47,7 +47,9 @@ description: Every block a docs page can use.
 `##` and `###` headings build the "On this page" list beside the article
 (above it on narrow screens), which follows the reader as they scroll. Every
 heading gets an id from its text, so `writing-docs#callouts` links straight to
-a section, and a link with a section opens the page scrolled to it. Keep one `#` title per page; the paragraph right under it is the
+a section, and a link with a section opens the page scrolled to it. Hover a
+heading (on a phone, look beside it) for its link icon: one click puts the
+section in the address bar and copies its URL. Keep one `#` title per page; the paragraph right under it is the
 lede and reads larger.
 
 ## Callouts
@@ -237,6 +239,21 @@ A folder's `README.md` or `index.md` is served at the folder's URL
 dropped (`adr/0003-selectable-layouts.md` at `/docs/adr/selectable-layouts`).
 List such a page in the nav by its file path (`protocols/adp/README`); the
 header still opens the tab that lists it.
+
+## Page actions
+
+Above every page's title, **Copy page** copies the page's Markdown, ready to
+paste into an assistant. Its menu also has:
+
+| Action | What it does |
+|---|---|
+| Copy page | The page's Markdown on the clipboard (front matter included) |
+| View as Markdown | Opens `/docs/<page>.md`, the page source as plain text |
+| Open in ChatGPT | A new ChatGPT chat that reads the page and takes questions |
+| Open in Claude | The same, in Claude |
+
+Nothing to configure: they use the Markdown `aiui build` already publishes.
+Try it on this page.
 
 ## What the build publishes for assistants
 

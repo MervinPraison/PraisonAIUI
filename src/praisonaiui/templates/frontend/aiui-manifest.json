@@ -2901,7 +2901,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-BiEnrEQD.js",
+    "file": "assets/legacy-app-entry-DLakUGWl.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -2915,11 +2915,12 @@
       "_SurfaceHost-DApmrKIl.js",
       "_select-3gQhEUUH.js",
       "_progress-DcHQbr5r.js",
+      "_check-C7BZW5P5.js",
+      "_chevron-down-CXR6q1N2.js",
+      "_external-link-B0LNJ0zz.js",
       "_pluginLoaders-C5fZsZn0.js",
       "src/chat/MultimediaElements.tsx",
-      "_chevron-down-CXR6q1N2.js",
       "_circle-x-PGvd1a6S.js",
-      "_external-link-B0LNJ0zz.js",
       "_command-CfzvYIh4.js",
       "_spinner-BYlhB8NZ.js",
       "_index-D7SMYZ7f.js",
@@ -2931,7 +2932,6 @@
       "_badge-BAGFO0Gj.js",
       "_label-C14Wmq8o.js",
       "_switch-Bqo69x-u.js",
-      "_check-C7BZW5P5.js",
       "_dialog-DJU492gh.js",
       "_fence-DxO9UNAb.js",
       "_breadcrumb-CzcAsfkW.js"
@@ -2940,7 +2940,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-CD4lkNgm.css"
+      "assets/legacy-app-entry-Bdi7T-Sy.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
