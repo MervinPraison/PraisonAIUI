@@ -486,6 +486,7 @@ class AuroraPlugin:
 | `css` | Optional stylesheet, resolved the same way (its hash is `cssIntegrity` in the manifest and on the `<link>`), added when the layout first loads |
 | `home` | The page `/` opens while this layout is on screen |
 | `primary` | Page ids of the primary nav, in order (at most 7 shown; YAML `layout.primary` wins) |
+| `look` | Optional: the `meta.look` your frame registers (an id such as `paper`). When the layout is the server's default, the server sets `<html data-aiui-look>` from the first byte, so the look's fonts load instead of the Pro ones. It is not sent in the manifest |
 
 The first plugin (or built-in) to declare an id keeps it; a later one is
 ignored with a warning, as is a malformed or `classic` id. On a remote or

@@ -310,6 +310,17 @@ These rules keep layouts independent (ARCHITECTURE.md R17):
   `e2e/specs/layouts-host.spec.ts` checks that each layout downloads only its
   own chunks and the kit.
 
+**Looks on first paint.** The server writes `data-aiui-tokens="pro"` on
+the app shell's `<html>` when there is a default layout, and also the layout's
+look (`data-aiui-look="paper"` for Chat and Canvas and Chat, from the
+catalog record's `look`). The page then paints Paper and fetches only the
+Paper fonts, never Geist first. An inline script drops the look before first
+paint for a viewer who will not see it: one who chose plain Pro
+("Switch look: Pro"), or one whose `?layout=`, tab preview or stored pick
+(with `user_choice`) is another layout. The layout host clears it for a frame
+without a look (the classic frame drops the Pro tokens, and the look's CSS
+applies only with them).
+
 Each layout, the kit and the `/chat` first screen with the default layout
 have gzip budgets in `src/frontend/.size-limit.mjs` (listed in
 ARCHITECTURE.md R10). `npm run size` fails when a budgeted layout or the kit

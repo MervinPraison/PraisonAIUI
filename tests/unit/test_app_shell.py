@@ -137,6 +137,54 @@ def test_app_html_classic_layout_keeps_classic_tokens(monkeypatch):
     assert ' data-aiui-tokens="pro">' in _client().get("/").text.split("<head>", 1)[0]
 
 
+def _look_script(text: str) -> str:
+    if 'id="aiui-look-bootstrap"' not in text:
+        return ""
+    return text.split('<script id="aiui-look-bootstrap">', 1)[1].split("</script>", 1)[0]
+
+
+def test_app_html_paints_the_default_layouts_look(monkeypatch):
+    """The default layout's look (Chat and Canvas: paper) is on <html> from the
+    first byte, so the page never fetches the Pro fonts it would swap out."""
+    import praisonaiui.layouts as layouts
+
+    srv.set_style("app")
+    text = _client().get("/").text
+    head = text.split("<head>", 1)[0]
+    assert ' data-aiui-tokens="pro" data-aiui-look="paper">' in head
+    # Before the stylesheet, and it drops the look for a viewer who will not
+    # see it: plain Pro chosen, or another layout picked or previewed.
+    assert text.index('id="aiui-look-bootstrap"') < text.index('<link rel="stylesheet"')
+    script = _look_script(text)
+    assert "localStorage.getItem('aiui-look')==='pro'" in script
+    assert "get('layout')" in script and "sessionStorage.getItem('aiui-layout-preview')" in script
+    assert "localStorage.getItem('aiui-layout')" in script
+    assert "c!=='chat-canvas'" in script
+    assert "d.removeAttribute('data-aiui-look')" in script
+
+    # Without user_choice the stored pick does not count.
+    layouts.set_layout(user_choice=False)
+    assert "localStorage.getItem('aiui-layout')" not in _look_script(_client().get("/").text)
+
+    # A layout without a look: Pro tokens only, no script.
+    layouts.set_layout("command")
+    text = _client().get("/").text
+    assert ' data-aiui-tokens="pro">' in text.split("<head>", 1)[0]
+    assert "data-aiui-look" not in text
+
+    # Classic: neither.
+    monkeypatch.setenv("AIUI_LAYOUT", "classic")
+    text = _client().get("/").text
+    assert "data-aiui-tokens" not in text.split("<head>", 1)[0]
+    assert "data-aiui-look" not in text
+
+
+def test_layout_look_is_a_first_paint_hint_not_a_manifest_key():
+    from praisonaiui.plugin_registry import LayoutSpec
+
+    assert "look" not in LayoutSpec(id="x", title="X", look="paper").to_dict()
+
+
 def test_dashboard_html_never_carries_pro_tokens():
     srv.set_style("dashboard")
     assert "data-aiui-tokens" not in _client().get("/").text
@@ -146,10 +194,11 @@ def test_app_html_structure():
     srv.set_style("app")
     client = _client()
     text = client.get("/").text
-    # The default layout (chat-canvas) paints with the Pro tokens from the first byte.
+    # The default layout (chat-canvas) paints with the Pro tokens and its
+    # Paper look from the first byte.
     assert text.startswith(
         '<!doctype html><html lang="en" data-aiui-shell="react" data-aiui-theme-default="system"'
-        ' data-aiui-tokens="pro">'
+        ' data-aiui-tokens="pro" data-aiui-look="paper">'
     )
     scripts = _scripts(text)
     types = [s.get("type") for s in scripts]

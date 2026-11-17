@@ -21,7 +21,10 @@
  *   look        the frame's meta.look (Chat + Canvas: "paper") as
  *               <html data-aiui-look> while it is mounted, unless the viewer
  *               chose plain Pro (proTokens setLookChoice, the "Switch look: …"
- *               commands of builtin.layouts); the
+ *               commands of builtin.layouts); the server already sets the
+ *               default layout's look for first paint (layouts.first_paint),
+ *               and a frame without one clears it (the classic frame needs
+ *               no clearing: paper.css applies only with the Pro tokens); the
  *               looks' CSS (styles/paper.css) ships here beside pro.css, so a
  *               look paints before the frame's chunk arrives
  *
@@ -155,6 +158,8 @@ export function FrameSkeleton() {
 
 // ── token system ─────────────────────────────────────────────────────
 
+const LOOK_ATTR = 'data-aiui-look'
+
 /** Pro tokens while a layout frame is mounted (the server may already have set them for first paint). */
 function useProTokens(layoutLook: string | undefined): void {
   useLayoutEffect(() => {
@@ -164,10 +169,11 @@ function useProTokens(layoutLook: string | undefined): void {
   const choice = useSyncExternalStore(subscribeLookChoice, getLookChoice, getLookChoice)
   const look = choice === 'pro' ? undefined : layoutLook
   useLayoutEffect(() => {
-    if (!look) return
+    // No look: also drop the one the server painted for the default layout.
     const root = document.documentElement
-    root.setAttribute('data-aiui-look', look)
-    return () => root.removeAttribute('data-aiui-look')
+    if (look) root.setAttribute(LOOK_ATTR, look)
+    else root.removeAttribute(LOOK_ATTR)
+    return () => root.removeAttribute(LOOK_ATTR)
   }, [look])
 }
 

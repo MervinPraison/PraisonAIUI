@@ -224,6 +224,12 @@
   so a stale or half-written layout file loaded unchecked), and the css hash
   is kept (`LayoutSpec.css_integrity`, `cssIntegrity` on the wire) and set on
   the `<link>`.
+- App shell: the default Chat and Canvas layout no longer downloads the Geist
+  font (29.8 KB) it never shows. The server now writes the layout's Paper look
+  on `<html>` with the Pro tokens, so the first paint already uses the Paper
+  fonts and the text no longer changes font after it appears. Viewers who
+  chose plain Pro, or another layout, still get it (an inline script drops the
+  look before first paint). `LayoutSpec` gains an optional `look`.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

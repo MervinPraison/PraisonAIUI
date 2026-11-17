@@ -227,6 +227,9 @@ class LayoutSpec:
     active. First-party layouts have no module (their browser descriptor is
     part of the bundle). ``home`` is the page ``/`` opens and ``primary``
     the page ids of the primary nav, in order (YAML ``layout.primary`` wins).
+    ``look`` repeats the browser descriptor's ``meta.look`` (e.g. ``paper``)
+    so the server can paint it from the first byte when this layout is the
+    default; it is a first-paint hint and not part of the manifest.
     """
 
     id: str
@@ -241,9 +244,11 @@ class LayoutSpec:
     source: str = "builtin"
     #: SRI of ``css`` (``cssIntegrity`` on the wire), like ``PageSpec.css_integrity``.
     css_integrity: Optional[str] = None
+    look: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         d = _to_wire(self)
+        d.pop("look", None)
         if self.primary is not None:
             d["primary"] = list(self.primary)
         return d
@@ -1208,6 +1213,9 @@ def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
             raise ValueError(f"layout {lid!r}: primary must be a list of page ids")
         primary = tuple(_spec_id(p, "primary page id") for p in primary)
     home = None if s.home is None else _spec_id(s.home, "home page id")
+    look = s.look
+    if look is not None and not (isinstance(look, str) and LAYOUT_ID.match(look)):
+        raise ValueError(f"layout {lid!r}: look must be an id like 'paper'")
     builtin = rec.origin == "builtin"
     # First-party layouts ship in the bundle; a plugin's module and css
     # resolve into its static dir like its pages do.
@@ -1227,6 +1235,7 @@ def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
         primary=primary,
         source="builtin" if builtin else f"plugin:{rec.name}",
         css_integrity=s.css_integrity or css_sri,
+        look=look,
     )
 
 

@@ -341,17 +341,46 @@ def available_layout_ids(
 
 
 def default_layout(style: Optional[str] = None, *, restricted: bool = True) -> str:
-    """The server's default layout id ('' = classic), for the first paint.
-
-    ``_build_html`` marks ``<html data-aiui-tokens="pro">`` when it is a
-    layout, so the page paints with the Pro tokens before the shell boots
-    (the shell's layout host then keeps or clears the attribute). Never
-    raises: a broken selection paints classic.
-    """
+    """The server's default layout id ('' = classic). Never raises: a broken
+    selection gives classic. ``_build_html`` uses :func:`first_paint`."""
     try:
         return resolve(None, style, restricted=restricted).default
     except Exception:  # noqa: BLE001 - first paint only; the manifest reports it
         return ""
+
+
+def first_paint(style: Optional[str] = None, *, restricted: bool = True) -> tuple[str, str]:
+    """``<html>`` attributes and an inline script for the app shell's first paint.
+
+    With a default layout, ``data-aiui-tokens="pro"`` (Pro tokens before the
+    shell boots) and, when that layout declares a look (``LayoutSpec.look``,
+    e.g. Chat and Canvas's ``paper``), ``data-aiui-look`` too, so the page
+    paints and fetches the look's fonts from the first byte instead of the
+    Pro fonts. The script drops the look before first paint when this viewer
+    will not see it: they chose plain Pro (``aiui-look``), or a tab preview,
+    ``?layout=`` or (with ``user_choice``) their stored layout picks another
+    layout. The shell's layout host keeps or clears both attributes. Never
+    raises: a broken selection paints classic.
+    """
+    try:
+        sel = resolve(None, style, restricted=restricted)
+    except Exception:  # noqa: BLE001 - first paint only; the manifest reports it
+        return "", ""
+    if not sel.default:
+        return "", ""
+    spec = next((s for s in sel.available if s.id == sel.default), None)
+    look = getattr(spec, "look", None)
+    if not (isinstance(look, str) and _LAYOUT_ID.match(look)):
+        return ' data-aiui-tokens="pro"', ""
+    stored = "||(localStorage.getItem('aiui-layout'))" if sel.user_choice else ""
+    script = (
+        '<script id="aiui-look-bootstrap">(function(){try{var d=document.documentElement,'
+        "c=new URLSearchParams(location.search).get('layout')"
+        f"||sessionStorage.getItem('aiui-layout-preview'){stored};"
+        f"if(localStorage.getItem('aiui-look')==='pro'||(c&&c!=='{sel.default}'))"
+        "d.removeAttribute('data-aiui-look');}catch(e){}})();</script>"
+    )
+    return f' data-aiui-tokens="pro" data-aiui-look="{look}"', script
 
 
 def layouts_manifest(registry: Any = None, style: Optional[str] = None, *, restricted: bool = True) -> dict[str, Any]:
@@ -377,6 +406,7 @@ __all__ = [
     "available_layout_ids",
     "check_layout_id",
     "default_layout",
+    "first_paint",
     "layouts_manifest",
     "reset",
     "resolve",
