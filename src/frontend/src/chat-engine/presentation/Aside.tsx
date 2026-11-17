@@ -169,12 +169,13 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
   }
 
   // A layout frame may host the toggle in its own top bar ([data-aiui-aside-slot],
-  // Chat + Canvas); otherwise it goes into the chat header (`slot`).
+  // Chat + Canvas); otherwise it goes into the chat header (`slot`). Looked up
+  // again on leaving the phone view: the frame's top bar (and its slot) is new.
   const [frameSlot, setFrameSlot] = useState<HTMLElement | null>(null)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM after mount; one update, no loop
-    setFrameSlot(document.querySelector<HTMLElement>('[data-aiui-aside-slot]'))
-  }, [])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM after commit; one update, no loop
+    setFrameSlot(phone ? null : document.querySelector<HTMLElement>('[data-aiui-aside-slot]'))
+  }, [phone])
   const target = frameSlot ?? slot
   const shown = phone ? tab === 'aside' : open
   return (

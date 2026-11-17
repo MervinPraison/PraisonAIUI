@@ -20,8 +20,8 @@
 }
 
 /* The Canvas toggle lives in the top bar (data-aiui-aside-slot): a chat
-   header left with nothing visible (no agent picker) takes no room. */
-[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat] > section > header:not(:has(select)) {
+   header left with nothing visible (no agent picker, no toggle) takes no room. */
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat] > section > header:not(:has(select, [data-chat-aside-toggle])) {
   position: absolute;
   width: 1px;
   height: 1px;
