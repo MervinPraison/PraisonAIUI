@@ -528,6 +528,114 @@ class HostGuardMiddleware:
         await response(scope, receive, send)
 
 
+# ── Request body size ────────────────────────────────────────────────
+
+#: Default cap on any request body, in MiB (``AIUI_MAX_BODY_MB`` overrides).
+DEFAULT_MAX_BODY_MB = 25
+#: Cap on a body sent to a path that needs no credentials (login, sign-up,
+#: protocol negotiation): small, because anyone can send one.
+PUBLIC_MAX_BODY_BYTES = 64 * 1024
+#: Unauthenticated POST paths outside PUBLIC_EXACT_PATHS (the sign-up policy
+#: lets some through without a session).
+_SIGNUP_PATHS = frozenset({"/register", "/api/auth/register"})
+
+
+def configured_max_body_bytes(env: Optional[dict] = None) -> int:
+    """``AIUI_MAX_BODY_MB`` in bytes (default 25 MiB; ``0`` turns the cap off)."""
+    raw = (env if env is not None else os.environ).get("AIUI_MAX_BODY_MB", "").strip()
+    try:
+        mb = float(raw) if raw else DEFAULT_MAX_BODY_MB
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "AIUI_MAX_BODY_MB=%r is not a number; using %s", raw, DEFAULT_MAX_BODY_MB
+        )
+        mb = DEFAULT_MAX_BODY_MB
+    return max(0, int(mb * 1024 * 1024))
+
+
+class RequestBodyTooLarge(Exception):
+    """Raised from ``receive()`` once a body passes its cap."""
+
+
+class BodySizeLimitMiddleware:
+    """Answer 413 to a request body over its cap, before it is buffered.
+
+    The cap is ``AIUI_MAX_BODY_MB`` (default 25 MiB) for authenticated
+    routes and :data:`PUBLIC_MAX_BODY_BYTES` for paths that need no
+    credentials, so an anonymous client cannot make the server hold a large
+    body in memory. A ``Content-Length`` over the cap is refused without
+    reading; a chunked body is counted as it streams and stopped at the cap.
+    """
+
+    def __init__(self, app, max_bytes: Optional[int] = None, public_max_bytes: int = PUBLIC_MAX_BODY_BYTES):
+        self.app = app
+        self.max_bytes = configured_max_body_bytes() if max_bytes is None else max_bytes
+        self.public_max_bytes = public_max_bytes
+
+    def _limit(self, scope: dict) -> int:
+        path = scope.get("path", "")
+        if path in PUBLIC_EXACT_PATHS or path in _SIGNUP_PATHS:
+            return min(self.public_max_bytes, self.max_bytes) if self.max_bytes else self.public_max_bytes
+        return self.max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        limit = self._limit(scope)
+        if not limit:
+            await self.app(scope, receive, send)
+            return
+        declared = header(scope, b"content-length")
+        if declared.isdigit() and int(declared) > limit:
+            await self._too_large(scope, receive, send, limit)
+            return
+
+        received = 0
+        exceeded = False
+        answered = False
+
+        async def limited_receive():
+            nonlocal received, exceeded
+            if exceeded:
+                raise RequestBodyTooLarge()
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    exceeded = True
+                    raise RequestBodyTooLarge()
+            return message
+
+        async def guarded_send(message):
+            # Once the cap is hit, whatever the app answers (a 500 from an
+            # error handler, a handler that caught the exception) becomes 413.
+            nonlocal answered
+            if not exceeded:
+                answered = answered or message["type"] == "http.response.start"
+                await send(message)
+            elif not answered:
+                answered = True
+                await self._too_large(scope, receive, send, limit)
+
+        try:
+            await self.app(scope, limited_receive, guarded_send)
+        except RequestBodyTooLarge:
+            pass
+        except Exception:
+            if not exceeded:
+                raise
+        if exceeded and not answered:
+            await self._too_large(scope, receive, send, limit)
+
+    @staticmethod
+    async def _too_large(scope, receive, send, limit: int) -> None:
+        response = JSONResponse(
+            {"error": f"Request body too large (limit {limit} bytes)"}, status_code=413
+        )
+        await response(scope, receive, send)
+
+
 # ── JSON request bodies ──────────────────────────────────────────────
 
 _BODY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})

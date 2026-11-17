@@ -154,8 +154,15 @@ async def _upload_attachment(request: Request) -> JSONResponse:
         if not file:
             return JSONResponse({"error": "No file provided"}, status_code=400)
 
-        data = await file.read()
         mgr = get_attachment_manager()
+        # The form parser spooled the file to disk; check its size before
+        # reading it into memory.
+        size = getattr(file, "size", None)
+        if size is not None and size > mgr._max_size:
+            return JSONResponse(
+                {"error": f"File too large: {size} > {mgr._max_size}"}, status_code=413
+            )
+        data = await file.read()
         meta = mgr.upload(
             data=data,
             filename=file.filename or "upload",

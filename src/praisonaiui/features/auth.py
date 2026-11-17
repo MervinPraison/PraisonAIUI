@@ -299,8 +299,11 @@ class AuthFeature(BaseFeatureProtocol):
 
     async def _login(self, request: Request) -> JSONResponse:
         """POST /api/auth/login — Login with password (thread-safe)."""
-        body = await request.json()
-        password = body.get("password", "")
+        try:
+            body = await request.json()
+        except ValueError:
+            return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        password = (body or {}).get("password", "")
 
         mode = _auth_config.get("mode", "none")
 

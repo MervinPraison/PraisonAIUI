@@ -85,6 +85,14 @@
 - **Behaviour change:** `POST /api/knowledge/add-file` reads only files in the
   chat attachments folder or a folder listed in `AIUI_KNOWLEDGE_ROOTS`; other
   paths get 400. It used to ingest any file the server could read.
+- **Behaviour change:** request bodies are capped. A body over
+  `AIUI_MAX_BODY_MB` (default 25 MiB; `0` turns it off) gets 413 before it is
+  buffered, and the paths that need no credentials (`/api/auth/login`,
+  `/login`, `/register`, `/api/protocol/negotiate`) take at most 64 KiB.
+  Anyone could make the server hold an unbounded body in memory through the
+  public login routes. Chat attachments over their 10 MB limit are refused
+  before the file is read into memory, and a malformed login body gets 400
+  instead of 500. See [Deployment → Environment Variables](docs/features/deployment.md#environment-variables).
 
 ### New
 
