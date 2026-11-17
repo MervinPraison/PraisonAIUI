@@ -11,7 +11,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { loadDoc, peekDoc } from './docLoader'
-import { assistantLinks, copyText, pageMarkdownPath } from './pageActionLinks'
+import { assistantLinks, copyText } from './pageActionLinks'
+import { docPathToMarkdown } from '../pathUtils'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
@@ -20,7 +21,7 @@ export function PageActions({ path, title }: { path: string; title: string }) {
     const timer = useRef<number | undefined>(undefined)
     useEffect(() => () => window.clearTimeout(timer.current), [])
 
-    const mdPath = pageMarkdownPath(path)
+    const mdPath = docPathToMarkdown(path) // the URL Content.tsx loaded, so peekDoc hits
     const mdUrl = typeof window === 'undefined' ? mdPath : new URL(mdPath, window.location.origin).href
     const links = assistantLinks(mdUrl, title)
 

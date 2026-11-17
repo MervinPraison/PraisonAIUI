@@ -1,13 +1,14 @@
 // Page actions (pageActionLinks.ts): the published Markdown of a page and the assistant links.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assistantLinks, assistantPrompt, pageMarkdownPath } from './pageActionLinks'
+import { assistantLinks, assistantPrompt } from './pageActionLinks'
+import { docPathToMarkdown } from '../pathUtils'
 
 test('every page publishes its Markdown next to it; the site root is docs/index.md', () => {
-    assert.equal(pageMarkdownPath('/docs/getting-started/quickstart'), '/docs/getting-started/quickstart.md')
-    assert.equal(pageMarkdownPath('/docs/guide/first/'), '/docs/guide/first.md')
-    assert.equal(pageMarkdownPath('/'), '/docs/index.md')
-    assert.equal(pageMarkdownPath(''), '/docs/index.md')
+    assert.equal(docPathToMarkdown('/docs/getting-started/quickstart'), '/docs/getting-started/quickstart.md')
+    assert.equal(docPathToMarkdown('/docs/guide/first/'), '/docs/guide/first.md')
+    assert.equal(docPathToMarkdown('/'), '/docs/index.md')
+    assert.equal(docPathToMarkdown(''), '/docs/index.md')
 })
 
 test('assistant links open a new chat that reads the page, with the prompt URL-encoded', () => {

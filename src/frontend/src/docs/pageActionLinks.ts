@@ -1,12 +1,7 @@
 // Page actions (docs/PageActions.tsx): the page's Markdown for readers who
 // work with an assistant. `aiui build` publishes every page's source next to
-// it (`/docs/<page>.md`), so these are plain links and one fetch on click.
-
-/** The published Markdown of a docs page (`/` is the home page, docs/index.md). */
-export function pageMarkdownPath(docPath: string): string {
-    const p = (docPath || '/').replace(/\/+$/, '') || '/'
-    return p === '/' ? '/docs/index.md' : `${p}.md`
-}
+// it (`/docs/<page>.md`, see `docPathToMarkdown`), so these are plain links
+// and one fetch on click.
 
 /** The prompt an assistant gets: read this page's Markdown, then take questions. */
 export function assistantPrompt(markdownUrl: string, title: string): string {

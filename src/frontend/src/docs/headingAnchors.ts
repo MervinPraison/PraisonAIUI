@@ -1,7 +1,8 @@
 // Section links in docs articles: every ## to #### heading with an id gets a
-// copy-link anchor after its text. Added from the docs side once an article
-// has rendered (`aiui:content-loaded`), so the markdown chunk the chat shares
-// does not change; one delegated click handler serves them all.
+// copy-link anchor after its text. Added from the docs side, so the markdown
+// chunk the chat shares does not change; one delegated click handler serves
+// them all. The headings are watched rather than awaited: they render after
+// `aiui:content-loaded` (lazy renderer) and a re-render replaces them.
 import { useEffect } from 'react'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -48,7 +49,7 @@ export function onAnchorClick(e: MouseEvent): void {
     const a = (e.target as Element | null)?.closest?.(`a.${ANCHOR}`) as HTMLAnchorElement | null
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     e.preventDefault()
-    const id = decodeURIComponent(a.hash.slice(1))
+    const id = (a.getAttribute('href') ?? '').slice(1) // the raw heading id set above
     window.history.replaceState(window.history.state, '', `#${encodeURIComponent(id)}`)
     document.getElementById(id)?.scrollIntoView({ block: 'start' })
     const text = a.dataset.text ?? ''
@@ -65,19 +66,26 @@ export function onAnchorClick(e: MouseEvent): void {
     )
 }
 
-/** Anchors on every docs article as it renders, and their click handler. */
+/** Anchors on every docs article as its headings render, and their click handler. */
 export function useHeadingAnchors(active: boolean): void {
     useEffect(() => {
         if (!active) return
-        const onLoaded = () =>
-            window.requestAnimationFrame(() => {
+        let frame = 0
+        const scan = () => {
+            if (frame) return // at most one pass per frame
+            frame = window.requestAnimationFrame(() => {
+                frame = 0
                 const article = document.querySelector('#main-content article.aiui-doc')
                 if (article) addHeadingAnchors(article)
             })
-        window.addEventListener('aiui:content-loaded', onLoaded)
+        }
+        const observer = new MutationObserver(scan)
+        observer.observe(document.body, { childList: true, subtree: true })
+        scan()
         document.addEventListener('click', onAnchorClick)
         return () => {
-            window.removeEventListener('aiui:content-loaded', onLoaded)
+            observer.disconnect()
+            window.cancelAnimationFrame(frame)
             document.removeEventListener('click', onAnchorClick)
         }
     }, [active])
