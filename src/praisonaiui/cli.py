@@ -585,9 +585,10 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     * ``/assets``: content-hashed chunks are ``immutable``; ``index.js`` /
       ``index.css`` and unknown names are ``no-cache`` (same rules as the
       ``aiui run`` server). A missing asset is a 404, never the HTML page.
-    * A path whose last segment has no extension falls back to
-      ``<path>.html`` and then ``index.html`` (client-side routes); any other
-      missing file is a 404.
+    * A path whose last segment has no extension is served from
+      ``<path>.html`` when it exists (the canonical URL, so no 307 to
+      ``<path>/``), and falls back to ``index.html`` (client-side routes);
+      any other missing file is a 404.
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
@@ -595,24 +596,36 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     from starlette.middleware.cors import CORSMiddleware
     from starlette.responses import FileResponse, PlainTextResponse
     from starlette.routing import Mount
-    from starlette.staticfiles import StaticFiles
 
     from praisonaiui.server import _AssetStaticFiles, gzip_static
+    from praisonaiui.static_gzip import NoCacheStaticFiles, gzip_file_response
 
     root = output.resolve()
 
-    class _SiteFiles(StaticFiles):
-        # Fixed names (index.html, ui-config.json …) change on every build.
-        def file_response(self, full_path, stat_result, scope, status_code: int = 200):
-            response = super().file_response(full_path, stat_result, scope, status_code)
-            response.headers.setdefault("Cache-Control", "no-cache")
-            return response
+    # Fixed names (index.html, ui-config.json …) change on every build.
+    site = NoCacheStaticFiles(directory=str(root), html=True)
 
-    site = _SiteFiles(directory=str(root), html=True)
+    async def _html_file(scope, candidate: Path):
+        response = FileResponse(
+            str(candidate),
+            media_type="text/html",
+            stat_result=candidate.stat(),
+            headers={"Cache-Control": "no-cache"},
+        )
+        return await gzip_file_response(response, scope)
 
     async def site_app(scope, receive, send):
         if scope["type"] != "http":
             return
+        path = scope.get("path", "/")
+        rel = path.strip("/")
+        # /docs/x is the canonical URL and the build writes docs/x.html beside
+        # docs/x/index.html: answer it directly instead of StaticFiles' 307.
+        if rel and not path.endswith("/") and "." not in rel.rsplit("/", 1)[-1]:
+            page = root / f"{rel}.html"
+            if _is_safe_path(page, root) and page.is_file():
+                await (await _html_file(scope, page))(scope, receive, send)
+                return
         try:
             await site(scope, receive, send)
             return
@@ -628,11 +641,7 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
             candidates.append(root / "index.html")
             for candidate in candidates:
                 if _is_safe_path(candidate, root) and candidate.is_file():
-                    response = FileResponse(
-                        str(candidate),
-                        media_type="text/html",
-                        headers={"Cache-Control": "no-cache"},
-                    )
+                    response = await _html_file(scope, candidate)
                     break
         await response(scope, receive, send)
 
@@ -1920,43 +1929,10 @@ def run(
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building static files...")
         build(config=config, output=output, minify=False)
 
-    # If chat mode: set up chat frontend directly from templates
-    if is_chat_mode:
-        import json as _json
-        import shutil
-
-        output.mkdir(parents=True, exist_ok=True)
-
-        # Copy bundled frontend template (has the React SPA with ChatLayout)
-        pkg_frontend = Path(__file__).parent / "templates" / "frontend"
-        if pkg_frontend.exists():
-            # Copy index.html and assets from the package template
-            for item in pkg_frontend.iterdir():
-                dst = output / item.name
-                if item.is_dir():
-                    if dst.exists():
-                        shutil.rmtree(dst)
-                    shutil.copytree(item, dst)
-                else:
-                    shutil.copy2(item, dst)
-
-        # Write chat-mode ui-config.json
-        ui_config_path = output / "ui-config.json"
-        ui_cfg = {
-            "site": {
-                "title": "AI Chat",
-                "theme": {"preset": "zinc", "darkMode": True, "radius": "md"},
-            },
-            "style": style,
-        }
-        with open(ui_config_path, "w", encoding="utf-8") as f:
-            _json.dump(ui_cfg, f, indent=2)
-
-        # Write minimal route-manifest and docs-nav so the SPA doesn't error
-        (output / "route-manifest.json").write_text(
-            '{"routes": []}', encoding="utf-8"
-        )
-        (output / "docs-nav.json").write_text('{"items": []}', encoding="utf-8")
+    # Chat mode needs nothing on disk: the server serves the bundle from the
+    # package and ui-config.json / route-manifest.json / docs-nav.json from
+    # its own routes. (It used to recopy the whole bundle into ./aiui on every
+    # start, 0.2-1 s and ~11 MB that were never served.)
 
     # Find available port
     try:
@@ -1968,7 +1944,10 @@ def run(
     if actual_port != port:
         console.print(_port_moved_message(host, port, actual_port))
 
-    static_dir = output if output.exists() else None
+    # Without --config a chat app has no built site; a ./aiui left by an older
+    # version (a full bundle copy) must not shadow the package's files.
+    has_site = config is not None and config.exists()
+    static_dir = output if output.exists() and (has_site or not is_chat_mode) else None
 
     # Check backend mode
     if backend == "praisonai":

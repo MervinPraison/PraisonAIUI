@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,46 @@ def _plugin_search_dirs(extra_dirs: list[str] | None = None) -> list[Path]:
     return dirs
 
 
+# Discovery runs on every page, manifest and plugin-file request. These caches
+# keep it to one stat per search folder and one per manifest: a folder's list
+# of children is re-read when its mtime changes, a manifest when its own does.
+_children_cache: dict[Path, tuple[int, list[Path]]] = {}
+_manifest_cache: dict[Path, tuple[int, int, Any]] = {}
+
+
+def _child_dirs(root: Path) -> list[Path]:
+    try:
+        mtime = root.stat().st_mtime_ns
+    except OSError:
+        return []
+    hit = _children_cache.get(root)
+    if hit is not None and hit[0] == mtime:
+        return hit[1]
+    children = sorted(c for c in root.iterdir() if c.is_dir())
+    _children_cache[root] = (mtime, children)
+    return children
+
+
+def _read_manifest(manifest_path: Path) -> Any:
+    """Parsed manifest.json, ``None`` when missing; raises on a bad file."""
+    try:
+        st = manifest_path.stat()
+    except OSError:
+        return None
+    hit = _manifest_cache.get(manifest_path)
+    if hit is not None and hit[:2] == (st.st_mtime_ns, st.st_size):
+        if isinstance(hit[2], Exception):
+            raise hit[2]
+        return hit[2]
+    try:
+        data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        _manifest_cache[manifest_path] = (st.st_mtime_ns, st.st_size, exc)
+        raise
+    _manifest_cache[manifest_path] = (st.st_mtime_ns, st.st_size, data)
+    return data
+
+
 def discover_dashboard_plugins(
     extra_dirs: list[str] | None = None,
     allowed: list[str] | None = None,
@@ -48,16 +89,14 @@ def discover_dashboard_plugins(
     seen: set[str] = set()
 
     for root in _plugin_search_dirs(extra_dirs):
-        for child in sorted(root.iterdir()):
-            if not child.is_dir():
-                continue
+        for child in _child_dirs(root):
             manifest_path = child / "manifest.json"
-            if not manifest_path.is_file():
-                continue
             try:
-                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                data = _read_manifest(manifest_path)
             except (OSError, json.JSONDecodeError) as exc:
                 logger.warning("Invalid dashboard plugin manifest %s: %s", manifest_path, exc)
+                continue
+            if not isinstance(data, dict):
                 continue
             name = data.get("name") or child.name
             if name in seen:
@@ -140,7 +179,15 @@ def make_dashboard_plugin_routes(
             media = "text/css"
         elif file_path.suffix == ".json":
             media = "application/json"
-        return FileResponse(file_path, media_type=media)
+        from praisonaiui.static_gzip import gzip_file_response
+
+        response = FileResponse(
+            file_path,
+            media_type=media,
+            stat_result=os.stat(file_path),
+            headers={"Cache-Control": "no-cache"},
+        )
+        return await gzip_file_response(response, request.scope)
 
     return [
         Route("/api/dashboard/plugins", list_plugins, methods=["GET"]),

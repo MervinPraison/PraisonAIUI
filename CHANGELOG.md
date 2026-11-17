@@ -214,6 +214,16 @@
   now takes the same `(platform, token, agent, bot_config, ch_cfg)` call as
   `WebSocketGateway`, so registered bot factories (`register_bot_factory`)
   build channel bots again.
+- Serving speed. `aiui run app.py` (a chat app) no longer recopies the 11 MB
+  bundle into `./aiui` on every start (setup 203 ms to 22 ms here); the
+  package bundle was served anyway. Static files are gzipped once per file
+  version off the event loop (a 796 kB chunk: 27 ms to 7 ms per request), and
+  the page HTML, `/api/shell/manifest`, `/api/pages` and dashboard-plugin files
+  are now compressed (the manifest 12.1 kB to 3.0 kB). Dashboard-plugin
+  discovery stops reparsing every `manifest.json` per request. A site served by
+  `aiui run --config` is compressed and sent `no-cache`, and its
+  `/assets/theme.css` no longer 404s. `aiui serve` no longer answers
+  `/docs/x` with a 307 to `/docs/x/`.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

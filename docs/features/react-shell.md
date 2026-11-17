@@ -130,6 +130,20 @@ triples are converted in the browser where possible, but update the CSS.
   (`src/frontend/scripts/carry-forward-assets.mjs`), so a reader with an
   old page open can still load its lazy parts.
 - A stale chunk that does fail to load triggers one automatic reload.
+- Static files are sent gzip-compressed. Each file is compressed once per
+  version (path, mtime, size) in a worker thread and kept in memory (at most
+  64 MB), so a cold page load does not compress the bundle again on the
+  event loop. Range requests get the plain bytes. The page HTML,
+  `/api/shell/manifest`, `/api/pages` and dashboard-plugin files are
+  compressed too.
+- `aiui run app.py` serves the bundle from the installed package; it no
+  longer copies it into `./aiui` on every start (a `./aiui` left by an older
+  version is ignored for a chat app; delete it). A site built with
+  `aiui run --config` is served gzip-compressed with `Cache-Control:
+  no-cache`, like `aiui serve`, and its own `assets/` (for example
+  `theme.css`) is looked up after the package's.
+- `aiui serve` answers a page's canonical URL (`/docs/x`) from `docs/x.html`
+  directly, without a redirect to `/docs/x/`.
 
 ## Quality gates
 
