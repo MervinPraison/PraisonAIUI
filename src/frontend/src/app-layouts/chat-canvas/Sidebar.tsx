@@ -14,26 +14,8 @@ import type { LayoutChrome, LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatList } from './ChatList'
 import type { ArtifactIndex } from './data'
+import { ARTIFACTS_PAGE, sidebarRows } from './frameLogic'
 import { NavIcon } from './icons'
-
-/** Page id of the artifacts index (builtin.artifacts), whose row carries the count. */
-export const ARTIFACTS_PAGE = 'artifacts'
-/** Page id of the settings (builtin.config): "Settings" at the sidebar's foot, as the design draws it. */
-export const SETTINGS_PAGE = 'config'
-
-/**
- * The design's foot (Canvas.dc.html): Settings (the config page, wherever
- * the manifest lists it) instead of the footer pages; those (Inspector…)
- * stay in More, the command palette, with every other page.
- */
-export function sidebarRows(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>): { primary: readonly LayoutNavItem[]; settings?: LayoutNavItem } {
-  const all = [...nav.primary, ...nav.groups.flatMap((g) => g.items), ...nav.footer]
-  const found = all.find((i) => i.id === SETTINGS_PAGE)
-  return {
-    primary: nav.primary.filter((i) => i.id !== SETTINGS_PAGE),
-    settings: found && { ...found, title: 'Settings', navIcon: 'settings' },
-  }
-}
 
 /** This page is served from this machine ("Connected · local"). */
 const isLocalHost = () => typeof location !== 'undefined' && /^(localhost|127(\.\d+){3}|\[::1\])$/.test(location.hostname)

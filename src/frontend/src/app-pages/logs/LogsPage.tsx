@@ -13,11 +13,12 @@ import { Download, Pause, Play, Trash } from 'lucide-react'
 import { LogViewer } from '@/components/page/LogViewer'
 import { Button } from '@/components/ui/button'
 import { fetchJson } from '@/sdk/services'
-import { inLayoutOnly, StatusDot, useJson, type AppPageProps } from '../shared'
+import { inLayoutOnly, useJson } from '../shared'
+import { StatusDot } from '../ui'
 import { logEntries, logsAsText } from './model'
 import { Modal, ModalActions } from '../Modal'
 
-function LogsPage(_: AppPageProps) {
+function LogsPage() {
   const [paused, setPaused] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)

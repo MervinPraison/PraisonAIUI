@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // `inLayoutOnly(Page)` (src/app-pages/shared.tsx) wraps a page component
+      // in another component, so `export default inLayoutOnly(Page)` exports a
+      // component that Fast Refresh can handle.
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true, customHOCs: ['inLayoutOnly'] }],
+    },
   },
 ])

@@ -7,7 +7,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { provideLayoutData, resetLayoutsForTests } from '@/sdk/layouts'
 import type { ApprovalsFeed, ChatFeed, ChatMessageView, ChatState } from '@/sdk/layoutTypes'
-import RunInspector, { routeDecision } from './RunInspector'
+import RunInspector from './RunInspector'
+import { routeDecision } from './decide'
 import { hasRunLedger, normalizeRunDetail } from './api'
 
 const T0 = Date.now() - 5000

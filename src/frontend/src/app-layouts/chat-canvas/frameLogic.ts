@@ -1,6 +1,7 @@
-/** Pure pieces of the Chat and Canvas frame: layout options and keys. */
+/** Pure pieces of the Chat and Canvas frame: layout options, keys and the sidebar's rows. */
 import type { CSSProperties } from 'react'
 import { matchesShortcut } from '@/app-layouts/kit'
+import type { LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 
 const positive = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : undefined)
 
@@ -42,4 +43,23 @@ export function frameKeyAction(
   if (ctx.canCreate && matchesShortcut(e, 'mod+n', ctx.mac)) return 'new-chat'
   if (!ctx.phone && matchesShortcut(e, 'mod+b', ctx.mac)) return 'toggle-sidebar'
   return null
+}
+
+/** Page id of the artifacts index (builtin.artifacts), whose row carries the count. */
+export const ARTIFACTS_PAGE = 'artifacts'
+/** Page id of the settings (builtin.config): "Settings" at the sidebar's foot, as the design draws it. */
+export const SETTINGS_PAGE = 'config'
+
+/**
+ * The design's foot (Canvas.dc.html): Settings (the config page, wherever
+ * the manifest lists it) instead of the footer pages; those (Inspector…)
+ * stay in More, the command palette, with every other page.
+ */
+export function sidebarRows(nav: Pick<LayoutNav, 'primary' | 'groups' | 'footer'>): { primary: readonly LayoutNavItem[]; settings?: LayoutNavItem } {
+  const all = [...nav.primary, ...nav.groups.flatMap((g) => g.items), ...nav.footer]
+  const found = all.find((i) => i.id === SETTINGS_PAGE)
+  return {
+    primary: nav.primary.filter((i) => i.id !== SETTINGS_PAGE),
+    settings: found && { ...found, title: 'Settings', navIcon: 'settings' },
+  }
 }
