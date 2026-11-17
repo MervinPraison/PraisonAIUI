@@ -65,6 +65,12 @@
 
 ### New
 
+- **Docs search finds sections and text**, not only page titles. `aiui build`
+  writes `search-index.json` (headings and text per page); the search dialog
+  ranks titles, headings and text, shows "Section › Page" with the matched
+  words and opens the page at the section. Links with a `#section` now open
+  the page scrolled there. See
+  [Writing docs pages → Search](docs/features/writing-docs.md#search).
 - **Theme preset `paper`** (the look of the Chat and Canvas screen) and
   `site.theme.mode: light | dark | system` for `aiui build`. A docs site with
   `preset: paper` draws in warm paper, a navy accent, Newsreader titles and

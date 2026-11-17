@@ -47,7 +47,7 @@ description: Every block a docs page can use.
 `##` and `###` headings build the "On this page" list beside the article
 (above it on narrow screens), which follows the reader as they scroll. Every
 heading gets an id from its text, so `writing-docs#callouts` links straight to
-a section. Keep one `#` title per page; the paragraph right under it is the
+a section, and a link with a section opens the page scrolled to it. Keep one `#` title per page; the paragraph right under it is the
 lede and reads larger.
 
 ## Callouts
@@ -211,6 +211,22 @@ flowchart LR
   YAML --> build["aiui build"] --> site[Static site]
 ```
 
+## Search
+
+Readers press <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>) or the
+search field. Search covers page titles, every `##` and `###` heading and the
+text under it, so a reader who types "copy button" lands on the section that
+says so, with the words marked. A result opens the page at that section. Write
+headings the way readers ask questions and the search answers them.
+
+`aiui build` writes the index (`search-index.json`); the dialog downloads it
+the first time a reader opens search. Turn search off with:
+
+```yaml
+search:
+  enabled: false
+```
+
 ## Links between pages
 
 Link to another page by its file: `[Theming](theming.md)`. The build turns it
@@ -229,4 +245,5 @@ header still opens the tab that lists it.
 | `/llms.txt` | every page with its description ([llmstxt.org](https://llmstxt.org)) |
 | `/llms-full.txt` | every page's Markdown in one file |
 | `/docs/<page>.md` | one page's Markdown |
+| `/search-index.json` | headings and text per page, for the site's own search |
 | `/sitemap.xml`, `/robots.txt` | for search engines |
