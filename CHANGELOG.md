@@ -108,6 +108,18 @@
 
 ### Fixed
 
+- Docs sites (`aiui build`): pages make far fewer requests, all to the site
+  itself. The default `site.plugins` is now `fetch-retry` and
+  `nav-intercept`: `mermaid`, `syntax-highlight`, `code-copy`, `toc`,
+  `mkdocs-compat`, `content-loader`, `homepage` and `topnav` skip React docs
+  pages, and two of them pulled about 40 files from cdnjs and jsdelivr on
+  every page (plus a `languages/html.min.js` that does not exist). The plugin
+  loader imports plugins as `?v=<hash of the plugin files>` instead of
+  `?v=<Date.now()>`, so browsers and the CDN cache them. First page in a
+  throttled probe (400 ms, 400 kbit/s): 96 requests from 3 origins (758 kB)
+  down to 59 from 1 (515 kB). List a plugin under `site.plugins` to load it
+  again. See [Deploy to GitHub Pages → Legacy plugins](docs/getting-started/github-pages.md#legacy-plugins).
+
 - Docs sites: the home page has one URL, the site root. `/docs`, `/docs/`
   and `/docs/index` open it and move to `/`; sidebar, previous / next and
   `index.md` links point to `/`; the sitemap, `llms.txt`, `llms-full.txt`

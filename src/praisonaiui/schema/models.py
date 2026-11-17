@@ -69,19 +69,14 @@ class SiteConfig(BaseModel):
         alias="customCss",
         description="Custom CSS string injected into the page as an inline <style> tag",
     )
+    # The React docs app renders code (Shiki), mermaid, tabs, the TOC and the
+    # header tabs itself; the other legacy plugins (mermaid, syntax-highlight,
+    # code-copy, toc, mkdocs-compat, content-loader, homepage, topnav) skip
+    # React docs pages, and the first two pulled ~40 files from two CDNs per
+    # page. nav-intercept keeps in-article /docs links on SPA navigation.
+    # A site can still list any of them here.
     plugins: list[str] = Field(
-        default_factory=lambda: [
-            "nav-intercept",
-            "fetch-retry",
-            "mermaid",
-            "mkdocs-compat",
-            "content-loader",
-            "homepage",
-            "toc",
-            "topnav",
-            "code-copy",
-            "syntax-highlight",
-        ],
+        default_factory=lambda: ["fetch-retry", "nav-intercept"],
         description="List of frontend plugin names to enable",
     )
 

@@ -67,7 +67,8 @@ function loadHljs() {
       hljsReady = true;
       console.debug('[AIUI:syntax] highlight.js core loaded');
 
-      const langs = ['python', 'yaml', 'bash', 'javascript', 'typescript', 'json', 'css', 'html', 'xml'];
+      // HTML is highlight.js's `xml` grammar (there is no languages/html file).
+      const langs = ['python', 'yaml', 'bash', 'javascript', 'typescript', 'json', 'css', 'xml'];
       let loaded = 0;
       for (const lang of langs) {
         const ls = document.createElement('script');
