@@ -365,6 +365,12 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 output from them), the legacy React App folders (`chat/`, `agent-ui/`, `views/`,
 `src/Header.tsx`, `src/Sidebar.tsx`), dashboard-plugin folders and `custom.js`
 `registerView` (use a UI plugin), HSL-triple theme variables (use seeds).
+A built docs site (`aiui build`) renders code, mermaid, tabs, the TOC and
+header tabs in React, so its default `site.plugins` is `fetch-retry` and
+`nav-intercept` (in-article links); the other DOM plugins skip React docs
+pages and load only when a site lists them. `plugin-loader.js` imports
+plugins with its own `?v=` (the server's build stamp, or the compiler's hash
+of the plugin files), never a per-load timestamp.
 
 **Duplicates to avoid:** a second sidebar or header (use `shell/Sidebar.tsx`), a second chat UI (extend `chat-engine/`, not
 `chat/`), a second markdown pipeline, a second toast or palette, a new plugin

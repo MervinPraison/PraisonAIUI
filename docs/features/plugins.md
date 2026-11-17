@@ -31,6 +31,8 @@ Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
       `dashboard-plugins/`, vanilla JS views (see [Agent UI host](./agent-ui-host.md)).
       The app shell still hosts them as legacy pages.
     - **Docs plugins**: `site.plugins` in `aiui.yaml` (static site compiler hooks).
+      The default is `fetch-retry` and `nav-intercept`; see
+      [Deploy to GitHub Pages → Legacy plugins](../getting-started/github-pages.md#legacy-plugins).
 
 ## How it fits together
 

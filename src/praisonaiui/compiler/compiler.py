@@ -487,7 +487,12 @@ class Compiler:
                 output_dir / "index.html",
             )
             self._patch_antiflicker(output_dir / "index.html")
-            self._patch_static_shell(output_dir / "index.html")
+            # Copy plugins directory and generate plugins.json. A build-only
+            # AIUI_TEMPLATES_DIR has no plugins/: use the packaged ones. Their
+            # version goes on the loader's URL (it imports them with it).
+            plugins_root = frontend_dir if (frontend_dir / "plugins").is_dir() else packaged_dir
+            plugins_version = self._copy_plugins(output_dir, plugins_root)
+            self._patch_static_shell(output_dir / "index.html", plugins_version)
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -527,10 +532,6 @@ class Compiler:
             if build_manifest.is_file():
                 shutil.copy(build_manifest, output_dir / build_manifest.name)
 
-            # Copy plugins directory and generate plugins.json. A build-only
-            # AIUI_TEMPLATES_DIR has no plugins/: use the packaged ones.
-            plugins_root = frontend_dir if (frontend_dir / "plugins").is_dir() else packaged_dir
-            self._copy_plugins(output_dir, plugins_root)
 
     _ENTRY_ASSET_RE = re.compile(
         r"""(?P<attr>\b(?:src|href)=)(?P<q>["'])/assets/(?P<name>index\.(?:js|css))(?:\?[^"']*)?(?P=q)"""
@@ -579,11 +580,16 @@ class Compiler:
         html = html.replace("__AIUI_DARK_DEFAULT__", "true" if dark_mode else "false")
         html_path.write_text(html, encoding="utf-8")
 
-    def _patch_static_shell(self, html_path: Path) -> None:
+    _LOADER_RE = re.compile(r"""(/plugins/plugin-loader\.js)(?:\?[^"']*)?(["'])""")
+
+    def _patch_static_shell(self, html_path: Path, plugins_version: str = "") -> None:
         """Patch built index.html for static hosts (GitHub Pages).
 
         - Strip trailing slashes from the URL bar before React hydrates.
-        - Load plugin-loader.js (not included in the Vite bundle).
+        - Load plugin-loader.js (not included in the Vite bundle), as
+          ``plugin-loader.js?v=<plugins_version>``: the loader imports every
+          plugin with that ``?v=``, so a build's plugins are cached and the
+          next build's are not mistaken for them.
         """
         html = html_path.read_text(encoding="utf-8")
         canonical_script = (
@@ -606,15 +612,23 @@ class Compiler:
                 "</body>",
                 '  <script src="/plugins/plugin-loader.js"></script>\n</body>',
             )
+        if plugins_version:
+            html = self._LOADER_RE.sub(rf"\1?v={plugins_version}\2", html)
         html_path.write_text(html, encoding="utf-8")
 
-    def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> None:
-        """Copy frontend plugins and generate plugins.json config."""
+    def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> str:
+        """Copy frontend plugins and generate plugins.json config.
+
+        Returns the plugins' version: the first 10 hex of a sha256 over the
+        copied files' names and bytes ("" when there is no plugins folder).
+        plugins.json carries it as ``version`` too.
+        """
+        import hashlib
         import shutil
 
         plugins_src = frontend_dir / "plugins"
         if not plugins_src.exists():
-            return
+            return ""
 
         plugins_dst = output_dir / "plugins"
         if plugins_dst.exists():
@@ -646,10 +660,16 @@ class Compiler:
             if p != "fetch-retry":
                 ordered.append(p)
 
-        plugins_config = {"plugins": ordered}
+        digest = hashlib.sha256()
+        for f in sorted(plugins_dst.glob("*.js")):
+            digest.update(f.name.encode("utf-8") + b"\0" + f.read_bytes())
+        version = digest.hexdigest()[:10]
+
+        plugins_config = {"plugins": ordered, "version": version}
         (plugins_dst / "plugins.json").write_text(
             json.dumps(plugins_config, indent=2), encoding="utf-8"
         )
+        return version
 
     def _generate_route_pages(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate per-route HTML files for SPA fallback and SEO.

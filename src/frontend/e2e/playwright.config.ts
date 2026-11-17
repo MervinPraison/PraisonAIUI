@@ -11,7 +11,7 @@
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
  *   chat-style         style chat, presets zinc and rose, and   theme-presets, chat-os-theme, chat-reply
  *                      one with no set_theme() (follows the OS)
- *   docs               `aiui build` output on `aiui serve`      markdown, docs-chrome
+ *   docs               `aiui build` output on `aiui serve`      markdown, docs-*
  *   page-reload-*      the dashboard and app-shell servers      page-reload
  *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>, app-<page>
  *                      (fixtures/layout-plugin/serve.py)
@@ -153,7 +153,7 @@ export default defineConfig({
     },
     {
       name: 'docs',
-      testMatch: /[\\/](markdown|docs-chrome)\.spec\.ts$/,
+      testMatch: /[\\/](markdown|docs-[\w-]+)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.docs) },
     },
     // One spec against both page styles (the servers above, no new ones).

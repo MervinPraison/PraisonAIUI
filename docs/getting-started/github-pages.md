@@ -181,6 +181,7 @@ site/
 ├── docs-nav.json        # navigation tree
 ├── route-manifest.json  # route definitions
 ├── robots.txt
+├── plugins/             # plugin-loader.js, plugins.json and the enabled legacy plugins
 └── docs/
     ├── index.html       # one pre-rendered page per document (title, description)
     ├── index.md         # the Markdown source, loaded by the app
@@ -194,3 +195,26 @@ Everything is static, so GitHub Pages serves it directly.
 
 This site, https://ui.praison.ai, is built the same way: see
 [`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).
+
+## Legacy plugins
+
+The docs app renders code (Shiki), mermaid diagrams, MkDocs tabs and
+admonitions, "On this page" and the header tabs itself. By default a build
+loads only two of the vanilla plugins in `plugins/`:
+
+| Plugin | Why it loads |
+|---|---|
+| `fetch-retry` | Retries a failed request for the site manifests (`ui-config.json`, `docs-nav.json`, `route-manifest.json`) |
+| `nav-intercept` | Keeps in-article `/docs` links on in-app navigation (no full page load) |
+
+`mermaid`, `syntax-highlight`, `code-copy`, `toc`, `mkdocs-compat`,
+`content-loader`, `homepage` and `topnav` no longer load by default: they skip
+React docs pages, and `mermaid` and `syntax-highlight` fetched about 40 files
+from cdn.jsdelivr.net and cdnjs.cloudflare.com on every page (each new origin
+is another connection that can stall). A site can still list any of them under
+`site.plugins` in `aiui.yaml`.
+
+`index.html` loads `plugins/plugin-loader.js?v=<version>`, where the version
+is a hash of the plugin files in the build (also in `plugins/plugins.json`).
+The loader imports every plugin with the same `?v=`, so browsers and the CDN
+cache them until a build changes a plugin.

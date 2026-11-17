@@ -13,6 +13,20 @@ console.debug('[AIUI Loader] Starting...');
   const PLUGINS_BASE = '/plugins/';
   const ROOT_SELECTOR = '#root';
 
+  // Plugin modules are imported with this script's own ?v= (the server's
+  // build stamp, or the static build's hash of the plugin files), else the
+  // `version` in plugins.json. A fixed URL per build lets the browser and the
+  // CDN cache them; a new build changes it.
+  const LOADER_VERSION = (function () {
+    try {
+      const src = document.currentScript && document.currentScript.src;
+      return src ? new URL(src).searchParams.get('v') || '' : '';
+    } catch (_) {
+      return '';
+    }
+  })();
+  let pluginVersion = LOADER_VERSION;
+
   /** @type {Array<{name: string, init?: Function, onContentChange?: Function}>} */
   const loadedPlugins = [];
   let spaNavigating = false;
@@ -30,7 +44,8 @@ console.debug('[AIUI Loader] Starting...');
 
   async function loadPlugin(name) {
     try {
-      const url = `${PLUGINS_BASE}${name}.js?v=${Date.now()}`;
+      const query = pluginVersion ? `?v=${encodeURIComponent(pluginVersion)}` : '';
+      const url = `${PLUGINS_BASE}${name}.js${query}`;
       const mod = await import(url);
       const raw = mod.default || mod;
       const plugin = { ...raw, name: raw.name || name };
@@ -119,6 +134,7 @@ console.debug('[AIUI Loader] Starting...');
       }
 
       const config = await res.json();
+      if (!pluginVersion && config.version) pluginVersion = String(config.version);
       const pluginNames = config.plugins || [];
 
       if (pluginNames.length === 0) {
