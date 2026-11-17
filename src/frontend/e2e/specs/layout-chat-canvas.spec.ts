@@ -360,7 +360,7 @@ test('a non-chat page renders in the outlet with its title and downloads no feat
   expect([...new Set(scripts.filter((s) => /^layout-/.test(s)))].sort()).toEqual(['layout-chat-canvas', 'layout-kit'])
 })
 
-test('the composer is one quiet row at rest: after a desktop-to-phone switch, a model button, no loud ring', async ({ page }) => {
+test('the composer is two quiet rows at rest: after a desktop-to-phone switch, a model button, no loud ring', async ({ page }) => {
   await page.setViewportSize(DESKTOP)
   await page.goto('/chat')
   const input = page.getByRole('textbox', { name: 'Message' })
@@ -369,8 +369,11 @@ test('the composer is one quiet row at rest: after a desktop-to-phone switch, a 
   // Focused or not, the composer's halo is a soft 3px ring, never a 2px solid band.
   const shadow = await page.locator('form:has(textarea[aria-label="Message"])').evaluate((el) => getComputedStyle(el).boxShadow)
   expect(shadow).not.toMatch(/0px 0px 0px 2px/)
+  // Two rows of text (Canvas.dc.html), not a column the auto-height measured as a sliver.
   await page.setViewportSize(PHONE)
-  await expect.poll(async () => (await input.boundingBox())?.height ?? 0).toBeLessThan(40)
+  await expect.poll(async () => (await input.boundingBox())?.height ?? 0).toBeLessThan(72)
+  expect((await input.boundingBox())?.height ?? 0).toBeGreaterThan(40)
+  await expect(page.locator('[data-composer-model]')).toBeVisible()
 })
 
 test('⌘B hides the sidebar and it stays hidden after a reload; New chat starts an empty chat', async ({ page }) => {
