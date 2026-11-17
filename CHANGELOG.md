@@ -70,6 +70,21 @@
 - Inline JSON in HTML has one escaper, `praisonaiui.utils.json_for_html`, used
   by the app shell, the standalone replay page and built docs sites. The docs
   JSON-LD block, which used to inline page titles unescaped, now uses it too.
+- `/dashboard-plugins/<name>/<path>` serves only files inside that plugin's
+  folder. A `..` path could reach a sibling folder whose name started with the
+  plugin's name.
+- **Behaviour change:** the `/api/jobs` proxy no longer forwards aiui's own
+  credentials (`Authorization`, cookies, `X-API-Key`, `?token=`) to the jobs
+  server, and refuses paths with `.`/`..` segments (400), which could reach
+  any path on the upstream host. A jobs server that needs a credential gets
+  one from `set_jobs_proxy(url, token=...)`. See
+  [PraisonAI package integration](docs/features/praisonai-package-integration.md).
+- **Behaviour change:** Video Studio project ids must be one folder name,
+  `projectPath` must lie inside the projects folder, and render `out` must be
+  a plain file name, so requests cannot write outside the projects folder.
+- **Behaviour change:** `POST /api/knowledge/add-file` reads only files in the
+  chat attachments folder or a folder listed in `AIUI_KNOWLEDGE_ROOTS`; other
+  paths get 400. It used to ingest any file the server could read.
 
 ### New
 

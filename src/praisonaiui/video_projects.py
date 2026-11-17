@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -117,10 +118,35 @@ def create_project(name: str) -> dict[str, Any]:
     return {"id": project_id, "name": name, "path": str(base), "meta": meta}
 
 
+def _is_one_segment(name: Any) -> bool:
+    """True for a plain file or folder name: no separator, no ``.``/``..``."""
+    return (
+        isinstance(name, str)
+        and name not in ("", ".", "..")
+        and not any(ch in name for ch in ("/", "\\", "\x00"))
+    )
+
+
 def resolve_project(project_id: str) -> Path:
+    """The project folder for *project_id*, which must be one folder name.
+
+    An id with a separator or ``..`` would reach outside the projects folder,
+    so it is reported as not found, like an unknown id.
+    """
+    if not _is_one_segment(project_id):
+        raise FileNotFoundError(f"Project not found: {project_id}")
     path = get_projects_dir() / project_id
     if not path.is_dir():
         raise FileNotFoundError(f"Project not found: {project_id}")
+    return path
+
+
+def confine_project_path(project_path: str) -> Path:
+    """A caller-supplied project folder path, accepted only inside the projects folder."""
+    root = Path(os.path.abspath(get_projects_dir()))
+    path = Path(os.path.abspath(str(project_path)))
+    if path == root or not path.is_relative_to(root) or not path.is_dir():
+        raise FileNotFoundError(f"Project not found: {project_path}")
     return path
 
 
@@ -171,6 +197,9 @@ def read_render_backend_from_scene(project_id: str) -> str | None:
 
 
 def export_artifact_path(project_id: str, filename: str = "out.mp4") -> Path:
+    """``<project>/exports/<filename>``; *filename* must be one file name."""
+    if not _is_one_segment(filename):
+        raise ValueError(f"Invalid export file name: {filename!r}")
     project_dir = resolve_project(project_id)
     exports = project_dir / "exports"
     exports.mkdir(parents=True, exist_ok=True)
