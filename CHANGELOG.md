@@ -65,6 +65,9 @@
 
 ### New
 
+- **Docs pages load their text with the page.** `aiui build` writes each
+  page's Markdown into its HTML, so the first visit needs no request for it
+  (the app reads it once and falls back to fetching).
 - **Docs home hero preload.** `aiui build` writes `<link rel="preload" as="image">`
   for the home page's hero (one per colour mode, with a `prefers-color-scheme`
   media query), so the browser finds the image in the HTML instead of waiting
