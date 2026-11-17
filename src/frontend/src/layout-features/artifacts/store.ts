@@ -199,15 +199,26 @@ function latestOf(versions: readonly DerivedArtifact[]): DerivedArtifact[] {
 /** The newest version overall (updatedAt, then position). */
 function newest(latest: readonly DerivedArtifact[]): DerivedArtifact | null {
   let best: DerivedArtifact | null = null
-  for (const a of latest) if (!best || (a.updatedAt ?? 0) >= (best.updatedAt ?? 0)) best = a
+  for (const a of latest) {
+    const d = (a.updatedAt ?? 0) - (best?.updatedAt ?? 0)
+    // A tie is one reply that made both: the code goes below in the split (autoSplit), the other is shown.
+    if (!best || d > 0 || (d === 0 && !(a.kind === 'code' && best.kind !== 'code'))) best = a
+  }
   return best
+}
+
+/** No split chosen yet: the newest code docks below a table or document (the design's table over sort_demo.py). */
+function autoSplit(latest: readonly DerivedArtifact[], selected: DerivedArtifact | null): string | null {
+  if (!selected || selected.kind === 'code') return null
+  return newest(latest.filter((a) => a.kind === 'code'))?.key ?? null
 }
 
 interface SessionState {
   sid: string | null
   user: (DerivedArtifact & { persisted?: boolean })[]
   selection: (Selection & { seen: number }) | null
-  split: string | null
+  /** undefined: not chosen (autoSplit); null: closed. */
+  split: string | null | undefined
   server: ServerState
   /** `key@version` → the derived version the server has under that number. */
   known: Map<string, DerivedArtifact>
@@ -250,7 +261,7 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
         sid,
         user: [],
         selection: null,
-        split: null,
+        split: undefined,
         server: 'off',
         known: new Map(),
         inflight: new Set(),
@@ -291,7 +302,8 @@ export function createArtifactsStore({ threads, backend, derive = {}, now = Date
       selected = (sel.version !== undefined ? all.find((v) => v.version === sel.version) : undefined) ?? all[all.length - 1] ?? null
     }
     selected ??= newest(latest)
-    const split = s.split ? (latest.find((a) => a.key === s.split && a.key !== selected?.key) ?? null) : null
+    const splitKey = s.split === undefined ? autoSplit(latest, selected) : s.split
+    const split = splitKey ? (latest.find((a) => a.key === splitKey && a.key !== selected?.key) ?? null) : null
     const snap: SessionArtifacts = { sessionId: s.sid, versions, latest, mentions, selected, split, running: thread.isRunning, server: s.server }
     s.memo = { messages: thread.messages, user: s.user, stored: s.stored, selection: s.selection, split: s.split, server: s.server, running: thread.isRunning, snap }
     return snap

@@ -1,21 +1,27 @@
 /**
  * The canvas (a layout's chat `aside` region, ChatRegionProps): the open
- * chat's artifacts as tabs, the selected one in full with its versions,
- * and an optional split pane below for a second artifact (the design's
- * table above, code below). Empty until the chat makes an artifact. Reports
+ * chat's artifacts as tabs (with split, "+" to open another one below,
+ * expand and close), the selected one in full with its versions, and a
+ * split pane below for a second artifact (the design's table above, code
+ * below: code docks there by default, ./store autoSplit). Empty until the chat makes an artifact. Reports
  * the artifact count as the phone tab's badge. Works from the chat alone;
  * the server index is a bonus (./store).
  *
  *   aside: () => import('@/layout-features/artifacts/CanvasPanel')
  */
 import { useEffect, useState, type JSX } from 'react'
-import { Columns2, Download, Layers, Maximize2, Minimize2, Play, Rows2 } from 'lucide-react'
+import { Columns2, Download, Layers, Maximize2, Minimize2, Play, Plus, Rows2 } from 'lucide-react'
 import { CloseGlyph, CopyGlyph } from './viewers/glyphs'
 import type { ChatRegionProps } from '@/sdk/layouts'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { navigate } from '@/sdk/services'
 import { cn } from '@/lib/utils'
 import type { DerivedArtifact } from './derive'
-import { canDownload, cardMeta, copyText, PANEL_ID as panelId, tabId } from './format'
+import { ARTIFACTS_PAGE, artifactsPageListed } from './api'
+import { byLine, canDownload, copyText, kindLine, PANEL_ID as panelId, tabId } from './format'
+import { Menu, menuItemClass } from './Menu'
+import { ASIDE_EVENT } from './store'
 import { artifactsStore } from './feed'
 import { copyArtifact, downloadArtifact, useArtifacts, useCanRun, useRun } from './hooks'
 import { ArtifactView } from './ArtifactView'
@@ -23,18 +29,36 @@ import { Tabs } from './Tabs'
 import { KindIcon, Viewer } from './viewers/Viewer'
 import './artifacts.css'
 
+const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+/** Ask the chat's aside to close (chat-engine/presentation/Aside ASIDE_EVENT). */
+const closeCanvas = () => window.dispatchEvent(new CustomEvent(ASIDE_EVENT, { detail: { open: false } }))
+
+/** The second artifact docked below (Canvas.dc.html: sort_demo.py under the table), with Run ⌘↵ and its output. */
 function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClose(): void }): JSX.Element {
   const canRun = useCanRun(a.kind === 'code' ? a.language : undefined)
   const run = useRun(canRun ? a : null)
   const file = a.kind === 'code' && a.key === a.title
   return (
-    <section aria-label={`${a.title} (split view)`} className="flex min-h-0 flex-col border-t border-hairline" data-artifact-split={a.key}>
+    <section
+      aria-label={`${a.title} (split view)`}
+      className="flex max-h-[48%] min-h-0 shrink-0 flex-col border-t border-hairline"
+      data-artifact-split={a.key}
+      onKeyDown={(e) => {
+        if (canRun && e.key === 'Enter' && (isMac() ? e.metaKey : e.ctrlKey)) {
+          e.preventDefault()
+          run.run()
+        }
+      }}
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-hairline bg-sidebar py-2 pr-3 pl-4">
         <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-medium', file && 'font-mono')}>
           <KindIcon kind={a.kind} className="size-3.5 text-link" />
           <span className="truncate">{a.title}</span>
         </span>
-        <span className="text-xs text-tier-3">{cardMeta(a, { compact: true })}</span>
+        <span className="text-xs text-tier-3">
+          {kindLine(a).split(' · ')[0]} · v{a.version} · {byLine(a)}
+        </span>
         <div className="ml-auto flex items-center gap-0.5">
           {copyText(a) !== '' && (
             <Button variant="ghost" size="icon-sm" aria-label="Copy" onClick={() => void copyArtifact(a)}>
@@ -47,9 +71,10 @@ function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClos
             </Button>
           )}
           {canRun && (
-            <Button variant="secondary" size="sm" className="ml-1 bg-accent-soft text-link" onClick={run.run} disabled={run.running}>
+            <Button variant="secondary" size="sm" className="ml-1 bg-accent-soft text-link" onClick={run.run} disabled={run.running} aria-keyshortcuts={isMac() ? 'Meta+Enter' : 'Control+Enter'}>
               <Play className="fill-current" />
               {run.running ? 'Running' : 'Run'}
+              <Kbd className="hidden sm:inline-flex">{isMac() ? '⌘↵' : 'Ctrl ↵'}</Kbd>
             </Button>
           )}
           <Button variant="ghost" size="icon-sm" aria-label="Close the split view" onClick={onClose}>
@@ -67,6 +92,40 @@ function SplitPane({ artifact: a, onClose }: { artifact: DerivedArtifact; onClos
         )}
       </div>
     </section>
+  )
+}
+
+/** "+": open another of this chat's artifacts below the shown one, or every artifact (the artifacts page). */
+function OpenMenu({ items, onSplit }: { items: readonly DerivedArtifact[]; onSplit(key: string): void }): JSX.Element {
+  const all = artifactsPageListed()
+  return (
+    <Menu
+      label="Open an artifact"
+      button={(p) => (
+        <Button {...p} variant="ghost" size="icon-sm" aria-label="Open another artifact" title="Open another artifact">
+          <Plus />
+        </Button>
+      )}
+    >
+      {items.map((a) => (
+        <li key={a.key}>
+          <button type="button" data-menu-item className={menuItemClass} onClick={() => onSplit(a.key)}>
+            <KindIcon kind={a.kind} className="size-3.5 text-link" />
+            <span className="truncate">{a.title}</span>
+            <span className="ml-auto text-xs text-tier-3">below</span>
+          </button>
+        </li>
+      ))}
+      {all && (
+        <li className={cn(items.length > 0 && 'mt-1 border-t border-hairline pt-1')}>
+          <button type="button" data-menu-item className={menuItemClass} onClick={() => navigate(ARTIFACTS_PAGE)}>
+            <Layers className="size-3.5 text-tier-2" />
+            All artifacts
+          </button>
+        </li>
+      )}
+      {!items.length && !all && <li className="px-2 py-1.5 text-sm text-tier-3">Every artifact of this chat is open</li>}
+    </Menu>
   )
 }
 
@@ -134,9 +193,18 @@ export default function CanvasPanel({ sessionId, viewport, reportBadge }: ChatRe
                 {splitKey ? <Columns2 /> : <Rows2 />}
               </Button>
             )}
+            {!phone && <OpenMenu items={snap.latest.filter((a) => a.key !== sel?.key && a.key !== splitKey)} onSplit={(k) => store.setSplit(sessionId, k)} />}
             {!phone && (
               <Button variant="ghost" size="icon-sm" aria-pressed={expanded} aria-label={expanded ? 'Restore the canvas' : 'Expand the canvas'} onClick={() => setExpanded((x) => !x)}>
                 {expanded ? <Minimize2 /> : <Maximize2 />}
+              </Button>
+            )}
+            {!phone && (
+              <Button variant="ghost" size="icon-sm" aria-label="Close the canvas" title="Close the canvas" onClick={() => {
+                  setExpanded(false)
+                  closeCanvas()
+                }}>
+                <CloseGlyph />
               </Button>
             )}
           </Tabs>

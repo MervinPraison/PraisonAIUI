@@ -21,6 +21,7 @@ import { artifactsStore } from './feed'
 import { cardMeta, shareUrl } from './format'
 import { canShare, useArtifacts, useCanRun } from './hooks'
 import { useMarkInCanvas } from './inChat'
+import { ChevronGlyph } from './viewers/glyphs'
 import { KindIcon } from './viewers/Viewer'
 
 const plainClick = (e: MouseEvent) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
@@ -69,10 +70,15 @@ export function ArtifactCard({ artifact: a, latest, touch, onOpen }: {
           {newer && ` · v${newer} is newer`}
         </span>
       </span>
-      <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-link">
-        In canvas
-        <ArrowUpRight className="size-3.5" aria-hidden />
-      </span>
+      {touch ? (
+        // A phone (CanvasPhone.dc.html): a row that leads to the Canvas side.
+        <ChevronGlyph className="ml-auto size-4 shrink-0 text-tier-3" />
+      ) : (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-link">
+          In canvas
+          <ArrowUpRight className="size-3.5" aria-hidden />
+        </span>
+      )}
     </a>
   )
 }

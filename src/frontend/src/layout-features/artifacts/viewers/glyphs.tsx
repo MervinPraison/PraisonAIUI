@@ -50,3 +50,11 @@ export function CloseGlyph(p: GlyphProps): JSX.Element {
     </Glyph>
   )
 }
+
+export function ChevronGlyph(p: GlyphProps): JSX.Element {
+  return (
+    <Glyph {...p}>
+      <path d="m9 18 6-6-6-6" />
+    </Glyph>
+  )
+}
