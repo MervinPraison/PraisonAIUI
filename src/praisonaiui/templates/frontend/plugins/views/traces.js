@@ -3,7 +3,7 @@
  * Shows execution traces, spans, call trees.
  * API: /api/traces, /api/traces/status, /api/traces/spans
  */
-import { helpBanner, inAppShell, statusChip, emptyState, humanize } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, emptyState, humanize, esc } from '/plugins/views/_helpers.js';
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -66,11 +66,11 @@ export async function render(container) {
               </tr></thead>
               <tbody>${traces.map(t => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
-                  <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;opacity:.7">${t.id?.substring(0,12)}…</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${t.agent_id}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${t.name || '—'}</td>
-                  <td style="padding:10px 14px;text-align:center">${shell ? statusChip(humanize(t.status), t.status === 'completed' ? 'success' : 'warning') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${t.status==='completed'?'rgba(34,197,94,.15)':'rgba(245,158,11,.15)'}">${t.status}</span>`}</td>
-                  <td style="padding:10px 14px;text-align:center">${t.duration_ms}ms</td>
+                  <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;opacity:.7">${esc(t.id?.substring(0,12))}…</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(t.agent_id)}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(t.name || '—')}</td>
+                  <td style="padding:10px 14px;text-align:center">${shell ? statusChip(humanize(t.status), t.status === 'completed' ? 'success' : 'warning') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${t.status==='completed'?'rgba(34,197,94,.15)':'rgba(245,158,11,.15)'}">${esc(t.status)}</span>`}</td>
+                  <td style="padding:10px 14px;text-align:center">${esc(t.duration_ms)}ms</td>
                   <td style="padding:10px 14px;text-align:center">${t.span_count || 0}</td>
                 </tr>`).join('')}
               </tbody></table>`
@@ -93,10 +93,10 @@ export async function render(container) {
               <tbody>${spans.map(s => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
                   <td style="padding:10px 14px;font-size:.75rem;opacity:.6">${new Date(s.timestamp*1000).toLocaleTimeString()}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${s.agent_id}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${s.name}</td>
-                  <td style="padding:10px 14px"><span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:rgba(99,102,241,.1)">${s.kind}</span></td>
-                  <td style="padding:10px 14px;text-align:center">${s.duration_ms}ms</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(s.agent_id)}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(s.name)}</td>
+                  <td style="padding:10px 14px"><span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:rgba(99,102,241,.1)">${esc(s.kind)}</span></td>
+                  <td style="padding:10px 14px;text-align:center">${esc(s.duration_ms)}ms</td>
                   <td style="padding:10px 14px;text-align:center">${shell ? statusChip(s.status === 'ok' ? 'OK' : humanize(s.status || 'warning'), s.status === 'ok' ? 'success' : 'warning') : s.status === 'ok' ? '✅' : '⚠️'}</td>
                 </tr>`).join('')}
               </tbody></table>`

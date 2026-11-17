@@ -3,7 +3,7 @@
  * Shows LLM call latency, token throughput, profiling data.
  * API: /api/telemetry, /api/telemetry/status, /api/telemetry/metrics, /api/telemetry/performance
  */
-import { helpBanner, inAppShell, statusChip, emptyState } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, emptyState, esc } from '/plugins/views/_helpers.js';
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -68,7 +68,7 @@ export async function render(container) {
             </tr></thead>
             <tbody>${agentRows.map(([aid, s]) => `
               <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
-                <td style="padding:10px 14px;font-size:.85rem">${aid}</td>
+                <td style="padding:10px 14px;font-size:.85rem">${esc(aid)}</td>
                 <td style="padding:10px 14px;text-align:center">${s.calls}</td>
                 <td style="padding:10px 14px;text-align:center">${s.avg_latency_ms?.toFixed(0) || 0}ms</td>
                 <td style="padding:10px 14px;text-align:center">${s.total_tokens.toLocaleString()}</td>
@@ -92,11 +92,11 @@ export async function render(container) {
               <tbody>${metrics.map(m => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
                   <td style="padding:10px 14px;font-size:.75rem;opacity:.6">${new Date(m.timestamp*1000).toLocaleTimeString()}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${m.agent_id}</td>
-                  <td style="padding:10px 14px;font-size:.8rem">${m.type}</td>
-                  <td style="padding:10px 14px;font-size:.8rem;font-family:monospace">${m.model || '—'}</td>
-                  <td style="padding:10px 14px;text-align:center">${m.latency_ms}ms</td>
-                  <td style="padding:10px 14px;text-align:center">${m.tokens}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(m.agent_id)}</td>
+                  <td style="padding:10px 14px;font-size:.8rem">${esc(m.type)}</td>
+                  <td style="padding:10px 14px;font-size:.8rem;font-family:monospace">${esc(m.model || '—')}</td>
+                  <td style="padding:10px 14px;text-align:center">${esc(m.latency_ms)}ms</td>
+                  <td style="padding:10px 14px;text-align:center">${esc(m.tokens)}</td>
                 </tr>`).join('')}
               </tbody></table>`
         }
