@@ -600,6 +600,14 @@ class Compiler:
         if patched != html:
             html_path.write_text(patched, encoding="utf-8")
 
+    def _color_mode(self) -> str:
+        """``site.theme.mode`` (light, dark or system), else from ``darkMode``."""
+        theme = self.config.site.theme
+        mode = theme.mode if theme else None
+        if mode is None:
+            mode = "dark" if (theme.dark_mode if theme else True) else "light"
+        return mode
+
     def _patch_antiflicker(self, html_path: Path) -> None:
         """Patch the theme bootstrap in index.html.
 
@@ -611,9 +619,7 @@ class Compiler:
         from praisonaiui.themes import PAPER_LOOK
 
         theme = self.config.site.theme
-        mode = theme.mode if theme else None
-        if mode is None:
-            mode = "dark" if (theme.dark_mode if theme else True) else "light"
+        mode = self._color_mode()
         dark_default = {
             "dark": "true",
             "light": "false",
@@ -743,6 +749,8 @@ class Compiler:
 
         # Collect all pages from nav (including nested children)
         pages = self._collect_nav_pages(nav)
+        home_path = self._docs_home_path(nav)
+        hero_preload = self._hero_preload(nav)
 
         for page in pages:
             path = page["path"]  # e.g. "/docs/concepts/configuration"
@@ -784,10 +792,11 @@ class Compiler:
             if noscript_content:
                 noscript_block += noscript_content
 
-            # Inject SEO tags before </head>
+            # Inject SEO tags (and, on the docs home, the hero preload) before </head>
+            head_extra = f"\n{hero_preload}" if hero_preload and path.rstrip("/") == home_path else ""
             html = html.replace(
                 "</head>",
-                f"{seo_tags}\n{json_ld}\n</head>",
+                f"{seo_tags}\n{json_ld}{head_extra}\n</head>",
             )
 
             # Inject noscript crawl content inside <div id="root">
@@ -1040,11 +1049,7 @@ class Compiler:
         if not index_path.exists():
             return
 
-        docs_home = "/docs/index"
-        for page in self._collect_nav_pages(nav):
-            if page["path"].rstrip("/").endswith("/docs/index") or page["path"] == "/docs/index":
-                docs_home = page["path"].rstrip("/") or "/docs/index"
-                break
+        docs_home = self._docs_home_path(nav)
 
         site_title = self.config.site.title
         site_desc = self.config.site.description or f"Documentation for {site_title}"
@@ -1063,12 +1068,28 @@ class Compiler:
         )
         if "</head>" in html and 'rel="canonical"' not in html:
             html = html.replace("</head>", f"{seo_tags}\n</head>", 1)
+        preload = self._hero_preload(nav)
+        if preload and 'rel="preload" as="image"' not in html:
+            html = html.replace("</head>", f"{preload}\n</head>", 1)
         if '<div id="root"></div>' in html:
             html = html.replace(
                 '<div id="root"></div>',
                 f'<div id="root"><noscript>{crawl_nav}</noscript></div>',
             )
         index_path.write_text(html, encoding="utf-8")
+
+    def _docs_home_path(self, nav: dict) -> str:
+        """The route of the docs home page (``/docs/index`` unless the nav names another)."""
+        for page in self._collect_nav_pages(nav):
+            if page["path"].rstrip("/").endswith("/docs/index") or page["path"] == "/docs/index":
+                return page["path"].rstrip("/") or "/docs/index"
+        return "/docs/index"
+
+    def _hero_preload(self, nav: dict) -> str:
+        """Preload tags for the docs home hero image (docs_home.hero_preload_tags)."""
+        from praisonaiui.compiler.docs_home import hero_preload_tags
+
+        return hero_preload_tags(self._docs_home(), self._docs_home_path(nav), self._color_mode())
 
     def _build_crawl_nav_html(self, nav: dict) -> str:
         """Static nav links for non-JS crawlers."""
