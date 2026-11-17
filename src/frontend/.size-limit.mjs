@@ -187,7 +187,10 @@ export default [
   // +0.1 kB (141.09 kB measured, owner-approved: exactly the cost of the
   // fixes): the tool row's "→ first line of output" and the Send button that
   // stays an aria-disabled button with nothing to send.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141.1 kB', gzip: true },
+  // 141,167 B (measured, raised by exactly the overage, +67 B): the docs style's
+  // layouts became lazy chunks (R4) and Rollup re-split a shared module (input) the
+  // chat route also uses; every docs page loads 53.6 KB gzip less.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141167 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -203,7 +206,8 @@ export default [
   // +0.2 kB (252.8 kB measured): the chat route's +0.17 kB above and the
   // composerTool region wiring in the boot path (the "@" loader, meta.chat
   // validation), 0.06 kB.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.8 kB', gzip: true },
+  // 253,124 B (measured, raised by exactly the overage, +324 B): the same re-split.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253124 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -238,5 +242,7 @@ export default [
   // and the phone breadcrumb (+1,134 B).
   // 9,125,858 B (measured, raised by exactly the overage): docs code blocks laid
   // out at their real height from the first frame (+132 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9125858 B', brotli: false },
+  // 9,134,317 B (measured, raised by exactly the overage, +8,459 B): the style
+  // layouts as lazy chunks; the bytes are chunk boundaries, no page loads more.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134317 B', brotli: false },
 ]

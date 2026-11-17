@@ -65,6 +65,9 @@
 
 ### New
 
+- **Docs sites load less JavaScript.** The chat, agents and playground
+  layouts load only for their style, so a docs page's first load is 53.6 KB
+  (gzip) smaller: 24 files instead of 33.
 - **Docs sidebar icons and a phone breadcrumb.** A nav group's `icon:` (the
   navigation YAML already accepted it but nothing drew it) or a page's
   frontmatter `icon:` shows a line icon before its title; on phones the page

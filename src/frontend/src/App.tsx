@@ -7,7 +7,6 @@ import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
 import { Footer } from './Footer'
-import { ChatLayout, AgentUILayout, CopilotWidget, PlaygroundLayout } from './layouts'
 import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
@@ -21,6 +20,22 @@ import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
 import './docs/docs.css'
+
+// The chat, agents and playground styles and the copilot widget load only for
+// the style that shows them (R4): a docs site never downloads their code.
+const ChatLayout = lazy(() => import('./layouts/ChatLayout').then((m) => ({ default: m.ChatLayout })))
+const AgentUILayout = lazy(() => import('./layouts/AgentUILayout').then((m) => ({ default: m.AgentUILayout })))
+const PlaygroundLayout = lazy(() => import('./layouts/PlaygroundLayout').then((m) => ({ default: m.PlaygroundLayout })))
+const CopilotWidget = lazy(() => import('./layouts/CopilotWidget').then((m) => ({ default: m.CopilotWidget })))
+
+/** While a style's layout chunk loads: the same spinner as the manifests' load. */
+function StyleLoading() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Spinner tone="muted" />
+    </div>
+  )
+}
 
 const DocsSearch = lazy(() => import('./docs/DocsSearch'))
 
@@ -647,7 +662,7 @@ export default function App() {
               {docsChrome}
               {renderLayout()}
               {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
-              <CopilotWidget config={config.chat} layout={config.layout} />
+              <Suspense fallback={null}><CopilotWidget config={config.chat} layout={config.layout} /></Suspense>
             </div>
           )
         }
@@ -670,7 +685,7 @@ export default function App() {
                 {docsChrome}
                 {renderLayout()}
                 {showGlobalFooter && <Footer config={config} templateKey={activeTemplateKey} />}
-                <CopilotWidget config={config.chat} layout={config.layout} />
+                <Suspense fallback={null}><CopilotWidget config={config.chat} layout={config.layout} /></Suspense>
               </div>
             )
           }
@@ -688,7 +703,7 @@ export default function App() {
 
   return (
     <LocaleProvider config={config.i18n}>
-      {renderByStyle()}
+      <Suspense fallback={<StyleLoading />}>{renderByStyle()}</Suspense>
     </LocaleProvider>
   )
 }
