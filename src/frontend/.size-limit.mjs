@@ -227,5 +227,8 @@ export default [
   // from the docs hero image or the phone's folded TOC (+511 B).
   // 9,110,651 B (measured, raised by exactly the overage): docs code block
   // file names, highlighted lines and code groups (+4,778 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9110651 B', brotli: false },
+  // 9,120,786 B (measured, raised by exactly the overage): docs authoring
+  // components (callouts, steps, cards, tabs, accordions, frames) and image
+  // zoom (+10,135 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9120786 B', brotli: false },
 ]

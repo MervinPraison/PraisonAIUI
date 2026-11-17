@@ -61,3 +61,35 @@ uv pip install aiui
 ```
 
 </CodeGroup>
+
+## Components
+
+<Note title="Component note">
+A callout from a component tag.
+</Note>
+
+<Steps>
+<Step title="Install">
+Run the installer.
+</Step>
+<Step title="Run">
+Start the app.
+</Step>
+</Steps>
+
+<CardGroup cols={2}>
+<Card title="First page" icon="rocket" href="guide/first.md">
+The first guide page.
+</Card>
+<Card title="Elsewhere" href="https://example.com/">
+An external link.
+</Card>
+</CardGroup>
+
+<Accordion title="More detail">
+Hidden until opened.
+</Accordion>
+
+<Frame caption="A sample image.">
+![A blue box with a diagonal line](images/sample.png)
+</Frame>

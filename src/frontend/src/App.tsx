@@ -16,6 +16,7 @@ import { docSearchGroups } from './docs/docNav'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { scrollToHash, useHashScroll } from './docs/hashScroll'
 import { useHeadingAnchors } from './docs/headingAnchors'
+import { useImageZoom } from './docs/imageZoom'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
@@ -88,6 +89,7 @@ export default function App() {
   useDocsTokens(docsStyle, config.site?.theme?.preset)
   useHashScroll(docsStyle)
   useHeadingAnchors(docsStyle)
+  useImageZoom(docsStyle)
   const searchGroups = useMemo(() => docSearchGroups(nav), [nav])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
 

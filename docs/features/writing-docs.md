@@ -54,81 +54,150 @@ lede and reads larger.
 
 ## Callouts
 
-Use a callout for what a reader must not miss. The type sets the colour and
-the icon: `note` and `info` (blue), `tip` (green), `warning` (amber), `danger`
-(red). The title in quotes is optional.
+Use a callout for what a reader must not miss. Each tag sets the colour and
+the icon: `<Note>` and `<Info>` (blue), `<Tip>` and `<Check>` (green),
+`<Warning>` (amber), `<Danger>` (red). A `title` is optional. Put each tag on a
+line of its own.
 
 ```markdown
-!!! note "Run the build first"
-    `aiui serve` serves the output of `aiui build`.
+<Note title="Run the build first">
+`aiui serve` serves the output of `aiui build`.
+</Note>
 
-!!! tip
-    `mode: system` follows the reader's light or dark setting.
+<Tip>
+`mode: system` follows the reader's light or dark setting.
+</Tip>
 
-!!! warning "Pinned versions"
-    Plugins built for SDK 1 keep working; check `aiui plugins doctor` after an upgrade.
+<Check>
+The site rebuilt without warnings.
+</Check>
 
-!!! danger
-    Never put an API key in `aiui.yaml`; it ships with the site.
+<Warning title="Pinned versions">
+Plugins built for SDK 1 keep working; check `aiui plugins doctor` after an upgrade.
+</Warning>
+
+<Danger>
+Never put an API key in `aiui.yaml`; it ships with the site.
+</Danger>
 ```
 
-!!! note "Run the build first"
-    `aiui serve` serves the output of `aiui build`.
+<Note title="Run the build first">
+`aiui serve` serves the output of `aiui build`.
+</Note>
 
-!!! tip
-    `mode: system` follows the reader's light or dark setting.
+<Tip>
+`mode: system` follows the reader's light or dark setting.
+</Tip>
 
-!!! warning "Pinned versions"
-    Plugins built for SDK 1 keep working; check `aiui plugins doctor` after an upgrade.
+<Check>
+The site rebuilt without warnings.
+</Check>
 
-!!! danger
-    Never put an API key in `aiui.yaml`; it ships with the site.
+<Warning title="Pinned versions">
+Plugins built for SDK 1 keep working; check `aiui plugins doctor` after an upgrade.
+</Warning>
 
-## Collapsible sections
+<Danger>
+Never put an API key in `aiui.yaml`; it ships with the site.
+</Danger>
 
-`???` makes the callout a disclosure the reader opens; `???+` starts it open.
-Good for long output, edge cases and FAQs.
+Pages written for MkDocs keep working: `!!! note "Title"` with an indented
+body draws the same callout (`note`, `info`, `tip`, `success`, `warning`,
+`danger` and the other MkDocs types).
+
+## Steps
+
+For a procedure the reader follows in order. Each step gets a number on a
+rail; its body is ordinary Markdown, code blocks included.
+
+````markdown
+<Steps>
+<Step title="Install">
+```bash
+pip install aiui
+```
+</Step>
+<Step title="Write app.py">
+Reply to every message with `@aiui.reply`.
+</Step>
+<Step title="Run it">
+`aiui run app.py`, then open the address it prints.
+</Step>
+</Steps>
+````
+
+<Steps>
+<Step title="Install">
+```bash
+pip install aiui
+```
+</Step>
+<Step title="Write app.py">
+Reply to every message with `@aiui.reply`.
+</Step>
+<Step title="Run it">
+`aiui run app.py`, then open the address it prints.
+</Step>
+</Steps>
+
+## Accordions
+
+`<Accordion>` hides detail the reader opens on demand: long output, edge
+cases, FAQs. `defaultOpen` starts it open. Wrap several in `<AccordionGroup>`
+to stack them as one list.
 
 ```markdown
-??? question "Why does the site show the old page after a deploy?"
-    The entry files keep fixed names; `aiui build` adds a content hash to
-    their URLs, so a hard refresh is never needed.
+<AccordionGroup>
+<Accordion title="Why does the site show the old page after a deploy?">
+The entry files keep fixed names; `aiui build` adds a content hash to their
+URLs, so a hard refresh is never needed.
+</Accordion>
+<Accordion title="Can I host the site on GitHub Pages?" defaultOpen>
+Yes. See [Deploy to GitHub Pages](../getting-started/github-pages.md).
+</Accordion>
+</AccordionGroup>
 ```
 
-??? question "Why does the site show the old page after a deploy?"
-    The entry files keep fixed names; `aiui build` adds a content hash to
-    their URLs, so a hard refresh is never needed.
+<AccordionGroup>
+<Accordion title="Why does the site show the old page after a deploy?">
+The entry files keep fixed names; `aiui build` adds a content hash to their
+URLs, so a hard refresh is never needed.
+</Accordion>
+<Accordion title="Can I host the site on GitHub Pages?" defaultOpen>
+Yes. See [Deploy to GitHub Pages](../getting-started/github-pages.md).
+</Accordion>
+</AccordionGroup>
+
+In MkDocs syntax, `???` makes any callout a disclosure and `???+` starts it
+open.
 
 ## Tabs
 
-Consecutive `=== "Label"` blocks become one set of tabs. Use them for the
-same task in different tools or languages; arrow keys move between tabs.
+`<Tabs>` with one `<Tab title="…">` per choice: the same task in different
+tools, languages or operating systems. Arrow keys move between tabs.
 
-````markdown
-=== "pip"
+```markdown
+<Tabs>
+<Tab title="macOS and Linux">
+Run `export OPENAI_API_KEY=sk-...` before `aiui run`.
+</Tab>
+<Tab title="Windows">
+Run `setx OPENAI_API_KEY sk-...`, then open a new terminal.
+</Tab>
+</Tabs>
+```
 
-    ```bash
-    pip install aiui
-    ```
+<Tabs>
+<Tab title="macOS and Linux">
+Run `export OPENAI_API_KEY=sk-...` before `aiui run`.
+</Tab>
+<Tab title="Windows">
+Run `setx OPENAI_API_KEY sk-...`, then open a new terminal.
+</Tab>
+</Tabs>
 
-=== "uv"
-
-    ```bash
-    uv pip install aiui
-    ```
-````
-
-=== "pip"
-
-    ```bash
-    pip install aiui
-    ```
-
-=== "uv"
-
-    ```bash
-    uv pip install aiui
-    ```
+Tabs that each hold one code block draw as a code group (below). The MkDocs
+form, consecutive `=== "Label"` blocks with indented bodies, works too.
 
 ## Code blocks
 
@@ -216,19 +285,35 @@ poetry add aiui
 
 ## Cards
 
-A list whose items start with bold text becomes a grid of cards: the bold part
-is the card's title.
+`<Card>` is a tile with a title, an optional `icon` and an optional `href`
+(a page like `quickstart.md`, or any URL); with a link the whole card is
+clickable. `<CardGroup cols={2}>` lays cards out in 1 to 4 columns (one on
+phones).
 
 ```markdown
-- **Chat and canvas**: streaming replies, tool calls and approvals.
-- **Layouts**: five frames for the same app.
+<CardGroup cols={2}>
+<Card title="Quick start" icon="rocket" href="../getting-started/quickstart.md">
+A chat app in five minutes.
+</Card>
+<Card title="Layouts" icon="panels-top-left" href="layouts.md">
+Five frames for the same app.
+</Card>
+</CardGroup>
 ```
 
-- **Chat and canvas**: streaming replies, tool calls and approvals.
-- **Layouts**: five frames for the same app.
+<CardGroup cols={2}>
+<Card title="Quick start" icon="rocket" href="../getting-started/quickstart.md">
+A chat app in five minutes.
+</Card>
+<Card title="Layouts" icon="panels-top-left" href="layouts.md">
+Five frames for the same app.
+</Card>
+</CardGroup>
 
-The home page's larger cards, with an icon and a link each, come from its
-front matter (`features:`); see `docs/index.md` in the repository.
+Icons: `message-square`, `panels-top-left`, `plug`, `book-open`,
+`layout-dashboard`, `shield-check`, `code`, `zap`, `rocket`, `terminal`,
+`bot`, `palette`, `arrow-right`. A list whose items start with bold text also
+becomes a grid of plain cards.
 
 ## Tables
 
@@ -252,10 +337,22 @@ A wide table scrolls inside its frame, never the page.
 ![What the image shows, for readers who cannot see it](../images/tool-streaming.png)
 ```
 
-![A tool call row (execute_command, Done in 0.3 s) above the answer, then an approval card for pip install numpy with Approve and Deny](../images/tool-streaming.png)
-
 Paths are relative to the page. Write the alt text as a sentence about what
-the image shows; it is also what search engines and assistants read.
+the image shows; it is also what search engines and assistants read. Click
+any image (or focus it and press Enter) to see it at full size; Escape or a
+click closes it.
+
+`<Frame>` sets an image on a mat, with an optional `caption` under it:
+
+```markdown
+<Frame caption="A tool call, then an approval the agent waits on.">
+![A tool call row above the answer, then an approval card for pip install numpy](../images/tool-streaming.png)
+</Frame>
+```
+
+<Frame caption="A tool call, then an approval the agent waits on.">
+![A tool call row (execute_command, Done in 0.3 s) above the answer, then an approval card for pip install numpy with Approve and Deny](../images/tool-streaming.png)
+</Frame>
 
 ## Diagrams and math
 
