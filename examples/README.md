@@ -65,12 +65,15 @@ See also: [`docs/examples/basic.md`](../docs/examples/basic.md) and [`docs/examp
 
 ## YAML Track — Site Templates
 
+Each folder holds an `aiui.yaml`; run the command inside the folder. A
+project that still uses the old name, `aiui.template.yaml`, builds the same way.
+
 | # | Name | Shows | Run |
 |---|---|---|---|
-| 05 | [minimal](yaml/05-minimal/) | 5-line YAML → live docs site | `aiui build --config aiui.template.yaml` |
-| 06 | [blocks](yaml/06-blocks/) | shadcn component dependency installation | `aiui build --config aiui.template.yaml` |
-| 07 | [colorful](yaml/07-colorful/) | Colourful marketing theme with hero zones | `aiui build --config aiui.template.yaml` |
-| 08 | [corporate](yaml/08-corporate/) | Corporate docs with SEO, i18n, and a11y fields | `aiui build --config aiui.template.yaml` |
-| 09 | [dark-modern](yaml/09-dark-modern/) | Dark-mode modern docs layout | `aiui build --config aiui.template.yaml` |
-| 10 | [developer-portal](yaml/10-developer-portal/) | API reference sidebar and route overrides | `aiui build --config aiui.template.yaml` |
-| 11 | [full-featured](yaml/11-full-featured/) | Full enterprise config (SEO, i18n, a11y, search) | `aiui build --config aiui.template.yaml` |
+| 06 | [minimal](yaml/06-minimal/) | 5-line YAML → live docs site | `aiui build` |
+| 07 | [blocks](yaml/07-blocks/) | shadcn component dependency installation | `aiui build` |
+| 08 | [colorful](yaml/08-colorful/) | Colourful marketing theme with hero zones | `aiui build` |
+| 09 | [corporate](yaml/09-corporate/) | Corporate docs with SEO, i18n, and a11y fields | `aiui build` |
+| 10 | [dark-modern](yaml/10-dark-modern/) | Dark-mode modern docs layout | `aiui build` |
+| 11 | [developer-portal](yaml/11-developer-portal/) | API reference sidebar and route overrides | `aiui build` |
+| 12 | [full-featured](yaml/12-full-featured/) | Full enterprise config (SEO, i18n, a11y, search) | `aiui build` |
