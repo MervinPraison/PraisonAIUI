@@ -378,7 +378,9 @@ header tabs in React, so its default `site.plugins` is `fetch-retry` and
 `nav-intercept` (in-article links); the other DOM plugins skip React docs
 pages and load only when a site lists them. `plugin-loader.js` imports
 plugins with its own `?v=` (the server's build stamp, or the compiler's hash
-of the plugin files), never a per-load timestamp.
+of the plugin files), never a per-load timestamp; `dashboard.js` imports its
+`views/*.js` the same way (`window.__AIUI_BUILD__` in the app shell, else the
+`?v=` it was itself imported with).
 
 **Duplicates to avoid:** a second sidebar or header (use `shell/Sidebar.tsx`), a second chat UI (extend `chat-engine/`, not
 `chat/`), a second markdown pipeline, a second toast or palette, a new plugin

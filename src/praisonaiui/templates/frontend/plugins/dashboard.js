@@ -2316,8 +2316,7 @@ async function selectPage(pageId) {
   const viewModule = rendered ? null : viewModuleUrl(pageId);
   if (viewModule) {
     try {
-      const viewUrl = viewModule + '?v=' + Date.now();
-      const mod = await import(viewUrl);
+      const mod = await _importViewModule(pageId, viewModule);
       if (mod.render) {
         if (!container.isConnected) return; // superseded by a newer selectPage
         await mod.render(container);
@@ -4029,24 +4028,36 @@ function _mountHostToolbar(pageId, page, container) {
   return row;
 }
 
-// Failed imports per built-in view in host mode. A browser keeps a failed
-// module fetch in its module map for the life of the document, so importing
-// the same URL again rejects without a request; after a failure the next
-// mount adds `&r=<n>` to fetch again. A successful import is cached in
-// VIEW_REGISTRY, so a view module is never loaded twice.
-const _hostViewImportFailures = Object.create(null);
-
-function _hostViewUrl(pageId, viewModule) {
-  const build = window.__AIUI_BUILD__ == null ? '' : String(window.__AIUI_BUILD__);
-  const failures = _hostViewImportFailures[pageId] || 0;
-  return viewModule + '?v=' + encodeURIComponent(build) + (failures ? '&r=' + failures : '');
+// The build stamp view modules are imported with: the app shell's
+// window.__AIUI_BUILD__, else the ?v= the plugin loader imported this module
+// with (the server's build stamp). One URL per build, never a per-load
+// timestamp, so the browser caches a view and a new build changes the URL.
+function _viewBuildStamp() {
+  if (window.__AIUI_BUILD__ != null) return String(window.__AIUI_BUILD__);
+  try {
+    return new URL(import.meta.url).searchParams.get('v') || '';
+  } catch (_) {
+    return '';
+  }
 }
 
-async function _importHostView(pageId, viewModule) {
+// Failed imports per view module. A browser keeps a failed module fetch in
+// its module map for the life of the document, so importing the same URL
+// again rejects without a request; after a failure the next attempt adds
+// `&r=<n>` to fetch again. A successful import is cached in VIEW_REGISTRY,
+// so a view module is never loaded twice.
+const _viewImportFailures = Object.create(null);
+
+function _viewUrl(pageId, viewModule) {
+  const failures = _viewImportFailures[pageId] || 0;
+  return viewModule + '?v=' + encodeURIComponent(_viewBuildStamp()) + (failures ? '&r=' + failures : '');
+}
+
+async function _importViewModule(pageId, viewModule) {
   try {
-    return await import(_hostViewUrl(pageId, viewModule));
+    return await import(_viewUrl(pageId, viewModule));
   } catch (e) {
-    _hostViewImportFailures[pageId] = (_hostViewImportFailures[pageId] || 0) + 1;
+    _viewImportFailures[pageId] = (_viewImportFailures[pageId] || 0) + 1;
     throw e;
   }
 }
@@ -4083,15 +4094,14 @@ async function _mountViewBody(pageId, container, page, stale, hostPage) {
     return noop;
   }
 
-  // Priority 2: the page's view module (viewModuleUrl). The build id (not
-  // Date.now(), as in selectPage) keeps one module instance per build
-  // across mounts.
+  // Priority 2: the page's view module (viewModuleUrl), at the same build
+  // URL selectPage uses, so there is one module instance per build.
   if (!_isManifestPage(hostPage)) await loadViewIndex();
   if (stale()) return noop;
   const viewModule = viewModuleUrl(pageId, hostPage);
   if (viewModule) {
     try {
-      const mod = await _importHostView(pageId, viewModule);
+      const mod = await _importViewModule(pageId, viewModule);
       if (typeof mod.render === 'function') {
         if (stale()) return noop;
         const returned = await mod.render(container);

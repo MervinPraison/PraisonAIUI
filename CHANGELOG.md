@@ -266,6 +266,11 @@
   turn. `GET /api/sessions` and `GET /sessions` take optional
   `?limit=&offset=` and report `total`; the Overview counts sessions through
   a new `BaseDataStore.count_sessions()` instead of listing them.
+- The default dashboard caches its page views. `dashboard.js` imported each
+  view (`/plugins/views/<page>.js`) with `?v=<Date.now()>`, so every reload
+  downloaded it again (32.7 KB for Chat). It now uses the build stamp, as the
+  app shell already did: a repeat visit to `/chat` transfers 32.6 KB instead
+  of 65.4 KB, and a new release still changes the URL.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs
