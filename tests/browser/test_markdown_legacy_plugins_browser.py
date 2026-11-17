@@ -157,7 +157,7 @@ def docs_site(built_frontend, tmp_path_factory):
     from praisonaiui.cli import app
 
     project = tmp_path_factory.mktemp("docs-site")
-    (project / "aiui.template.yaml").write_text(
+    (project / "aiui.yaml").write_text(
         textwrap.dedent(
             """\
             schemaVersion: 1
@@ -197,7 +197,7 @@ def docs_site(built_frontend, tmp_path_factory):
     )
     (docs / "more.md").write_text(f"# More\n\n```bash\n{SH_FENCE}\n```\n", encoding="utf-8")
     out = project / "site"
-    result = CliRunner().invoke(app, ["build", "--config", str(project / "aiui.template.yaml"), "--output", str(out)])
+    result = CliRunner().invoke(app, ["build", "--config", str(project / "aiui.yaml"), "--output", str(out)])
     assert result.exit_code == 0, result.output
     shutil.rmtree(out / "assets")
     shutil.copytree(built_frontend / "assets", out / "assets")

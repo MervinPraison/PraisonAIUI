@@ -1,4 +1,4 @@
-"""Pydantic schema models for aiui.template.yaml configuration."""
+"""Pydantic schema models for the aiui.yaml site configuration."""
 
 from __future__ import annotations
 
@@ -636,7 +636,7 @@ class ExtensionsConfig(BaseModel):
 
 
 class Config(BaseModel):
-    """Root configuration model for aiui.template.yaml."""
+    """Root configuration model for aiui.yaml."""
 
     schema_version: int = Field(default=1, alias="schemaVersion")
     site: SiteConfig

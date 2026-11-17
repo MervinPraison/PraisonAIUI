@@ -64,10 +64,10 @@ pytest tests/unit tests/integration -v --cov=src/praisonaiui
 cd src/frontend && npm run build
 
 # Validate config
-aiui validate --config aiui.template.yaml
+aiui validate                     # reads ./aiui.yaml (aiui.template.yaml still works)
 
 # Build site
-aiui build --config aiui.template.yaml --output aiui-output/
+aiui build --output aiui-output/
 
 # Serve locally
 aiui serve --output aiui-output/ --port 8000
@@ -125,7 +125,7 @@ PraisonAIUI/
 ├── docs/                        # Markdown documentation source
 ├── examples/                    # Example configurations
 ├── pyproject.toml               # Package config + tool settings
-├── aiui.template.yaml           # Reference configuration
+├── aiui.yaml                    # Reference configuration (this repo's docs site)
 └── .github/workflows/ci.yml     # CI: python (ruff + pytest), frontend, e2e, bundle-sync
 ```
 
@@ -137,7 +137,7 @@ YAML config → Pydantic models → Compiler → JSON manifests → React SPA
 ```
 
 ### Config Resolution
-- `aiui.template.yaml` → validated via `schema/validators.py`
+- `aiui.yaml` (or the old name `aiui.template.yaml`, read when `aiui.yaml` is absent) → validated via `schema/validators.py`
 - Components defined in `components:` section, referenced as slot `ref:` in templates
 - Routes map URL patterns to templates
 

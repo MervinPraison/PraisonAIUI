@@ -4,7 +4,7 @@ Built-in SEO for documentation sites — sitemap, robots, llms.txt, per-page met
 
 ## Configuration
 
-Top-level `seo` block in `aiui.template.yaml`:
+Top-level `seo` block in `aiui.yaml`:
 
 ```yaml
 seo:

@@ -30,7 +30,7 @@ Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
     - **Dashboard plugins**: folders with a `manifest.json` under
       `dashboard-plugins/`, vanilla JS views (see [Agent UI host](./agent-ui-host.md)).
       The app shell still hosts them as legacy pages.
-    - **Docs plugins**: `site.plugins` in `aiui.template.yaml` (static site compiler hooks).
+    - **Docs plugins**: `site.plugins` in `aiui.yaml` (static site compiler hooks).
 
 ## How it fits together
 

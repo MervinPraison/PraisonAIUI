@@ -131,11 +131,14 @@ More in [`examples/yaml/`](examples/yaml/).
 ## Documentation sites
 
 ```bash
-aiui init --template docs                      # writes aiui.template.yaml
+aiui init --template docs                      # writes aiui.yaml
 mkdir docs && echo "# Hello" > docs/index.md   # your Markdown pages
 aiui build                                     # static site in ./aiui
 aiui serve                                     # build and serve on http://localhost:8000
 ```
+
+The commands read `aiui.yaml`; a project that still has the old name,
+`aiui.template.yaml`, keeps working.
 
 Docs sites use the PraisonAI Pro design: the app shell's colours and type
 (Geist and Geist Mono, self-hosted), search (⌘K / Ctrl+K), previous and next

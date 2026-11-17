@@ -288,7 +288,7 @@ def create_gateway_from_yaml(
     """Create an AIUIGateway from a YAML configuration file.
 
     Args:
-        config_path: Path to aiui.template.yaml or gateway.yaml
+        config_path: Path to aiui.yaml (or aiui.template.yaml) or gateway.yaml
         static_dir: Directory containing the React SPA build
 
     Returns:

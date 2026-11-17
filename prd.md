@@ -37,7 +37,7 @@ PraisonAI-Tools, not here.
    (`register_page`, UI plugins), custom CSS/JS.
 4. "Extend it safely": a pip-installable UI plugin with a stable, versioned SDK
    (`@aiui/sdk`, `SDK_API_VERSION = 1`) and failure isolation.
-5. "Publish docs": a docs site from `docs/` and `aiui.template.yaml`.
+5. "Publish docs": a docs site from `docs/` and `aiui.yaml`.
 
 ### Product surfaces
 

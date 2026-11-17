@@ -342,7 +342,7 @@ application.yaml → Parse → JSON Schema validate → Cross-ref rules (R1–R3
 
 ## 10. Migration path
 
-Existing `aiui.template.yaml` files remain valid. Migration steps:
+Existing `aiui.yaml` (and `aiui.template.yaml`) files remain valid. Migration steps:
 
 1. Add `apiVersion: adp.io/v1alpha1` and `kind: Application` (optional during transition).
 2. Wrap top-level keys under `spec:` (compiler accepts both shapes during v1alpha1).

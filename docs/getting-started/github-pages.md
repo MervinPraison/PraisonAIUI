@@ -8,7 +8,7 @@ Ship your AIUI docs site to GitHub Pages with one workflow file.
 
 ```
 my-project/
-├── aiui.template.yaml    # Site configuration
+├── aiui.yaml    # Site configuration
 ├── docs/                 # Your markdown content
 │   ├── index.md
 │   └── guide.md
@@ -20,7 +20,7 @@ my-project/
 
 ### 2. Configuration
 
-Create `aiui.template.yaml`:
+Create `aiui.yaml`:
 
 ```yaml
 schemaVersion: 1
@@ -134,7 +134,7 @@ To use a custom domain (e.g., `docs.example.com`):
 
 | MkDocs | AIUI |
 |--------|------|
-| `mkdocs.yml` | `aiui.template.yaml` |
+| `mkdocs.yml` | `aiui.yaml` |
 | `mkdocs build` → `./site/` | `aiui build --output site` → `./site/` |
 | `mkdocs serve` | `aiui serve --watch` |
 | `pip install mkdocs-material` | `pip install aiui` |
@@ -152,7 +152,7 @@ What carries over from Material for MkDocs pages:
 
 ### Migration steps
 
-1. Create `aiui.template.yaml` (see the example above) and run
+1. Create `aiui.yaml` (see the example above) and run
    `aiui validate --strict`.
 2. Replace `mkdocs build` with `aiui build --output site --minify` in your CI workflow.
 3. Check the pages for the unsupported syntax listed above.

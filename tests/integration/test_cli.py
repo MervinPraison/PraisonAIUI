@@ -16,7 +16,7 @@ runner = CliRunner()
 @pytest.fixture
 def project_dir(tmp_path: Path) -> Path:
     """Create a minimal project directory with config and docs."""
-    config = tmp_path / "aiui.template.yaml"
+    config = tmp_path / "aiui.yaml"
     config.write_text(
         """\
 schemaVersion: 1
@@ -67,7 +67,7 @@ class TestValidateCommand:
     """Tests for the `aiui validate` command."""
 
     def test_validate_valid_config(self, project_dir: Path):
-        result = runner.invoke(app, ["validate", "--config", str(project_dir / "aiui.template.yaml")])
+        result = runner.invoke(app, ["validate", "--config", str(project_dir / "aiui.yaml")])
         assert result.exit_code == 0
         assert "valid" in result.stdout.lower() or "✅" in result.stdout or "✓" in result.stdout
 
@@ -83,7 +83,7 @@ class TestBuildCommand:
         output = project_dir / "aiui-output"
         result = runner.invoke(
             app,
-            ["build", "--config", str(project_dir / "aiui.template.yaml"), "--output", str(output)],
+            ["build", "--config", str(project_dir / "aiui.yaml"), "--output", str(output)],
         )
         assert result.exit_code == 0
         assert output.exists()
@@ -94,7 +94,7 @@ class TestBuildCommand:
         output = project_dir / "aiui-output"
         runner.invoke(
             app,
-            ["build", "--config", str(project_dir / "aiui.template.yaml"), "--output", str(output)],
+            ["build", "--config", str(project_dir / "aiui.yaml"), "--output", str(output)],
         )
 
         ui_config = json.loads((output / "ui-config.json").read_text(encoding="utf-8"))
@@ -108,7 +108,7 @@ class TestBuildCommand:
             app,
             [
                 "build",
-                "--config", str(project_dir / "aiui.template.yaml"),
+                "--config", str(project_dir / "aiui.yaml"),
                 "--output", str(output),
                 "--minify",
             ],
@@ -163,7 +163,7 @@ class TestServeCommand:
             app,
             [
                 "serve",
-                "--config", str(tmp_path / "aiui.template.yaml"),
+                "--config", str(tmp_path / "aiui.yaml"),
                 "--output", str(tmp_path / "nonexistent"),
                 "--no-build",
             ],
@@ -198,7 +198,7 @@ class TestFullPipeline:
         # Validate
         val_result = runner.invoke(
             app,
-            ["validate", "--config", str(project_dir / "aiui.template.yaml")],
+            ["validate", "--config", str(project_dir / "aiui.yaml")],
         )
         assert val_result.exit_code == 0
 
@@ -207,7 +207,7 @@ class TestFullPipeline:
             app,
             [
                 "build",
-                "--config", str(project_dir / "aiui.template.yaml"),
+                "--config", str(project_dir / "aiui.yaml"),
                 "--output", str(output),
             ],
         )
@@ -224,3 +224,26 @@ class TestFullPipeline:
 
         routes = json.loads((output / "route-manifest.json").read_text(encoding="utf-8"))
         assert len(routes["routes"]) >= 1
+
+
+class TestDefaultConfigLookup:
+    """Without --config the commands find aiui.yaml, else aiui.template.yaml."""
+
+    def test_pipeline_finds_aiui_yaml(self, project_dir: Path, monkeypatch):
+        monkeypatch.chdir(project_dir)
+        assert runner.invoke(app, ["validate"]).exit_code == 0
+        result = runner.invoke(app, ["build", "--output", "out"])
+        assert result.exit_code == 0, result.output
+        assert result.stderr == ""
+        ui_config = json.loads((project_dir / "out" / "ui-config.json").read_text(encoding="utf-8"))
+        assert ui_config["site"]["title"] == "Integration Test Site"
+
+    def test_pipeline_keeps_the_old_name_working(self, project_dir: Path, monkeypatch):
+        (project_dir / "aiui.yaml").rename(project_dir / "aiui.template.yaml")
+        monkeypatch.chdir(project_dir)
+        val = runner.invoke(app, ["validate"])
+        assert val.exit_code == 0, val.output
+        result = runner.invoke(app, ["build", "--output", "out"])
+        assert result.exit_code == 0, result.output
+        assert "rename it to aiui.yaml" in result.stderr
+        assert (project_dir / "out" / "index.html").exists()

@@ -68,9 +68,10 @@ def test_curl_without_origin_still_works():
 
 
 def test_dev_binds_loopback_by_default(tmp_path, monkeypatch):
-    ex = tmp_path / "examples" / "one"
-    ex.mkdir(parents=True)
-    (ex / "aiui.template.yaml").write_text("schemaVersion: 1\nsite:\n  title: T\n")
+    for name, config in (("one", "aiui.yaml"), ("two", "aiui.template.yaml")):
+        ex = tmp_path / "examples" / name
+        ex.mkdir(parents=True)
+        (ex / config).write_text("schemaVersion: 1\nsite:\n  title: T\n")
     bound = []
 
     class _FakeServer:
@@ -92,3 +93,4 @@ def test_dev_binds_loopback_by_default(tmp_path, monkeypatch):
     result = CliRunner().invoke(cli_app, ["dev", "--examples", str(tmp_path / "examples"), "--port", "8205"])
     assert result.exit_code == 0, result.output
     assert bound and bound[0][0] == "127.0.0.1"
+    assert "Found 2 examples" in result.output  # both config names are examples

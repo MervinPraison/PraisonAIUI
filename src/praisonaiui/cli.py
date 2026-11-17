@@ -211,6 +211,43 @@ app = typer.Typer(
 )
 console = Console()
 
+CONFIG_NAME = "aiui.yaml"
+LEGACY_CONFIG_NAME = "aiui.template.yaml"  # the old default name; still read
+
+
+def _find_config(directory: Path) -> Optional[Path]:
+    """The site config in *directory*: ``aiui.yaml``, else ``aiui.template.yaml``."""
+    for name in (CONFIG_NAME, LEGACY_CONFIG_NAME):
+        candidate = directory / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_config(config: Optional[Path]) -> Path:
+    """The config a command reads: ``--config`` when given, else the lookup.
+
+    Without ``--config`` it is ``./aiui.yaml``, else ``./aiui.template.yaml``
+    (with a one-line rename hint on stderr). With neither the result is
+    ``aiui.yaml``, so the command's "not found" error names the new file.
+    """
+    if config is not None:
+        return config
+    found = _find_config(Path("."))
+    if found is None:
+        return Path(CONFIG_NAME)
+    notice = None
+    if found.name == LEGACY_CONFIG_NAME:
+        notice = f"Using {LEGACY_CONFIG_NAME}; rename it to {CONFIG_NAME} (the old name keeps working)."
+    elif Path(LEGACY_CONFIG_NAME).is_file():
+        notice = f"Using {CONFIG_NAME}; {LEGACY_CONFIG_NAME} is also here and is ignored."
+    if notice:
+        Console(stderr=True).print(f"[dim]{notice}[/dim]", highlight=False, soft_wrap=True)
+    return Path(found.name)
+
+
+_CONFIG_HELP = f"Path to configuration file (default: {CONFIG_NAME}, else {LEGACY_CONFIG_NAME})"
+
 
 def version_callback(value: bool) -> None:
     """Print version and exit."""
@@ -255,21 +292,27 @@ def init(
     ),
 ) -> None:
     """Initialize a new PraisonAIUI project."""
-    config_path = Path.cwd() / "aiui.template.yaml"
+    config_path = Path.cwd() / CONFIG_NAME
 
     # If --frontend flag, scaffold a frontend project
     if frontend:
         _scaffold_frontend(force)
         return
 
-    if config_path.exists() and not force:
-        console.print(
-            "[red]Error:[/red] aiui.template.yaml already exists. Use --force to overwrite."
-        )
+    existing = _find_config(Path.cwd())
+    if existing is not None and not force:
+        if existing.name == LEGACY_CONFIG_NAME:
+            message = (
+                f"{LEGACY_CONFIG_NAME} already exists (the old name for {CONFIG_NAME}). "
+                f"Rename it to {CONFIG_NAME}, or use --force to write a new {CONFIG_NAME}."
+            )
+        else:
+            message = f"{CONFIG_NAME} already exists. Use --force to overwrite."
+        console.print(f"[red]Error:[/red] {message}", highlight=False)
         raise typer.Exit(code=1)
 
     # Create minimal config
-    minimal_config = """# aiui.template.yaml
+    minimal_config = """# aiui.yaml
 schemaVersion: 1
 
 site:
@@ -384,11 +427,11 @@ def _scaffold_frontend(force: bool) -> None:
 
 @app.command()
 def validate(
-    config: Path = typer.Option(
-        Path("aiui.template.yaml"),
+    config: Optional[Path] = typer.Option(
+        None,
         "--config",
         "-c",
-        help="Path to configuration file",
+        help=_CONFIG_HELP,
     ),
     strict: bool = typer.Option(
         False,
@@ -408,6 +451,7 @@ def validate(
         validate_config,
     )
 
+    config = _resolve_config(config)
     if not config.exists():
         console.print(f"[red]Error:[/red] Configuration file not found: {config}")
         raise typer.Exit(code=2)
@@ -432,7 +476,10 @@ def validate(
             code=1003,
             category="config",
             message=f"Unknown key '{_format_loc(loc)}' (ignored)",
-            suggestion="Check the spelling; see aiui.template.yaml for the supported keys.",
+            suggestion=(
+                "Check the spelling; see "
+                "https://ui.praison.ai/concepts/configuration for the supported keys."
+            ),
         )
         if strict:
             result.errors.append(issue)
@@ -471,11 +518,11 @@ def _format_loc(loc: tuple) -> str:
 
 @app.command()
 def build(
-    config: Path = typer.Option(
-        Path("aiui.template.yaml"),
+    config: Optional[Path] = typer.Option(
+        None,
         "--config",
         "-c",
-        help="Path to configuration file",
+        help=_CONFIG_HELP,
     ),
     output: Path = typer.Option(
         Path("aiui"),
@@ -495,6 +542,7 @@ def build(
     from praisonaiui.compiler import Compiler
     from praisonaiui.schema.models import Config
 
+    config = _resolve_config(config)
     if not config.exists():
         console.print(f"[red]Error:[/red] Configuration file not found: {config}")
         raise typer.Exit(code=2)
@@ -608,11 +656,11 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
 
 @app.command()
 def serve(
-    config: Path = typer.Option(
-        Path("aiui.template.yaml"),
+    config: Optional[Path] = typer.Option(
+        None,
         "--config",
         "-c",
-        help="Path to configuration file",
+        help=_CONFIG_HELP,
     ),
     port: int = typer.Option(
         8000,
@@ -659,6 +707,8 @@ def serve(
     ),
 ) -> None:
     """Serve the site locally with a production-ready HTTP server."""
+    if not no_build or watch:
+        config = _resolve_config(config)
     # Build first unless --no-build
     if not no_build:
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building manifests...")
@@ -695,7 +745,7 @@ def serve(
     webbrowser.open(f"{protocol}://{host}:{actual_port}")
 
     # Start file watcher in background thread if --watch
-    if watch and config.exists():
+    if watch and config is not None and config.exists():
         import threading
 
         def _watch_and_rebuild() -> None:
@@ -762,7 +812,7 @@ def dev(
         raise typer.Exit(code=1)
 
     examples = [
-        d.name for d in examples_dir.iterdir() if d.is_dir() and (d / "aiui.template.yaml").exists()
+        d.name for d in examples_dir.iterdir() if d.is_dir() and _find_config(d) is not None
     ]
     if not examples:
         console.print(f"[red]Error:[/red] No examples found in {examples_dir}")
@@ -790,7 +840,7 @@ def dev(
                 return False
 
             try:
-                config_file = example_path / "aiui.template.yaml"
+                config_file = _find_config(example_path) or example_path / CONFIG_NAME
                 build_config = str(config_file)
 
                 # If theme override, write a temp config (never mutate original)
@@ -1015,7 +1065,7 @@ def dev(
         <iframe id="preview" src="/site/"></iframe>
         <div class="yaml-panel" id="yaml-panel">
             <div class="yaml-header">
-                <h3>aiui.template.yaml</h3>
+                <h3 id="yaml-file">aiui.yaml</h3>
                 <div class="yaml-actions">
                     <button class="btn" onclick="copyYaml()">Copy</button>
                     <button class="btn btn-primary" onclick="applyYaml()">Apply & Build</button>
@@ -1089,6 +1139,7 @@ def dev(
             const res = await fetch('/api/yaml?example=' + encodeURIComponent(currentExample));
             const data = await res.json();
             document.getElementById('yaml-content').value = data.yaml || '';
+            document.getElementById('yaml-file').textContent = data.file || 'aiui.yaml';
         }}
 
         function copyYaml() {{
@@ -1216,8 +1267,10 @@ def dev(
                 if path == "/api/yaml":
                     example_name = query.get("example", [None])[0]
                     if example_name and example_name in examples:
-                        yaml_path = examples_dir / example_name / "aiui.template.yaml"
+                        yaml_path = _find_config(examples_dir / example_name)
                         yaml_content = ""
+                        if yaml_path is None:
+                            yaml_path = examples_dir / example_name / CONFIG_NAME
                         if yaml_path.exists():
                             with open(yaml_path, encoding="utf-8") as f:
                                 yaml_content = f.read()
@@ -1225,7 +1278,9 @@ def dev(
                         self.send_header("Content-type", "application/json")
                         self.end_headers()
                         self.wfile.write(
-                            json.dumps({"yaml": yaml_content, "example": example_name}).encode()
+                            json.dumps(
+                                {"yaml": yaml_content, "example": example_name, "file": yaml_path.name}
+                            ).encode()
                         )
                     else:
                         self.send_response(400)
@@ -1263,7 +1318,9 @@ def dev(
                         yaml_content = data.get("yaml", "")
 
                         if example_name and example_name in examples:
-                            yaml_path = examples_dir / example_name / "aiui.template.yaml"
+                            yaml_path = _find_config(examples_dir / example_name) or (
+                                examples_dir / example_name / CONFIG_NAME
+                            )
                             # Write the new YAML
                             with open(yaml_path, "w", encoding="utf-8") as f:
                                 f.write(yaml_content)
