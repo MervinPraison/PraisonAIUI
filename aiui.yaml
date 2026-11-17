@@ -26,6 +26,7 @@ navigation:
     - tab: "Get started"
       groups:
         - group: "Get started"
+          icon: rocket
           pages:
             - index
             - getting-started/installation
@@ -33,12 +34,14 @@ navigation:
             - getting-started/cli
             - getting-started/github-pages
         - group: "Examples"
+          icon: code
           pages:
             - examples/basic
             - examples/advanced
     - tab: "Guides"
       groups:
         - group: "App and layouts"
+          icon: panels-top-left
           pages:
             - features/styles
             - features/react-shell
@@ -52,6 +55,7 @@ navigation:
                 - features/layouts/mission
                 - features/layout-data
         - group: "Chat"
+          icon: message-square
           pages:
             - features/gateway-chat
             - features/sessions
@@ -66,17 +70,20 @@ navigation:
             - features/tts
             - features/media-analysis
         - group: "Theming"
+          icon: palette
           pages:
             - features/theming
             - features/theme-system
             - features/dark-mode
             - features/css-architecture
         - group: "Plugins"
+          icon: plug
           pages:
             - features/plugins
             - features/marketplace
             - features/how-to-add-a-feature
         - group: "Dashboard"
+          icon: layout-dashboard
           pages:
             - features/dashboard
             - features/agent-ui-host
@@ -89,6 +96,7 @@ navigation:
             - features/config-hot-reload
             - features/knowledge-embeddings
         - group: "Docs sites"
+          icon: book-open
           pages:
             - features/writing-docs
             - features/content-sources
@@ -100,18 +108,21 @@ navigation:
             - features/i18n
             - features/hot-reload
         - group: "Integrations"
+          icon: zap
           pages:
             - concepts/providers
             - features/praisonai-package-integration
             - features/standalone-vs-integrated
             - features/backend-integration
         - group: "Deployment and security"
+          icon: shield-check
           pages:
             - features/deployment
             - health-endpoints
     - tab: "Reference"
       groups:
         - group: "Reference"
+          icon: terminal
           pages:
             - api/index
             - api/cli
@@ -122,6 +133,7 @@ navigation:
             - api/sessions
             - api/health
         - group: "TypeScript"
+          icon: code
           pages:
             - typescript/index
             - typescript/runtime
@@ -129,6 +141,7 @@ navigation:
             - typescript/components
             - api/typescript
         - group: "Protocols"
+          icon: bot
           pages:
             - features/protocols
             - features/protocol-architecture

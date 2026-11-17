@@ -210,6 +210,32 @@ test('phone: page actions fit beside the section and the page never scrolls side
   expect(await hasHorizontalOverflow(page)).toBe(false)
 })
 
+test('sidebar: a page with icon: in its frontmatter shows the glyph before its title', async ({ page }) => {
+  await page.goto('/docs/guide/first')
+  const nav = page.getByRole('navigation', { name: 'Documentation' })
+  await expect(nav.getByRole('link', { name: 'First page' }).locator('.aiui-docs-navicon svg')).toHaveCount(1)
+  await expect(nav.getByRole('link', { name: 'Second page' }).locator('.aiui-docs-navicon')).toHaveCount(0)
+})
+
+test('phone: the page head reads "Section › Page"; desktop shows the section only', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/docs/guide/first')
+  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+  await expect(crumbs).toBeVisible()
+  const current = crumbs.locator('[aria-current="page"]')
+  await expect(current).toBeVisible()
+  await expect(current).toHaveText('First page')
+  await expect(crumbs).toContainText(/guide/i)
+  const actions = page.getByRole('group', { name: 'Page actions' })
+  const [c, a] = await Promise.all([crumbs.boundingBox(), actions.boundingBox()])
+  expect(c!.x + c!.width).toBeLessThanOrEqual(a!.x) // the trail truncates before the actions
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await expect(current).toBeHidden()
+  await expect(crumbs).toBeVisible()
+})
+
 test('links and buttons show a 2px focus ring', async ({ page }) => {
   await page.goto('/docs/guide/first')
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()

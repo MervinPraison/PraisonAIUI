@@ -1,6 +1,7 @@
 ---
 title: First page
 description: The first guide page.
+icon: rocket
 ---
 
 # First page

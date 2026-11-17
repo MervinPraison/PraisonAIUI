@@ -13,11 +13,22 @@ import { canonicalDocPath } from './docs/docSource'
 import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
 import { docsChromeModel, isExternal } from './docs/chrome'
+import { DOCS_HOME_ICONS, DocsHomeIcon } from './docs/docsHomeIcons'
 
 interface NavTreeProps {
     nav: DocsNav
     activeItem: string
     onItemClick: (item: NavItem) => void
+}
+
+/** A group's or page's sidebar icon (`icon:` in the nav YAML or the page's frontmatter); unknown names draw nothing. */
+function NavIcon({ name }: { name?: string }) {
+    if (!name || !DOCS_HOME_ICONS[name.toLowerCase()]) return null
+    return (
+        <span className="aiui-docs-navicon">
+            <DocsHomeIcon name={name} />
+        </span>
+    )
 }
 
 export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
@@ -26,7 +37,10 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
         if (item.children && item.children.length > 0) {
             return (
                 <div key={key} className="aiui-docs-group">
-                    <div className="aiui-docs-group-label">{item.title}</div>
+                    <div className="aiui-docs-group-label">
+                        <NavIcon name={item.icon} />
+                        {item.title}
+                    </div>
                     <div className="aiui-docs-group-items">
                         {item.children.map((child) => renderItem(child, depth + 1))}
                     </div>
@@ -50,6 +64,7 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
                     onItemClick(item)
                 }}
             >
+                <NavIcon name={item.icon} />
                 {item.title}
             </a>
         )
