@@ -187,6 +187,14 @@
   woff2, about 53 kB) ship in the wheel and load only on Pro pages (the
   layouts and the docs site). No font CDN.
 
+### Deprecated
+
+- `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
+  `send_to_parent`, `on_audio_start`, `on_audio_chunk`, `on_audio_end`,
+  `on_mic_start`, `on_mic_data` and `on_mic_stop` now raise a
+  `DeprecationWarning`. They never fired: no built-in mounts their routes and
+  no browser code sends to them. They still import and will be removed later.
+
 ### Fixed
 
 - Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
@@ -237,6 +245,13 @@
   fonts and the text no longer changes font after it appears. Viewers who
   chose plain Pro, or another layout, still get it (an inline script drops the
   look before first paint). `LayoutSpec` gains an optional `look`.
+- Modularity: the bundled `sample-board` demo page belongs to a new
+  `builtin.examples` record, so `extensions.disabled: [builtin.examples]` takes
+  it off the sidebar (it stays on by default). A test now fails when a feature
+  class or a bundled dashboard-plugin folder has no catalog record, and when
+  the counts in `ARCHITECTURE.md` drift. Removed unreachable code:
+  `server.api_usage` and `server._usage_stats` (`/api/usage` is the usage
+  feature) and the unused legacy view `plugins/views/explorer.js`.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

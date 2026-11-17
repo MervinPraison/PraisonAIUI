@@ -32,11 +32,6 @@ class TestResetState:
         srv.reset_state()
         assert srv._provider is None
 
-    def test_usage_stats_reset(self):
-        srv._usage_stats["total_requests"] = 42
-        srv.reset_state()
-        assert srv._usage_stats["total_requests"] == 0
-
     # ── G-T1: missing globals ────────────────────────────────────
 
     def test_chat_mode_reset_to_none(self):

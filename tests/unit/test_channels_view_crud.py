@@ -18,7 +18,6 @@ _FRONTEND = (
     / "src" / "praisonaiui" / "templates" / "frontend" / "plugins"
 )
 CHANNELS_VIEW = _FRONTEND / "views" / "channels.js"
-EXPLORER_VIEW = _FRONTEND / "views" / "explorer.js"
 
 
 def _view() -> str:
@@ -87,10 +86,3 @@ class TestEmptyState:
         src = _view()
         assert "+ Add Channel" in src
         assert "Use the API or CLI to add channels." not in src
-
-
-class TestExplorerPreset:
-    def test_explorer_has_add_channel_post(self):
-        src = EXPLORER_VIEW.read_text(encoding="utf-8")
-        assert "Add Channel" in src
-        assert "env:TELEGRAM_BOT_TOKEN" in src

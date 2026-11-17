@@ -2,6 +2,10 @@
 
 Provides @aiui.on_window_message and aiui.send_window_message for
 browser window.postMessage communication in iframe/embed contexts.
+
+Deprecated: no built-in record mounts ``WindowMessageFeature`` and no browser
+code posts to its routes, so the hooks never fire. ``aiui.on_window_message``
+and friends warn and will be removed.
 """
 
 from __future__ import annotations

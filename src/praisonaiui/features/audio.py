@@ -2,6 +2,10 @@
 
 Provides @aiui.on_audio_start, @aiui.on_audio_chunk, @aiui.on_audio_end
 for server-side STT pipelines where frontend streams mic audio.
+
+Deprecated: no built-in record mounts ``AudioFeature`` and no browser code
+streams to ``/ws/audio``, so the hooks never fire. ``aiui.on_audio_*`` warn
+and will be removed.
 """
 
 from __future__ import annotations

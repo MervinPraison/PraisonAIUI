@@ -81,13 +81,19 @@ class TestPackageSmoke:
         jobs = listing.json().get("jobs") or []
         assert any(j.get("id") == job_id or j.get("job_id") == job_id for j in jobs)
 
-    def test_explorer_probe_endpoints(self, dashboard_client):
-        for path in ("/health", "/ui-config.json", "/plugins/plugins.json", "/api/dashboard/plugins"):
+    def test_probe_endpoints(self, dashboard_client):
+        for path in (
+            "/health",
+            "/ui-config.json",
+            "/plugins/plugins.json",
+            "/api/dashboard/plugins",
+            "/api/features",
+        ):
             resp = dashboard_client.get(path)
             assert resp.status_code == 200, path
 
     def test_auth_api_plugin_assets(self, plugins_dir):
-        for rel in ("auth.js", "api.js", "views/auth.js", "views/api.js", "views/explorer.js"):
+        for rel in ("auth.js", "api.js", "views/auth.js", "views/api.js"):
             assert (plugins_dir / rel).is_file(), rel
 
     def test_run_endpoint_available(self, dashboard_client):
