@@ -14,13 +14,14 @@ pip install -e examples/plugins/aiui-hello-plugin
 aiui plugins list          # name, version, status, load error
 aiui plugins doctor        # load, SDK version, static files + SRI, shadowed ids
 aiui hello greet Ada       # a command contributed by the plugin
-aiui run app.py --style app
+aiui run app.py
 ```
 
-`AIUI_SHELL=app` switches only the `dashboard` style to the app shell. An
-`app.py` with `@aiui.reply` runs in the `chat` style, which `AIUI_SHELL`
-leaves alone (the server logs `AIUI_SHELL=app ignored: style is 'chat'`), so
-pass `--style app` (or call `aiui.set_style("app")`).
+`aiui run app.py` opens the app shell (`style: app`) unless the app, its YAML
+or `--style` picks another style, so a plain `@aiui.reply` app needs no flag.
+`AIUI_SHELL=app` only switches the `dashboard` style to the app shell; it
+leaves an explicit `chat` or other React style alone (the server logs
+`AIUI_SHELL=app ignored: style is 'chat'`).
 
 Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
 
@@ -439,9 +440,9 @@ registerSlot('header:actions', HelloAction, { id: 'hello', order: 50 })
 A layout owns the frame of the app shell: the navigation, the session list,
 the top bar, side panels and the phone chrome. The page stays the page: every
 page renders inside every layout, in the outlet the shell hands the frame
-([ADR 0003](../adr/0003-selectable-layouts.md)). aiui ships five layouts
-(`chat-canvas`, the app shell's default, plus `workbench`, `command`, `guided`
-and `mission`); the core's own frame is called `classic`. A plugin adds a
+([ADR 0003](../adr/0003-selectable-layouts.md)). aiui ships six layouts
+(`chat`, what `aiui run` opens; `chat-canvas`, the app shell's default; plus
+`workbench`, `command`, `guided` and `mission`); the core's own frame is called `classic`. A plugin adds a
 layout with the same call the built-ins use.
 
 **Which layout is on screen.** The server's manifest lists the layouts it
