@@ -19,6 +19,29 @@
   justify-content: flex-end;
 }
 
+/* The Canvas toggle lives in the top bar (data-aiui-aside-slot): a chat
+   header left with nothing visible (no agent picker) takes no room. */
+[data-aiui-layout-frame='chat-canvas'] [data-aiui-chat] > section > header:not(:has(select)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The top bar's Canvas toggle: pressed while the canvas is open, on the
+   row-active fill with no border (Canvas.dc.html). */
+[data-aiui-layout-frame='chat-canvas'] header [data-chat-aside-toggle] {
+  height: 34px;
+  font-weight: 600;
+}
+
+[data-aiui-layout-frame='chat-canvas'] header [data-chat-aside-toggle][aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--ui-row-active);
+  color: var(--foreground);
+}
+
 /* The canvas is a raised card beside the thread (desktop and tablet). */
 [data-aiui-layout-frame='chat-canvas']:not([data-viewport='phone']) [data-chat-aside] {
   margin: 12px;

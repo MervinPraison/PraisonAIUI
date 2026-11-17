@@ -6,8 +6,9 @@
  *   tablet   the same panel, collapsed by default
  *   phone    a "Chat | <label> (n)" switch above the page; the panel
  *            replaces the thread while its side is chosen (./aside.css)
- * On a desktop or tablet the open/close toggle goes into the chat header
- * (`slot`, a portal). The region stays mounted in every state, so it keeps
+ * On a desktop or tablet the open/close toggle goes into the frame's
+ * `[data-aiui-aside-slot]` when the layout has one (its top bar), else the
+ * chat header (`slot`), through a portal. The region stays mounted in every state, so it keeps
  * its own state and can report its badge while hidden. A lazy chunk.
  */
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent } from 'react'
@@ -167,14 +168,22 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
     e.preventDefault()
   }
 
+  // A layout frame may host the toggle in its own top bar ([data-aiui-aside-slot],
+  // Chat + Canvas); otherwise it goes into the chat header (`slot`).
+  const [frameSlot, setFrameSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the DOM after mount; one update, no loop
+    setFrameSlot(document.querySelector<HTMLElement>('[data-aiui-aside-slot]'))
+  }, [])
+  const target = frameSlot ?? slot
   const shown = phone ? tab === 'aside' : open
   return (
     <>
       {phone && <PhoneSwitch label={label} badge={badge} tab={tab} onTab={setTab} />}
-      {!phone && slot && createPortal(
+      {!phone && target && createPortal(
         <Button
-          variant="ghost"
-          size="sm"
+          variant={frameSlot ? 'outline' : 'ghost'}
+          size={frameSlot ? 'default' : 'sm'}
           aria-pressed={open}
           title={open ? `Hide the ${label.toLowerCase()}` : `Show the ${label.toLowerCase()}`}
           onClick={() => setOpenChoice(!open)}
@@ -188,7 +197,7 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
             </span>
           )}
         </Button>,
-        slot,
+        target,
       )}
       {!phone && open && (
         <div

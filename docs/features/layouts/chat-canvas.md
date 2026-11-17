@@ -23,9 +23,9 @@ layout: chat-canvas        # the default for style: app; this line is optional
 
 | Region | What it holds |
 |---|---|
-| Sidebar (240 px) | The site name and a collapse button (⌘B / Ctrl+B); **New chat** (⌘N / Ctrl+N); the primary pages (chat, artifacts, agents, cron, knowledge, sessions, config; the Artifacts row shows how many artifacts exist across chats); **Chats**, your conversations with a search button, the open one raised, a running one marked "Working…"; at the foot the footer pages and **More** (⌘K), which opens the command palette with every other page and command. |
-| Top bar | On the chat page: the open chat's title over "Researcher · 3 artifacts · edited 2 min ago" (the agent of the latest answer, the chat's artifacts, their latest change). On other pages: the page title. Then **Search or run a command** (⌘K), **Share** (copies the link; a chat's link opens that chat) and the light/dark switch. |
-| The page | Any page renders here. The chat page uses speech-bubble messages, explained approval cards (what the agent wants to run, "Why am I asked?", Approve and Not now) and, when the artifacts feature is installed, the **Canvas** panel on the right with a Canvas toggle (a panel icon, the label and the artifact count) in the chat's toolbar. A new chat starts with the canvas collapsed; it opens once the chat has an artifact, and the toggle opens or closes it at any time. The "Chat + Canvas" page (`/chat-canvas`) is the same React chat in the app shell. |
+| Sidebar (240 px) | The site name and a collapse button (⌘B / Ctrl+B); **New chat** (⌘N / Ctrl+N); the primary pages (chat, artifacts, agents, cron, knowledge, sessions, config; the Artifacts row shows how many artifacts exist across chats); **Chats**, your conversations as two-line rows (the title over "3 artifacts · now"), with a search button, the open one raised, a running one marked "Working…"; at the foot the footer pages, **More** (⌘K), which opens the command palette with every other page and command, and the connection line ("Connected · local" when the server is this machine). |
+| Top bar | On the chat page: the open chat's title over "Researcher · 3 artifacts · edited 2 min ago" (the agent of the latest answer, the chat's artifacts, their latest change; "reconnecting" joins it while the chat's connection is down). On other pages: the page title. Then **Search or run a command** (⌘K), on the chat page the **Canvas** toggle (pressed while the canvas is open, with the artifact count), **Share** (copies the link; a chat's link opens that chat) and the light/dark switch. |
+| The page | Any page renders here. The chat page uses speech-bubble messages, explained approval cards (what the agent wants to run, "Why am I asked?", Approve and Not now) and, when the artifacts feature is installed, the **Canvas** panel on the right. A new chat starts with the canvas collapsed; it opens once the chat has an artifact, and the toggle opens or closes it at any time. The "Chat + Canvas" page (`/chat-canvas`) is the same React chat in the app shell. |
 
 Open, the canvas is the main surface: it takes about 58% of the chat page
 and the chat a narrower column (never under about 400 px); with the canvas
@@ -92,7 +92,9 @@ The `chat` layout has no canvas and keeps every block in the reply.
   with `import()`.
 - Styling hooks: `[data-aiui-layout-frame="chat-canvas"]` on the frame
   (`data-viewport` is `phone`, `tablet` or `desktop`), `[data-cc-title]` and
-  `[data-cc-subtitle]` in the top bar, `[data-aiui-session]` on chat rows,
+  `[data-cc-subtitle]` in the top bar, `[data-aiui-aside-slot]` (where the
+  chat's aside toggle is portalled; without it the toggle stays in the chat's
+  own header), `[data-cc-chat-meta]` on a chat row's second line, `[data-aiui-session]` on chat rows,
   `[data-aiui-nav-item]` on nav rows.
 - The shell's `header:actions` slot is at the end of the top bar and
   `sidebar:footer` at the foot of the sidebar.

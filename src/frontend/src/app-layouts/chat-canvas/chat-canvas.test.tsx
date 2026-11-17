@@ -17,8 +17,8 @@ import {
 } from '@/sdk/layouts'
 import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import Frame from './Frame'
-import { toArtifactsFeed } from './data'
-import { chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
+import { countIndex, toArtifactsFeed, withLiveCount } from './data'
+import { chatRowMeta, chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
 import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
 import { iconFor } from './iconMap'
 
@@ -120,6 +120,22 @@ test('optionVars maps layout.options.chat-canvas collapse thresholds to CSS vari
   assert.deepEqual(optionVars({ collapseLines: 20, collapseRows: 8 }), { '--cc-collapse-lines': '20', '--cc-collapse-rows': '8' })
   assert.deepEqual(optionVars({ collapseLines: -1, collapseRows: 'x' }), {})
   assert.deepEqual(optionVars(undefined), {})
+})
+
+test('the artifacts index: per-chat counts and the total; the open chat\'s live count wins', () => {
+  const index = countIndex({ count: 3, artifacts: [{ sessionId: 'a' }, { sessionId: 'a' }, { sessionId: 'b' }, { key: 'x' }] })
+  assert.equal(index.total, 3)
+  assert.deepEqual([...index.bySession], [['a', 2], ['b', 1]])
+  assert.deepEqual(countIndex(null), { total: undefined, bySession: new Map() })
+  const live = withLiveCount(index, { sessionId: 'c', count: 2 })
+  assert.equal(live.total, 5)
+  assert.equal(live.bySession.get('c'), 2)
+  assert.equal(withLiveCount(index, { sessionId: 'a', count: 2 }), index, 'unchanged: the same object')
+  assert.equal(withLiveCount(index, null), index)
+  assert.equal(chatRowMeta(3, 'now'), '3 artifacts · now')
+  assert.equal(chatRowMeta(1, undefined), '1 artifact')
+  assert.equal(chatRowMeta(0, 'Yesterday'), 'Yesterday')
+  assert.equal(chatRowMeta(undefined, undefined), undefined)
 })
 
 test('artifactsInChat: the card (the design) unless layout.options says inline', () => {
@@ -267,20 +283,22 @@ test('desktop frame: sidebar landmark, New chat, at most 7 primary pages, chats,
   assert.doesNotMatch(primary, /logs/, 'the other pages are under More (the palette), not in the primary list')
   assert.match(out, />Chats</)
   assert.match(out, /aria-current="true" data-aiui-session="s1"/)
-  // One line per chat, the time right-aligned; the open one has the accent fill and a primary edge.
-  assert.match(out, /aria-current="true" data-aiui-session="s1" class="[^"]*h-8[^"]*bg-sidebar-accent[^"]*inset_2px_0_0_var\(--primary\)/)
-  // The footer row is "More pages" with no second ⌘K (the header search owns it).
-  assert.match(out, /data-cc-more=""[^>]*>.*?<span class="flex-1">More pages<\/span><\/button>/)
-  assert.doesNotMatch(out, /data-cc-more=""[^>]*aria-keyshortcuts/)
+  // Two lines per chat (the title over "n artifacts · when"); the open one has the accent fill and a primary edge.
+  assert.match(out, /aria-current="true" data-aiui-session="s1" class="[^"]*flex-col[^"]*bg-sidebar-accent[^"]*inset_2px_0_0_var\(--primary\)/)
+  assert.match(out, /data-aiui-session="s1"[^>]*>.*?Compare sorting algorithms<\/span><span[^>]*data-cc-chat-meta="">[^<]+<\/span>/)
+  // The footer (Canvas.dc.html): More with ⌘K, then the connection line.
+  assert.match(out, /data-cc-more=""[^>]*>.*?<span class="flex-1">More<\/span>.*?<\/button>/)
+  assert.match(out, /data-aiui-connection="(online|offline)"/)
   assert.match(out, /<main id="aiui-main" tabindex="-1"/)
   assert.match(out, /data-outlet="">the page</)
 })
 
-test('desktop top bar on the chat page: the open chat, "Researcher · 2 artifacts · edited just now", search, Share, theme', () => {
+test('desktop top bar on the chat page: the open chat, "Researcher · 2 artifacts · edited just now", search, the Canvas slot, Share, theme', () => {
   provideChat()
   const out = render(props())
+  assert.match(out, /Search or run a command.*data-aiui-aside-slot="".*data-cc-share=""/, 'the chat\'s Canvas toggle goes between search and Share')
   assert.match(out, /<h1[^>]*data-cc-title="">Compare sorting algorithms<\/h1>/)
-  // The agent, then the artifacts line (the connection dot sits between them once the feed reports one).
+  // The agent, then the artifacts line (a dot and "reconnecting" sit between them only while the socket is not open).
   assert.match(out, /data-cc-subtitle=""><span class="truncate">Researcher<\/span><span aria-hidden="true">·<\/span><span class="truncate">2 artifacts · edited just now</)
   assert.match(out, /aria-label="Search or run a command"/)
   assert.match(out, /data-cc-share=""/)
@@ -294,6 +312,7 @@ test('another page: its title, no chat line; the frame still lists the chats', (
   assert.match(out, /data-cc-title="">Logs<\/h1>/)
   assert.doesNotMatch(out, /data-cc-subtitle/)
   assert.doesNotMatch(out, /data-cc-share/, 'Share is for the chat page only')
+  assert.doesNotMatch(out, /data-aiui-aside-slot/)
   assert.match(out, /data-aiui-session="s1"/)
   assert.match(out, /<main[^>]*class="[^"]*overflow-y-auto/)
 })
@@ -317,8 +336,8 @@ test('without any feed (chat and artifacts built-ins off) the frame still render
   assert.match(out, /data-outlet="">the page</)
 })
 
-test('connectionWord: the top bar says connected, connecting or reconnecting next to the agent', () => {
-  assert.deepEqual(connectionWord('open'), { word: 'connected', tone: 'ok' })
+test('connectionWord: the top bar names the connection only while it is not open', () => {
+  assert.equal(connectionWord('open'), null, 'open is the sidebar foot\'s "Connected" line')
   assert.deepEqual(connectionWord('connecting'), { word: 'connecting', tone: 'pending' })
   assert.deepEqual(connectionWord('closed'), { word: 'reconnecting', tone: 'pending' })
   assert.equal(connectionWord(undefined), null)

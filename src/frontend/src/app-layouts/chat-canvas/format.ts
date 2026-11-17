@@ -43,6 +43,12 @@ export function shortTime(at: number | undefined, now = Date.now()): string | un
   return m ? `${m[1]}${m[2] === 'min' ? 'm' : 'h'}` : rel
 }
 
+/** A chat row's second line: "3 artifacts · now", "1 artifact · 2 h ago", or the time alone. */
+export function chatRowMeta(artifacts: number | undefined, when: string | undefined): string | undefined {
+  const parts = [artifacts ? plural(artifacts, 'artifact') : '', when ?? ''].filter(Boolean)
+  return parts.length ? parts.join(' · ') : undefined
+}
+
 /** "edited 2 min ago" wording: `edited now` reads oddly, so `edited just now`. */
 function editedPhrase(at: number | undefined, now: number): string | undefined {
   const rel = relativeTime(at, now)
@@ -75,9 +81,12 @@ export function lastAgent(messages: readonly ChatMessageView[] | null | undefine
 }
 
 /** The top bar's second line on the chat page: agent · n artifacts · edited …; empty parts are left out. */
-/** The connection word after the agent: "connected", or what it is doing instead; '' while unknown. */
-export function connectionWord(connection: 'connecting' | 'open' | 'closed' | undefined): { word: string; tone: 'ok' | 'pending' } | null {
-  if (connection === 'open') return { word: 'connected', tone: 'ok' }
+/**
+ * The connection word after the agent, only while the chat's socket is not
+ * open ("connecting", "reconnecting"): an open connection is the normal
+ * state, shown once at the sidebar's foot (Canvas.dc.html), not in the line.
+ */
+export function connectionWord(connection: 'connecting' | 'open' | 'closed' | undefined): { word: string; tone: 'pending' } | null {
   if (connection === 'connecting') return { word: 'connecting', tone: 'pending' }
   if (connection === 'closed') return { word: 'reconnecting', tone: 'pending' }
   return null
