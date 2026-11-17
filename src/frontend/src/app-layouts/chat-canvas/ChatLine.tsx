@@ -9,13 +9,16 @@
  * artifact count (`onCount`) for its sidebar row.
  */
 import { useEffect } from 'react'
+import { cn } from '@/lib/utils'
 import { useChat, useSessionArtifacts } from './data'
 import { chatSubtitle, connectionWord, lastAgent, summarizeArtifacts } from './format'
 
-export function ChatLine({ sessionId, running, now, onCount }: {
+export function ChatLine({ sessionId, running, now, onCount, compact = false }: {
   sessionId: string | null
   running: boolean
   now?: number
+  /** Phone: the agent alone (and the connection while it is down), centred under the title. */
+  compact?: boolean
   /** The open chat's artifact count, as it changes (the sidebar's row). */
   onCount?(sessionId: string, count: number): void
 }) {
@@ -26,10 +29,10 @@ export function ChatLine({ sessionId, running, now, onCount }: {
   }, [sessionId, artifacts.count, onCount])
   const agent = chat?.sessionId === sessionId ? lastAgent(chat?.messages) : undefined
   const conn = connectionWord(chat?.connection)
-  const rest = chatSubtitle({ running, artifacts: artifacts.count, editedAt: artifacts.updatedAt }, now)
+  const rest = compact ? '' : chatSubtitle({ running, artifacts: artifacts.count, editedAt: artifacts.updatedAt }, now)
   if (!agent && !conn && !rest) return null
   return (
-    <p className="m-0 flex min-w-0 items-center gap-1.5 truncate text-[13px] text-muted-foreground" data-cc-subtitle="">
+    <p className={cn('m-0 flex min-w-0 items-center gap-1.5 truncate text-[13px] text-muted-foreground', compact && 'justify-center')} data-cc-subtitle="">
       {agent && <span className="truncate">{agent}</span>}
       {agent && conn && <span aria-hidden="true">·</span>}
       {conn && (

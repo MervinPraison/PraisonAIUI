@@ -29,9 +29,11 @@ test('commandLabel names what the chip shows', () => {
 test('gateTitle and whyAsked: plain words from the agent, the tool and the risk level', () => {
   assert.equal(gateTitle('Researcher', 'terminal'), 'Allow Researcher to use terminal?')
   assert.equal(gateTitle(undefined, 'terminal'), 'Allow the agent to use terminal?')
+  assert.equal(gateTitle('Researcher', 'terminal', true), 'Researcher wants to run a command')
+  assert.equal(gateTitle(undefined, 'terminal', true), 'The agent wants to run a command')
   const high = whyAsked('high', 'terminal', 'Researcher')
   assert.match(high[0], /marked high risk/)
-  assert.match(high[1], /Approve lets Researcher run it once; Not now tells it to go on without this step\./)
+  assert.match(high[1], /Approve lets Researcher run it once; Deny tells it to go on without this step\./)
   assert.match(whyAsked('critical', 'shell')[0], /marked critical risk/)
   assert.match(whyAsked('medium', 'write_file')[0], /does more than read/)
   assert.match(whyAsked(undefined, 'fetch')[0], /approval policy asks before fetch runs/)

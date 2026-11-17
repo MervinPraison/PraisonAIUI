@@ -11,8 +11,15 @@ export { commandLabel, commandOf } from './command'
 /** The agent's name, or "the agent". */
 const who = (agent?: string) => agent?.trim() || 'the agent'
 
-/** Card heading: "Allow Researcher to use terminal?" */
-export function gateTitle(agent: string | undefined, tool: string): string {
+/**
+ * Card heading: "Researcher wants to run a command" when the gate is a shell
+ * command (the design), else "Allow Researcher to use web_search?".
+ */
+export function gateTitle(agent: string | undefined, tool: string, isCommand = false): string {
+  if (isCommand) {
+    const name = who(agent)
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)} wants to run a command`
+  }
   return `Allow ${who(agent)} to use ${tool}?`
 }
 
@@ -30,6 +37,6 @@ export function whyAsked(risk: string | undefined, tool: string, agent?: string)
         : `Your server's approval policy asks before ${tool} runs.`
   return [
     reason,
-    `Nothing runs until you decide. Approve lets ${who(agent)} run it once; Not now tells it to go on without this step.`,
+    `Nothing runs until you decide. Approve lets ${who(agent)} run it once; Deny tells it to go on without this step.`,
   ]
 }
