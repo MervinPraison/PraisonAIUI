@@ -3899,6 +3899,7 @@ def create_app(
             _config_requires_token = True
 
     from praisonaiui.http_guard import (
+        BodySizeLimitMiddleware,
         HostGuardMiddleware,
         OriginGuardMiddleware,
         configured_origins,
@@ -3915,6 +3916,9 @@ def create_app(
         # Outermost: a DNS-rebound page passes the Origin check (it looks
         # same-origin), but its Host header still names the attacker's site.
         Middleware(HostGuardMiddleware),
+        # Before anything reads a body: 413 over AIUI_MAX_BODY_MB, 64 KiB on
+        # the paths that need no credentials.
+        Middleware(BodySizeLimitMiddleware),
         Middleware(
             CORSMiddleware,
             allow_origins=_allowed_origins,

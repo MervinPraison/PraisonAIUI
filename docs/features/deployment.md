@@ -69,6 +69,7 @@ volumes:
 | `AIUI_ALLOWED_ORIGINS` | — | Comma-separated origins allowed to call the server from another site (CORS and cross-site requests); `*` allows any |
 | `AIUI_ALLOWED_HOSTS` | — | Comma-separated host names the server answers to when reached on a loopback or private address (`.example.com` also matches subdomains); `*` turns the check off |
 | `AIUI_KNOWLEDGE_ROOTS` | — | Folders (`os.pathsep`-separated) that `POST /api/knowledge/add-file` may read, in addition to the chat attachments folder; any other `file_path` is refused with 400 |
+| `AIUI_MAX_BODY_MB` | `25` | Largest request body in MiB; a bigger one gets 413 before it is read. `0` turns this cap off. Paths that need no credentials (login, sign-up, protocol negotiation) always take at most 64 KiB |
 | `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |
 
 ### Feature data and the data directory

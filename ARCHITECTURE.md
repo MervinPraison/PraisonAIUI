@@ -182,7 +182,9 @@ default for both `http` and `websocket` scopes. The only public surface is
 `http_guard.is_public_http` (`PUBLIC_EXACT_PATHS`, `PUBLIC_PREFIXES`,
 `mark_public`). Browsers open a WebSocket with a single-use 60 s ticket from
 `POST /api/auth/ws-ticket` (`?ticket=`), never a long-lived key in a URL.
-Secrets never appear in URLs or logs (`install_secret_redaction`). Cross-origin
+Secrets never appear in URLs or logs (`install_secret_redaction`). Request
+bodies are capped by `BodySizeLimitMiddleware` (`AIUI_MAX_BODY_MB`, 64 KiB on
+the public paths), so no public route buffers an unbounded body. Cross-origin
 access is opt-in (`AIUI_ALLOWED_ORIGINS`); `OriginGuardMiddleware` refuses
 cross-site WebSocket handshakes and state-changing requests. Entry-point plugin
 browser surfaces and `/api/plugins/<name>/*` are default-deny on non-loopback or
