@@ -376,6 +376,12 @@ of the plugin files), never a per-load timestamp.
 `chat/`), a second markdown pipeline, a second toast or palette, a new plugin
 registry, a second theme store.
 
+**Docs markdown loading:** the React docs app loads every page's `.md`
+through `src/frontend/src/docs/docLoader.ts` (time limit per attempt, a fresh
+request on timeout, an in-memory cache, prefetch on hover / focus / press and
+of the previous / next page). The legacy `fetch-retry.js` retries only the
+site manifests. Do not add a second retry or cache layer for docs markdown.
+
 ## 5. Known open gaps
 
 From the modularity audit (`.claude/ui-reset/reports/`, latest re-verify:

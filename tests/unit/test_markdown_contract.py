@@ -70,12 +70,13 @@ class TestDocsContent:
         assert "prose-neutral" not in source  # prose is a marker only, no typography modifiers
 
     def test_content_awaits_preloads_and_honours_abort(self):
+        # A fetched page waits for the renderer chunks (no raw-$$ or
+        # unstyled-code flash), at most PAINT_WAIT_MS, and a newer navigation wins.
         source = _read(SRC / "Content.tsx")
-        block = source.split("preprocessMkdocsMarkdown(prepareDocSource(await response.text(), sourcePath))")[1].split(
-            "setMarkdown(content)"
-        )[0]
-        assert "await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])" in block
-        assert "if (controller.signal.aborted) return" in block
+        block = source.split("loadDoc(mdUrl, controller.signal)")[1].split("show(result, content)")[0]
+        assert "Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])" in block
+        assert "setTimeout(resolve, PAINT_WAIT_MS)" in block
+        assert "controller.signal.aborted" in block
 
     def test_docs_body_and_tables_use_foreground_token(self):
         # Light-mode contrast: body text, list items and table cells inherit the

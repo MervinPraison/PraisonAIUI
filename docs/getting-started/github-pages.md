@@ -193,6 +193,36 @@ With a site URL (`seo.siteUrl`, or the `CNAME` file) the build also writes
 
 Everything is static, so GitHub Pages serves it directly.
 
+## How pages load
+
+Opening a page from the sidebar fetches its `.md` file. A reader on a lossy
+network (Wi-Fi, VPN, a mobile link) sometimes gets one new connection that
+hangs for 15 to 30 seconds while every other request is fast. The docs app
+keeps one such request from freezing the page:
+
+- **Time limit and retry.** Each request for a page has 5 seconds to get an
+  answer from the server. Past that it is cancelled and a fresh request goes
+  out, which opens a new connection. There are three attempts (5 s, 5 s, then
+  10 s for a link that is only slow), with a short random pause between them.
+  A network error or a 5xx answer is retried the same way; a 404 is not.
+- **Prefetch.** Resting the pointer on a sidebar, previous / next or
+  in-article docs link for 80 ms, focusing it with the keyboard, or pressing
+  it starts loading that page. Once a page has shown, its previous and next
+  pages load while the browser is idle.
+- **In-memory cache.** A page loaded or prefetched once shows at once when you
+  come back to it, without a request, until the tab is reloaded.
+- **The last click wins.** Clicking another link cancels the request for the
+  page you left, so fast clicking never builds a queue.
+- **No long wait for the renderer.** A fetched page waits at most one second
+  for the code highlighter and math renderer; after that the text shows and
+  upgrades when they arrive.
+- **Retry state.** When every attempt fails, the page says "Couldn't load this
+  page" with a **Retry** button instead of a loading skeleton.
+
+The legacy `fetch-retry` plugin retries only the site manifests
+(`ui-config.json`, `docs-nav.json`, `route-manifest.json`); page markdown has
+the one retry layer above.
+
 This site, https://ui.praison.ai, is built the same way: see
 [`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).
 
