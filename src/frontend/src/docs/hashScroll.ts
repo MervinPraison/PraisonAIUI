@@ -20,12 +20,71 @@ export function scrollToHash(hash: string = typeof window === 'undefined' ? '' :
     return true
 }
 
-/** Scroll to the URL's hash whenever a docs article finishes rendering. */
+/** Things a reader does that mean "leave my scroll position alone". */
+const READER_INPUT = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const
+
+/** Longest wait for the heading to appear (the renderer chunk may still be loading). */
+const WAIT_MS = 5000
+
+/**
+ * Scroll to the URL's hash once its element exists. The article can paint
+ * before the lazy renderer has drawn its headings, so watch the page for it
+ * (up to WAIT_MS), then scroll again when the web fonts are in: a face that
+ * arrives late rewraps the text above. Stops as soon as the reader scrolls.
+ */
+function scrollWhenReady(isTouched: () => boolean): () => void {
+    let observer: MutationObserver | undefined
+    let timer: number | undefined
+    const stop = () => {
+        observer?.disconnect()
+        window.clearTimeout(timer)
+    }
+    const settle = () => {
+        stop()
+        void document.fonts?.ready.then(() => {
+            if (!isTouched()) window.requestAnimationFrame(() => scrollToHash())
+        })
+    }
+    if (scrollToHash()) {
+        settle()
+        return stop
+    }
+    observer = new MutationObserver(() => {
+        if (isTouched()) stop()
+        else if (scrollToHash()) settle()
+    })
+    observer.observe(document.getElementById('main-content') ?? document.body, { childList: true, subtree: true })
+    timer = window.setTimeout(stop, WAIT_MS)
+    return stop
+}
+
+/**
+ * Scroll to the URL's hash whenever a docs article renders (and when the hook
+ * starts, for an article that rendered first).
+ */
 export function useHashScroll(active: boolean): void {
     useEffect(() => {
         if (!active) return
-        const onLoaded = () => window.requestAnimationFrame(() => scrollToHash())
+        let touched = false
+        let cancel = () => {}
+        const onInput = () => {
+            touched = true
+        }
+        const onLoaded = () => {
+            if (!window.location.hash) return
+            touched = false
+            cancel()
+            window.requestAnimationFrame(() => {
+                cancel = scrollWhenReady(() => touched)
+            })
+        }
         window.addEventListener('aiui:content-loaded', onLoaded)
-        return () => window.removeEventListener('aiui:content-loaded', onLoaded)
+        for (const type of READER_INPUT) window.addEventListener(type, onInput, { passive: true })
+        onLoaded()
+        return () => {
+            cancel()
+            window.removeEventListener('aiui:content-loaded', onLoaded)
+            for (const type of READER_INPUT) window.removeEventListener(type, onInput)
+        }
     }, [active])
 }

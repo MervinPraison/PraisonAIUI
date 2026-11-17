@@ -148,9 +148,12 @@ test('search finds words in a page\'s text, with the matching snippet', async ({
 
 test('a deep link opens the page at its section', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 480 })
-  await page.goto('/docs/guide/first#reference')
-  const heading = page.getByRole('heading', { name: 'Reference', level: 2 })
+  // A section with the rest of the page below it, so it can reach the top
+  // whatever the platform's line heights (the last section may not).
+  await page.goto('/docs/guide/first#usage')
+  const heading = page.getByRole('heading', { name: 'Usage', level: 2 })
   await expect(heading).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
   await expect.poll(() => heading.evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBeLessThan(160)
 })
 
