@@ -88,3 +88,53 @@ test('a page read before shows at once from memory, without a new request', asyn
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
   expect(fetched.filter((p) => p === '/docs/guide/first.md').length).toBe(before)
 })
+
+test('first load: a hung manifest is retried and the page still shows within seconds', async ({ page }) => {
+  let requests = 0
+  await page.route('**/ui-config.json', async (route) => {
+    requests += 1
+    if (requests === 1) {
+      await new Promise((resolve) => setTimeout(resolve, 30_000))
+      await route.abort('timedout').catch(() => {})
+      return
+    }
+    await route.continue()
+  })
+  const started = Date.now()
+  await page.goto('/docs/guide/first', { waitUntil: 'commit' })
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible({ timeout: 9_000 })
+  expect(Date.now() - started).toBeLessThan(9_000)
+  expect(requests).toBeGreaterThanOrEqual(2) // the app's retry (legacy topnav may read it too)
+})
+
+test('first load: a deep link fetches its page alongside the manifests, not after them', async ({ page }) => {
+  const started: Record<string, number> = {}
+  const finished: Record<string, number> = {}
+  page.on('request', (r) => { started[new URL(r.url()).pathname] ??= Date.now() })
+  page.on('requestfinished', (r) => { finished[new URL(r.url()).pathname] ??= Date.now() })
+  // The manifests take 1 s; the page must not wait for them before asking for its markdown.
+  await page.route(/\/(ui-config|docs-nav|route-manifest)\.json$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+    await route.continue()
+  })
+  await page.goto('/docs/guide/second')
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  expect(started['/docs/guide/second.md']).toBeDefined()
+  expect(started['/docs/guide/second.md']).toBeLessThan(finished['/docs-nav.json'])
+  // One request for it: Content.tsx joined the boot prefetch.
+  const mdRequests = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => e.name.endsWith('/docs/guide/second.md')).length)
+  expect(mdRequests).toBe(1)
+})
+
+test('first load: when the manifests cannot load, the page says so and offers Retry', async ({ page }) => {
+  let failing = true
+  await page.route('**/ui-config.json', (route) => (failing ? route.abort('failed') : route.continue()))
+  await page.goto('/docs/guide/first')
+  const alert = page.getByRole('alert').filter({ hasText: "Couldn't load the docs" })
+  await expect(alert).toBeVisible({ timeout: 5_000 })
+
+  failing = false
+  await alert.getByRole('button', { name: 'Retry' }).click()
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await expect(alert).toHaveCount(0)
+})

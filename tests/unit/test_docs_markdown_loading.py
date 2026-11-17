@@ -28,6 +28,20 @@ def test_fetch_retry_never_retries_an_aborted_request():
     assert "isAbort(err, init)" in source
 
 
+def test_fetch_retry_leaves_callers_with_a_signal_alone():
+    """docLoader passes a signal for every request it bounds (markdown and,
+    since the first-load fix, the manifests): no second retry layer."""
+    source = FETCH_RETRY.read_text(encoding="utf-8")
+    assert "if (!shouldRetry || (init && init.signal))" in source
+
+
+def test_app_loads_manifests_through_the_bounded_loader():
+    app = (ROOT / "src/frontend/src/App.tsx").read_text(encoding="utf-8")
+    assert "fetchWithRetry(url)" in app
+    assert "fetch('/ui-config.json')" not in app
+    assert "prefetchInitialDoc()" in app
+
+
 def test_docs_content_loads_through_the_bounded_loader():
     content = CONTENT.read_text(encoding="utf-8")
     assert "loadDoc(mdUrl, controller.signal)" in content

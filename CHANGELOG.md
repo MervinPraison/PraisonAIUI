@@ -147,6 +147,13 @@
   stalls for 18 s in 5.5 s instead of 18.5 s. See
   [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
 
+- Docs sites, first load: `ui-config.json`, `docs-nav.json` and
+  `route-manifest.json` load with the same per-attempt time limit and retry
+  as pages, a link straight to a docs page fetches its `.md` alongside them
+  instead of a round trip later, and when they cannot load the page says
+  "Couldn't load the docs" with a Retry button instead of staying blank.
+  `fetch-retry.js` leaves any request with an abort signal to its caller.
+
 - Docs sites (`aiui build`): the site root shows `docs/index.md` instead of an
   empty page; pages work on any static host (each page also has
   `docs/<page>/index.html`, and index pages and numbered files have their

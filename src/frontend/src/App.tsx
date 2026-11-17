@@ -15,6 +15,8 @@ import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button'
+import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
 import './docs/docs.css'
 
 const DocsSearch = lazy(() => import('./docs/DocsSearch'))
@@ -70,6 +72,7 @@ export default function App() {
   const [routes, setRoutes] = useState<RouteManifest>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [manifestAttempt, setManifestAttempt] = useState(0)
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
   const [currentPath, setCurrentPath] = useState(() => canonicalDocPath(window.location.pathname))
@@ -325,22 +328,23 @@ export default function App() {
 
   useEffect(() => {
     async function loadManifests() {
+      // A deep link's page starts loading now, alongside the manifests (one round trip saved).
+      prefetchInitialDoc()
       try {
-        const [configRes, navRes, routesRes] = await Promise.all([
-          fetch('/ui-config.json'),
-          fetch('/docs-nav.json'),
-          fetch('/route-manifest.json'),
-        ])
+        // Time limit per attempt and a fresh request on timeout (docs/docLoader.ts).
+        const [configRes, navRes, routesRes] = await Promise.all(
+          ['/ui-config.json', '/docs-nav.json', '/route-manifest.json'].map((url) => fetchWithRetry(url)),
+        )
 
         if (!configRes.ok || !navRes.ok || !routesRes.ok) {
           throw new Error('Failed to load manifests')
         }
 
-        const configData = await configRes.json()
-        const navData = await navRes.json()
+        const configData = JSON.parse(configRes.text)
+        const navData = JSON.parse(navRes.text)
         setConfig(configData)
         setNav(navData)
-        setRoutes(await routesRes.json())
+        setRoutes(JSON.parse(routesRes.text))
 
         // Apply theme from config. Colour mode: the viewer's stored choice,
         // else the app's (set_theme / YAML), else the OS (mode 'system').
@@ -388,7 +392,7 @@ export default function App() {
     }
 
     loadManifests()
-  }, [])
+  }, [manifestAttempt])
 
   // Handle browser back/forward navigation in a separate effect
   useEffect(() => {
@@ -475,9 +479,20 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
-        <h2 className="text-xl font-semibold text-destructive">Failed to load</h2>
-        <p className="text-muted-foreground">{error}</p>
+      <div role="alert" className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
+        <h2 className="text-xl font-semibold">Couldn't load the docs</h2>
+        <p className="text-muted-foreground">Check your connection and try again.</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setError(null)
+            setLoading(true)
+            setManifestAttempt((n) => n + 1)
+          }}
+        >
+          Retry
+        </Button>
       </div>
     )
   }

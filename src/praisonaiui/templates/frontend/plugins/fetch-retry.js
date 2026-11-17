@@ -5,10 +5,11 @@
  * ui-config.json, route-manifest.json) and retries a network error or 5xx
  * with exponential backoff (CDN cache propagation, transient network issues).
  *
- * Docs markdown (.md) is not handled here: the React docs loader
- * (src/frontend/src/docs/docLoader.ts) gives each request a time limit,
- * retries it and caches the answer. Two retry layers would multiply attempts.
- * An aborted request (the reader moved on) is never retried.
+ * Docs markdown (.md) is not handled here, and neither is any request that
+ * carries an AbortSignal: its caller manages its own time limit and retries.
+ * The React docs app loads its markdown and its manifests that way
+ * (src/frontend/src/docs/docLoader.ts); two retry layers would multiply
+ * attempts. An aborted request (the reader moved on) is never retried.
  */
 
 const MAX_RETRIES = 3;
@@ -30,7 +31,7 @@ export default {
       const path = url ? url.split(/[?#]/)[0] : '';
       const shouldRetry = path && RETRIED.some((name) => path.endsWith(name));
 
-      if (!shouldRetry) {
+      if (!shouldRetry || (init && init.signal)) {
         return originalFetch.call(this, input, init);
       }
 

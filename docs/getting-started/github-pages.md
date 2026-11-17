@@ -218,10 +218,15 @@ keeps one such request from freezing the page:
   upgrades when they arrive.
 - **Retry state.** When every attempt fails, the page says "Couldn't load this
   page" with a **Retry** button instead of a loading skeleton.
+- **First load.** The site manifests (`ui-config.json`, `docs-nav.json`,
+  `route-manifest.json`) load with the same time limit and retries, and a link
+  straight to a docs page starts fetching that page's `.md` alongside them
+  rather than after them. If the manifests cannot load, the page says
+  "Couldn't load the docs" with a **Retry** button instead of staying blank.
 
-The legacy `fetch-retry` plugin retries only the site manifests
-(`ui-config.json`, `docs-nav.json`, `route-manifest.json`); page markdown has
-the one retry layer above.
+The legacy `fetch-retry` plugin leaves these requests alone (it skips
+markdown and any request that carries an abort signal), so there is one retry
+layer.
 
 This site, https://ui.praison.ai, is built the same way: see
 [`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).

@@ -17,6 +17,7 @@
  * its own, longer limit (it can be large and arrives in pieces).
  */
 import { docPathToMarkdown, normalizeDocPath } from '../pathUtils'
+import { canonicalDocPath } from './docSource'
 
 export interface DocResult {
     ok: boolean
@@ -211,6 +212,20 @@ export function prefetchDoc(url: string): void {
     for (const f of flights.values()) if (f.prefetch) running += 1
     if (running >= PREFETCH_LIMIT) return
     startFlight(url, true)
+}
+
+/**
+ * On a deep link under the docs base, start loading that page's markdown
+ * while the app is still fetching its manifests, instead of one round trip
+ * after them. Content.tsx then joins this request (or finds it cached). The
+ * site root is skipped: in the chat and agents styles `/` is not a docs page.
+ */
+export function prefetchInitialDoc(pathname = window.location.pathname, base = '/docs'): string | null {
+    const path = normalizeDocPath(pathname)
+    if (path !== base && !path.startsWith(`${base}/`)) return null
+    const url = docPathToMarkdown(canonicalDocPath(path, base))
+    prefetchDoc(url)
+    return url
 }
 
 /** Test hook: forget every cached answer and cancel every request. */
