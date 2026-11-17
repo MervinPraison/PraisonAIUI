@@ -26,7 +26,6 @@ from starlette.responses import (
     StreamingResponse,
 )
 from starlette.routing import Mount, Route, request_response
-from starlette.staticfiles import StaticFiles
 
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
@@ -36,6 +35,13 @@ from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__
     get_component_schemas,
     register_component_schema,
     reset_component_schemas,
+)
+from praisonaiui.static_gzip import (  # noqa: F401  (gzip_static: re-exported)
+    CachedGzipStaticFiles,
+    NoCacheStaticFiles,
+    gzip_body,
+    gzip_file_response,
+    gzip_static,
 )
 from praisonaiui.utils import json_for_html
 
@@ -1137,7 +1143,7 @@ async def _serve_index(request: Request) -> Response:
             status_code=404,
         )
     style = _effective_style  # Single source of truth (set by create_app)
-    return HTMLResponse(_build_html(style, request))
+    return gzip_body(request.scope, HTMLResponse(_build_html(style, request)))
 
 
 #: Styles whose UI opens ``/<page id>`` as that page (dashboard.js
@@ -1650,8 +1656,9 @@ def _shell_theme_tag() -> str:
 
 
 async def api_shell_manifest(request: Request) -> JSONResponse:
-    return JSONResponse(
-        _build_shell_manifest(restricted=_plugin_js_restricted(request.scope))
+    return gzip_body(
+        request.scope,
+        JSONResponse(_build_shell_manifest(restricted=_plugin_js_restricted(request.scope))),
     )
 
 
@@ -1691,13 +1698,14 @@ def _hashed_asset_names(frontend_dir: Path) -> Optional[set[str]]:
     return names - _NO_CACHE_ASSETS
 
 
-class _AssetStaticFiles(StaticFiles):
+class _AssetStaticFiles(CachedGzipStaticFiles):
     """/assets with cache headers that survive upgrades.
 
     - Content-hashed chunks (``name-[hash].ext`` from the Vite build) never
       change: ``public, max-age=31536000, immutable``.
     - ``index.js`` / ``index.css`` keep fixed names (loaded with ``?v=``) and
       anything not known to be hashed: ``no-cache`` (revalidate via ETag).
+    - Gzip bytes come from a cache, compressed once off the event loop.
     """
 
     def __init__(self, *args: Any, frontend_dir: Path, **kwargs: Any) -> None:
@@ -1724,30 +1732,6 @@ class _AssetStaticFiles(StaticFiles):
         response = super().file_response(full_path, stat_result, scope, status_code)
         response.headers["Cache-Control"] = self.cache_control_for(os.path.basename(str(full_path)))
         return response
-
-
-def gzip_static(app: Any, minimum_size: int = 1024, compresslevel: int = 6) -> Any:
-    """Wrap a static-file ASGI app so its responses are gzip-compressed.
-
-    Only static mounts are wrapped (``/assets``, ``/plugins``, ``aiui
-    serve``), so SSE and WebSocket routes are never touched on any Starlette
-    version. Range requests pass through uncompressed: a ``206`` body must
-    match its ``Content-Range`` in the identity encoding.
-    """
-    from starlette.middleware.gzip import GZipMiddleware
-
-    gz = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
-
-    async def _gzip_static_app(scope, receive, send):
-        if scope["type"] == "http" and not any(
-            k.lower() == b"range" for k, _ in scope.get("headers", ())
-        ):
-            await gz(scope, receive, send)
-        else:
-            await app(scope, receive, send)
-
-    _gzip_static_app.inner = app  # type: ignore[attr-defined]
-    return _gzip_static_app
 
 
 def set_datastore(store: BaseDataStore) -> None:
@@ -2649,7 +2633,7 @@ async def api_pages(request: Request) -> JSONResponse:
     records = _page_records(_plugin_js_restricted(request.scope), extra_dirs, dashboard=True)
     pages = [r.api_row for r in records]
     pages = sorted(pages, key=lambda p: (p.get("order", 100), p["id"]))
-    return JSONResponse({"pages": pages})
+    return gzip_body(request.scope, JSONResponse({"pages": pages}))
 
 
 async def api_component_schemas(request: Request) -> JSONResponse:
@@ -4445,19 +4429,17 @@ def create_app(
     # Static code is sent gzip-compressed (the bundle budgets are gzip
     # sizes; uncompressed the chat chunk alone is ~450 KB).
     if _plugins_dir.exists():
-        _plugins_app = StaticFiles(directory=str(_plugins_dir))
+        _plugins_app = CachedGzipStaticFiles(directory=str(_plugins_dir))
         if _plugins_dir != _base_plugins_dir and _base_plugins_dir.is_dir():
             _plugins_app.all_directories.append(str(_base_plugins_dir))
         routes.append(Mount("/plugins", app=gzip_static(_plugins_app)))
     if _assets_dir.exists():
-        routes.append(
-            Mount(
-                "/assets",
-                app=gzip_static(
-                    _AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir)
-                ),
-            )
-        )
+        _assets_app = _AssetStaticFiles(directory=str(_assets_dir), frontend_dir=_frontend_dir)
+        # A built docs site links its own /assets/theme.css: look there second.
+        _site_assets = Path(static_dir) / "assets" if static_dir else None
+        if _site_assets is not None and _site_assets.is_dir() and _site_assets != _assets_dir:
+            _assets_app.all_directories.append(str(_site_assets))
+        routes.append(Mount("/assets", app=gzip_static(_assets_app)))
 
     # Add static file serving if static_dir provided (catch-all, must be last)
     # Wrap StaticFiles so WebSocket requests don't crash with AssertionError
@@ -4469,7 +4451,7 @@ def create_app(
         if _effective_style != "docs":
             routes.append(Route("/", _serve_index, methods=["GET"]))
 
-        _static_app = StaticFiles(directory=str(static_dir), html=True)
+        _static_app = NoCacheStaticFiles(directory=str(static_dir), html=True)
         _static_root = Path(static_dir).resolve()
 
         def _inside_static_root(candidate: Path) -> Path | None:
@@ -4490,7 +4472,13 @@ def create_app(
         async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
             from starlette.responses import FileResponse
 
-            response = FileResponse(str(file_path), media_type=media_type)
+            response = FileResponse(
+                str(file_path),
+                media_type=media_type,
+                stat_result=os.stat(file_path),
+                headers={"Cache-Control": "no-cache"},
+            )
+            response = await gzip_file_response(response, scope)
             await response(scope, receive, send)
 
         async def _http_only_static(scope, receive, send):
@@ -4573,7 +4561,9 @@ def create_app(
                     }
                 )
 
-        routes.append(Mount("/", app=_http_only_static))
+        # Compressed like `aiui serve` (the SPA fallback HTML too).
+        _static_entry = gzip_static(_http_only_static)
+        routes.append(Mount("/", app=_static_entry))
     else:
         # No static_dir — serve SDK-generated HTML (dashboard, chat, etc.)
         routes.append(Route("/", _serve_index, methods=["GET"]))
@@ -4588,7 +4578,8 @@ def create_app(
     mark_public(view_shared_thread_handler)
     _page_host: Any = _serve_index
     if static_dir and static_dir.exists():
-        _page_host = mark_public(_http_only_static)
+        mark_public(_http_only_static)
+        _page_host = mark_public(_static_entry)
     # First: a browser opening /<page id> gets the page even where a JSON API
     # shares the path (GET /agents, /sessions); fetch() keeps getting JSON.
     routes.insert(
