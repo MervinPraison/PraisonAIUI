@@ -157,3 +157,19 @@ test('first load: when the manifests cannot load, the page says so and offers Re
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
   await expect(alert).toHaveCount(0)
 })
+
+test('first load: a docs page loads none of the chat, agents or playground code', async ({ page }) => {
+  const scripts = new Set<string>()
+  page.on('request', (r) => { if (r.resourceType() === 'script') scripts.add(new URL(r.url()).pathname) })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  // The style layouts are lazy chunks (App.tsx, React.lazy); their files come from the build manifest.
+  const manifest = (await (await page.request.get('/aiui-manifest.json')).json()) as Record<string, { file: string }>
+  const styleChunks = Object.entries(manifest)
+    .filter(([key]) => /^src\/layouts\/(ChatLayout|AgentUILayout|PlaygroundLayout|CopilotWidget)\.tsx$/.test(key))
+    .map(([, chunk]) => `/${chunk.file}`)
+  expect(styleChunks.length).toBe(4)
+  expect(styleChunks.filter((f) => scripts.has(f))).toEqual([])
+  expect([...scripts].filter((p) => /\/SurfaceHost-[\w-]+\.js$/.test(p))).toEqual([])
+})
