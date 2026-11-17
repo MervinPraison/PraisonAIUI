@@ -113,6 +113,9 @@ versions the user edited.
 | `DELETE /api/artifacts/{session_id}/{key}[?version=N]` | Removes one key, or one version of it |
 | `DELETE /api/artifacts/{session_id}` | Removes the whole session |
 
+Deleting a chat (`DELETE /sessions/{id}`, which the chat, the Sessions page and
+`aiui sessions delete` use) also deletes its artifacts.
+
 The body of a `PUT` is an `Artifact`. `kind` is one of `code`, `table`, `markdown`, `file`,
 `image`, `pdf`, `video` or `a2ui`.
 

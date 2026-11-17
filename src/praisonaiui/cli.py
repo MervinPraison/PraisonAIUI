@@ -1776,11 +1776,11 @@ def run(
         "-b",
         help="Backend mode: 'standalone' (default) or 'praisonai' (uses WebSocketGateway)",
     ),
-    datastore: str = typer.Option(
-        "sdk",
+    datastore: Optional[str] = typer.Option(
+        None,
         "--datastore",
         "-d",
-        help="Data persistence: 'sdk' (unified with praisonai-agents, default), 'json', 'memory', 'json:/path', or 'sdk:/path'",
+        help="Data persistence: 'sdk' (unified with praisonai-agents, default), 'json', 'memory', 'json:/path', or 'sdk:/path'. Overrides a chat YAML's datastore: key",
     ),
     style: Optional[str] = typer.Option(
         None,
@@ -1831,9 +1831,9 @@ def run(
         with open(app_file, encoding="utf-8") as f:
             chat_yaml = _yaml.safe_load(f) or {}
 
-        # Apply config from YAML (override CLI defaults only if present)
-        if "datastore" in chat_yaml and datastore == "memory":
-            datastore = chat_yaml["datastore"]
+        # Apply config from YAML; a --datastore flag wins over it.
+        if datastore is None and chat_yaml.get("datastore"):
+            datastore = str(chat_yaml["datastore"])
 
         if "style" in chat_yaml and chat_yaml["style"] not in UI_STYLES:
             # A warning, not an error: configs that ran before keep running.
@@ -2012,7 +2012,8 @@ def run(
         else:
             asyncio.run(gateway.start())
     else:
-        # Set up datastore
+        # Set up datastore (--datastore, else the YAML's, else the SDK store)
+        datastore = datastore or "sdk"
         from praisonaiui.server import set_datastore
 
         try:
