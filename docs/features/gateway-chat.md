@@ -333,7 +333,9 @@ see [Deployment](deployment.md).
 // Abort a run: answered with {"type": "chat_abort_result", "status": ..., "run_id": ...}
 {"type": "chat_abort", "run_id": "run-1"}
 
-// Answer an agent's question: answered with {"type": "ask_response_ack", ...}
+// Answer an agent's question: answered with {"type": "ask_response_ack", "status": ...},
+// status "received", "no_pending_ask" (nothing was waiting: the ask timed out or
+// the run ended) or "forbidden" (another connection's run)
 {"type": "ask_response", "session_id": "abc-123", "run_id": "run-1", "response": "5.1"}
 
 // Is a run still active?

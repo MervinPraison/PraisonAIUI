@@ -423,6 +423,12 @@ class.
 Returns a `PromptResult` dataclass (`text`, `choice`, `message_id`).
 The result is truthy when the user answered, falsy on timeout.
 
+The answer comes back over the chat WebSocket (`ask_response`), so a
+question needs the WebSocket transport; the HTTP fallback (`POST /run`) can
+show it but not answer it. Time spent waiting for the answer does not count
+against the `@reply` inactivity timeout (`AIUI_REPLY_IDLE_TIMEOUT`).
+`aiui.ask` and `AskUserMessage` work the same way.
+
 ```python
 import praisonaiui as aiui
 

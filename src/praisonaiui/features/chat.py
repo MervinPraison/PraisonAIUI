@@ -1674,7 +1674,8 @@ async def _chat_ws(websocket: WebSocket) -> None:
       HTTP); answered with ``{type: "chat_abort_result", status, run_id}``
       (status ``forbidden`` otherwise).
     * ``{type: "ask_response", session_id, run_id, response}`` — same rule;
-      answered with ``{type: "ask_response_ack", status}``.
+      answered with ``{type: "ask_response_ack", status}``: ``received``,
+      ``no_pending_ask`` (nothing was waiting) or ``forbidden``.
     * ``{type: "subscribe", session_ids: [...]}`` / ``{type: "unsubscribe",
       session_ids: [...]}`` — opt into per-session delivery; answered with
       ``{type: "subscribed", session_ids}``. Clients that never subscribe
@@ -1845,17 +1846,25 @@ async def _chat_ws(websocket: WebSocket) -> None:
                     continue
                 logger.info(f"Ask response received: {response[:100]} (session={session_id})")
                 # Forward to provider's ask response queue if available
+                from praisonaiui.providers import answer_reply_ask
                 from praisonaiui.server import get_provider
 
                 provider = get_provider()
-                if hasattr(provider, "submit_ask_response"):
-                    await provider.submit_ask_response(session_id, run_id, response)
-                # Acknowledge
+                # A @reply callback waiting on aiui.ask / aiui.prompt first,
+                # then the provider's own ask channel.
+                delivered = await answer_reply_ask(session_id, run_id, response)
+                if not delivered and hasattr(provider, "submit_ask_response"):
+                    # False: nothing was waiting (the ask timed out, the run
+                    # ended). None (a provider that returns nothing): taken.
+                    delivered = (
+                        await provider.submit_ask_response(session_id, run_id, response)
+                        is not False
+                    )
                 await websocket.send_json(
                     {
                         "type": "ask_response_ack",
                         "session_id": session_id,
-                        "status": "received",
+                        "status": "received" if delivered else "no_pending_ask",
                     }
                 )
 

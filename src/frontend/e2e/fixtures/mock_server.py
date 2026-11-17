@@ -19,6 +19,8 @@ Keywords in the user's message select what the scripted run does:
     weather   call the get_weather tool (the example plugin renders it)
     cbfail    a real ``@reply`` callback (callback mode) streams one token
               and raises
+    cbask     a real ``@reply`` callback asks "Pick one" (A or B) with
+              ``aiui.ask`` and then says which was picked
 
 The exact message ``Compare sorting algorithms`` (or one containing
 ``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
@@ -224,11 +226,31 @@ async def callback_failure(text: str, session_id):
         yield event
 
 
+async def callback_ask(text: str, session_id):
+    """A ``@reply`` app that asks the user, through the real callback mode."""
+    from praisonaiui.callbacks import _set_context
+    from praisonaiui.providers import PraisonAIProvider
+
+    async def asking_reply(msg):
+        _set_context(msg)  # what @aiui.reply does, so aiui.ask finds the run
+        answer = await aiui.ask("Pick one", options=["A", "B"], timeout=30)
+        await aiui.say(f"You picked {answer}")
+
+    async for event in PraisonAIProvider()._run_callback_mode(
+        text, asking_reply, session_id, "Mock"
+    ):
+        yield event
+
+
 class MockProvider(BaseProvider):
     async def run(self, message, *, session_id=None, agent_name=None, **kw):
         text = str(message)
         if "cbfail" in text:
             async for event in callback_failure(text, session_id):
+                yield event
+            return
+        if "cbask" in text:
+            async for event in callback_ask(text, session_id):
                 yield event
             return
         if _is_sorting_demo(text):
