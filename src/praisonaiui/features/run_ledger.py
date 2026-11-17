@@ -137,6 +137,8 @@ class RunLedger:
         if agent and not run["agent"]:
             run["agent"] = agent
         if etype in ("run_completed", "run_error", "run_cancelled"):
+            if run.get("endedAt") is not None:
+                return  # the first terminal event decides how the run ended
             run["status"] = {
                 "run_completed": "completed",
                 "run_error": "failed",

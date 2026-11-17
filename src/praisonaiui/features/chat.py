@@ -834,6 +834,9 @@ def _event_agent_name(event: Any) -> Optional[str]:
     return name if isinstance(name, str) and name else None
 
 
+_TERMINAL_RUN_EVENTS = frozenset({"run_completed", "run_error", "run_cancelled"})
+
+
 async def _run_and_broadcast(
     content: str,
     session_id: str,
@@ -1055,6 +1058,13 @@ async def _run_and_broadcast(
                 payload["agent_name"] = name
                 await _emit(payload)
                 continue
+            if run_error is not None or cancelled:
+                # The run already ended (a provider that sends a terminal
+                # event after run_error/run_cancelled): one terminal frame
+                # per run, or the client and the run ledger read the late
+                # run_completed as success and drop the error.
+                if getattr(event.type, "value", event.type) in _TERMINAL_RUN_EVENTS:
+                    continue
             if event.type == RunEventType.RUN_CANCELLED:
                 cancelled = True
 
@@ -1075,6 +1085,7 @@ async def _run_and_broadcast(
                     payload["suggestions"] = suggestions
             elif event.type == RunEventType.RUN_ERROR:
                 payload["error"] = event.error or "Unknown error"
+                run_error = payload["error"]
             elif event.type == RunEventType.TOOL_CALL_STARTED:
                 # Skip events without a name
                 if not event.name:
@@ -1260,8 +1271,9 @@ async def _run_and_broadcast(
                 {"type": "run_closed", "session_id": session_id, "run_id": run_id, "status": status},
             )
 
-    # Save assistant response
-    if full_response or collected_elements:
+    # Save assistant response. A failed run is saved even with no text, so
+    # a reload still shows the error instead of an unanswered question.
+    if full_response or collected_elements or run_error is not None:
         assistant_msg = ChatMessage(
             role="assistant",
             content=full_response or "",

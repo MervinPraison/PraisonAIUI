@@ -378,3 +378,16 @@
   `site.theme`) nor the viewer chose a mode. They used to read only the
   filled-in `darkMode: true` and render dark on a light OS. See
   [Dark mode](docs/features/dark-mode.md#colour-mode-order).
+- Chat: a failed `@reply` is no longer invisible. The run sent `run_error`
+  and then `run_completed`, so the chat dropped the error, nothing was saved
+  (a reload showed an unanswered question) and Mission Control counted the
+  run as succeeded. A run now ends with exactly one terminal frame, a failed
+  reply is saved with `status: "error"`, the run ledger keeps the first
+  terminal status, the exception is logged with its traceback, and the
+  dashboard chat closes its "Generating response…" bubble on an error or Stop.
+- Chat: Stop cancels the `@reply` callback. The chat said "Stopped" while the
+  callback kept running (and spending tokens) to the end.
+- Chat: the `@reply` inactivity timeout is 600 s instead of 60 s, and
+  configurable with `AIUI_REPLY_IDLE_TIMEOUT` (`0` turns it off). When it
+  fires the callback is cancelled; its late answer used to be dropped while
+  it kept running, and a `run_completed` followed the timeout error.

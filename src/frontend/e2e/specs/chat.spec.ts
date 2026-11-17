@@ -151,6 +151,26 @@ for (const transport of ['ws', 'sse'] as const) {
   })
 }
 
+test('WebSocket: a failed @reply shows its error, and still does after a reload', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await openChat(page, 'ws')
+  await send(page, 'cbfail please')
+  const reply = assistant(page).last()
+  await expect(reply).toContainText('partial answer')
+  await expect(reply.getByRole('alert')).toContainText('cbfail: the reply raised')
+  await waitForRunEnd(page)
+  // A trailing run_completed used to reload the thread and erase the error.
+  await page.waitForTimeout(1_000)
+  await expect(reply.getByRole('alert')).toContainText('cbfail: the reply raised')
+
+  await expect(page).toHaveURL(/[?&]session=/)
+  await page.reload()
+  const saved = assistant(page).last()
+  await expect(saved).toContainText('partial answer')
+  await expect(saved.getByRole('alert')).toContainText('cbfail: the reply raised')
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('WebSocket: a question from the agent can be answered', async ({ page }) => {
   const frames = recordSentFrames(page)
   await openChat(page, 'ws')

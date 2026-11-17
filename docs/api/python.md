@@ -521,6 +521,19 @@ the text only. Otherwise the callback gets a `MessageContext` with:
 - `message.session_id`: the session id
 - `message.agent_name`: the selected agent, if any
 
+How a reply ends:
+
+- If the callback raises, the run ends with one `run_error` frame carrying the
+  exception text. The chat shows the error under whatever was streamed, the
+  reply is saved with `status: "error"` (so it is still there after a
+  reload), the run ledger counts it as failed, and the traceback is logged.
+- Stop (`chat_abort`, `POST /api/chat/abort`, `POST /cancel`) cancels the
+  callback task: the callback gets `asyncio.CancelledError` at its next
+  `await`, so an LLM call or tool it is waiting on stops too.
+- A callback that sends nothing (no token, message, step or tool event) for
+  `AIUI_REPLY_IDLE_TIMEOUT` seconds (default 600) is cancelled and the run
+  fails with a timeout. Set `AIUI_REPLY_IDLE_TIMEOUT=0` for no limit.
+
 ---
 
 ### `@aiui.welcome`
