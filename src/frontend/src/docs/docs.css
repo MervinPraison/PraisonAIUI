@@ -726,6 +726,15 @@ img.aiui-docs-mark {
   border-radius: 0;
 }
 .aiui-docs article.aiui-doc .aiui-tabs .aiui-code-title { display: none; }
+/* Streamdown gives every code block content-visibility: auto with a 200px
+   placeholder (contain-intrinsic-size). Chrome decides an on-screen block is
+   relevant one frame late, so an article's first frame lays each visible block
+   out at 200px and the next at its real height: everything below jumped
+   (CLS 0.037 on Quick Start). Docs articles lay code blocks out normally. */
+.aiui-docs article.aiui-doc [data-streamdown='code-block'] {
+  content-visibility: visible !important;
+  contain-intrinsic-size: none !important;
+}
 /* In a group the tab names the code, so the block's own header row goes and
    its copy button moves up into the tab strip (2.375rem tall). Streamdown's
    content-visibility: auto would clip it (paint containment). */

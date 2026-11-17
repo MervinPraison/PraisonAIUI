@@ -155,6 +155,10 @@
 
 ### Fixed
 
+- Docs: a page no longer jumps as its code blocks first draw (Quick Start
+  moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
+  (`content-visibility: auto`) for one frame before its real height; docs
+  articles now lay them out normally.
 - Docs: three generated mockup screenshots (an "AI Platform" upload dialog, a
   model-fallback editor and a "Nexus AI" agent tree) are gone from the
   Attachments, Model Fallback and Subagent Tree pages. They showed screens
