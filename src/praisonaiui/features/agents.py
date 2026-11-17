@@ -69,6 +69,9 @@ class AgentRegistryProtocol(ABC):
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
+    def reload(self) -> None:
+        """Re-read definitions from the config store on next access."""
+
 
 # ── Simple Agent Registry ──────────────────────────────────────────
 
@@ -83,6 +86,10 @@ class SimpleAgentRegistry(AgentRegistryProtocol):
     def set_data_file(self, path: Path) -> None:
         """Legacy no-op — persistence is now via YAMLConfigStore."""
         pass
+
+    def reload(self) -> None:
+        """Forget the loaded definitions' source: re-read the store on next access."""
+        self._config_loaded = False
 
     def _ensure_loaded(self) -> None:
         """Lazy-load agents from config store on first access."""
@@ -231,6 +238,9 @@ class SDKAgentRegistry(AgentRegistryProtocol):
 
     def set_data_file(self, path: Path) -> None:
         self._simple.set_data_file(path)
+
+    def reload(self) -> None:
+        self._simple.reload()
 
     def create(self, agent_def: Dict[str, Any]) -> Dict[str, Any]:
         agent = self._simple.create(agent_def)
@@ -423,6 +433,11 @@ class AgentsCrudFeature(BaseFeatureProtocol):
     @property
     def description(self) -> str:
         return self.feature_description
+
+    def on_config_reload(self) -> None:
+        """Re-read agent definitions from the config store on next access."""
+        if _agent_registry is not None:  # nothing loaded yet: nothing to drop
+            _agent_registry.reload()
 
     def routes(self) -> List[Route]:
         return [

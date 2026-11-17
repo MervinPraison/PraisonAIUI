@@ -286,7 +286,10 @@ register_feature(MyFeature())
 ```
 
 `name` and `description` are abstract on `BaseFeatureProtocol`; omitting
-either raises `TypeError: Can't instantiate abstract class`.
+either raises `TypeError: Can't instantiate abstract class`. Optional hooks:
+`cli_commands()`, `health()` (kept cheap: it runs on every `/api/features`
+request) and `on_config_reload()` (drop what you cached from `config.yaml`;
+see [Config Hot-Reload](config-hot-reload.md)).
 
 See [Protocol Architecture](protocol-architecture.md).
 

@@ -21,7 +21,7 @@ aiui run app.py --datastore json
 | JSON files | `--datastore json` | `$AIUI_DATA_DIR/sessions/` (default `~/.praisonaiui/sessions/`) |
 | JSON (custom path) | `--datastore json:/path/to/dir` | That directory |
 | Memory | `--datastore memory` | Lost on restart; for tests |
-| SQL | `aiui.set_datastore(aiui.SQLAlchemyDataStore(url))` | SQLite (`~/.praisonaiui/aiui.db` by default) or PostgreSQL; install `aiui[sql]` or `aiui[postgres]` |
+| SQL | `aiui.set_datastore(aiui.SQLAlchemyDataStore(url))` | SQLite (`~/.praisonaiui/aiui.db` by default) or PostgreSQL; install `aiui[sql]` or `aiui[postgres]`. SQLAlchemy is imported only when this store first opens its database |
 | Your own | Implement `BaseDataStore` | Your database |
 
 ## REST API

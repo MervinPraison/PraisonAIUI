@@ -185,6 +185,13 @@ class ChannelsFeature(BaseFeatureProtocol):
     def description(self) -> str:
         return self.feature_description
 
+    def on_config_reload(self) -> None:
+        """Reload channel definitions and let enabled bots auto-start again."""
+        updated = load_section(_CHANNELS_SECTION)
+        _channels.clear()
+        _channels.update(updated)
+        ChannelsFeature._auto_started = False
+
     def routes(self) -> List[Route]:
         return [
             Route("/api/channels", self._list, methods=["GET"]),

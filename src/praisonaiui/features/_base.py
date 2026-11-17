@@ -101,6 +101,13 @@ class BaseFeatureProtocol(ABC):
         """
         return {"status": "ok", "feature": self.name}
 
+    def on_config_reload(self) -> None:
+        """Drop state cached from the config store; it was just reloaded.
+
+        Called by the config hot-reload watcher (``builtin.config``) on every
+        registered feature after the YAML file changes. Default: nothing.
+        """
+
     async def info(self) -> Dict[str, Any]:
         """Feature metadata for /api/features listing."""
         h = await self.health()

@@ -63,21 +63,10 @@ from typing import Any, Optional
 # SQLAlchemy ORM models (lazy creation to avoid import issues)
 # ---------------------------------------------------------------------------
 
-# Import SQLAlchemy types at module level to fix annotation resolution
-try:
-    from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-    from sqlalchemy.sql import func
-
-    _SQLALCHEMY_AVAILABLE = True
-except ImportError:
-    # Create placeholder types to prevent import errors
-    _SQLALCHEMY_AVAILABLE = False
-    Mapped = Any  # type: ignore
-    String = Text = DateTime = Integer = ForeignKey = object  # type: ignore
-    DeclarativeBase = object  # type: ignore
-    func = object  # type: ignore
-    mapped_column = lambda *args, **kwargs: None  # type: ignore
+# SQLAlchemy is the optional ``sql`` extra: it is imported only when the SQL
+# datastore is built (R10), never at module top, because server.py loads this
+# module on every start.
+_SQLALCHEMY_AVAILABLE: Optional[bool] = None  # None: not probed yet
 
 _ORM_MODELS: Optional[tuple[type, type, type, type]] = (
     None  # (Base, SessionModel, MessageModel, FeedbackModel)
@@ -94,11 +83,23 @@ def _get_orm_models():
     if _ORM_MODELS is not None:
         return _ORM_MODELS
 
-    if not _SQLALCHEMY_AVAILABLE:
+    global _SQLALCHEMY_AVAILABLE
+    try:
+        if _SQLALCHEMY_AVAILABLE is False:
+            raise ImportError("sqlalchemy")
+        from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+        from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+        from sqlalchemy.sql import func
+    except ImportError:
+        _SQLALCHEMY_AVAILABLE = False
         raise ImportError(
             "SQLAlchemy dependencies not found. Install with: "
             "pip install 'aiui[sql]' or pip install sqlalchemy aiosqlite"
-        )
+        ) from None
+    _SQLALCHEMY_AVAILABLE = True
+    # The models' annotations are strings (PEP 563), and SQLAlchemy resolves
+    # them in this module's namespace, so the names they use must live there.
+    globals()["Mapped"] = Mapped
 
     class Base(DeclarativeBase):
         pass

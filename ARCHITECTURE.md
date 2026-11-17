@@ -136,7 +136,9 @@ built-in commands never import plugins.
 *Check:* `sdk/registry.test.ts`, `sdk/sdk.test.tsx`,
 `test_plugin_registry.py`, `test_builtin_plugins.py`
 (`test_builtin_page_failures_are_isolated`,
-`test_disabled_builtin_does_not_import_its_feature_module`), `e2e/specs/plugins.spec.ts`.
+`test_disabled_builtin_does_not_import_its_feature_module`),
+`test_lazy_feature_imports.py` (every record off at once and a config reload,
+each in a fresh interpreter), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
 the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 33 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
@@ -244,7 +246,8 @@ praisonaiui` stays under 200 ms (`tests/unit/test_dx_polish.py`
 (`httpx`, `litellm`, `chromadb`, provider SDKs) are imported inside the function
 that needs them, and nothing outside `[project].dependencies` is imported at
 module top in a module `create_app` loads.
-*Check:* CI `frontend` job (`size`, `check:closure`); `pytest tests/unit`.
+*Check:* CI `frontend` job (`size`, `check:closure`); `pytest tests/unit`
+(`test_lazy_feature_imports.py` asserts `create_app()` loads no SQLAlchemy).
 
 **R11. `server.py` does not grow.** No new `create_app()` parameters, no new
 page-specific routes or handlers in `create_app`, no new module-level state for
