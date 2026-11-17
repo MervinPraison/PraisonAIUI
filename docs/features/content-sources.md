@@ -97,6 +97,12 @@ The Markdown below the frontmatter renders under the hero.
   at 16:10 (1600 × 1000, say) never move the page. Only the image for the
   colour mode on screen downloads at first; the other one waits until the
   reader switches.
+- `aiui build` adds `<link rel="preload" as="image">` for the hero to the home
+  page's HTML, so the download starts with the page instead of after the app
+  has drawn the hero. With `site.theme.mode: system` (or no mode) each image
+  gets the matching `prefers-color-scheme` media query; a fixed `light` or
+  `dark` preloads only that image. A reader whose saved light/dark choice
+  differs from the system setting downloads both.
 
 - Links and images resolve against the home page like Markdown links, and
   links to other sites open in a new tab.

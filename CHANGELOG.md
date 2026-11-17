@@ -65,6 +65,11 @@
 
 ### New
 
+- **Docs home hero preload.** `aiui build` writes `<link rel="preload" as="image">`
+  for the home page's hero (one per colour mode, with a `prefers-color-scheme`
+  media query), so the browser finds the image in the HTML instead of waiting
+  for the app. See
+  [Content sources → Home page](docs/features/content-sources.md).
 - **Docs page actions and section links.** Above each docs page, "Copy page"
   copies its Markdown; the menu adds View as Markdown, Open in ChatGPT and
   Open in Claude. Section headings get a link icon that copies the section's
