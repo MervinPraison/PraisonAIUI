@@ -117,6 +117,7 @@ class Compiler:
             files.extend(self._generate_robots(output_dir))
             files.extend(self._generate_llms_txt(output_dir, nav))
             files.extend(self._generate_llms_full_txt(output_dir, nav))
+            files.extend(self._generate_search_index(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
 
         return CompileResult(success=True, files=files)
@@ -980,6 +981,28 @@ class Compiler:
 
         (output_dir / "llms-full.txt").write_text("\n\n---\n\n".join(sections) + "\n", encoding="utf-8")
         return ["llms-full.txt"]
+
+    def _generate_search_index(self, output_dir: Path, nav: dict) -> list[str]:
+        """Write ``search-index.json``: every page's headings and text for the
+        docs search dialog (compiler/search_index.py). Pages marked ``noindex``
+        stay searchable on the site; only crawlers skip them."""
+        from praisonaiui.compiler.search_index import page_entry
+
+        if self.config.search and self.config.search.enabled is False:
+            return []
+        pages = []
+        for page in self._collect_nav_pages(nav):
+            md_path = self._resolve_md_source(page["path"])
+            body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")) if md_path else ""
+            pages.append(page_entry(page["path"], page["title"], page["description"], body))
+        if not pages:
+            return []
+        # Compact: the dialog downloads it once, on first open.
+        (output_dir / "search-index.json").write_text(
+            json.dumps({"version": 1, "pages": pages}, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        return ["search-index.json"]
 
     @staticmethod
     def _strip_frontmatter(content: str) -> str:

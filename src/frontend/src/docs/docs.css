@@ -885,6 +885,42 @@ img.aiui-docs-mark {
 
 /* The search dialog sits in a portal, outside the .aiui-docs root. */
 .aiui-docs-search-dialog { font-family: var(--aiui-font-sans); }
+@media (min-width: 640px) {
+  .aiui-docs-search-dialog { max-width: 40rem; }
+}
+.aiui-docs-search-dialog [cmdk-list] { max-height: min(28rem, 60vh); }
+.aiui-docs-search-dialog [cmdk-item] { align-items: flex-start; }
+.aiui-docs-search-dialog [cmdk-item] > svg { margin-top: 0.125rem; color: var(--ui-text-3); }
+.aiui-docs-result {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.aiui-docs-result-title {
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.aiui-docs-result-crumb {
+  color: var(--ui-text-3);
+  font-size: 0.75rem;
+}
+.aiui-docs-result-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.aiui-docs-result mark {
+  border-radius: 2px;
+  background: var(--ui-accent-soft);
+  color: var(--foreground);
+  font-weight: 600;
+}
 
 /* ── States ────────────────────────────────────────────────────────────── */
 .aiui-docs-loading {

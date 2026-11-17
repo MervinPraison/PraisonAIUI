@@ -14,6 +14,7 @@ import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
+import { scrollToHash, useHashScroll } from './docs/hashScroll'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
@@ -84,6 +85,8 @@ export default function App() {
   const navTabs = config.navigation?.tabs ?? []
   const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
   useDocsTokens(docsStyle, config.site?.theme?.preset)
+  useHashScroll(docsStyle)
+  const searchGroups = useMemo(() => docSearchGroups(nav), [nav])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
 
   // "Search docs" and ⌘K / Ctrl+K: a page listening for `aiui:search-open`
@@ -425,6 +428,23 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
   }
 
+  // A search result: the page, at its section when it has one. Another page
+  // scrolls there once its article renders (useHashScroll); this page at once.
+  // The hash goes on with replaceState after the move: the legacy
+  // nav-intercept plugin re-navigates a pushState to another page without it.
+  const openSearchResult = (item: NavItem, anchor?: string) => {
+    const path = canonicalDocPath(item.path || '/')
+    const samePage = path === currentPath
+    window.history.pushState({ path }, item.title, path)
+    window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
+    if (!anchor) {
+      window.scrollTo({ top: 0 })
+      return
+    }
+    window.history.replaceState({ path }, item.title, `${path}#${encodeURIComponent(anchor)}`)
+    if (samePage) scrollToHash()
+  }
+
   const templateMatch = resolveTemplate(
     currentPath.replace(/^\//, ''),
     routes,
@@ -463,7 +483,7 @@ export default function App() {
       />
       {searchMounted && (
         <Suspense fallback={null}>
-          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={docSearchGroups(nav)} onSelect={handleItemClick} />
+          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} />
         </Suspense>
       )}
     </>

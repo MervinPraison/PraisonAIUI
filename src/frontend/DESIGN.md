@@ -589,7 +589,7 @@ so the first paint, before the docs chunk, is already paper.
 | Previous / next | Two hairline cards (radius 12) under the article, in sidebar reading order within the active tab: "Previous" / "Next" in tier-3 with a chevron, the title 15/500 |
 | Footer | One hairline; the YAML `footer.links` columns, then the brand tile, the footer text and the footer component's links and `footer.socials` |
 | Phone (< 768px) | The menu button opens a left sheet (288px, at most 85% of the width): brand, the section tabs as a segmented control, the nav tree (the active page scrolled into view), and the links and call to action at the bottom |
-| Search | ⌘K / Ctrl+K or the search button open a command dialog (lazy chunk) that finds pages by title or section across every tab. A page that handles `aiui:search-open` itself calls `preventDefault()` on it to take over |
+| Search | ⌘K / Ctrl+K or the search button open a command dialog (lazy chunk). Empty, it lists the pages by section; with a query it ranks page titles, then `##`/`###` headings, then section text from `search-index.json` (`aiui build`, `compiler/search_index.py`; fetched once, on first open; without it, titles only). A row: a line icon (page, heading, text), the title, the "Section › Page" crumb in tier-3 and a two-line snippet, matched words on the accent soft fill (`<mark>`, text runs, never HTML). A result opens the page at its heading (`docs/hashScroll.ts`, also for deep links). A page that handles `aiui:search-open` itself calls `preventDefault()` on it to take over |
 
 Focus: links, plain buttons, tabs and disclosures get a 2px ring in the
 ring colour with a 2px offset; primitives keep their own ring. Page source
