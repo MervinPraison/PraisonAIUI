@@ -856,7 +856,8 @@ def test_features(server: str = _SERVER_OPT) -> None:
                 {
                     "name": "IntTestBot",
                     "platform": "telegram",
-                    "config": {"bot_token": tg_token},
+                    # The API rejects inline secrets; reference the env var (#425).
+                    "config": {"bot_token": "env:TELEGRAM_BOT_TOKEN"},
                 },
             )
             ch_id = new_ch.get("id") or new_ch.get("channel_id")
