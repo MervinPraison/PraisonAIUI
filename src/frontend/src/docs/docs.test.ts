@@ -163,6 +163,24 @@ test('the active tab is the one whose groups list the page, before folder prefix
     assert.equal(detectActiveTabIndex(tabs, '/'), 0)
 })
 
+test('a README or index page, or a numbered file, belongs to the tab that lists it (served at its folder route)', () => {
+    const tabs = [
+        { tab: 'Get started', groups: [{ group: 'Get started', pages: ['index', 'getting-started/installation'] }] },
+        { tab: 'Reference', groups: [{ group: 'ADP', pages: ['protocols/adp/README', 'protocols/adp/spec', 'adr/0003-selectable-layouts', 'typescript/index'] }] },
+    ]
+    assert.equal(detectActiveTabIndex(tabs, '/docs/protocols/adp'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/protocols/adp/'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/protocols/adp/spec'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/adr/selectable-layouts'), 1)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/typescript'), 1)
+    // The home page stays on the first tab, and a sibling folder is not swept in.
+    assert.equal(detectActiveTabIndex(tabs, '/docs/index'), 0)
+    assert.equal(detectActiveTabIndex(tabs, '/docs/protocols'), 0)
+    const adp = { title: 'Application Design Protocol', children: [{ title: 'Overview', path: '/docs/protocols/adp' }] }
+    assert.equal(navItemTabGroupIndex(adp, tabs[1]), 0)
+    assert.equal(navItemTabGroupIndex(adp, tabs[0]), -1)
+})
+
 test('manual nav sections (no path) group pages and name the section', () => {
     const nav: DocsNav = {
         items: [

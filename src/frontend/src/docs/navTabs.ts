@@ -1,4 +1,5 @@
 import type { NavItem, NavTabConfig } from '../types'
+import { pageRoute } from './docSource'
 
 function sectionTitle(item: NavItem): string {
     return item.title.trim().toLowerCase()
@@ -22,7 +23,13 @@ function pathMatchesPage(docPath: string, page: string): boolean {
     }
 
     const suffix = `/${normalizedPage}`
-    return normalizedPath.endsWith(suffix) || normalizedPath.endsWith(`${suffix}/index`)
+    if (normalizedPath.endsWith(suffix) || normalizedPath.endsWith(`${suffix}/index`)) return true
+
+    // The page's own route, as the build names it (pageRoute): `protocols/adp/README`
+    // is served at /docs/protocols/adp, `adr/0003-x` at /docs/adr/x. Without this a
+    // README or index page belongs to no tab and the header falls back to the first.
+    const route = pageRoute(`/docs/${normalizedPage}.md`).toLowerCase()
+    return route !== '/' && route !== '/docs' && normalizedPath.endsWith(route)
 }
 
 /** Index of the first group of `tab` a sidebar item belongs to, or -1 (from topnav plugin logic). */

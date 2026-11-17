@@ -115,6 +115,11 @@
 
 ### Fixed
 
+- Docs sites (`aiui build`): a `README` or `index` page listed in a nav tab,
+  or a page with a number prefix, now opens under that tab. The header used
+  to fall back to the first tab for it (for example the ADP overview at
+  `/docs/protocols/adp` showed under "Get started" instead of "Reference"),
+  and the section eyebrow was missing.
 - Docs sites (`aiui build`): pages make far fewer requests, all to the site
   itself. The default `site.plugins` is now `fetch-retry` and
   `nav-intercept`: `mermaid`, `syntax-highlight`, `code-copy`, `toc`,
