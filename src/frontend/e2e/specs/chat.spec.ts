@@ -546,6 +546,21 @@ test('a file dropped on the composer is attached', async ({ page }) => {
   await expect(page.locator('[data-aiui-dropzone][data-dragging]')).toHaveCount(0)
 })
 
+test('SSE fallback: a dropped text file reaches the reply', async ({ page }) => {
+  await openChat(page, 'sse')
+  const dataTransfer = await page.evaluateHandle(() => {
+    const dt = new DataTransfer()
+    dt.items.add(new File(['hello from a dropped file'], 'notes.txt', { type: 'text/plain' }))
+    return dt
+  })
+  await composer(page).dispatchEvent('drop', { dataTransfer })
+  await expect(page.getByRole('button', { name: 'Remove attachment' })).toBeVisible()
+  await send(page, 'plain summarize the file')
+  // The scripted provider echoes what it was given: the file's text, not just the question.
+  await expect(assistant(page).last()).toContainText('hello from a dropped file')
+  await waitForRunEnd(page)
+})
+
 test('feedback switched off on the server: the thumbs disappear instead of flipping back', async ({ page }) => {
   await page.route('**/api/feedback', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Feedback is disabled"}' }))
   await openChat(page, 'ws')

@@ -130,6 +130,22 @@ Over the WebSocket, put `attachment_ids` in the chat frame:
 }
 ```
 
+`POST /run` (the chat's HTTP fallback when the WebSocket cannot open) takes
+the same `attachment_ids` and handles them the same way.
+
+## In a `@reply` callback
+
+Text and PDF files are put before the message text. Every file of the
+message is also on `message.attachments`, so an app can read images itself:
+
+```python
+@aiui.reply
+async def on_message(message):
+    for f in message.attachments:  # [{id, name, content_type, path}]
+        if f["content_type"].startswith("image/"):
+            await aiui.say(f"Got the image {f['name']}")
+```
+
 ## Related
 
 - [Gateway Chat](gateway-chat.md): the chat interface

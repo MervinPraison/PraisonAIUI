@@ -816,6 +816,12 @@ class PraisonAIProvider(BaseProvider):
         stream_queue: asyncio.Queue = asyncio.Queue()
         msg._stream_queue = stream_queue
         try:
+            from praisonaiui.features.attachments import current_attachments
+
+            msg.attachments = [dict(f) for f in current_attachments.get()]
+        except ImportError:
+            pass
+        try:
             from praisonaiui.features.chat import current_run_id
 
             run_key = current_run_id.get() or str(uuid.uuid4())

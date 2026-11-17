@@ -6,11 +6,12 @@ Config-driven: max size, allowed types are configurable.
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import os
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
@@ -132,6 +133,80 @@ def get_attachment_manager() -> AttachmentManager:
     if _attachment_manager is None:
         _attachment_manager = AttachmentManager()
     return _attachment_manager
+
+
+#: The files of the message being answered, ``[{id, name, content_type,
+#: path}]``. Set by the chat run (WebSocket and ``/run``) around the provider
+#: call; ``@reply`` callbacks read it as ``message.attachments``.
+current_attachments: "contextvars.ContextVar[Tuple[Dict[str, Any], ...]]" = (
+    contextvars.ContextVar("aiui_current_attachments", default=())
+)
+
+
+def prepare_attachments(
+    content: str, attachment_ids: Optional[Sequence[Any]]
+) -> Tuple[str, List[str], List[Dict[str, Any]]]:
+    """Load a chat message's attachments for a run.
+
+    Returns ``(content, image_paths, files)``: text and PDF files are put
+    before the message text, image paths go to the model's multimodal input,
+    and *files* lists every attachment found as ``{id, name, content_type,
+    path}``. Unknown ids are skipped.
+    """
+    image_paths: List[str] = []
+    files: List[Dict[str, Any]] = []
+    if not attachment_ids:
+        return content, image_paths, files
+    try:
+        att_mgr = get_attachment_manager()
+        context_parts: List[str] = []
+        for att_id in attachment_ids:
+            meta = att_mgr.get(att_id) if isinstance(att_id, str) else None
+            if not meta:
+                continue
+            path = meta.get("path", "")
+            ct = meta.get("content_type", "")
+            fname = meta.get("filename", "file")
+            files.append({"id": att_id, "name": fname, "content_type": ct, "path": path})
+
+            if ct.startswith("image/"):
+                # Images → the model's native multimodal handling
+                image_paths.append(path)
+            elif ct == "application/pdf":
+                # PDFs → extract text and prepend to message
+                try:
+                    try:
+                        from pypdf import PdfReader
+                    except ImportError:
+                        from PyPDF2 import PdfReader
+                    reader = PdfReader(path)
+                    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                    context_parts.append(
+                        f"--- Attached PDF: {fname} ---\n{text}\n--- End of {fname} ---"
+                    )
+                except ImportError:
+                    context_parts.append(
+                        f"[PDF file: {fname}, {os.path.getsize(path)} bytes "
+                        f"— install pypdf for text extraction]"
+                    )
+                except Exception as e:
+                    context_parts.append(f"[Error reading {fname}: {e}]")
+            else:
+                # Other text-based files → read and prepend
+                try:
+                    with open(path, "r", errors="replace") as f:
+                        text = f.read()
+                    context_parts.append(
+                        f"--- Attached File: {fname} ---\n{text}\n--- End of {fname} ---"
+                    )
+                except Exception as e:
+                    context_parts.append(f"[Error reading {fname}: {e}]")
+
+        if context_parts:
+            content = "\n\n".join(context_parts) + "\n\nUser message: " + content
+    except Exception as e:
+        logger.warning(f"Failed to load attachments: {e}")
+    return content, image_paths, files
 
 
 # ── HTTP Handlers ────────────────────────────────────────────────

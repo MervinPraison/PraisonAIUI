@@ -208,6 +208,15 @@ if collected_tool_calls:
 await _datastore.add_message(session_id, msg_data)
 ```
 
+#### Turn order
+
+A reply is saved when its run ends, so two runs in one session (a second tab,
+or a question sent after a reload while the first reply is still running)
+finish out of order. A user message carries a `turn_id` and its reply a
+`reply_to` with the same value; `GET /api/chat/history/{id}` lists each reply
+right after its own question. History saved before these fields existed is
+shown in the order it was saved.
+
 #### Tool Call Persistence Schema
 
 Tool calls are persisted alongside assistant messages in the datastore. When a session is reloaded from history, tool call steps are reconstructed from the `toolCalls` array on each assistant message.

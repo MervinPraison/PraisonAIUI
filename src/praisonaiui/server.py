@@ -3281,6 +3281,9 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
     message = body.get("message", "")
     session_id = body.get("session_id")
     agent_name = body.get("agent")
+    attachment_ids = body.get("attachment_ids") or []
+    if not isinstance(attachment_ids, list):
+        attachment_ids = []
 
     # Create session if not exists
     if not session_id:
@@ -3293,14 +3296,18 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             session_id = session["id"]
 
     # Add user message to session
-    await _datastore.add_message(
-        session_id,
-        {
-            "role": "user",
-            "content": message,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        },
-    )
+    user_msg: dict = {
+        "role": "user",
+        "content": message,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if attachment_ids:
+        from praisonaiui.features.chat import attachment_refs
+
+        refs = attachment_refs(attachment_ids)
+        if refs:
+            user_msg["attachments"] = refs
+    await _datastore.add_message(session_id, user_msg)
 
     async def event_stream() -> AsyncGenerator[str, None]:
         """Generate SSE events via the pluggable provider."""
@@ -3340,11 +3347,21 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         except BaseException:
             pass  # Knowledge failures (incl. pyo3 Rust panics) must never break chat
 
+        # The same attachment handling as the WebSocket chat (it used to be
+        # ignored here, while the UI showed the file as sent).
+        from praisonaiui.features.attachments import current_attachments, prepare_attachments
+
+        augmented_message, image_paths, attachment_files = prepare_attachments(
+            augmented_message, attachment_ids
+        )
+        current_attachments.set(tuple(attachment_files))
+
         try:
             async for run_event in provider.run(
                 augmented_message,
                 session_id=session_id,
                 agent_name=agent_name,
+                **({"attachments": image_paths} if image_paths else {}),
             ):
                 # Accumulate full response from content events
                 if run_event.type == RunEventType.RUN_CONTENT:
@@ -3568,6 +3585,8 @@ class MessageContext:
         self._stream_queue: Optional[asyncio.Queue] = None
         self._response_queue: Optional[asyncio.Queue] = None
         self._pending_ask: Optional[asyncio.Future] = None
+        # Files sent with the message: [{id, name, content_type, path}].
+        self.attachments: list = []
 
     def __str__(self) -> str:
         return self.text
