@@ -216,6 +216,12 @@ flowchart LR
 Link to another page by its file: `[Theming](theming.md)`. The build turns it
 into the page's URL, so links work on GitHub and on the site.
 
+A folder's `README.md` or `index.md` is served at the folder's URL
+(`protocols/adp/README.md` at `/docs/protocols/adp`), and a number prefix is
+dropped (`adr/0003-selectable-layouts.md` at `/docs/adr/selectable-layouts`).
+List such a page in the nav by its file path (`protocols/adp/README`); the
+header still opens the tab that lists it.
+
 ## What the build publishes for assistants
 
 | File | What it holds |
