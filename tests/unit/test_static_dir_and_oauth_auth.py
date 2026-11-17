@@ -1,10 +1,12 @@
 """static_dir content and OAuth sign-in under every auth mode (ARCHITECTURE R8).
 
 static_dir: the public part of a ``create_app(static_dir=...)`` mount is the
-generated HTML shell and code, style, font and image files. Markdown, JSON
-and HTML pages there need credentials in every auth mode, as they already did
-under ``AIUI_REQUIRE_TOKEN``. ``AIUI_PUBLIC_STATIC_DIR=1`` restores a fully
-public folder.
+generated HTML shell, code, style, font and image files, and HTML pages, which
+under AUTH_ENFORCE / require_auth are served without their content (the
+inlined markdown and the ``<noscript>`` copy) so a signed-out browser gets the
+app and its sign-in prompt. Markdown, JSON and other files need credentials in
+every auth mode, as they already did under ``AIUI_REQUIRE_TOKEN``.
+``AIUI_PUBLIC_STATIC_DIR=1`` restores a fully public folder.
 
 OAuth: ``/api/auth/oauth/{provider}`` and its callback answer a logged-out
 browser (they only redirect), ``return_url`` must be a same-origin path, and
@@ -24,8 +26,18 @@ import praisonaiui.server as srv
 from praisonaiui.oauth_providers import safe_return_url
 
 MODES = ["auth_enforce", "require_auth", "url_token"]
-DATA_FILES = ["/docs/runbook.md", "/search-index.json", "/docs/guide", "/docs/guide.html", "/notes/"]
+DATA_FILES = ["/docs/runbook.md", "/search-index.json", "/notes/data.txt"]
+PAGES = ["/docs/guide", "/docs/guide.html", "/notes/", "/"]
 CODE_FILES = ["/logo.png", "/site.css", "/app.js"]
+
+
+# A built page: its body is inlined twice (noscript and the markdown JSON).
+PAGE = (
+    '<html><head><title>{0}</title></head><body><div id="root"></div>'
+    "<noscript><p>internal {0} body</p></noscript>"
+    '<script type="application/json" id="aiui-initial-doc">{{"text": "internal {0} md"}}</script>'
+    "</body></html>"
+)
 
 
 @pytest.fixture
@@ -34,13 +46,14 @@ def site(tmp_path: Path) -> Path:
     (root / "docs").mkdir(parents=True)
     (root / "notes").mkdir()
     (root / "docs" / "runbook.md").write_text("# runbook: internal")
-    (root / "docs" / "guide.html").write_text("<html>internal guide</html>")
-    (root / "notes" / "index.html").write_text("<html>internal notes</html>")
+    (root / "docs" / "guide.html").write_text(PAGE.format("guide"))
+    (root / "notes" / "index.html").write_text(PAGE.format("notes"))
+    (root / "notes" / "data.txt").write_text("internal data")
     (root / "search-index.json").write_text('{"internal": true}')
     (root / "logo.png").write_bytes(b"\x89PNG")
     (root / "site.css").write_text("body{}")
     (root / "app.js").write_text("// app")
-    (root / "index.html").write_text("<html>home</html>")
+    (root / "index.html").write_text(PAGE.format("home"))
     return root
 
 
@@ -48,8 +61,10 @@ def site(tmp_path: Path) -> Path:
 def make_app(monkeypatch, tmp_path):
     monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path / "data"))
 
-    def _make(mode: str, static_dir: Path | None = None):
+    def _make(mode: str, static_dir: Path | None = None, style: str | None = None):
         srv.reset_state()
+        if style:
+            srv.set_style(style)
         creds: dict[str, str] = {}
         require_auth = False
         if mode == "auth_enforce":
@@ -89,6 +104,28 @@ def test_static_dir_content_needs_credentials(make_app, site, mode, path):
 
 
 @pytest.mark.parametrize("mode", ["auth_enforce", "require_auth"])
+@pytest.mark.parametrize("path", PAGES)
+def test_static_dir_pages_are_shells_without_content(make_app, site, mode, path):
+    client, creds = make_app(mode, site)
+    for headers in ({"Accept": "text/html"}, {}, creds):
+        r = client.get(path, headers=headers)
+        assert r.status_code == 200 and "<title>" in r.text
+        assert "internal" not in r.text, f"{mode} {path}: page content served"
+
+
+@pytest.mark.parametrize("path", [p for p in PAGES if p != "/"])  # "/" is the generated shell outside style docs
+def test_open_server_serves_pages_unchanged(make_app, site, path):
+    client, _ = make_app("open", site)
+    assert "internal" in client.get(path).text
+
+
+def test_url_token_mode_serves_full_pages_to_a_signed_in_browser(make_app, site):
+    client, creds = make_app("url_token", site)
+    assert client.get("/docs/guide").status_code == 401
+    assert "internal guide body" in client.get("/docs/guide", headers=creds).text
+
+
+@pytest.mark.parametrize("mode", ["auth_enforce", "require_auth"])
 @pytest.mark.parametrize("path", CODE_FILES)
 def test_static_dir_code_and_images_stay_public(make_app, site, mode, path):
     client, _ = make_app(mode, site)
@@ -114,6 +151,7 @@ def test_public_static_dir_opt_out(make_app, site, mode, monkeypatch):
     monkeypatch.setenv("AIUI_PUBLIC_STATIC_DIR", "1")
     client, _ = make_app(mode, site)
     assert client.get("/docs/runbook.md").status_code == 200
+    assert "internal guide body" in client.get("/docs/guide").text
 
 
 # ── OAuth ───────────────────────────────────────────────────────────
@@ -192,3 +230,16 @@ def test_oauth_token_signs_in_under_require_auth(make_app, github_env):
     assert client.get("/sessions").status_code == 401
     token = urlsplit(_sign_in(client, "/").headers["location"]).fragment.removeprefix("token=")
     assert client.get("/sessions", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+
+
+# ── a docs site served from static_dir ──────────────────────────────
+
+
+@pytest.mark.parametrize("style,expected", [("docs", {"items": [{"title": "Guide"}]}), ("chat", {"items": []})])
+def test_docs_style_serves_the_built_navigation(make_app, site, style, expected):
+    (site / "docs-nav.json").write_text('{"items": [{"title": "Guide"}]}')
+    (site / "route-manifest.json").write_text('{"routes": [{"match": "/docs/**"}]}')
+    client, _ = make_app("open", site, style)
+    assert client.get("/docs-nav.json").json() == expected
+    routes = client.get("/route-manifest.json").json()
+    assert routes == ({"routes": [{"match": "/docs/**"}]} if style == "docs" else {})

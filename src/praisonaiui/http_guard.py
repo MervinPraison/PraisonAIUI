@@ -143,15 +143,31 @@ def is_public_http(scope: dict) -> bool:
     return False
 
 
+_PAGE_CONTENT = re.compile(
+    r'<noscript>.*?</noscript>|<script type="application/json" id="aiui-initial-doc">.*?</script>',
+    re.S | re.I,
+)
+
+
+def strip_page_content(html: str) -> str:
+    """A built docs page without its body: the ``<noscript>`` copy and the
+    inlined markdown (``#aiui-initial-doc``) are removed, so the page is the
+    app shell, which then fetches the markdown with credentials. The title
+    and description stay; ``/docs-nav.json`` lists them anyway."""
+    return _PAGE_CONTENT.sub("", html)
+
+
 def static_dir_public_predicate(root: Any) -> Callable[[Request], bool]:
     """Which requests to a ``create_app(static_dir=...)`` mount need no credentials.
 
     Public: a path with no file behind it (the server answers with the
-    generated HTML shell) and code, style, font and image files
-    (:data:`PUBLIC_STATIC_SUFFIXES`). Markdown, JSON, HTML pages and any other
-    file need credentials in every auth mode, as they do under
-    ``AIUI_REQUIRE_TOKEN``. ``AIUI_PUBLIC_STATIC_DIR=1`` makes the whole
-    folder public again (a public docs site in front of a private API).
+    generated HTML shell), HTML pages (served by ``create_app`` without their
+    content, :func:`strip_page_content`, so a signed-out browser gets the app
+    and its sign-in prompt) and code, style, font and image files
+    (:data:`PUBLIC_STATIC_SUFFIXES`). Markdown, JSON and any other file need
+    credentials in every auth mode, as they do under ``AIUI_REQUIRE_TOKEN``.
+    ``AIUI_PUBLIC_STATIC_DIR=1`` makes the whole folder public again (a
+    public docs site in front of a private API).
     """
     from pathlib import Path
 
@@ -177,7 +193,8 @@ def static_dir_public_predicate(root: Any) -> Callable[[Request], bool]:
             target = _inside(base / f"{rel.rstrip('/')}.html")
         if target is None or not target.is_file():
             return True  # no file: the generated HTML shell
-        return target.suffix.lower() in PUBLIC_STATIC_SUFFIXES
+        suffix = target.suffix.lower()
+        return suffix == ".html" or suffix in PUBLIC_STATIC_SUFFIXES
 
     return _public
 

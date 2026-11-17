@@ -1,8 +1,10 @@
 /**
  * Gateway-token fetch wrapper, ported from dashboard.js getStoredToken /
- * installAuthFetch (same sessionStorage key), so the shell's own requests
- * (/api/shell/manifest, plugin modules, page APIs) authenticate after the
- * token was entered once, in the shell or in the legacy onboarding.
+ * installAuthFetch (same sessionStorage key), so same-origin requests
+ * authenticate after the token was entered once, in the shell, the legacy
+ * onboarding or the legacy React App's sign-in prompt. The app shell
+ * (shell/mount) and the legacy React App (legacy-app-entry: docs pages,
+ * manifests, search index) both install it.
  *
  * Idempotent. When the legacy runtime later wraps fetch again, its wrapper
  * sees our Authorization header and leaves it alone (and vice versa).
@@ -44,6 +46,33 @@ function isSameOrigin(url: string): boolean {
   }
 }
 
+type AuthRequiredListener = (url: string) => void
+const authRequiredListeners = new Set<AuthRequiredListener>()
+
+/**
+ * Call `listener` when a same-origin GET outside `/api/` answers 401: page
+ * content (a docs page's markdown, the search index) the server keeps behind
+ * auth. Returns the unsubscribe function.
+ */
+export function onAuthRequired(listener: AuthRequiredListener): () => void {
+  authRequiredListeners.add(listener)
+  return () => {
+    authRequiredListeners.delete(listener)
+  }
+}
+
+function requestMethod(input: RequestInfo | URL, init?: RequestInit): string {
+  return (init?.method || (input instanceof Request ? input.method : '') || 'GET').toUpperCase()
+}
+
+function isContentPath(url: string): boolean {
+  try {
+    return !new URL(url, window.location.href).pathname.startsWith('/api/')
+  } catch {
+    return false
+  }
+}
+
 /** Wrap window.fetch to add `Authorization: Bearer <token>` to same-origin requests. */
 export function installAuthFetch(): void {
   const w = window as Window & { [INSTALLED]?: true }
@@ -52,17 +81,30 @@ export function installAuthFetch(): void {
   const nativeFetch = w.fetch.bind(w)
 
   w.fetch = function aiuiAuthFetch(input: RequestInfo | URL, init?: RequestInit) {
+    const url = requestUrl(input)
+    if (!isSameOrigin(url)) return nativeFetch(input, init)
     const token = getStoredToken()
-    if (!token || !isSameOrigin(requestUrl(input))) return nativeFetch(input, init)
-
-    const opts: RequestInit = { ...(init || {}) }
-    const headers = new Headers(
-      opts.headers || (input instanceof Request ? input.headers : undefined) || undefined,
-    )
-    if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
-    opts.headers = headers
-    if (!opts.credentials) opts.credentials = 'same-origin'
-    return nativeFetch(input, opts)
+    let pending: Promise<Response>
+    if (!token) {
+      pending = nativeFetch(input, init)
+    } else {
+      const opts: RequestInit = { ...(init || {}) }
+      const headers = new Headers(
+        opts.headers || (input instanceof Request ? input.headers : undefined) || undefined,
+      )
+      if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
+      opts.headers = headers
+      if (!opts.credentials) opts.credentials = 'same-origin'
+      pending = nativeFetch(input, opts)
+    }
+    if (authRequiredListeners.size === 0) return pending
+    const method = requestMethod(input, init)
+    return pending.then((res) => {
+      if (res.status === 401 && method === 'GET' && isContentPath(url)) {
+        for (const listener of authRequiredListeners) listener(url)
+      }
+      return res
+    })
   }
 }
 

@@ -2,11 +2,13 @@
 /**
  * Start one server for the Playwright suites (playwright.config.ts webServer).
  *
- *   node start-server.mjs --port 8721 [--shell app] [--docs] [--src <repo>] [-- <mock_server.py args>]
+ *   node start-server.mjs --port 8721 [--shell app] [--docs | --docs-auth] [--src <repo>] [-- <mock_server.py args>]
  *
  *   --port <n>     port to listen on (required)
  *   --shell <v>    value for AIUI_SHELL (app | legacy); unset by default
  *   --docs         build e2e/fixtures/docs-site with `aiui build` and serve it with `aiui serve`
+ *   --docs-auth    build the same site and serve it as `aiui run --config` does
+ *                  (create_app(static_dir=...)) behind AUTH_ENFORCE (fixtures/docs-auth/serve.py)
  *   --src <repo>   run another checkout's Python package and its committed bundle
  *                  (used to capture the legacy baseline from the v0.3.153 tree)
  *
@@ -39,7 +41,7 @@ function fail(msg) {
 }
 
 function parseArgs(argv) {
-  const opts = { port: 0, shell: '', docs: false, src: '', rest: [] }
+  const opts = { port: 0, shell: '', docs: false, docsAuth: false, src: '', rest: [] }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--') {
@@ -50,6 +52,7 @@ function parseArgs(argv) {
     else if (a === '--shell') opts.shell = argv[++i] ?? ''
     else if (a === '--src') opts.src = path.resolve(argv[++i] ?? '')
     else if (a === '--docs') opts.docs = true
+    else if (a === '--docs-auth') opts.docsAuth = true
     else fail(`unknown argument: ${a}`)
   }
   if (!Number.isInteger(opts.port) || opts.port <= 0) fail('--port <n> is required')
@@ -120,7 +123,7 @@ if (!opts.src) {
 }
 
 let command
-if (opts.docs) {
+if (opts.docs || opts.docsAuth) {
   const site = path.join(work, 'site')
   const config = path.join(HERE, 'docs-site', 'aiui.yaml')
   const build = spawnSync(python, ['-m', 'praisonaiui.cli', 'build', '--config', config, '--output', site], {
@@ -134,7 +137,9 @@ if (opts.docs) {
   // wrong port until it times out. Wait until the port is free the way
   // `aiui serve` checks it (TIME_WAIT leftovers do not count).
   waitUntilBindable(python, opts.port, env)
-  command = ['-m', 'praisonaiui.cli', 'serve', '--no-build', '--output', site, '--port', String(opts.port), ...opts.rest]
+  command = opts.docsAuth
+    ? [path.join(HERE, 'docs-auth', 'serve.py'), '--port', String(opts.port), '--site', site]
+    : ['-m', 'praisonaiui.cli', 'serve', '--no-build', '--output', site, '--port', String(opts.port), ...opts.rest]
 } else {
   command = [path.join(HERE, 'mock_server.py'), '--port', String(opts.port), ...opts.rest]
 }

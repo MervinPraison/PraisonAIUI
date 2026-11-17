@@ -120,12 +120,15 @@ curl -H "Authorization: Bearer <api-key>" http://localhost:8082/api/config
 **A `static_dir` folder** (`create_app(static_dir=...)`, `aiui run --config`)
 is not public as a whole. Its code, styles, fonts and images
 (`.js .mjs .css .map .woff .woff2 .ttf .otf .eot .svg .png .jpg .jpeg .gif .webp .avif .ico`)
-and the generated HTML shell (a path with no file behind it) answer without
-credentials. Markdown, JSON (a search index), HTML pages and any other file
-need them, under `AUTH_ENFORCE`, `require_auth` and URL-token mode alike. The
-docs app fetches its pages without an `Authorization` header, so a browsable
-docs site behind auth needs URL-token mode (it signs the browser in with a
-cookie). To keep the folder public in front of a private API, set
+answer without credentials. So do its HTML pages, but under `AUTH_ENFORCE` and
+`require_auth` they are served as the app shell only: the page's inlined
+markdown and `<noscript>` copy are removed. Markdown, JSON (a search index) and
+any other file need credentials, under `AUTH_ENFORCE`, `require_auth` and
+URL-token mode alike. The docs app sends the stored access token with every
+request it makes (pages, manifests, search). A reader who has not signed in
+sees the sign-in prompt, and after entering the token reads the site as on an
+open server. Page titles and descriptions stay visible: `/docs-nav.json` lists
+them for the sidebar. To keep the folder public in front of a private API, set
 `AIUI_PUBLIC_STATIC_DIR=1`.
 
 WebSocket handshakes are gated too (all of them). Browsers cannot send an

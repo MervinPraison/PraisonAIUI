@@ -4092,11 +4092,23 @@ def create_app(
             }
         )
 
-    async def _docs_nav_json(request: Request) -> JSONResponse:
-        return JSONResponse({"items": []})
+    def _built_manifest(name: str) -> Optional[Response]:
+        # A docs site served from static_dir (style docs) brings its own
+        # navigation and routes from `aiui build`.
+        if not static_dir or _effective_style != "docs":
+            return None
+        built = Path(static_dir) / name
+        if not built.is_file():
+            return None
+        from starlette.responses import FileResponse
 
-    async def _route_manifest_json(request: Request) -> JSONResponse:
-        return JSONResponse({})
+        return FileResponse(str(built), media_type="application/json")
+
+    async def _docs_nav_json(request: Request) -> Response:
+        return _built_manifest("docs-nav.json") or JSONResponse({"items": []})
+
+    async def _route_manifest_json(request: Request) -> Response:
+        return _built_manifest("route-manifest.json") or JSONResponse({})
 
     routes = [
         Route("/health", health, methods=["GET"]),
@@ -4400,6 +4412,14 @@ def create_app(
         async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
             from starlette.responses import FileResponse
 
+            if file_path.suffix.lower() == ".html" and _bearer_auth_static(require_auth):
+                # Under bearer-token auth a page is the app shell only: its
+                # body comes from the .md the app fetches with credentials.
+                from praisonaiui.http_guard import strip_page_content
+
+                text = strip_page_content(file_path.read_text(encoding="utf-8"))
+                await HTMLResponse(text, headers={"Cache-Control": "no-store"})(scope, receive, send)
+                return
             response = FileResponse(
                 str(file_path),
                 media_type=media_type,
@@ -4418,6 +4438,11 @@ def create_app(
 
             request_path = scope.get("path", "")
             rel = request_path.lstrip("/")
+            if not rel:
+                root_index = _inside_static_root(_static_root / "index.html")
+                if root_index is not None and root_index.is_file():
+                    await _serve_static_file(scope, receive, send, root_index, media_type="text/html")
+                    return
             if rel:
                 exact = _inside_static_root(_static_root / rel)
                 if exact is not None and exact.is_file():
@@ -4531,3 +4556,16 @@ def create_app(
     )
 
     return app
+
+
+def _bearer_auth_static(require_auth: bool) -> bool:
+    """True when static_dir pages are served without their content.
+
+    AUTH_ENFORCE and ``require_auth`` take credentials only as an
+    ``Authorization`` header, which a page navigation cannot send, so pages
+    stay public as shells and their content needs credentials (R8).
+    """
+    if os.environ.get("AIUI_PUBLIC_STATIC_DIR", "").strip().lower() in ("1", "true", "yes"):
+        return False
+    return bool(require_auth) or os.environ.get("AUTH_ENFORCE", "").lower() in ("true", "1", "yes")
+

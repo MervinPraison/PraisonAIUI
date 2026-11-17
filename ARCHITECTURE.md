@@ -184,9 +184,13 @@ The three modes (`AUTH_ENFORCE` → `AuthEnforcementMiddleware`;
 default for both `http` and `websocket` scopes. The only public surface is
 `http_guard.is_public_http` (`PUBLIC_EXACT_PATHS`, `PUBLIC_PREFIXES`,
 `PUBLIC_API_PREFIXES` for the OAuth redirects, `mark_public`). A `static_dir`
-mount is public only for its code, styles, fonts, images and the HTML shell
-(`static_dir_public_predicate`); its content files need credentials in every
-mode. Browsers open a WebSocket with a single-use 60 s ticket from
+mount is public only for its code, styles, fonts, images and pages
+(`static_dir_public_predicate`); under bearer-token auth its pages are served
+without their content (`strip_page_content`), and its markdown and JSON need
+credentials in every mode. The React UIs send the stored token with every
+same-origin request (`lib/auth.ts`, installed in `main.tsx`), and the legacy
+App shows the shared sign-in prompt (`lib/TokenGate.tsx`) on a 401 for page
+content. Browsers open a WebSocket with a single-use 60 s ticket from
 `POST /api/auth/ws-ticket` (`?ticket=`), never a long-lived key in a URL.
 Secrets never appear in URLs or logs (`install_secret_redaction`). Request
 bodies are capped by `BodySizeLimitMiddleware` (`AIUI_MAX_BODY_MB`, 64 KiB on

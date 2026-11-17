@@ -94,10 +94,14 @@
   before the file is read into memory, and a malformed login body gets 400
   instead of 500. See [Deployment → Environment Variables](docs/features/deployment.md#environment-variables).
 - **Behaviour change:** under `AUTH_ENFORCE` and `require_auth`, a
-  `static_dir` folder is no longer public as a whole. Its code, styles, fonts,
-  images and the HTML shell still are; markdown, JSON (a search index) and HTML
-  pages need credentials, as they already did in URL-token mode.
-  `AIUI_PUBLIC_STATIC_DIR=1` restores a public folder. See
+  `static_dir` folder is no longer public as a whole. Code, styles, fonts and
+  images still are, and pages are served as the app shell without their
+  content. Markdown and JSON (a search index) need credentials, as they already
+  did in URL-token mode. The React UIs send the stored access token with their
+  requests, and the docs app shows the sign-in prompt to a reader who has not
+  signed in. `AIUI_PUBLIC_STATIC_DIR=1` restores a public folder. A docs site
+  served from `static_dir` with style `docs` now gets its built navigation and
+  routes (they used to come back empty). See
   [Deployment → Auth Enforcement](docs/features/deployment.md#auth-enforcement).
 - **Behaviour change:** OAuth sign-in returns only to a path on the same
   server (an off-site `return_url` falls back to `/`), and the session token
