@@ -57,11 +57,17 @@ export default function ArtifactMention({ sessionId, viewport }: { sessionId: st
       if (data === '@') {
         typed.current = true
         setOpen(true)
-      } else if (/\s/.test(data)) setOpen(false)
+      } else if (/\s/.test(data)) {
+        typed.current = false
+        setOpen(false)
+      }
     }
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (!inBox(e)) return
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        typed.current = false
+        setOpen(false)
+      }
       const first = list.current?.querySelector('button')
       if (e.key === 'ArrowDown' && first) {
         e.preventDefault()
