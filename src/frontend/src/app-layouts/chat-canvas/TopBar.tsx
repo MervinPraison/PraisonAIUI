@@ -70,7 +70,7 @@ export function TopBar({
         </Button>
       )}
       <div className="min-w-0 flex-[1_1_260px]">
-        <h1 className="m-0 truncate text-xl leading-tight font-semibold tracking-tight" data-cc-title="">
+        <h1 className="m-0 truncate font-display text-xl leading-tight font-medium tracking-tight" data-cc-title="">
           {line.title}
         </h1>
         {line.subtitle}
@@ -127,7 +127,7 @@ export function PhoneTopBar({
         <Menu className="size-5" />
       </Button>
       <div className="min-w-0 flex-1 text-center">
-        <h1 className="m-0 truncate text-lg leading-tight font-semibold tracking-tight" data-cc-title="">
+        <h1 className="m-0 truncate font-display text-lg leading-tight font-medium tracking-tight" data-cc-title="">
           {line.title}
         </h1>
         {line.subtitle}

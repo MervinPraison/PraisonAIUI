@@ -384,6 +384,8 @@ declare module '@aiui/sdk' {
     chat?: ChatPresentation
     /** `'frame'`: approval toasts stop and the layout shows them. Default `'toast'`. */
     approvals?: 'toast' | 'frame'
+    /** A look of the Pro tokens this layout paints with (`<html data-aiui-look>`), unless the viewer chose plain Pro. */
+    look?: string
   }
   export interface LayoutNavItem {
     id: string

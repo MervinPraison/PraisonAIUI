@@ -114,6 +114,9 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await page.goto('/chat')
     await expect(frame(page)).toHaveAttribute('data-viewport', 'desktop')
     await expect(page.locator('html')).toHaveAttribute('data-aiui-tokens', 'pro')
+    // The layout's own look (Canvas.dc.html): paper neutrals and a serif title.
+    await expect(page.locator('html')).toHaveAttribute('data-aiui-look', 'paper')
+    expect(await title(page).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Newsreader/)
 
     // Regions and landmarks.
     const sidebar = page.getByRole('navigation', { name: 'Main' })
@@ -384,6 +387,29 @@ test('⌘B hides the sidebar and it stays hidden after a reload; New chat starts
   await sidebar.getByRole('button', { name: /New chat/ }).click()
   await expect(title(page)).toHaveText('New chat')
   await expect(assistant(page)).toHaveCount(0)
+})
+
+test('the Paper look: another layout drops it, "Switch look: Pro" turns it off and it stays off', async ({ page }) => {
+  await page.setViewportSize(DESKTOP)
+  await setColorMode(page, 'light')
+  await page.goto('/chat')
+  const html = page.locator('html')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
+  const paper = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())
+  expect(paper).toBe('#f6f3ec')
+  await runPaletteCommand(page, 'Switch layout: Quiet Workbench')
+  await expect(page.locator('[data-aiui-layout-frame="workbench"]')).toBeVisible()
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await runPaletteCommand(page, 'Switch layout: Chat and Canvas')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
+  await runPaletteCommand(page, 'Switch look: Pro')
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await expect(html).toHaveAttribute('data-aiui-tokens', 'pro')
+  await page.reload()
+  await expect(frame(page)).toBeVisible()
+  await expect(html).not.toHaveAttribute('data-aiui-look', /.*/)
+  await runPaletteCommand(page, 'Switch look: Paper')
+  await expect(html).toHaveAttribute('data-aiui-look', 'paper')
 })
 
 test('switching to another layout and back leaks no connection, timer or listener', async ({ page }) => {

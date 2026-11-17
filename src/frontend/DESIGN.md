@@ -27,6 +27,7 @@ Where things live:
 | Token layer (seeds, tiers, shadcn vars, `@theme` utilities) | `src/styles/theme.css` |
 | PraisonAI Pro tokens (the layouts' system, see [below](#praisonai-pro-tokens)) | `src/styles/pro.css` |
 | Pro fonts (self-hosted Geist and Geist Mono) | `src/styles/fonts.css` |
+| Looks: variants of the Pro tokens a layout paints with (the Paper look of Chat + Canvas, see [below](#looks)) | `src/styles/paper.css` |
 | Docs style chrome and article (see [below](#docs-style)) | `src/docs/docs.css` |
 | Entry stylesheet (imports, class sources, prose rules) | `src/index.css` |
 | Runtime theme API (presets → seeds, legacy HSL upgrade) | `src/themes.ts` |
@@ -169,6 +170,9 @@ static fallbacks). Charts 2–5 rotate the accent hue by 72° steps.
   timestamps, captions, durations) · `text-sm` 14px (**UI chrome**: buttons,
   menus, sidebar, inputs) · `text-base` 15px (**body**, = `--font-size-base`) ·
   `text-lg` 17px · `text-xl` 20px · `text-2xl` 24px · `text-3xl` 30px.
+- Display: `font-display` (`--aiui-font-display`) for wordmarks, page and
+  chat titles, artifact titles and table row headers. It is the sans unless a
+  [look](#looks) names a face of its own (Paper: Newsreader).
 - Prose line-height 1.55. Headings use weight and size, not colour.
 - Tabular numerals in tables, metrics and durations: inside `.aiui-app`,
   `table` and `[data-numeric]` get `tabular-nums` automatically; elsewhere add
@@ -509,6 +513,42 @@ every preset and a set of extreme custom accents, the on-accent text, the
 link on every surface and on the soft fill, and a 3:1 focus ring.
 `tests/unit/test_seed_theme.py` keeps `pro.css`, `themes.ts` (and `proTokens.ts`) and `themes.py`
 equal and checks that every `pro.css` rule is scoped and layered.
+
+### Looks
+
+A look is a variant of the Pro tokens that a layout paints with by default:
+its descriptor names it (`meta.look`), and while that frame is mounted the
+layout host (`shell/LayoutHost.tsx`) sets `<html data-aiui-look="<name>">`
+next to `data-aiui-tokens="pro"`. A look changes only the Pro palette
+(`--pro-*`), the default accent seeds (`--seed-pro-*-light/-dark`) and the
+font stacks; `pro.css` maps those onto shadcn and the `--ui-*` tiers, so
+components draw through the same tokens. Its rules sit in `@layer base`,
+scoped to `[data-aiui-tokens="pro"][data-aiui-look="<name>"]`, so the
+server's unlayered seeds (`set_brand_color`, `theme.accent`), plugin theme
+presets (Pro Indigo, …) and `set_custom_css` still win. The viewer can turn a
+look off for plain Pro with the palette's "Switch look: Pro" (and back with
+"Switch look: <Look>"), saved in this browser (`localStorage['aiui-look']`).
+
+**Paper** (`src/styles/paper.css`, the Chat + Canvas layout, from
+Canvas.dc.html): warm paper neutrals and a navy accent.
+
+| Role | Light | Dark |
+| --- | --- | --- |
+| page / sidebar / card (`--pro-background` / `-sidebar` / `-card`) | `#f6f3ec` / `#eee9df` / `#fffdf8` | `#1a1814` / `#141210` / `#221f1a` |
+| ink / text 2 / text 3 | `#1f1c17` / `#47423a` / `#6b655a` | `#efe9dd` / `#cfc7b8` / `#a39b8b` |
+| hairline / stroke (`--pro-border` / `-input`) | `#e4ded2` / `#d6cebf` | `#302b24` / `#3e382f` |
+| row active / user bubble / code | `#e4ded1` / `#ebe6db` / `#f4f0e7` | `#2c2924` / `#2b2720` / `#1c1a16` |
+| accent / on-accent / soft / link | `#2d4f86` / `#ffffff` / `#e6ebf3` / `#2d4f86` | `#a9c1ea` / `#13161c` / `#262f3e` / `#b4caee` |
+| success / warning / danger | `#3b6a35` / `#8a5a12` / `#a3362b` | `#8fc58b` / `#e4b465` / `#ef9282` |
+
+Type: Newsreader (`font-display`), Source Sans 3 (`font-sans`) and JetBrains
+Mono (`font-mono`), self-hosted from `@fontsource-variable` (OFL 1.1, latin
+woff2, one file each, the "Paper fonts" budget), fetched only while the look
+is on. Body line height 1.5. The brand tile is ink on paper. Two tokens exist
+only under Paper, so read them with a fallback: `--ui-panel-head` (panel
+header fill) and `--ui-accent-line` (accent outline). `src/styles/paper.test.ts`
+checks the scope and AA contrast of every text pair; text 3 is not used on
+the row-active fill (4.31:1 in light mode).
 
 ## Docs style
 
