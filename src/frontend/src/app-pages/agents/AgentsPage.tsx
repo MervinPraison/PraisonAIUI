@@ -26,7 +26,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { notify } from '@/sdk/notify'
 import { fetchJson, navigate, useManifest } from '@/sdk/services'
-import { ago, fullTime, inLayoutOnly, Pill, useJson, useNow } from '../shared'
+import { ago, fullTime, inLayoutOnly, useJson, useNow } from '../shared'
+import { Pill } from '../ui'
 import { Modal, ModalActions } from '../Modal'
 import {
   agentRows, defaultModel, draftError, draftOf, filterAgents, modelOptions, monogram, payloadOf, sortAgents, statusLabel, summaryOf,

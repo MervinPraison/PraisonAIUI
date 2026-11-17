@@ -16,7 +16,8 @@ import { agentCountsLabel, agentViews, defaultAgent, runTitle, sessionsOf, withC
 import { formatAgo, formatDuration } from './format'
 import { useApprovals, useChat, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { lastAssistant, timelineSteps } from './timeline'
-import { AgentCard, KpiStrip, RUN_STATE, StateChip } from './widgets'
+import { RUN_STATE } from './cards'
+import { AgentCard, KpiStrip, StateChip } from './widgets'
 
 const NO_AGENTS: readonly AgentStatus[] = Object.freeze([])
 const NO_RUNS: readonly RunSummary[] = Object.freeze([])

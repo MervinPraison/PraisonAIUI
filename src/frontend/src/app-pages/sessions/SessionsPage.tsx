@@ -22,7 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useLayoutData } from '@/sdk/layouts'
 import { fetchJson, navigate } from '@/sdk/services'
-import { ago, fullTime, inLayoutOnly, Pill, useJson, useNow, type AppPageProps } from '../shared'
+import { ago, fullTime, inLayoutOnly, useJson, useNow } from '../shared'
+import { Pill } from '../ui'
 import { Modal, ModalActions } from '../Modal'
 import { sessionRows, sortRows, filterRows, type SessionRow, type StatusFilter } from './model'
 
@@ -62,7 +63,7 @@ function Monogram({ name }: { name: string }) {
   )
 }
 
-function SessionsPage(_: AppPageProps) {
+function SessionsPage() {
   const list = useJson<{ sessions?: unknown[] } | unknown[]>('/api/sessions', 15_000)
   const feed = useLayoutData('sessions')
   const [running, setRunning] = useState<ReadonlySet<string>>(() => new Set())
@@ -92,8 +93,15 @@ function SessionsPage(_: AppPageProps) {
     () => sortRows(filterRows(rows, { query, status, agent: agent === ALL_AGENTS ? null : agent, now }), sort),
     [rows, query, status, agent, now, sort],
   )
+  // A new filter starts at page 1 (reset while rendering, not in an effect,
+  // so the old page number never renders against the new rows).
+  const filterKey = `${query}\u0000${status}\u0000${agent}`
+  const [pageFilter, setPageFilter] = useState(filterKey)
+  if (pageFilter !== filterKey) {
+    setPageFilter(filterKey)
+    setPage(1)
+  }
   const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  useEffect(() => setPage(1), [query, status, agent])
 
   // "/" focuses the search (not while typing elsewhere).
   useEffect(() => {
@@ -385,8 +393,14 @@ function SessionDetail({ row, now }: { row: SessionRow; now: number }) {
 }
 
 function RenameDialog({ row, onClose, onSave }: { row: SessionRow | null; onClose(): void; onSave(row: SessionRow, title: string): void }) {
-  const [title, setTitle] = useState('')
-  useEffect(() => setTitle(row?.title ?? ''), [row])
+  // The field starts from the row being renamed; reset while rendering when
+  // another row opens the dialog.
+  const [title, setTitle] = useState(row?.title ?? '')
+  const [titleOf, setTitleOf] = useState(row)
+  if (titleOf !== row) {
+    setTitleOf(row)
+    setTitle(row?.title ?? '')
+  }
   return (
     <Modal open={!!row} onOpenChange={(o) => !o && onClose()} title="Rename session" description="The new name shows in the chat list and here.">
       <form

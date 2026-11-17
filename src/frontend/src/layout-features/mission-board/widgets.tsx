@@ -7,17 +7,14 @@
 import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RunKpis, RunStatus } from '@/sdk/layoutTypes'
-import type { AgentState, AgentView } from './agents'
-import { agentDoing, agentMeta, agentTimer, kpiCells, type KpiCell } from './cards'
+import type { RunKpis } from '@/sdk/layoutTypes'
+import type { AgentView } from './agents'
+import { agentDoing, agentMeta, agentTimer, kpiCells, type ChipState, type KpiCell } from './cards'
 import type { RunsStatus } from './runsFeed'
 import { stepWeight, type TimelineStep } from './timeline'
 
 /** `compact`: the narrow ops column (short labels); `touch`: a phone. */
 export type BoardSize = 'default' | 'compact' | 'touch'
-
-/** An agent's state, or a finished run's outcome. */
-export type ChipState = AgentState | 'done' | 'failed'
 
 const CHIP: Record<ChipState, { label: string; className: string }> = {
   running: { label: 'Running', className: 'bg-success text-success-foreground' },
@@ -25,15 +22,6 @@ const CHIP: Record<ChipState, { label: string; className: string }> = {
   idle: { label: 'Idle', className: 'border border-border text-muted-foreground font-medium' },
   done: { label: 'Succeeded', className: 'bg-success-soft text-success' },
   failed: { label: 'Failed', className: 'bg-danger-soft text-destructive' },
-}
-
-/** A finished or live run's chip (the overview's table, the ops column's list). */
-export const RUN_STATE: Record<RunStatus, { state: ChipState; label: string }> = {
-  running: { state: 'running', label: 'Running' },
-  waiting: { state: 'waiting', label: 'Waiting' },
-  completed: { state: 'done', label: 'Succeeded' },
-  failed: { state: 'failed', label: 'Failed' },
-  cancelled: { state: 'idle', label: 'Cancelled' },
 }
 
 export function StateChip({ state, label, size = 'default' }: { state: ChipState; label?: string; size?: BoardSize }) {

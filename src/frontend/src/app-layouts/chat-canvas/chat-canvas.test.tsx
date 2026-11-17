@@ -19,9 +19,8 @@ import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, 
 import Frame from './Frame'
 import { countIndex, modelOf, toArtifactsFeed, withLiveCount } from './data'
 import { chatRowMeta, chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
-import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
+import { artifactsInChat, frameKeyAction, optionVars, sidebarRows } from './frameLogic'
 import { iconFor } from './iconMap'
-import { sidebarRows } from './Sidebar'
 
 beforeEach(() => resetLayoutsForTests())
 

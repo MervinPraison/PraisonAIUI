@@ -14,7 +14,8 @@ import { agentCountsLabel, agentViews, sessionsOf } from './agents'
 import { formatCost, formatCount, formatDuration, formatTime } from './format'
 import { useApprovals, useFeed, useNow, useRuns, useRunsStatus } from './hooks'
 import { RequestCard } from './RequestCard'
-import { AgentCard, KpiStrip, RUN_STATE, StateChip } from './widgets'
+import { RUN_STATE } from './cards'
+import { AgentCard, KpiStrip, StateChip } from './widgets'
 
 // The recent-runs table, drawn here with components/ui/table's classes: that
 // module is shared with the chat route's lazy chunks, and importing it here

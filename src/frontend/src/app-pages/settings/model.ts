@@ -3,6 +3,21 @@
  * and fields, plain-language help for the known ones, values by dotted path,
  * and what changed.
  */
+import { providerName } from '../shared'
+
+/** GET /api/provider/health */
+export type Health = { status?: string; provider?: string; detail?: string; api_key?: string }
+
+/**
+ * Under the provider heading when chats are answered by another provider
+ * (a custom gateway): these settings configure the built-in one only, so
+ * Overview and Settings do not seem to disagree.
+ */
+export function providerNote(h: Health | null | undefined): string {
+  const name = h?.provider
+  return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${providerName(name)}. These settings apply to the built-in PraisonAI provider.` : ''
+}
+
 
 export interface FieldSchema {
   type?: string

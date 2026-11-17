@@ -20,10 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { fetchJson } from '@/sdk/services'
-import { inLayoutOnly, providerName, StatusDot, useJson, type AppPageProps, type Tone } from '../shared'
-import { changedPaths, matchField, setPath, settingsSections, valueOf, type Config, type SettingsField } from './model'
+import { inLayoutOnly, providerName, useJson, type AppPageProps, type Tone } from '../shared'
+import { StatusDot } from '../ui'
+import { changedPaths, matchField, providerNote, setPath, settingsSections, valueOf, type Config, type Health, type SettingsField } from './model'
 
-type Health = { status?: string; provider?: string; detail?: string; api_key?: string }
 
 function SettingsPage({ page }: AppPageProps) {
   // One name everywhere: the page's own title (the nav and the top bar say the same).
@@ -202,16 +202,6 @@ function SettingsPage({ page }: AppPageProps) {
       )}
     </div>
   )
-}
-
-/**
- * Under the provider heading when chats are answered by another provider
- * (a custom gateway): these settings configure the built-in one only, so
- * Overview and Settings do not seem to disagree.
- */
-export function providerNote(h: Health | null | undefined): string {
-  const name = h?.provider
-  return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${providerName(name)}. These settings apply to the built-in PraisonAI provider.` : ''
 }
 
 /** `envKey`: no key is saved here, but the server has one in its environment. */

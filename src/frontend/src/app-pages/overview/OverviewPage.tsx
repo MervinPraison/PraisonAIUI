@@ -18,7 +18,8 @@ import { cn } from '@/lib/utils'
 import { useLayoutData } from '@/sdk/layouts'
 import type { ApprovalItem, Feed, RunKpis, RunSummary, AgentStatus } from '@/sdk/layoutTypes'
 import { navigate, useManifest } from '@/sdk/services'
-import { ago, inLayoutOnly, PageBody, Pill, providerName, Section, StatusDot, toMs, useJson, useNow, type AppPageProps, type Tone } from '../shared'
+import { ago, inLayoutOnly, providerName, toMs, useJson, useNow, type Tone } from '../shared'
+import { PageBody, Pill, Section, StatusDot } from '../ui'
 import { attentionLabel, featureHealth, formatCost, formatCount, formatMs, greeting, providerLine, series, sparkPath, summary } from './model'
 
 const NOTHING = { get: () => null, subscribe: () => () => {} }
@@ -120,7 +121,7 @@ function ApprovalCard({ item, decide }: { item: ApprovalItem; decide(item: Appro
   )
 }
 
-function OverviewPage(_: AppPageProps) {
+function OverviewPage() {
   const now = useNow()
   const manifest = useManifest()
   const hasPage = (id: string) => !!manifest?.pages.some((p) => p.id === id)

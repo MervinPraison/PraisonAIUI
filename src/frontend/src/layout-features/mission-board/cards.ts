@@ -1,13 +1,13 @@
 /**
  * What the KPI strip, the agent cards and the banner say (pure;
  * agents.test.ts): the four KPI cells of a window, an agent card's
- * activity line, meta line and timer, and the banner's title.
+ * activity line, meta line and timer, the banner's title, and a run's chip.
  */
 // The kit's own module, not its index: only this board uses it, so it ships in
 // lf-mission-board and the kit chunk every layout loads stays as it is.
 import { describeCall } from '@/app-layouts/kit/format'
-import type { ApprovalItem, RunKpis } from '@/sdk/layoutTypes'
-import type { AgentView } from './agents'
+import type { ApprovalItem, RunKpis, RunStatus } from '@/sdk/layoutTypes'
+import type { AgentState, AgentView } from './agents'
 import { formatAgo, formatClock, formatCost, formatCount, formatDelta, formatDuration, formatPercent, formatTokens, metaLine } from './format'
 
 export interface KpiCell {
@@ -64,4 +64,16 @@ export function requestTitle(item: Pick<ApprovalItem, 'agentName' | 'toolName'>)
   const who = item.agentName?.trim() || 'An agent'
   const tool = item.toolName?.trim()
   return !tool || /^(shell|terminal|bash|exec|run_command|execute_command)$/i.test(tool) ? `${who} wants to run a command` : `${who} wants to use ${tool}`
+}
+
+/** An agent's state, or a finished run's outcome. */
+export type ChipState = AgentState | 'done' | 'failed'
+
+/** A finished or live run's chip (the overview's table, the ops column's list). */
+export const RUN_STATE: Record<RunStatus, { state: ChipState; label: string }> = {
+  running: { state: 'running', label: 'Running' },
+  waiting: { state: 'waiting', label: 'Waiting' },
+  completed: { state: 'done', label: 'Succeeded' },
+  failed: { state: 'failed', label: 'Failed' },
+  cancelled: { state: 'idle', label: 'Cancelled' },
 }
