@@ -225,6 +225,14 @@ function ApprovalGate(p: InlineGateProps & { args?: Readonly<Record<string, unkn
   )
 }
 
+/** The first line of a tool's text output for its row ("→ Python 3.12.4"); '' for none or structured data. */
+// eslint-disable-next-line react-refresh/only-export-components -- pure helper, tested in ChatPage.test
+export function resultLine(v: unknown): string {
+  const o = v as Record<string, unknown> | null | undefined
+  const s = typeof v === 'string' ? v : typeof o?.output === 'string' ? o.output : ''
+  return s.trim().split('\n', 1)[0].slice(0, 160)
+}
+
 /** Arguments/result: flat, marked by a left rule (no box inside the row). */
 const TOOL_PRE =
   'max-h-72 overflow-auto border-l-2 border-border pl-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground'
@@ -245,6 +253,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
   const emoji = typeof a.icon === 'string' && a.icon ? a.icon : null
   const description = typeof a.description === 'string' ? a.description.replace(emoji ?? '\u0000', '').trim() : ''
   const took = timing?.completedAt ? formatDuration(timing.completedAt - timing.startedAt) : ''
+  const summary = state === 'done' ? resultLine(result) : ''
   const hasArgs = args && Object.keys(args).length > 0
   const a2ui = Array.isArray(a.a2ui) && a.a2ui.length ? (a.a2ui as Record<string, unknown>[]) : null
   const risk = typeof a.risk_level === 'string' && a.risk_level ? a.risk_level : undefined
@@ -283,6 +292,7 @@ const ToolCard: FC<ToolCallMessagePartProps> = (props) => {
         </span>
         <span className="min-w-0 truncate font-medium text-foreground" data-tool-name>{toolName}</span>
         {description && <span className="min-w-0 truncate text-muted-foreground">{description}</span>}
+        {summary && <span className="hidden min-w-0 truncate font-mono text-xs text-muted-foreground sm:inline" data-tool-result>→ {summary}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {state === 'approval' && risk && (
             <span className={cn('hidden rounded px-1.5 py-0.5 text-xs sm:inline', risk === 'high' || risk === 'critical' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} data-tool-risk>
@@ -617,12 +627,18 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
           aria-label="Message"
           className="max-h-[40vh] min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
         />
-        <AuiIf condition={(s) => !s.thread.isRunning}>
+        <AuiIf condition={(s) => !s.thread.isRunning && !s.composer.isEmpty}>
           <ComposerPrimitive.Send asChild>
             <Button size="icon-sm" className="shrink-0 rounded-lg" aria-label="Send">
               <ArrowUp />
             </Button>
           </ComposerPrimitive.Send>
+        </AuiIf>
+        {/* Nothing to send yet: the same button, aria-disabled (it keeps its place, fill and focus). */}
+        <AuiIf condition={(s) => !s.thread.isRunning && s.composer.isEmpty}>
+          <Button type="button" size="icon-sm" className="shrink-0 rounded-lg" aria-label="Send" aria-disabled="true">
+            <ArrowUp />
+          </Button>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel asChild>

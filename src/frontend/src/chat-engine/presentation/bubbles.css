@@ -1,16 +1,120 @@
 /*
- * Thread variant `bubbles` (Chat + Canvas): the question is a tinted bubble
- * with a tail corner, each answer has an avatar header (TurnMeta), and tool
- * rows are always framed cards.
- * Lazy: loaded only when a layout picks this variant. Tokens only.
+ * Thread variant `bubbles` (Chat + Canvas and Chat, design board 3): the
+ * question is a tinted bubble with a tail corner, each answer has a letter
+ * tile header (TurnMeta), a tool call is one compact framed row, "Thought
+ * for 2s" a quiet disclosure, and the composer has two rows of text above
+ * attach, the model and a round accent Send.
+ * Lazy: loaded only when a layout picks this variant (with the composer's
+ * footer, so an empty chat has it too). Tokens only.
  */
 [data-variant='bubbles'] [data-user-bubble] {
   border-radius: 1rem 1rem 0.25rem 1rem;
   background: var(--ui-bubble-user);
 }
 
+/* ── the conversation and the composer (Canvas.dc.html, CanvasPhone.dc.html) ── */
+
+/* The assistant's header: a square letter tile on the accent's soft fill, in the display face. */
+[data-turn-meta='bubbles'] > span:first-child {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-link);
+  font-family: var(--aiui-font-display);
+  font-size: 13px;
+}
+
+/* A tool call is one compact row on the card colour: icon, the call in mono,
+   the state pill (Done on the success fill), the time. */
 [data-variant='bubbles'] [data-tool] {
   border: 1px solid var(--ui-hairline);
   border-radius: 0.625rem;
   background: var(--card);
+}
+
+[data-variant='bubbles'] [data-tool] > button {
+  min-height: 38px;
+  height: auto;
+}
+
+[data-variant='bubbles'] [data-role='assistant'] [data-tool] [data-tool-name] {
+  flex-shrink: 0;
+  max-width: 40%;
+  font-family: var(--aiui-font-mono);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+[data-variant='bubbles'] [data-tool][data-state='done'] [data-tool-pill] {
+  background: var(--ui-success-soft);
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* The composer: the text on two rows above a row of attach, the model (mono)
+   and a round Send in the accent (the bottom row wraps under the text). */
+[data-aiui-chat] [data-variant='bubbles'] form:has(textarea[aria-label='Message']) {
+  border-radius: 16px;
+  background: var(--card);
+}
+
+[data-aiui-chat] [data-variant='bubbles'] form:has(textarea[aria-label='Message']) > div:has(> textarea) {
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 10px 8px 14px;
+}
+
+[data-aiui-chat] [data-variant='bubbles'] form textarea[aria-label='Message'] {
+  order: -1;
+  flex-basis: 100%;
+  min-height: calc(2 * 1.45em + 0.75rem);
+  padding: 0 0 0.5rem;
+}
+
+[data-aiui-chat] [data-variant='bubbles'] form [aria-label='Attach files'] {
+  margin-left: -6px;
+}
+
+[data-aiui-chat] [data-variant='bubbles'] form [aria-label='Send'],
+[data-aiui-chat] [data-variant='bubbles'] form [aria-label='Stop'] {
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  border-radius: 9999px;
+}
+
+/* Send is the accent circle even with nothing to send (the design): a
+   lighter fill then, never the grey of the other layouts. */
+[data-aiui-chat] [data-variant='bubbles'] form [aria-label='Send']:is(:disabled, [aria-disabled='true']) {
+  background: color-mix(in oklab, var(--primary) 45%, var(--card));
+  color: var(--primary-foreground);
+}
+
+/* The model stays on the bottom row on a phone too (CanvasPhone.dc.html). */
+[data-aiui-chat] [data-variant='bubbles'] [data-composer-model] {
+  display: inline-flex;
+  height: 30px;
+  background: var(--muted);
+  font-family: var(--aiui-font-mono);
+  font-weight: 400;
+}
+
+/* "Thought for 2s" is a quiet disclosure: the chevron first, no brain icon, the third text tier. */
+[data-variant='bubbles'] [data-part='reasoning'] > button {
+  color: var(--ui-text-3, var(--muted-foreground));
+}
+
+[data-variant='bubbles'] [data-part='reasoning'] > button > svg.lucide-brain {
+  display: none;
+}
+
+[data-variant='bubbles'] [data-part='reasoning'] > button > svg.lucide-chevron-right {
+  order: -1;
+}
+
+/* The key hints sit at the composer's left edge ("Enter to send · Shift Enter new line · @ artifact"). */
+[data-aiui-chat] [data-variant='bubbles'] form:has(textarea[aria-label='Message']) + p {
+  justify-content: flex-start;
+  padding-left: 4px;
 }

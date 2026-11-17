@@ -6,8 +6,9 @@
  *
  *   Gate          approvals 'card' (./ApprovalCard) or 'keyboard' (./KeyboardGate),
  *                 in the turn under the answer
- *   Pinned        the composer's footer: the connection banner and the
+ *   Pinned        the composer's footer: the connection banner, the
  *                 composer's model button (./ComposerModel, composer.css)
+ *                 and the layout's composerTool region
  *   Turn          one assistant turn: the variant's turn header (./TurnMeta)
  *                 and stylesheet (./quiet.css, ./bubbles.css…), and the
  *                 layout's turnHeader / turnFooter regions around it
@@ -102,14 +103,19 @@ export function Gate({ presentation, part, description, expand, children }: {
  * drawn after mount), and the send count that retires the composer's key
  * hint (./composerHint).
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the presentation host passes these props to every region
-export function Pinned(_props: { presentation: { chat: ChatPresentation } }): JSX.Element | null {
+export function Pinned({ presentation }: { presentation: { chat: ChatPresentation; sessionId?: string | null } }): JSX.Element | null {
   useComposerHint()
+  const { thread, composerTool: tool } = presentation.chat
+  // The variant's stylesheet also styles the composer: fetch it with the footer, before any turn.
+  useEffect(() => {
+    if (thread) void VARIANT_CSS[thread]?.().catch(() => undefined)
+  }, [thread])
   return (
     <>
       <SetupBanner />
       <ConnectionBanner />
       <ComposerModel />
+      {tool && <Region loader={tool} name="composerTool" sessionId={presentation.sessionId ?? null} />}
     </>
   )
 }

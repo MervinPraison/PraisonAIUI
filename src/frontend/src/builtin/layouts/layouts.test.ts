@@ -165,3 +165,9 @@ test('no layout on offer, no Pro presets; an older shell without theme presets i
   activateLayouts(older, offered())
   assert.equal(getThemePresets().some((p) => p.id.startsWith('pro.')), false)
 })
+
+test('the Chat layout (the Chat + Canvas frame without a canvas) paints with the same Paper look', () => {
+  assert.equal(BUILTIN_LAYOUTS.find((d) => d.id === 'chat')?.meta.look, 'paper')
+  assert.equal(BUILTIN_LAYOUTS.find((d) => d.id === 'chat-canvas')?.meta.look, 'paper')
+  assert.equal(BUILTIN_LAYOUTS.find((d) => d.id === 'workbench')?.meta.look, undefined)
+})

@@ -184,7 +184,10 @@ export default [
   // small presentation/command module), the tool row's risk chip, the
   // card-merged row, the transport's reconnect() for Retry, and the
   // connection field on the chat feed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141 kB', gzip: true },
+  // +0.1 kB (141.09 kB measured, owner-approved: exactly the cost of the
+  // fixes): the tool row's "→ first line of output" and the Send button that
+  // stays an aria-disabled button with nothing to send.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141.1 kB', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -197,7 +200,10 @@ export default [
   // +0.1 kB (252.55 kB measured, #419, owner-approved): the layout host sets
   // a layout's look (<html data-aiui-look>, Chat + Canvas's Paper) and
   // builtin.layouts registers "Switch look: Paper / Pro".
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.6 kB', gzip: true },
+  // +0.2 kB (252.8 kB measured): the chat route's +0.17 kB above and the
+  // composerTool region wiring in the boot path (the "@" loader, meta.chat
+  // validation), 0.06 kB.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.8 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives

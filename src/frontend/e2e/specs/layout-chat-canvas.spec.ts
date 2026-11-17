@@ -156,6 +156,9 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(sidebar.locator('[data-aiui-connection="online"]')).toContainText('Connected')
     await expect(page.locator('[data-cc-connection]')).toHaveCount(0)
     await expect(sidebar.locator('[data-cc-more]')).toContainText('More')
+    // Settings at the foot (the config page), as the design draws it; Inspector is in More.
+    await expect(sidebar.locator('[data-aiui-nav-item="config"]')).toContainText('Settings')
+    await expect(sidebar.locator('[data-aiui-nav-item="inspector"]')).toHaveCount(0)
     const pillWidth = await page.locator('[data-aiui-chat] [data-connection]').evaluate((el) => el.getBoundingClientRect().width)
     expect(pillWidth, 'the chat page badge is for screen readers only').toBeLessThanOrEqual(1)
     await send(page, 'markdown apok')
@@ -211,6 +214,15 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
       await expect(toggle).toContainText('Canvas')
       await expect(toggle).toHaveAttribute('aria-pressed', 'true')
       await expect(open.locator('[data-cc-chat-meta]')).toContainText(/\d artifacts? · /)
+      // "@" references an artifact: the list of this chat's artifacts, a choice puts a plain mention in the message.
+      const box = page.getByRole('textbox', { name: 'Message' })
+      await expect(box).toHaveAttribute('placeholder', 'Ask a follow-up, or type @ to edit an artifact')
+      await expect(page.getByRole('button', { name: 'Send' })).toHaveAttribute('aria-disabled', 'true')
+      await page.getByRole('button', { name: 'Reference an artifact' }).click()
+      await page.getByRole('list', { name: "This chat's artifacts" }).getByRole('button', { name: /Model table/ }).click()
+      await expect(box).toHaveValue(/@"Model table" $/)
+      await expect(page.getByRole('button', { name: 'Send' })).not.toHaveAttribute('aria-disabled', 'true')
+      await box.fill('')
     } else {
       await expect(page.locator('[data-chat-aside]')).toHaveCount(0)
     }
@@ -238,6 +250,9 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await expect(assistant(page).last().locator(HAS_CANVAS ? TABLE_CARD : 'table')).toBeVisible()
     await waitForRunEnd(page)
     await expect(title(page)).toContainText(/markdown phone/i)
+    // The header's line is the agent and the model (CanvasPhone.dc.html), the composer's own placeholder.
+    await expect(page.locator('[data-cc-subtitle]')).toContainText(/^Mock · \S+/)
+    await expect(page.getByRole('textbox', { name: 'Message' })).toHaveAttribute('placeholder', 'Ask a follow-up')
 
     const toggle = page.locator('[data-chat-aside-switch]')
     if (HAS_CANVAS) {

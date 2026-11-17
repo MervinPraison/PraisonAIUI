@@ -87,7 +87,7 @@ and `slots.dispose`. Types for plugin authors are in `sdk/aiui-sdk.d.ts`.
   - `thread`: `bubbles`, `quiet`, `steps` or `dense` (`steps` pins an open approval above the composer,
     since its turn header owns the turn's steps);
   - `approvals`: `inline`, `card` or `keyboard`;
-  - the lazy regions `aside`, `turnHeader`, `turnFooter` and `empty` (a `RegionLoader` each), plus `asideLabel`.
+  - the lazy regions `aside`, `turnHeader`, `turnFooter`, `empty` and `composerTool` (a tool in the composer's row, e.g. Chat + Canvas's "@"; a `RegionLoader` each), plus `asideLabel`.
 
 **What a frame receives.** A frame receives `LayoutProps`:
 - `Outlet`: the page, with its error boundary, page toolbar slot and Suspense;

@@ -158,9 +158,22 @@
   }
 }
 
-/* The brand tile is ink on paper, not the accent (Canvas.dc.html).
-   Unlayered: the tile's own fill is a utility class (bg-primary). */
+/* The brand tile is ink on paper with a serif "P", not the accent and the
+   glyph (Canvas.dc.html). Unlayered: the tile's own fill is a utility
+   class (bg-primary). Only the default mark: a site logo or text stays. */
 html[data-aiui-tokens="pro"][data-aiui-look="paper"] [data-brand-tile] {
   background: var(--foreground);
   color: var(--background);
+}
+
+html[data-aiui-tokens="pro"][data-aiui-look="paper"] [data-brand-tile] > [data-brand-glyph] {
+  display: none;
+}
+
+html[data-aiui-tokens="pro"][data-aiui-look="paper"] [data-brand-tile]:has(> [data-brand-glyph])::after {
+  content: "P";
+  font-family: var(--aiui-font-display);
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1;
 }

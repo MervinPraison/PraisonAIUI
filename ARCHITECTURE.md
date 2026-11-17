@@ -212,8 +212,8 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 141 kB |
-| `/chat` first-screen JS (boot + chat route) | 252.6 kB |
+| Chat route (added by `/chat`) | 141.1 kB |
+| `/chat` first-screen JS (boot + chat route) | 252.8 kB |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |

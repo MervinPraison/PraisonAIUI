@@ -534,7 +534,9 @@ What the frame receives (`LayoutProps`):
 classic frame), `setLayout(id, { persist }?)` switches live (`''` or
 `'classic'` is the classic frame), and `getLayouts()` lists the registered
 ones. `meta.chat` tells the chat page how to present itself in your frame
-(who draws the session list, the thread style, lazy regions); see the ADR.
+(who draws the session list, the thread style, lazy regions such as `aside`,
+`turnFooter` and `composerTool`); see the ADR. `meta.look` names a look of
+the Pro tokens the frame paints with (the shell ships `paper`; DESIGN.md "Looks").
 Frames read data such as the session list with `useLayoutData('sessions')`,
 which returns null while nothing provides it: render without it. The `chat`
 feed (`builtin.chat`) also acts on the open chat: `prefill(text)` fills the

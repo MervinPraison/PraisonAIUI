@@ -19,13 +19,19 @@ import type { LayoutDescriptor } from './types'
 
 type Modules = Record<string, () => Promise<unknown>>
 
+/** The composer's "@" (chat-engine/presentation, a lazy chunk of its own). */
+export const mentionLoader: RegionLoader = () => import('@/chat-engine/presentation/ArtifactMention')
+
 /** Paths of the artifacts feature's regions (track A), as the glob keys them. */
 export const CANVAS_PANEL = '/src/layout-features/artifacts/CanvasPanel.tsx'
 export const ARTIFACT_CARDS = '/src/layout-features/artifacts/ArtifactCards.tsx'
 
 function artifactModules(): Modules {
   try {
-    return import.meta.glob(['/src/layout-features/artifacts/CanvasPanel.tsx', '/src/layout-features/artifacts/ArtifactCards.tsx'])
+    return import.meta.glob([
+      '/src/layout-features/artifacts/CanvasPanel.tsx',
+      '/src/layout-features/artifacts/ArtifactCards.tsx',
+    ])
   } catch {
     return {}
   }
@@ -33,8 +39,9 @@ function artifactModules(): Modules {
 
 /**
  * The chat presentation for the modules found: sessions in the frame,
- * bubbles, approval cards; the canvas as the aside (phone: "Chat | Canvas")
- * and the artifact cards under each answer when the feature is there.
+ * bubbles, approval cards; the canvas as the aside (phone: "Chat | Canvas"),
+ * the artifact cards under each answer and "@" (reference an artifact) in
+ * the composer when the feature is there.
  */
 export function chatCanvasPresentation(modules: Modules): ChatPresentation {
   const chat: ChatPresentation = { sessions: 'frame', thread: 'bubbles', approvals: 'card' }
@@ -43,6 +50,8 @@ export function chatCanvasPresentation(modules: Modules): ChatPresentation {
   if (panel) {
     chat.aside = panel as RegionLoader<ChatRegionProps>
     chat.asideLabel = 'Canvas'
+    // "@" (reference an artifact) reads the frame's artifacts feed, so it comes with the canvas.
+    chat.composerTool = mentionLoader
   }
   if (cards) chat.turnFooter = cards as RegionLoader<TurnRegionProps>
   return chat

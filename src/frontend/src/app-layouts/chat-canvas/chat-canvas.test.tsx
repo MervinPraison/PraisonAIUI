@@ -5,7 +5,7 @@ import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { chatCanvasLayout, chatCanvasPresentation, ARTIFACT_CARDS, CANVAS_PANEL } from '@/builtin/layouts/chat-canvas'
+import { chatCanvasLayout, chatCanvasPresentation, ARTIFACT_CARDS, CANVAS_PANEL, mentionLoader } from '@/builtin/layouts/chat-canvas'
 import {
   activateLayout,
   getActiveLayout,
@@ -17,10 +17,11 @@ import {
 } from '@/sdk/layouts'
 import type { Artifact, ArtifactsFeed, ChatFeed, ChatState, Feed, SessionsFeed, SessionsState } from '@/sdk/layoutTypes'
 import Frame from './Frame'
-import { countIndex, toArtifactsFeed, withLiveCount } from './data'
+import { countIndex, modelOf, toArtifactsFeed, withLiveCount } from './data'
 import { chatRowMeta, chatSubtitle, connectionWord, lastAgent, relativeTime, shortTime, summarizeArtifacts } from './format'
 import { artifactsInChat, frameKeyAction, optionVars } from './frameLogic'
 import { iconFor } from './iconMap'
+import { sidebarRows } from './Sidebar'
 
 beforeEach(() => resetLayoutsForTests())
 
@@ -58,6 +59,9 @@ test('with the artifacts feature the canvas is the aside (phone: Chat | Canvas) 
   assert.equal((await chat.aside!()).default, Panel)
   // Only the panel: a canvas, no cards.
   assert.equal(chatCanvasPresentation({ [CANVAS_PANEL]: panel }).turnFooter, undefined)
+  // "@" in the composer comes with the canvas (it reads the artifacts feed).
+  assert.equal(chat.composerTool, mentionLoader)
+  assert.equal(chatCanvasPresentation({}).composerTool, undefined)
 })
 
 // ── format ───────────────────────────────────────────────────────────
@@ -283,8 +287,11 @@ test('desktop frame: sidebar landmark, New chat, at most 7 primary pages, chats,
   assert.doesNotMatch(primary, /logs/, 'the other pages are under More (the palette), not in the primary list')
   assert.match(out, />Chats</)
   assert.match(out, /aria-current="true" data-aiui-session="s1"/)
-  // Two lines per chat (the title over "n artifacts · when"); the open one has the accent fill and a primary edge.
-  assert.match(out, /aria-current="true" data-aiui-session="s1" class="[^"]*flex-col[^"]*bg-sidebar-accent[^"]*inset_2px_0_0_var\(--primary\)/)
+  // Two lines per chat (the title over "n artifacts · when"); the open one is raised on the card colour.
+  assert.match(out, /aria-current="true" data-aiui-session="s1" class="[^"]*flex-col[^"]*bg-card[^"]*shadow-xs/)
+  // The foot: Settings (the config page, out of the primary list), More, the connection; no footer pages.
+  assert.match(out, /data-aiui-nav-item="config"[^>]*>.*?Settings<\/span>/)
+  assert.doesNotMatch(out, /aria-label="Primary"[^]*data-aiui-nav-item="config"[^]*Chats/, 'config left the primary list')
   assert.match(out, /data-aiui-session="s1"[^>]*>.*?Compare sorting algorithms<\/span><span[^>]*data-cc-chat-meta="">[^<]+<\/span>/)
   // The footer (Canvas.dc.html): More with ⌘K, then the connection line.
   assert.match(out, /data-cc-more=""[^>]*>.*?<span class="flex-1">More<\/span>.*?<\/button>/)
@@ -341,4 +348,21 @@ test('connectionWord: the top bar names the connection only while it is not open
   assert.deepEqual(connectionWord('connecting'), { word: 'connecting', tone: 'pending' })
   assert.deepEqual(connectionWord('closed'), { word: 'reconnecting', tone: 'pending' })
   assert.equal(connectionWord(undefined), null)
+})
+
+test('sidebarRows: Settings is the config page wherever the nav lists it; the footer pages go to More', () => {
+  const item = (id: string, title = id) => ({ id, title, group: 'g', href: `/${id}`, active: false })
+  const rows = sidebarRows({ primary: [item('chat'), item('config', 'Config')], groups: [], footer: [item('inspector')] })
+  assert.deepEqual(rows.primary.map((i) => i.id), ['chat'])
+  assert.equal(rows.settings?.title, 'Settings')
+  assert.equal(rows.settings?.navIcon, 'settings')
+  assert.equal(sidebarRows({ primary: [], groups: [{ name: 'More', folded: false, items: [item('config')] }], footer: [] }).settings?.id, 'config')
+  assert.equal(sidebarRows({ primary: [item('chat')], groups: [], footer: [] }).settings, undefined)
+})
+
+test('modelOf: the model name of a runtime config or its defaults', () => {
+  assert.equal(modelOf({ config: { model: { name: 'gpt-4o-mini' } } }, 'config'), 'gpt-4o-mini')
+  assert.equal(modelOf({ defaults: { model: { name: 'x' } } }, 'defaults'), 'x')
+  assert.equal(modelOf({ config: { model: {} } }, 'config'), undefined)
+  assert.equal(modelOf(null, 'config'), undefined)
 })

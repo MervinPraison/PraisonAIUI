@@ -351,3 +351,13 @@ test('ChatPage itself renders under react-dom/static (server snapshots of the th
   assert.match(out, /aria-label="Chats"/, 'the session rail (sessions: page, no layout)')
   assert.match(out, /aria-label="New chat"/)
 })
+
+test('resultLine: the first line of a tool\'s output for its row', async () => {
+  const { resultLine } = await import('./Thread')
+  assert.equal(resultLine('Python 3.12.4\nmore'), 'Python 3.12.4')
+  assert.equal(resultLine({ output: '  ok\n' }), 'ok')
+  assert.equal(resultLine(null), '')
+  assert.equal(resultLine({ n: 1 }), '', 'structured data has no one-line summary')
+  assert.equal(resultLine(undefined), '')
+  assert.equal(resultLine('x'.repeat(300)).length, 160)
+})
