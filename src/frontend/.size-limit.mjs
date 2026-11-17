@@ -187,7 +187,10 @@ export default [
   // +0.1 kB (141.09 kB measured, owner-approved: exactly the cost of the
   // fixes): the tool row's "→ first line of output" and the Send button that
   // stays an aria-disabled button with nothing to send.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141.1 kB', gzip: true },
+  // 141,167 B (measured, raised by exactly the overage, +67 B): the docs style's
+  // layouts became lazy chunks (R4) and Rollup re-split a shared module (input) the
+  // chat route also uses; every docs page loads 53.6 KB gzip less.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141167 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
