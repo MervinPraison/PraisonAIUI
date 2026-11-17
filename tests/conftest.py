@@ -30,6 +30,35 @@ def pytest_collection_modifyitems(config, items):
         if "live" in item.keywords:
             item.add_marker(skip_live)
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--fail-on-skip",
+        action="store_true",
+        default=False,
+        help=(
+            "Exit non-zero when any test is skipped. CI passes it to the suites "
+            "that need Node, src/frontend/node_modules and Chromium, so a missing "
+            "tool fails the job instead of turning the suite into silent skips."
+        ),
+    )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if not session.config.getoption("--fail-on-skip", default=False):
+        return
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    skipped = reporter.stats.get("skipped", []) if reporter else []
+    if not skipped:
+        return
+    if reporter:
+        reporter.write_sep("=", f"--fail-on-skip: {len(skipped)} test(s) skipped", red=True)
+        for rep in skipped:
+            reason = rep.longrepr[2] if isinstance(rep.longrepr, tuple) else rep.longrepr
+            reporter.write_line(f"SKIPPED {rep.nodeid}: {reason}")
+    if exitstatus == 0:
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
 # Entry-point plugins installed in the developer's environment must not change
 # test results (or add ~90 ms per create_app). Set at import time too, so apps
 # built while collecting tests are covered. Tests that exercise discovery

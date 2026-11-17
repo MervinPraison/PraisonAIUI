@@ -51,7 +51,8 @@ pip install -e ".[dev]"
 # Lint (CI runs `ruff check src/praisonaiui`)
 ruff check src/ tests/
 
-# Test (all)
+# Test (all; what CI's python job runs; tests marked `live` call a real LLM
+# and skip unless PRAISONAI_LIVE_TESTS=1)
 pytest tests/unit tests/integration -v
 
 # Test (fast — unit only)

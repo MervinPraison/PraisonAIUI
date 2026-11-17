@@ -54,8 +54,7 @@ Python (repo root):
 ```bash
 pip install -e ".[dev]"
 ruff check src/praisonaiui
-pytest tests/unit -q --no-cov --timeout=60
-pytest tests/integration/test_agentic_roundtrip.py tests/test_feature_sdk_backends.py -q --no-cov --timeout=120
+pytest tests/unit tests/integration -q --no-cov --timeout=120   # `live` LLM tests skip
 ```
 
 Frontend (only when `src/frontend/**` changed; Node from `src/frontend/.nvmrc`):
@@ -68,6 +67,10 @@ npm run lint
 npm run build && npm run size && npm run check:closure
 npm run sync && npm run check:bundle
 ```
+
+Python tests that need Node, `node_modules` or Chromium (the list in CI's e2e
+shard-1 step and ARCHITECTURE §7) skip without them; run that command with
+`RUN_BROWSER_TESTS=1 ... --fail-on-skip` when you touch the code they cover.
 
 Commit `src/praisonaiui/templates/frontend/` with the source change (R13).
 Never hand-edit files under `templates/frontend/assets/`. CI runs the

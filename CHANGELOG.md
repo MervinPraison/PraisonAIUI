@@ -189,6 +189,16 @@
 
 ### Fixed
 
+- Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
+  package smoke checklist, attachments, MCP connect security, the feature
+  APIs), not 2 of its files, and e2e shard 1 runs the dashboard view
+  resolution, host runtime, page reload and mkdocs preprocess suites, which
+  always skipped in the python job. That step now fails when any of its tests
+  skip (`pytest --fail-on-skip`). Integration tests no longer reach an LLM
+  provider when your shell has API keys set. Six passing test files at the
+  top of `tests/`, which CI never ran, moved into `tests/unit` and
+  `tests/integration` (the gap features suite had four stale theme
+  assertions, now written against the accent presets).
 - Docs: the plugin guide no longer tells you to pass `--style app` because a
   reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
   says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export

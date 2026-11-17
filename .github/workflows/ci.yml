@@ -30,11 +30,12 @@ jobs:
         run: ruff check src/praisonaiui
 
       - name: Test with pytest
-        # Unit tests are the primary CI contract; integration smoke validates backends.
-        run: pytest tests/unit -v --no-cov --timeout=60
-
-      - name: Integration smoke tests
-        run: pytest tests/integration/test_agentic_roundtrip.py tests/test_feature_sdk_backends.py -q --no-cov --timeout=120
+        # Unit and integration suites (the integration ones drive the CLI
+        # build pipeline, the package smoke checklist, attachments and the
+        # feature APIs through the real app). Tests marked `live` call a real
+        # LLM and skip unless PRAISONAI_LIVE_TESTS=1; tests/integration/conftest.py
+        # clears provider keys, so nothing here reaches the network.
+        run: pytest tests/unit tests/integration -v --no-cov --timeout=120
 
   frontend:
     name: frontend
@@ -180,15 +181,22 @@ jobs:
         env:
           AIUI_E2E_PYTHON: python
 
-      # Python checks the python job has to skip: the runtime leak probe of the
-      # legacy views (WP5's gate; needs a browser) and the React-export coverage
-      # of the import-map shims (needs src/frontend/node_modules). Once, in shard 1.
-      - name: Runtime leak probe and React-export coverage (pytest)
+      # Python checks the python job has to skip because they need Node 22.15+,
+      # src/frontend/node_modules or Chromium: the runtime leak probe of the
+      # legacy views (WP5's gate), the React-export coverage of the import-map
+      # shims, dashboard view resolution and host runtime, page reload in
+      # Chromium and the mkdocs preprocess contract. Once, in shard 1.
+      # --fail-on-skip (tests/conftest.py): a missing tool fails the step
+      # instead of turning these suites into green skips.
+      - name: Python suites that need Node and a browser (pytest)
         if: matrix.shard == 1
         run: |
           pip install playwright
           python -m playwright install --with-deps chromium-headless-shell
-          pytest tests/unit/test_legacy_view_hygiene.py tests/unit/test_app_shell.py -q --no-cov --timeout=300 -rs
+          pytest tests/unit/test_legacy_view_hygiene.py tests/unit/test_app_shell.py \
+            tests/unit/test_dashboard_view_resolution.py tests/unit/test_dashboard_host_runtime.py \
+            tests/unit/test_page_navigation_browser.py tests/unit/test_mkdocs_preprocess.py \
+            -q --no-cov --timeout=300 -rs --fail-on-skip
         env:
           RUN_BROWSER_TESTS: "1"
 
