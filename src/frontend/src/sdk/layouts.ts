@@ -113,8 +113,13 @@ export interface LayoutNavItem {
 export interface LayoutNav {
   /** At most 7 items: the layout's `primary` pages this server lists (YAML `layout.primary` wins). */
   primary: readonly LayoutNavItem[]
-  /** Every other page, by sidebar group (the "More" list). */
-  groups: readonly { name: string; folded: boolean; items: readonly LayoutNavItem[] }[]
+  /**
+   * Every other page, by sidebar group (the "More" list), in the shell's
+   * group order. `declared` marks a group a plugin declared
+   * (`registerNavGroup`, a plugin's `nav_groups()`): a frame that lists only
+   * its primary pages still shows these, in this order and `folded` as given.
+   */
+  groups: readonly { name: string; folded: boolean; declared?: boolean; items: readonly LayoutNavItem[] }[]
   footer: readonly LayoutNavItem[]
   activeId: string
   go(pageId: string): void
@@ -125,6 +130,12 @@ export interface LayoutChrome {
   siteLogo: { kind: 'img' | 'text'; value: string } | null
   /** Open the one command palette, optionally with a query typed in. */
   openPalette(opts?: { query?: string }): void
+  /**
+   * Open the plugin settings dialog. Set only while some plugin contributes
+   * a settings section (`registerSettingsSection`, a plugin's `settings()`);
+   * a frame shows its settings entry when it is set.
+   */
+  openSettings?(): void
   toggleColorMode(): void
   /** The shell's slot host (`header:actions`, `sidebar:footer`, …). */
   Slot: ComponentType<{ name: string; className?: string }>

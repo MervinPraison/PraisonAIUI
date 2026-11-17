@@ -194,3 +194,16 @@ test('missionGroups: Control and Settings, plus the group holding the open page 
   ]
   assert.deepEqual(missionGroups(groups).map((g) => [g.name, g.folded]), [['Control', true], ['Examples', false], ['Settings', true]])
 })
+
+test('missionGroups keeps a group a plugin declared, folded as declared (open while it holds the page)', () => {
+  const it = (id: string, active = false) => ({ id, title: id, group: 'x', href: `/${id}`, active }) as LayoutNavItem
+  const groups = [
+    { name: 'Control', folded: true, items: [it('logs')] },
+    { name: 'Hello', folded: false, declared: true, items: [it('hello')] },
+    { name: 'Probe', folded: true, declared: true, items: [it('probe')] },
+    { name: 'Agent', folded: true, items: [it('skills')] },
+  ]
+  assert.deepEqual(missionGroups(groups).map((g) => [g.name, g.folded]), [['Control', true], ['Hello', false], ['Probe', true]])
+  groups[2].items = [it('probe', true)]
+  assert.deepEqual(missionGroups(groups).map((g) => [g.name, g.folded]), [['Control', true], ['Hello', false], ['Probe', false]])
+})

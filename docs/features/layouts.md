@@ -274,6 +274,11 @@ In short, a frame:
 - draws its navigation from `nav` (`primary` at most 7 items, `groups` for the
   rest, `footer`) and navigates with `nav.go(pageId)`;
 - uses `chrome.openPalette()` for search and commands (there is one palette),
+- lists the groups plugins declared (`nav.groups` entries with `declared: true`,
+  kept in order and `folded` as given) even when it keeps other groups in
+  More, and shows a settings entry calling `chrome.openSettings()` when it is
+  set (only while some plugin contributes a settings section); the kit's
+  `DeclaredNavGroups` and `PluginSettingsRow` draw both,
   and `chrome.Slot` for the shell's slots (`header:actions`, …);
 - draws its phone frame when `viewport === 'phone'` (below 768 px), with touch
   targets of at least 44 px;

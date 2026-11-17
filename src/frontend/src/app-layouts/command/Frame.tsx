@@ -22,7 +22,7 @@
  * kit (app-layouts/isolation.test.ts); its features load with import().
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Menu, PanelRight, Plus, SquarePen, SunMoon } from 'lucide-react'
+import { Menu, PanelRight, Plus, SlidersHorizontal, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
@@ -31,6 +31,7 @@ import { registerCommand, useManifest } from '@/sdk/services'
 import { cn } from '@/lib/utils'
 import {
   BrandTile,
+  declaredGroups,
   describeCall,
   isMacPlatform,
   isPlainLeftClick,
@@ -39,6 +40,7 @@ import {
   NavList,
   NavSection,
   PhoneSheet,
+  PluginSettingsRow,
   preloadPhoneSheet,
   SessionList,
   useSessions,
@@ -118,18 +120,24 @@ function RailTip({ text, keys }: { text: string; keys?: string }) {
 
 function Rail({
   items,
+  declared,
   footer,
   go,
   runBadge,
   onMore,
   onShortcuts,
+  onSettings,
 }: {
   items: readonly RailItem[]
+  /** The pages of the groups plugins declared, after the primary ones. */
+  declared: readonly LayoutNavItem[]
   footer: readonly LayoutNavItem[]
   go(id: string): void
   runBadge: number
   onMore(): void
   onShortcuts(): void
+  /** LayoutChrome.openSettings: set while a plugin contributes settings. */
+  onSettings?(): void
 }) {
   const link = (item: RailItem | LayoutNavItem) => {
     const goKey = 'go' in item && item.go ? `G ${item.go.toUpperCase()}` : undefined
@@ -164,6 +172,7 @@ function Rail({
   return (
     <nav aria-label="Main" data-command-rail="" className="relative z-10 flex w-17 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border bg-sidebar py-2.5">
       {items.map(link)}
+      {declared.map(link)}
       <button type="button" className={railButton} onClick={onMore} aria-label="More pages and commands" aria-keyshortcuts="Meta+K Control+K">
         {/* Drawn here: lucide's Ellipsis is shared with the chat route's lazy chunks. */}
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-4.5">
@@ -176,6 +185,13 @@ function Rail({
       </button>
       <span className="flex-1" />
       {footer.map(link)}
+      {onSettings && (
+        <button type="button" className={railButton} onClick={onSettings} aria-label="Plugin settings" aria-haspopup="dialog" data-aiui-settings-button="">
+          <SlidersHorizontal aria-hidden className="size-4.5" />
+          <span className="text-2xs font-medium">Settings</span>
+          <RailTip text="Plugin settings" />
+        </button>
+      )}
       <button type="button" className={railButton} onClick={onShortcuts} aria-label="Keyboard shortcuts" aria-keyshortcuts="Meta+/ Control+/" data-command-shortcuts="">
         <KeyboardGlyph />
         <span className="text-2xs font-medium">Shortcuts</span>
@@ -430,6 +446,7 @@ export default function CommandFrame(props: LayoutProps) {
   )
   const agent = latestAgent(chat.state.messages) ?? sessions?.state.sessions.find((s) => s.id === activeId)?.agent
   const rail = useMemo(() => railItems(nav.primary), [nav.primary])
+  const declared = useMemo(() => declaredGroups(nav).flatMap((g) => g.items), [nav])
   const manifest = useManifest()
   const usage = useTodayUsage(hasRunLedger(manifest), activeRuns)
   const online = useOnline()
@@ -646,7 +663,7 @@ export default function CommandFrame(props: LayoutProps) {
           )}
           <NavList items={rail} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" aria-label="Primary" renderIcon={(i) => <ItemIcon item={i} className="text-muted-foreground" />} />
           {nav.groups.map((g) => (
-            <NavSection key={g.name} title={g.name} folded size="touch">
+            <NavSection key={g.name} title={g.name} folded={!g.declared || g.folded} size="touch">
               <NavList items={g.items} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" />
             </NavSection>
           ))}
@@ -655,6 +672,7 @@ export default function CommandFrame(props: LayoutProps) {
             setMenuOpen(false)
           }} />
           <NavList items={nav.footer} go={nav.go} onNavigate={() => setMenuOpen(false)} size="touch" />
+          <PluginSettingsRow chrome={chrome} size="touch" onNavigate={() => setMenuOpen(false)} className="shrink-0" />
           <Button variant="ghost" className="mt-auto h-11 justify-start text-muted-foreground" onClick={chrome.toggleColorMode}>
             <SunMoon />
             Switch light or dark theme
@@ -709,7 +727,7 @@ export default function CommandFrame(props: LayoutProps) {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <Rail items={rail} footer={nav.footer} go={nav.go} runBadge={activeRuns} onMore={() => chrome.openPalette()} onShortcuts={openShortcuts} />
+        <Rail items={rail} declared={declared} footer={nav.footer} go={nav.go} runBadge={activeRuns} onMore={() => chrome.openPalette()} onShortcuts={openShortcuts} onSettings={chrome.openSettings} />
         <div className="flex min-w-0 flex-1 flex-col">
           {onChat && sessions && (
             <SessionTabs

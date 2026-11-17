@@ -19,7 +19,7 @@
  */
 import { Component, lazy, Suspense, useRef, useState, type ReactNode } from 'react'
 import { Bell, Menu, Search, SunMoon } from 'lucide-react'
-import { NavList, NavSection, PhoneSheet, PhoneTabs, SessionList, useSessions, useShortcut, type PhoneTab } from '@/app-layouts/kit'
+import { NavList, NavSection, PhoneSheet, PhoneTabs, PluginSettingsRow, SessionList, useSessions, useShortcut, type PhoneTab } from '@/app-layouts/kit'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -201,7 +201,7 @@ export default function MissionFrame(props: LayoutProps) {
         >
           <NavRows items={pn.more} go={nav.go} counts={counts} onNavigate={() => setMoreOpen(false)} touch />
           {pn.groups.map((g) => (
-            <NavSection key={g.name} title={g.name} folded size="touch">
+            <NavSection key={g.name} title={g.name} folded={!g.declared || g.folded} size="touch">
               <NavList items={g.items} go={nav.go} onNavigate={() => setMoreOpen(false)} size="touch" />
             </NavSection>
           ))}
@@ -209,6 +209,7 @@ export default function MissionFrame(props: LayoutProps) {
             setMoreOpen(false)
             openChat()
           }} />
+          <PluginSettingsRow chrome={chrome} size="touch" onNavigate={() => setMoreOpen(false)} />
           <div className="mt-auto flex items-center gap-1 border-t border-border pt-2">
             <Button variant="ghost" className="h-11 flex-1 justify-start" onClick={() => {
               setMoreOpen(false)
@@ -257,6 +258,7 @@ export default function MissionFrame(props: LayoutProps) {
           ))}
           <NavRows items={nav.footer} go={nav.go} counts={counts} />
           <div className="mt-auto flex flex-col gap-2 border-t border-border p-2.5">
+            <PluginSettingsRow chrome={chrome} />
             <MorePagesButton chrome={chrome} />
             {/* The top bar's pill is the one status indicator. */}
             {!!health.agents && <span className="text-xs text-tier-3 tabular-nums">{health.agents} agents configured</span>}

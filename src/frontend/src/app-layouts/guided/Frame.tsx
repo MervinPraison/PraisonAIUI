@@ -21,7 +21,7 @@ import { Bot, Menu, Plus, Search, Sparkles, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
-import { BrandTile, isPlainLeftClick, NavList, PhoneSheet, PhoneTabs, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
+import { BrandTile, DeclaredNavGroups, isPlainLeftClick, NavList, PhoneSheet, PhoneTabs, PluginSettingsRow, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
 import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
 import { agentOf, useChat } from './chat'
 import { PAGE_ICONS } from './icons'
@@ -326,7 +326,9 @@ export default function GuidedFrame(props: LayoutProps) {
                 <DestRow key={i.id} item={i} onGo={go} />
               ))}
             </ul>
+            <DeclaredNavGroups nav={nav} size="touch" onNavigate={() => setSheetOpen(false)} />
             <MoreTools more={g.more} go={goId} size="touch" />
+            <PluginSettingsRow chrome={chrome} size="touch" onNavigate={() => setSheetOpen(false)} />
             <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} />
             <chrome.Slot name="sidebar:footer" />
           </div>
@@ -351,7 +353,9 @@ export default function GuidedFrame(props: LayoutProps) {
           ))}
         </ul>
         <RecentChats limit={RECENT} seeAll={has(PAGE.sessions) ? () => nav.go(PAGE.sessions) : undefined} onOpen={openChat} />
+        <DeclaredNavGroups nav={nav} />
         <MoreTools more={g.more} go={goId} size="default" />
+        <PluginSettingsRow chrome={chrome} />
         <SettingsRow item={g.settings} go={goId} toggleColorMode={chrome.toggleColorMode} sticky />
         <chrome.Slot name="sidebar:footer" />
       </nav>

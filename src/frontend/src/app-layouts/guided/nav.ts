@@ -84,8 +84,9 @@ export function guidedNav(nav: LayoutNav, opts: { helpUrl?: string } = {}): Guid
   const settings = byId.get(PAGE.settings) ?? null
   if (settings) shown.add(settings.id)
 
+  // Groups a plugin declared are drawn on their own (kit DeclaredNavGroups), not under More tools.
   const more = [
-    ...nav.groups.map((g) => ({ name: g.name, items: g.items.filter((i) => !shown.has(i.id)) })),
+    ...nav.groups.filter((g) => !g.declared).map((g) => ({ name: g.name, items: g.items.filter((i) => !shown.has(i.id)) })),
     { name: 'Other', items: nav.footer.filter((i) => !shown.has(i.id)) },
   ].filter((g) => g.items.length > 0)
 

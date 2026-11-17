@@ -83,15 +83,17 @@ export type HealthState = 'ok' | 'degraded' | 'unknown'
  * The nav groups Mission lists under its primary pages: the ones an operator
  * works in (Control: logs, jobs, traces; Settings), plus whichever group
  * holds the page on screen, opened. Every other page is one search away
- * (More pages, ⌘K), so the sidebar is not six folded headings.
+ * (More pages, ⌘K), so the sidebar is not six folded headings. A group a
+ * plugin declared (registerNavGroup, nav_groups()) is listed too, in the
+ * shell's order and folded as declared (open while it holds the page).
  */
 export const MISSION_GROUPS: readonly string[] = ['control', 'settings']
 
 export function missionGroups(groups: LayoutNav['groups']): { name: string; folded: boolean; items: LayoutNav['groups'][number]['items'] }[] {
   return groups
     .map((g) => ({ ...g, active: g.items.some((i) => i.active) }))
-    .filter((g) => g.items.length && (g.active || MISSION_GROUPS.includes(g.name.toLowerCase())))
-    .map(({ active, ...g }) => ({ ...g, folded: !active }))
+    .filter((g) => g.items.length && (g.active || g.declared || MISSION_GROUPS.includes(g.name.toLowerCase())))
+    .map(({ active, declared, ...g }) => ({ ...g, folded: !active && (!declared || g.folded) }))
 }
 
 /** `/api/provider/health` → the top bar's pill: the one status word Mission shows ("Connected", as every layout says it). */

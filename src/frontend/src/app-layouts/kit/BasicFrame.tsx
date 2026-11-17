@@ -12,6 +12,7 @@ import type { LayoutProps } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { Brand } from './Brand'
 import { NavList, NavSection } from './NavList'
+import { PluginSettingsRow } from './PluginNav'
 import { PhoneSheet } from './PhoneSheet'
 import { preloadPhoneSheet } from './phoneSheetLoader'
 import type { KitSize } from './rows'
@@ -58,12 +59,13 @@ function SidebarBody({
       )}
       <NavList items={nav.primary} go={nav.go} onNavigate={onNavigate} size={size} aria-label="Primary" />
       {nav.groups.map((g) => (
-        <NavSection key={g.name} title={g.name} folded={nav.primary.length > 0 ? true : g.folded} size={size}>
+        <NavSection key={g.name} title={g.name} folded={nav.primary.length > 0 && !g.declared ? true : g.folded} size={size}>
           <NavList items={g.items} go={nav.go} onNavigate={onNavigate} size={size} />
         </NavSection>
       ))}
       <SessionList size={size} limit={20} onOpen={openChat} className="min-h-0 flex-1" />
       <NavList items={nav.footer} go={nav.go} onNavigate={onNavigate} size={size} />
+      <PluginSettingsRow chrome={chrome} size={size} onNavigate={onNavigate} />
       <div className="mt-auto flex items-center gap-1 border-t border-sidebar-border pt-2">
         <Button
           variant="ghost"

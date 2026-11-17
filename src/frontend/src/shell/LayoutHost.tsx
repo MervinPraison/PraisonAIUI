@@ -55,6 +55,7 @@ import {
   type LayoutProps,
   type LayoutViewport,
 } from '@/sdk/layouts'
+import { useNavGroupDeclarations, useSettingsSections } from '@/sdk/contributions'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import '@/styles/pro.css'
@@ -65,6 +66,7 @@ import { buildLayoutNav, MAIN_ID } from './layoutNav'
 import type { ActiveLayout } from './layoutSelect'
 import { siteLogo, siteTitle, type NavGroupsConfig } from './nav'
 import { openCommandPalette } from './palette'
+import { openSettingsDialog } from './settingsForm'
 import { PageView } from './PageView'
 import { PageSkeleton } from './primitives'
 import { navigate } from './router'
@@ -255,20 +257,24 @@ function LayoutFrame({ active, manifest, groups, routeId, page, fullBleed, Frame
   )
   const available = useMemo(() => manifest.layouts?.available ?? [], [manifest.layouts])
 
+  const declarations = useNavGroupDeclarations()
+  const declared = useMemo(() => declarations.map((d) => d.name), [declarations])
   const nav = useMemo(
-    () => buildLayoutNav({ pages: manifest.pages, groups, spec, activeId: routeId, go: (id) => navigate(id) }),
-    [manifest.pages, groups, spec, routeId],
+    () => buildLayoutNav({ pages: manifest.pages, groups, spec, activeId: routeId, go: (id) => navigate(id), declared }),
+    [manifest.pages, groups, spec, routeId, declared],
   )
+  const hasSettings = useSettingsSections().length > 0
   const chrome = useMemo<LayoutChrome>(
     () => ({
       siteTitle: siteTitle(manifest),
       siteLogo: siteLogo(manifest),
       openPalette: (opts) => openCommandPalette(opts),
+      ...(hasSettings ? { openSettings: () => openSettingsDialog() } : {}),
       toggleColorMode: () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'),
       Slot: FrameSlot,
       mainId: MAIN_ID,
     }),
-    [manifest, resolvedTheme, setTheme],
+    [manifest, resolvedTheme, setTheme, hasSettings],
   )
   const layout = useMemo(
     () => ({ id: active.selected, available, switchTo: (id: string) => setLayout(id) }),

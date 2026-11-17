@@ -1,7 +1,8 @@
 /**
  * The Chat and Canvas sidebar (Canvas.dc.html): brand and collapse, New chat
- * (⌘N), the primary pages (the artifacts count on Artifacts), the chats
- * with their artifact counts, and at the foot Settings (the config page),
+ * (⌘N), the primary pages (the artifacts count on Artifacts), the groups
+ * plugins declared, the chats with their artifact counts, and at the foot
+ * Settings (the config page), Plugin settings (when a plugin has some),
  * More (⌘K, the command palette with every other page, the footer pages
  * such as Inspector among them), the theme switch (phone) and
  * the connection line ("Connected · local"). The same body fills the phone menu sheet
@@ -9,7 +10,7 @@
  */
 import { CircleEllipsis, PanelLeftClose, SquarePen, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BrandTile, ConnectionStatus, isPlainLeftClick, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
+import { BrandTile, ConnectionStatus, DeclaredNavGroups, isPlainLeftClick, PluginSettingsRow, ShortcutHint, useSessions, type KitSize } from '@/app-layouts/kit'
 import type { LayoutChrome, LayoutNav, LayoutNavItem } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 import { ChatList } from './ChatList'
@@ -141,9 +142,11 @@ export function SidebarBody({ nav, chrome, size, chatPage, artifacts, onCollapse
         </Button>
       )}
       <NavRows items={rows.primary} go={nav.go} size={size} onNavigate={onNavigate} badge={badge} label="Primary" />
+      <DeclaredNavGroups nav={nav} size={size} onNavigate={() => onNavigate?.()} />
       <ChatList size={size} onOpen={openChat} counts={artifacts?.bySession} className="min-h-0 flex-1" />
       <div className="mt-auto flex flex-col gap-px pt-1">
         {rows.settings && <NavRows items={[rows.settings]} go={nav.go} size={size} onNavigate={onNavigate} />}
+        <PluginSettingsRow chrome={chrome} size={size} onNavigate={onNavigate} className="px-2.5" />
         <button
           type="button"
           className={cn(

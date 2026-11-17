@@ -185,3 +185,27 @@ test("the plugin's theme preset is offered in the palette and re-seeds the token
   await expect(page.locator('html')).not.toHaveAttribute('data-aiui-preset', /.+/)
   expect(await accent()).toBe(before)
 })
+
+// ── the plugin's nav group and settings in every layout (R2) ──────────
+// The classic frame draws them in its sidebar and header; each built-in
+// layout must list the plugin's declared group and open its settings too,
+// not only through the palette. `?layout=` previews a layout for the tab.
+for (const layout of ['chat', 'chat-canvas', 'workbench', 'command', 'mission', 'guided']) {
+  test(`layout ${layout}: the plugin's nav group pages and its settings are in the frame`, async ({ page }) => {
+    const errors = collectPageErrors(page)
+    await page.goto(`/overview?layout=${layout}`)
+    await expect(page.locator('[data-aiui-layout-frame]').first()).toBeVisible()
+    const frame = page.locator('[data-aiui-layout-frame]').first()
+    for (const id of ['hello', 'hello-blocks']) {
+      await expect(frame.locator(`a[data-aiui-nav-item="${id}"]:visible`).first()).toBeVisible()
+    }
+    await frame.locator('a[data-aiui-nav-item="hello"]:visible').first().click()
+    await expect(page).toHaveURL(/\/hello$/)
+    await expect(page.getByTestId('hello-count')).toBeVisible()
+
+    await frame.getByRole('button', { name: 'Plugin settings' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'Plugin settings' })
+    await expect(dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Hello plugin' })).toBeVisible()
+    expect(errors.pageErrors).toEqual([])
+  })
+}

@@ -1,5 +1,6 @@
 /** Shared row styles and link handling for the kit (Pro spec: 32 px rows, 44 px on touch). */
 import type { MouseEvent } from 'react'
+import type { LayoutNav } from '@/sdk/layouts'
 import { cn } from '@/lib/utils'
 
 export type KitSize = 'default' | 'touch'
@@ -17,3 +18,8 @@ export const navRowClass = (size: KitSize, active = false) =>
     size === 'touch' ? 'h-11 text-[15px]' : 'h-8 text-sm',
     active && 'bg-sidebar-accent font-medium text-foreground',
   )
+
+/** The groups of `nav` a plugin declared (registerNavGroup, nav_groups()) that list a page. */
+export function declaredGroups(nav: Pick<LayoutNav, 'groups'>): LayoutNav['groups'] {
+  return nav.groups.filter((g) => g.declared && g.items.length > 0)
+}
