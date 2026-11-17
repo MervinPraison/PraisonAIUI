@@ -80,6 +80,14 @@ export interface LayoutMeta {
   chat?: ChatPresentation
   /** `frame`: the approvals toasts stop; the layout shows pending approvals itself. Default `toast`. */
   approvals?: 'toast' | 'frame'
+  /**
+   * A look of the Pro tokens this layout paints with by default (`paper`):
+   * the host sets `<html data-aiui-look>` to it while the frame is mounted,
+   * unless the viewer chose plain Pro ("Switch look: Pro"). CSS for a look
+   * is scoped to `[data-aiui-tokens="pro"][data-aiui-look="<name>"]`; the
+   * shell ships `paper` (styles/paper.css).
+   */
+  look?: string
 }
 
 // ── what a layout receives ───────────────────────────────────────────

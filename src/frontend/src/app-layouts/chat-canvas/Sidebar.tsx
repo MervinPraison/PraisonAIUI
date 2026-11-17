@@ -25,7 +25,7 @@ export function Brand({ chrome, size = 'default' }: { chrome: Pick<LayoutChrome,
   return (
     <span className="flex min-w-0 items-center gap-2.5 text-foreground">
       <BrandTile chrome={chrome} className="size-[26px] rounded-[7px] text-sm" />
-      <span className={cn('truncate font-semibold tracking-tight', size === 'touch' ? 'text-lg' : 'text-[17px]')}>{chrome.siteTitle}</span>
+      <span className={cn('truncate font-display font-semibold tracking-tight', size === 'touch' ? 'text-xl' : 'text-lg')}>{chrome.siteTitle}</span>
     </span>
   )
 }

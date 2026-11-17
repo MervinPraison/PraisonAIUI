@@ -1,0 +1,166 @@
+/* The Paper look: the Chat + Canvas design's own palette and type
+ * (Canvas.dc.html, CanvasPhone.dc.html renderVals): warm paper neutrals, a
+ * navy accent, Newsreader for titles, Source Sans 3 for text and JetBrains
+ * Mono for code. See src/frontend/DESIGN.md "Looks".
+ *
+ * SCOPE. A look is a variant of the PraisonAI Pro tokens (styles/pro.css):
+ * every rule needs both <html data-aiui-tokens="pro"> and
+ * data-aiui-look="paper". The layout host (shell/LayoutHost.tsx) sets the
+ * look from the active layout's meta.look (Chat + Canvas declares "paper")
+ * unless the viewer chose the plain Pro look ("Switch look: Pro"), and
+ * removes it with the frame. Imported next to pro.css by shell/LayoutHost.tsx
+ * (the shell chunk, never index.css), so the look paints as soon as the host
+ * sets the attribute, before the frame's chunk arrives; with the attribute
+ * gone nothing here matches, so the other layouts, the classic frame and the
+ * dashboard are unchanged.
+ *
+ * HOW. Only the Pro palette (--pro-*), its default accent seeds and the
+ * font stacks change; pro.css maps them onto shadcn and the --ui-* tiers, so
+ * every component keeps drawing through tokens. Same layer as pro.css
+ * (base), one attribute more specific: the server's unlayered seeds
+ * (set_brand_color, theme.accent), plugin theme presets (Pro Indigo, …) and
+ * set_custom_css still win.
+ *
+ * FONTS. Self-hosted from @fontsource-variable (SIL OFL 1.1; notices in
+ * templates/frontend/LICENSE-fonts.txt), latin woff2, one per family. A face
+ * downloads only when text is drawn in it, so only while this look is on. */
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 900;
+  src: url('@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@layer base {
+  /* ── light palette + default accent seeds (navy) ─────────────────────── */
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"] {
+    --pro-background: #f6f3ec; /* paper */
+    --pro-foreground: #1f1c17; /* ink */
+    --pro-sidebar: #eee9df; /* nav */
+    --pro-sidebar-fg: #47423a; /* text2 */
+    --pro-sidebar-accent: #e4ded1; /* rowActive */
+    --pro-card: #fffdf8; /* surface */
+    --pro-muted: #f0ebe1; /* fill */
+    --pro-muted-fg: #47423a; /* text2 */
+    --pro-subtle: #6b655a; /* text3 */
+    --pro-border: #e4ded2; /* hairline */
+    --pro-input: #d6cebf; /* stroke */
+    --pro-code-bg: #f4f0e7;
+    --pro-success: #3b6a35;
+    --pro-success-fg: #ffffff;
+    --pro-success-soft: #e4ecdf;
+    --pro-warning: #8a5a12;
+    --pro-warning-fg: #ffffff;
+    --pro-warning-soft: #f5ebd6;
+    --pro-warning-line: #e7d3ad;
+    --pro-danger: #a3362b;
+    --pro-danger-fg: #ffffff;
+    --pro-danger-soft: #f7e6e2;
+    --pro-danger-line: #e9c3bb;
+    --pro-info: #2d4f86;
+    --pro-info-soft: #e6ebf3;
+    --pro-shadow-sm: 0 1px 2px rgba(60, 45, 20, 0.05), 0 6px 20px rgba(60, 45, 20, 0.05);
+    --pro-shadow-float: 0 1px 2px rgba(60, 45, 20, 0.06), 0 8px 24px -6px rgba(60, 45, 20, 0.16);
+    --pro-shadow-overlay: 0 2px 4px rgba(60, 45, 20, 0.06), 0 24px 48px -12px rgba(60, 45, 20, 0.26);
+    --pro-scrim: rgba(31, 28, 23, 0.36);
+    --paper-bubble: #ebe6db; /* userBubble */
+    --paper-panel-head: #f8f5ee; /* panelHead */
+    --paper-accent-line: #c3cfe2;
+
+    --seed-pro-accent-light: #2d4f86;
+    --seed-pro-accent-fg-light: #ffffff;
+    --seed-pro-soft-light: #e6ebf3;
+    --seed-pro-link-light: #2d4f86;
+    --seed-pro-ring-light: #2d4f86;
+    --seed-pro-accent-dark: #a9c1ea;
+    --seed-pro-accent-fg-dark: #13161c;
+    --seed-pro-soft-dark: #262f3e;
+    --seed-pro-link-dark: #b4caee;
+    --seed-pro-ring-dark: #a9c1ea;
+  }
+
+  /* ── dark palette ─────────────────────────────────────────────────────── */
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"].dark,
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"] .dark {
+    --pro-background: #1a1814;
+    --pro-foreground: #efe9dd;
+    --pro-sidebar: #141210;
+    --pro-sidebar-fg: #cfc7b8;
+    --pro-sidebar-accent: #2c2924;
+    --pro-card: #221f1a;
+    --pro-muted: #2c2821;
+    --pro-muted-fg: #cfc7b8;
+    --pro-subtle: #a39b8b;
+    --pro-border: #302b24;
+    --pro-input: #3e382f;
+    --pro-code-bg: #1c1a16;
+    --pro-success: #8fc58b;
+    --pro-success-fg: #13161c;
+    --pro-success-soft: #22301f;
+    --pro-warning: #e4b465;
+    --pro-warning-fg: #1a1814;
+    --pro-warning-soft: #352a17;
+    --pro-warning-line: #5a4422;
+    --pro-danger: #ef9282;
+    --pro-danger-fg: #1a1814;
+    --pro-danger-soft: #3a201c;
+    --pro-danger-line: #5e2f29;
+    --pro-info: #a9c1ea;
+    --pro-info-soft: #262f3e;
+    --pro-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.25);
+    --pro-shadow-float: 0 1px 2px rgba(0, 0, 0, 0.45), 0 12px 32px -8px rgba(0, 0, 0, 0.55);
+    --pro-shadow-overlay: 0 2px 4px rgba(0, 0, 0, 0.5), 0 32px 64px -16px rgba(0, 0, 0, 0.7);
+    --pro-scrim: rgba(0, 0, 0, 0.6);
+    --paper-bubble: #2b2720;
+    --paper-panel-head: #1e1b17;
+    --paper-accent-line: #3d4c66;
+  }
+
+  /* ── what the look maps beyond the Pro palette ────────────────────────── */
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"],
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"] [data-aiui-scope],
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"] .dark {
+    --ui-bubble-user: var(--paper-bubble);
+    --ui-panel-head: var(--paper-panel-head);
+    --ui-accent-line: var(--paper-accent-line);
+    --aiui-font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --aiui-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --aiui-font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  }
+
+  /* Body copy: 15px on a 1.5 line height (the design). */
+  html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"] .aiui-app {
+    line-height: 1.5;
+  }
+}
+
+/* The brand tile is ink on paper, not the accent (Canvas.dc.html).
+   Unlayered: the tile's own fill is a utility class (bg-primary). */
+html[data-aiui-tokens="pro"][data-aiui-look="paper"] [data-brand-tile] {
+  background: var(--foreground);
+  color: var(--background);
+}

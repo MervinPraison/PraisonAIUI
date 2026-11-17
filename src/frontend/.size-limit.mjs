@@ -151,6 +151,17 @@ if (PRO_FONTS.length !== 2) {
   throw new Error(`.size-limit.mjs: expected the two Geist woff2 files in the build, found ${PRO_FONTS.length}`)
 }
 
+// The Paper look's type (app-layouts/chat-canvas/paper.css): Newsreader,
+// Source Sans 3 and JetBrains Mono from @fontsource-variable (OFL-1.1),
+// latin woff2 only, fetched only while Chat + Canvas paints with its own
+// look. Served bytes (woff2 is compressed): PAPER_MEASURED + 10%.
+const PAPER_FONTS = Object.keys(manifest)
+  .filter((key) => /@fontsource-variable\/(newsreader|source-sans-3|jetbrains-mono)\/files\/[\w-]+\.woff2$/.test(key))
+  .map((key) => manifest[key].file)
+if (PAPER_FONTS.length !== 3) {
+  throw new Error(`.size-limit.mjs: expected the three Paper woff2 files in the build, found ${PAPER_FONTS.length}`)
+}
+
 // Everything under dist/assets ships in the Python wheel.
 const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
@@ -191,6 +202,7 @@ export default [
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
+  { name: 'Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono, latin woff2, as served)', path: abs(PAPER_FONTS), limit: '140 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
   { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
 ]

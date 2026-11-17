@@ -162,6 +162,11 @@ test('unknown presentation values (from a newer SDK) are dropped with a warning,
   assert.ok(Object.isFrozen(got.chat))
 })
 
+test('meta.look passes through to the host', () => {
+  registerLayout('paper', { title: 'P', look: 'paper' }, Frame)
+  assert.equal(getLayouts()[0].meta.look, 'paper')
+})
+
 // ── active layout ────────────────────────────────────────────────────
 
 function Probe() {

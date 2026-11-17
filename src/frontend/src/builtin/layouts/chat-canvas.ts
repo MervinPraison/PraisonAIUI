@@ -53,6 +53,8 @@ export const chatCanvasLayout: LayoutDescriptor = {
   meta: {
     title: 'Chat and Canvas',
     description: 'Chat beside a canvas of the artifacts the agent makes.',
+    // The design's warm paper palette and serif titles (app-layouts/chat-canvas/paper.css).
+    look: 'paper',
     chat: chatCanvasPresentation(artifactModules()),
   },
   load: () => import('@/app-layouts/chat-canvas/Frame'),
