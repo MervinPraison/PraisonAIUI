@@ -20,8 +20,8 @@ aiui run app.py
 `aiui run app.py` opens the app shell (`style: app`) unless the app, its YAML
 or `--style` picks another style, so a plain `@aiui.reply` app needs no flag.
 `AIUI_SHELL=app` only switches the `dashboard` style to the app shell; it
-leaves an explicit `chat` or other React style alone (the server logs
-`AIUI_SHELL=app ignored: style is 'chat'`).
+leaves an explicit `chat` or other React style alone (`aiui run` prints
+`AIUI_SHELL=app is ignored for the 'chat' style`).
 
 Then open `/hello` (a React page) and `/hello-blocks` (a server-driven page).
 
