@@ -112,7 +112,7 @@ class TestSpaNavigation:
         # lazy plugin; the colours come from the live theme tokens.
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
         assert "MermaidDiagram" not in content
-        assert '<Markdown variant="docs">' in content
+        assert '<Markdown variant="docs"' in content
         assert "aiui-docs-main docs-main" in content
         assert "aiui-docs-column docs-main-inner" in content
         assert not Path("src/frontend/src/markdown/mermaidThemes.ts").exists()

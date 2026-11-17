@@ -78,7 +78,6 @@ export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
 }
 
-// Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
 const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
 const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
 
@@ -120,6 +119,7 @@ function convertCodeGroup(lines: string[], start: number): [string[], number] {
     return [['', '<aiui-tabs>', '', ...tabs, '</aiui-tabs>', ''], Math.min(i + 1, lines.length)]
 }
 
+// Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
 const ADMONITION_RE = /^(!!!|\?\?\?\+?)\s+([\w-]+)(?:\s+"(.*)")?\s*$/
 const TAB_RE = /^===\+?\s+"(.+)"\s*$/
 /** Markdown backslash escapes in a title (`\"` → `"`), as Python-Markdown's inline pass does. */

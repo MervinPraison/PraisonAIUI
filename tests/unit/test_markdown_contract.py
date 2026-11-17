@@ -65,7 +65,7 @@ class TestDocsContent:
     def test_content_renders_docs_variant(self):
         source = _read(SRC / "Content.tsx")
         assert "from './markdown/LazyMarkdown'" in source
-        assert '<Markdown variant="docs">' in source
+        assert '<Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS}>' in source
         assert 'className="aiui-doc prose max-w-none min-w-0"' in source
         assert "prose-neutral" not in source  # prose is a marker only, no typography modifiers
 
