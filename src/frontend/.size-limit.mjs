@@ -53,10 +53,16 @@ const LAYOUT_BUDGETS = {
   // Design fixes round 2 (the connection dot in the top bar, one-line chat
   // rows with compact times, Share on the chat only, the brand tile):
   // 9.74 kB + 10%.
-  'layout-chat-canvas': '10.8 kB',
+  // Design parity part 3 (#418: two-line chat rows with artifact counts,
+  // More ⌘K, the connection line, the Canvas toggle slot) measured 10.99 kB;
+  // the owner approved 11.5 kB for the remaining parity work (the Paper look
+  // and the conversation land at 11.45 kB).
+  'layout-chat-canvas': '11.5 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
-  'layout-workbench': '10.4 kB',
+  // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
+  // Chat + Canvas too, splits into a shared kit chunk in this closure.
+  'layout-workbench': '10.5 kB',
   // The Command Deck frame (track K): rail, session tabs, status bar, phone
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
