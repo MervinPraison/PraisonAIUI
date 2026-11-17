@@ -399,6 +399,11 @@ class SkillsFeature(BaseFeatureProtocol):
     def description(self) -> str:
         return self.feature_description
 
+    def on_config_reload(self) -> None:
+        """Re-read skills from the config store on next access."""
+        global _skills_loaded
+        _skills_loaded = False
+
     def routes(self) -> List[Route]:
         return [
             Route("/api/skills", self._list, methods=["GET"]),

@@ -6,7 +6,8 @@ others) in one YAML file, `config.yaml` in the data directory
 (`AIUI_DATA_DIR`, default `~/.praisonaiui/`). The config watcher polls that
 file and, when it changes, reloads it.
 
-The watcher is created with the server but does not start on its own.
+The watcher belongs to `builtin.config`: it is created with the server while
+that built-in is on, and does not start on its own.
 
 ## Quick Start
 
@@ -24,8 +25,18 @@ curl http://localhost:8000/api/config/watcher
 
 1. The watcher reads the file every 3 seconds and compares its MD5 hash with
    the previous one.
-2. On a change it reloads the config store, makes the agent registry and the
-   skills re-read it, and reloads the channels.
+2. On a change it reloads the config store, then calls `on_config_reload()`
+   on every registered feature. The agents, skills and channels features use
+   it to re-read their part of the file; a disabled built-in is not registered,
+   so a reload never imports it.
+
+A feature of your own that caches config-store data overrides the hook:
+
+```python
+class MyFeature(BaseFeatureProtocol):
+    def on_config_reload(self) -> None:
+        self._cache = None  # re-read on next access
+```
 
 A YAML site config (`aiui.yaml`) or `app.py` is not watched; for those
 see [Hot Reload](hot-reload.md).

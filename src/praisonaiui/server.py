@@ -4226,58 +4226,8 @@ def create_app(
         from praisonaiui.config_store import init_config_store
 
         _default_data_dir = _get_data_dir()
-        _config_store = init_config_store(_default_data_dir / "config.yaml")
-
-        # Connect hot-reload watcher to the config store YAML file
-        try:
-            from praisonaiui.features.config_hot_reload import (
-                ConfigWatcher,
-                set_config_watcher,
-            )
-
-            def _on_config_reload():
-                """Reload config store and reset feature lazy-load flags."""
-                _config_store.reload()
-                # Reset agent registry so it re-reads from store
-                try:
-                    from praisonaiui.features.agents import get_agent_registry
-
-                    reg = get_agent_registry()
-                    if hasattr(reg, "_config_loaded"):
-                        reg._config_loaded = False
-                except Exception:
-                    pass
-                # Reset skills lazy-load
-                try:
-                    from praisonaiui.features import skills as _skills_mod
-
-                    _skills_mod._skills_loaded = False
-                except Exception:
-                    pass
-                # Reload channels from config and reset auto-start flag
-                try:
-                    from praisonaiui.features._persistence import load_section
-                    from praisonaiui.features.channels import (
-                        _CHANNELS_SECTION,
-                        ChannelsFeature,
-                        _channels,
-                    )
-
-                    updated = load_section(_CHANNELS_SECTION)
-                    _channels.clear()
-                    _channels.update(updated)
-                    ChannelsFeature._auto_started = False
-                except Exception:
-                    pass
-
-            watcher = ConfigWatcher(
-                config_path=_config_store.path,
-                poll_interval=3.0,
-            )
-            watcher.on_reload(_on_config_reload)
-            set_config_watcher(watcher)
-        except Exception:
-            pass
+        # Hot reload of this file is builtin.config's ConfigHotReloadFeature.
+        init_config_store(_default_data_dir / "config.yaml")
     except Exception as e:
         import logging as _log
 

@@ -162,11 +162,46 @@ async def _force_reload(request: Request) -> JSONResponse:
 # ── Feature ──────────────────────────────────────────────────────
 
 
+def reload_config_and_features() -> None:
+    """Reload the YAML config store, then each registered feature's cache.
+
+    Only features in :func:`praisonaiui.features.get_features` are told, so a
+    disabled built-in's module is never imported by a reload (R2, R4).
+    """
+    from praisonaiui.config_store import get_config_store
+    from praisonaiui.features import get_features
+
+    get_config_store().reload()
+    for feat in get_features().values():
+        try:
+            feat.on_config_reload()
+        except Exception as exc:  # noqa: BLE001 - one feature never blocks the rest
+            logger.warning("Config reload of feature %s failed: %s", feat.name, exc)
+
+
+def _watch_config_store() -> None:
+    """Point the watcher at the config store's file (called per create_app)."""
+    try:
+        from praisonaiui.config_store import get_config_store
+
+        watcher = ConfigWatcher(config_path=get_config_store().path, poll_interval=3.0)
+    except Exception as exc:  # noqa: BLE001 - the server starts without hot reload
+        logger.warning("Config hot reload unavailable: %s", exc)
+        return
+    watcher.on_reload(reload_config_and_features)
+    set_config_watcher(watcher)
+
+
 class ConfigHotReloadFeature(BaseFeatureProtocol):
     """Config hot-reload feature — watches config files for changes."""
 
     feature_name = "config_hot_reload"
     feature_description = "File-watcher for live config changes"
+
+    def __init__(self) -> None:
+        # Built by builtin.config's record on each create_app(), after the
+        # config store is initialised; the host itself never imports this module.
+        _watch_config_store()
 
     @property
     def name(self) -> str:

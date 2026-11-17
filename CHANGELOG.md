@@ -244,6 +244,13 @@
 - Plugins: the warning for a dropped plugin entry is printed in the
   `aiui run` terminal on a plain install (it only reached the Logs page) and
   once per start, not again on every manifest request.
+- Startup: `create_app()` no longer imports SQLAlchemy (the optional `sql`
+  extra) unless `SQLAlchemyDataStore` is used, which saved about 90-350 ms per
+  start where the extra is installed. A disabled `builtin.config` no longer
+  loads the config watcher, and a config reload resets only registered
+  features through a new optional `BaseFeatureProtocol.on_config_reload()`
+  hook, so it never imports a disabled built-in. `builtin.video` loads the jobs
+  store only when it renders, not at startup.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

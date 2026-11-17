@@ -13,7 +13,6 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Route
 
-from praisonaiui.features.jobs import JobStatus, get_job_store
 from praisonaiui.video_client import (
     VideoEngineError,
     compile_scene,
@@ -43,6 +42,18 @@ from ._base import BaseFeatureProtocol
 logger = logging.getLogger(__name__)
 
 _video_jobs: Dict[str, Dict[str, Any]] = {}
+
+# Job states, as features.jobs.JobStatus values (checked by a test). Render
+# jobs are also saved to the jobs store, which is imported only once a render
+# or a job lookup needs it, so builtin.video on and builtin.jobs off does not
+# load the jobs feature at startup.
+_QUEUED, _RUNNING, _SUCCEEDED, _FAILED = "queued", "running", "succeeded", "failed"
+
+
+def _job_store():
+    from praisonaiui.features.jobs import get_job_store
+
+    return get_job_store()
 
 
 class VideoFeature(BaseFeatureProtocol):
@@ -192,7 +203,7 @@ class VideoFeature(BaseFeatureProtocol):
         job = {
             "id": job_id,
             "type": "video_render",
-            "status": JobStatus.QUEUED.value,
+            "status": _QUEUED,
             "projectId": project_id,
             "projectPath": str(project_dir),
             "out": str(out_path),
@@ -205,7 +216,7 @@ class VideoFeature(BaseFeatureProtocol):
             "error": None,
         }
         _video_jobs[job_id] = job
-        store = get_job_store()
+        store = _job_store()
         store.save({**job, "prompt": f"Render {project_id}"})
 
         explicit_backend = body.get("backend")
@@ -231,8 +242,8 @@ class VideoFeature(BaseFeatureProtocol):
         job = _video_jobs.get(job_id)
         if not job:
             return
-        store = get_job_store()
-        job["status"] = JobStatus.RUNNING.value
+        store = _job_store()
+        job["status"] = _RUNNING
         job["started_at"] = time.time()
         store.save({**job, "prompt": job.get("prompt", f"Render {job.get('projectId')}")})
 
@@ -249,20 +260,20 @@ class VideoFeature(BaseFeatureProtocol):
             if status == "succeeded" or result.get("artifactPath"):
                 artifact = result.get("artifactPath", out)
                 download_url = f"/api/video/projects/{job['projectId']}/artifacts/{Path(artifact).name}"
-                job["status"] = JobStatus.SUCCEEDED.value
+                job["status"] = _SUCCEEDED
                 job["result"] = {"artifactPath": artifact, "downloadUrl": download_url}
             elif result.get("jobId"):
                 job["engineJobId"] = result["jobId"]
-                job["status"] = JobStatus.RUNNING.value
+                job["status"] = _RUNNING
             else:
-                job["status"] = JobStatus.SUCCEEDED.value
+                job["status"] = _SUCCEEDED
                 job["result"] = result
         except VideoEngineError as exc:
-            job["status"] = JobStatus.FAILED.value
+            job["status"] = _FAILED
             job["error"] = str(exc)
         except Exception as exc:
             logger.exception("Video render failed for %s", job_id)
-            job["status"] = JobStatus.FAILED.value
+            job["status"] = _FAILED
             job["error"] = str(exc)
         finally:
             job["completed_at"] = time.time()
@@ -284,13 +295,13 @@ class VideoFeature(BaseFeatureProtocol):
         job_id = request.path_params["job_id"]
         job = _video_jobs.get(job_id)
         if not job:
-            store_job = get_job_store().get(job_id)
+            store_job = _job_store().get(job_id)
             if store_job and store_job.get("type") == "video_render":
                 job = store_job
         if not job:
             return JSONResponse({"error": "Job not found"}, status_code=404)
         engine_id = job.get("engineJobId")
-        if engine_id and job.get("status") == JobStatus.RUNNING.value:
+        if engine_id and job.get("status") == _RUNNING:
             try:
                 from praisonaiui.video_client import _request
 
