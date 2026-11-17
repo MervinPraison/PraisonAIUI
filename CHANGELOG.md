@@ -75,6 +75,11 @@
   words and opens the page at the section. Links with a `#section` now open
   the page scrolled there. See
   [Writing docs pages → Search](docs/features/writing-docs.md#search).
+- **Docs components**: `<Note>`, `<Info>`, `<Tip>`, `<Check>`, `<Warning>`,
+  `<Danger>`, `<Steps>`/`<Step>`, `<CardGroup>`/`<Card>` (icon, link),
+  `<Tabs>`/`<Tab>`, `<Accordion>`/`<AccordionGroup>` and `<Frame>` (caption),
+  written as in Mintlify. Images in docs zoom on click. See
+  [Writing docs pages](docs/features/writing-docs.md).
 - **Docs code blocks: file names, highlighted lines, code groups.**
   ```` ```python title="app.py" {1,3-4} ```` (or `app.py {2}`, `hl_lines`,
   `highlight`) puts the file name in the block's header and tints the lines;

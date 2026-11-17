@@ -78,6 +78,54 @@ export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
 }
 
+/**
+ * Mintlify-style component tags, each on its own line, map onto blocks the
+ * docs renderer already allows: callouts and accordions onto
+ * <aiui-admonition>, tabs onto <aiui-tabs>, and steps, cards and frames onto
+ * a <div itemtype="aiui:…"> that docs/DocsBlocks.tsx draws (the sanitizer
+ * keeps `itemtype`, `title`, `label` and `value` on a div). Attributes:
+ * title="…", icon="…", href="…", caption="…", cols={2}, defaultOpen.
+ */
+const CALLOUTS: Record<string, string> = { note: 'note', info: 'info', tip: 'tip', check: 'check', warning: 'warning', danger: 'danger' }
+const TAG_LINE = /^\s*<(\/)?(Note|Info|Tip|Check|Warning|Danger|Accordion|AccordionGroup|Tabs|Tab|Steps|Step|CardGroup|Card|Frame)\b([^>]*?)(\/)?>\s*$/
+const TAG_ATTR = /(\w+)(?:=(?:"([^"]*)"|'([^']*)'|\{([^}]*)\}))?/g
+
+function tagAttrs(raw: string): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const m of raw.matchAll(TAG_ATTR)) out[m[1]] = m[2] ?? m[3] ?? m[4] ?? 'true'
+    return out
+}
+
+/** The opening and closing HTML for one component tag. */
+function componentTag(name: string, a: Record<string, string>): [string, string] {
+    const t = (v?: string) => (v ? ` title="${attr(v)}"` : '')
+    const callout = CALLOUTS[name.toLowerCase()]
+    if (callout) return [`<aiui-admonition type="${callout}"${t(a.title)}>`, '</aiui-admonition>']
+    switch (name) {
+        case 'Accordion':
+            return [`<aiui-admonition type="accordion"${t(a.title || 'Details')} collapsible="${a.defaultOpen ? 'open' : 'closed'}">`, '</aiui-admonition>']
+        case 'Tabs':
+            return ['<aiui-tabs>', '</aiui-tabs>']
+        case 'Tab':
+            return [`<aiui-tab${t(a.title || 'Tab')}>`, '</aiui-tab>']
+        case 'AccordionGroup':
+            return ['<div itemtype="aiui:accordions">', '</div>']
+        case 'Steps':
+            return ['<div itemtype="aiui:steps">', '</div>']
+        case 'Step':
+            return [`<div itemtype="aiui:step"${t(a.title)}>`, '</div>']
+        case 'CardGroup':
+            return [`<div itemtype="aiui:cards" value="${attr(a.cols ?? '2')}">`, '</div>']
+        case 'Card': {
+            const icon = a.icon ? ` label="${attr(a.icon)}"` : ''
+            const href = a.href ? ` value="${attr(a.href)}"` : ''
+            return [`<div itemtype="aiui:card"${t(a.title)}${icon}${href}>`, '</div>']
+        }
+        default: // Frame
+            return [`<div itemtype="aiui:frame"${t(a.caption)}>`, '</div>']
+    }
+}
+
 const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
 const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
 
@@ -174,6 +222,16 @@ export function convertMkdocsBlocks(md: string): string {
         }
         if (fence) {
             out.push(line)
+            i++
+            continue
+        }
+
+        const tag = line.match(TAG_LINE)
+        if (tag) {
+            const [, closing, name, raw, selfClosing] = tag
+            const [open, close] = componentTag(name, tagAttrs(raw))
+            if (closing) out.push('', close, '')
+            else out.push('', open, '', ...(selfClosing ? [close, ''] : []))
             i++
             continue
         }

@@ -15,6 +15,7 @@ import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { DocsPre } from './docs/DocsPre'
+import { DocsDiv } from './docs/DocsBlocks'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
@@ -31,8 +32,8 @@ interface ContentProps {
     onSearch?: () => void
 }
 
-/** Docs-only element overrides (code titles and highlights). Module scope: Markdown wants a stable object. */
-const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre }
+/** Docs-only element overrides (code titles and highlights; steps, cards, frames). Module scope: Markdown wants a stable object. */
+const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, div: DocsDiv }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'

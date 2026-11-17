@@ -383,3 +383,53 @@ for (const mode of ['light', 'dark'] as const) {
     expect(errors.pageErrors).toEqual([])
   })
 }
+
+test('components: callout, steps, cards, accordion, frame and image zoom', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await page.goto('/docs/markdown')
+  await expect(page.getByRole('heading', { name: 'Components', level: 2 })).toBeVisible()
+  const article = page.locator('#main-content article')
+
+  await expect(article.getByRole('note', { name: 'Component note' })).toHaveAttribute('data-type', 'note')
+
+  const steps = article.locator('ol.aiui-steps > li.aiui-step')
+  await expect(steps).toHaveCount(2)
+  await expect(steps.nth(1).locator('.aiui-step-title')).toHaveText('Run')
+  expect(await steps.nth(1).evaluate((el) => getComputedStyle(el, '::before').content)).toBe('counter(aiui-step)')
+
+  // A card with a page link is one link, resolved like a Markdown link; an external one opens a new tab.
+  const card = article.getByRole('link', { name: /First page/ })
+  await expect(card).toHaveAttribute('href', '/docs/guide/first')
+  await expect(article.getByRole('link', { name: /Elsewhere/ })).toHaveAttribute('target', '_blank')
+  expect(await article.locator('.aiui-cards').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2)
+
+  const accordion = article.locator('details.aiui-admonition[data-type="accordion"]')
+  await expect(accordion).not.toHaveAttribute('open', '')
+  await accordion.locator('summary').click()
+  await expect(accordion).toContainText('Hidden until opened.')
+
+  await expect(article.locator('figure.aiui-frame figcaption')).toHaveText('A sample image.')
+  const img = article.locator('figure.aiui-frame img')
+  await expect(img).toHaveAttribute('role', 'button')
+  await img.focus()
+  await page.keyboard.press('Enter')
+  const zoom = page.getByRole('dialog', { name: /A blue box with a diagonal line/ })
+  await expect(zoom).toBeVisible()
+  await expect(zoom.locator('img')).toHaveAttribute('src', /sample\.png$/)
+  await page.keyboard.press('Escape')
+  await expect(zoom).toBeHidden()
+  await expect(img).toBeFocused()
+
+  await card.click()
+  await expect(page).toHaveURL(/\/docs\/guide\/first$/)
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('phone: cards stack in one column and nothing scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/docs/markdown')
+  await expect(page.getByRole('heading', { name: 'Components', level: 2 })).toBeVisible()
+  expect(await page.locator('.aiui-cards').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(1)
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+})

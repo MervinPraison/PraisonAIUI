@@ -754,3 +754,32 @@ test('a <CodeGroup> inside a fence is code, not a group', () => {
     const md = '````markdown\n<CodeGroup>\n```js\nx()\n```\n</CodeGroup>\n````'
     assert.equal(convertMkdocsBlocks(md), md)
 })
+
+test('component tags become the blocks the docs renderer draws', () => {
+    const out = convertMkdocsBlocks([
+        '<Note title="A &quot;quote&quot;">', 'Body', '</Note>',
+        '<Check>', 'Done', '</Check>',
+        '<Steps>', '<Step title="One">', 'First', '</Step>', '</Steps>',
+        '<CardGroup cols={3}>', '<Card title="Go" icon="rocket" href="guide/x.md" />', '</CardGroup>',
+        '<Accordion title="More" defaultOpen>', 'Hidden', '</Accordion>',
+        '<Tabs>', '<Tab title="A">', 'a', '</Tab>', '</Tabs>',
+        '<Frame caption="Cap">', '![alt](x.png)', '</Frame>',
+    ].join('\n'))
+    assert.match(out, /<aiui-admonition type="note" title="A &amp;quot;quote&amp;quot;">\n\nBody\n\n<\/aiui-admonition>/)
+    assert.match(out, /<aiui-admonition type="check">/)
+    assert.match(out, /<div itemtype="aiui:steps">\n+<div itemtype="aiui:step" title="One">\n\nFirst\n+<\/div>/)
+    assert.match(out, /<div itemtype="aiui:cards" value="3">/)
+    // A self-closing card opens and closes at once.
+    assert.match(out, /<div itemtype="aiui:card" title="Go" label="rocket" value="guide\/x.md">\n\n<\/div>/)
+    assert.match(out, /<aiui-admonition type="accordion" title="More" collapsible="open">/)
+    assert.match(out, /<aiui-tabs>[\s\S]*<aiui-tab title="A">[\s\S]*<\/aiui-tab>[\s\S]*<\/aiui-tabs>/)
+    assert.match(out, /<div itemtype="aiui:frame" title="Cap">\n\n!\[alt\]\(x.png\)/)
+    assert.doesNotMatch(out, /<(Note|Steps|Card|Frame)\b/)
+})
+
+test('component tags inside code fences, or not alone on their line, stay as written', () => {
+    const fenced = '```markdown\n<Note>\nx\n</Note>\n```'
+    assert.equal(convertMkdocsBlocks(fenced), fenced)
+    const inline = 'Use <Note> for asides.'
+    assert.equal(convertMkdocsBlocks(inline), inline)
+})
