@@ -532,7 +532,6 @@ class Compiler:
             if build_manifest.is_file():
                 shutil.copy(build_manifest, output_dir / build_manifest.name)
 
-
     _ENTRY_ASSET_RE = re.compile(
         r"""(?P<attr>\b(?:src|href)=)(?P<q>["'])/assets/(?P<name>index\.(?:js|css))(?:\?[^"']*)?(?P=q)"""
     )
