@@ -18,7 +18,7 @@ affected and renders exactly as before.
 | Id | Title | What it is for | Opens on | Primary nav |
 |---|---|---|---|---|
 | `chat-canvas` (default) | [Chat and Canvas](layouts/chat-canvas.md) | Chat beside a canvas of the artifacts the agent makes | `chat` | chat, artifacts, agents, cron, knowledge, sessions, config |
-| `chat` | Chat | The Chat and Canvas frame without the canvas or artifact cards; what `aiui run` opens | `chat` | chat, agents, cron, knowledge, sessions, config |
+| `chat` | Chat | The Chat and Canvas frame without the canvas or artifact cards (same Paper look); what `aiui run` opens | `chat` | chat, agents, cron, knowledge, sessions, config |
 | `workbench` | [Quiet Workbench](layouts/workbench.md) | A quiet sidebar with your chats, and the page beside it | `chat` | chat, agents, knowledge, runs, config |
 | `command` | [Command Deck](layouts/command.md) | Keyboard first: a command bar, session tabs and a run inspector | `chat` | chat, runs, agents, jobs, config |
 | `guided` | [Guided Studio](layouts/guided.md) | Plain language and large buttons; every step explained | `start` | start, chat, agents, templates |

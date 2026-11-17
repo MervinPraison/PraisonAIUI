@@ -69,7 +69,7 @@
 
 /* Send with nothing to send: the muted fill, not the accent at half opacity
    (a washed-out accent reads as broken). */
-[data-variant] form [aria-label='Send']:disabled {
+[data-variant] form [aria-label='Send']:is(:disabled, [aria-disabled='true']) {
   background: var(--muted);
   color: var(--muted-foreground);
   opacity: 1;

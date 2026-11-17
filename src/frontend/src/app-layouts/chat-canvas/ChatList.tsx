@@ -108,8 +108,8 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, coun
                     'flex w-full min-w-0 flex-col rounded-lg px-2.5 py-1.5 text-left outline-none transition-colors',
                     'hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
                     touch && 'min-h-11',
-                    // The open chat: the accent fill and a 2px primary edge, visible on the grey sidebar in light mode too.
-                    active ? 'bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_var(--primary)]' : 'text-sidebar-foreground',
+                    // The open chat is raised on the card colour (Canvas.dc.html), plain on the sidebar's fill.
+                    active ? 'bg-card text-foreground shadow-xs' : 'text-sidebar-foreground',
                   )}
                   onClick={() => {
                     feed.select(s.id)

@@ -18,7 +18,7 @@ test('the host loads the viewport stylesheet: a 20px top fade and room above the
 
 test('composer.css: muted disabled Send, the key hint only while focused and empty, off after the sends', () => {
   const css = read('composer.css')
-  assert.match(css, /\[aria-label='Send'\]:disabled \{\s*background: var\(--muted\);\s*color: var\(--muted-foreground\);/)
+  assert.match(css, /\[aria-label='Send'\]:is\(:disabled, \[aria-disabled='true'\]\) \{\s*background: var\(--muted\);\s*color: var\(--muted-foreground\);/)
   assert.match(css, /textarea\[aria-label='Message'\]:focus:placeholder-shown\) \+ p \{\s*opacity: 1;/)
   // Focus changes only the opacity: no layout shift under the pointer when focus moves.
   assert.doesNotMatch(css, /:focus:placeholder-shown\) \+ p \{\s*display/)

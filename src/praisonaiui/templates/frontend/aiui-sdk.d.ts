@@ -375,6 +375,8 @@ declare module '@aiui/sdk' {
     turnFooter?: RegionLoader<TurnRegionProps>
     /** Shown in an empty thread. */
     empty?: RegionLoader
+    /** In the composer next to attach; the region portals its control into the composer row. */
+    composerTool?: RegionLoader
   }
   export interface LayoutMeta {
     title: string

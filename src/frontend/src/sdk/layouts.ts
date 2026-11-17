@@ -70,6 +70,12 @@ export interface ChatPresentation {
   turnFooter?: RegionLoader<TurnRegionProps>
   /** In an empty thread: templates. */
   empty?: RegionLoader
+  /**
+   * In the composer: a tool the layout adds next to attach (Chat + Canvas:
+   * "@", reference an artifact). The region portals its control into the
+   * composer's row (`[data-aiui-thread] form textarea[aria-label="Message"]`'s parent).
+   */
+  composerTool?: RegionLoader
 }
 
 export interface LayoutMeta {
@@ -253,7 +259,7 @@ const CHAT_ENUMS = {
   thread: ['bubbles', 'quiet', 'steps', 'dense'],
   approvals: ['inline', 'card', 'keyboard'],
 } as const
-const CHAT_REGIONS = ['aside', 'turnHeader', 'turnFooter', 'empty'] as const
+const CHAT_REGIONS = ['aside', 'turnHeader', 'turnFooter', 'empty', 'composerTool'] as const
 
 /**
  * Validate and freeze `meta`. A missing title or a region that is not a

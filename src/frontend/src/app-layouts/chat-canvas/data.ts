@@ -26,6 +26,35 @@ export function useSessionArtifacts(sessionId: string | null): readonly Artifact
   return useFeed(feed, NO_ARTIFACTS)
 }
 
+/** `config.model.name` of a config body, else undefined. */
+export function modelOf(body: unknown, key: 'config' | 'defaults'): string | undefined {
+  const name = (body as Record<string, { model?: { name?: unknown } } | undefined> | null)?.[key]?.model?.name
+  return typeof name === 'string' && name ? name : undefined
+}
+
+let modelName: Promise<string | undefined> | null = null
+
+/**
+ * The model that answers (the composer's model pill shows the same): the
+ * runtime config, else its defaults; fetched once per page view, only while
+ * `enabled` (the phone header on the chat page).
+ */
+export function useModelName(enabled: boolean): string | undefined {
+  const [name, setName] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    if (!enabled) return
+    let live = true
+    modelName ??= fetchJson<unknown>('/api/config/runtime')
+      .then((b) => modelOf(b, 'config') ?? fetchJson<unknown>('/api/config/defaults').then((d) => modelOf(d, 'defaults')))
+      .catch(() => undefined)
+    void modelName.then((n) => live && setName(n))
+    return () => {
+      live = false
+    }
+  }, [enabled])
+  return enabled ? name : undefined
+}
+
 /** The open chat, or null without the chat feed. */
 export function useChat(): ChatState | null {
   const chat = useLayoutData('chat')
