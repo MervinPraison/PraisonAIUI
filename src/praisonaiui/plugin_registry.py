@@ -406,6 +406,14 @@ class ExtensionPolicy:
         disabled = self._norm(self.disabled)
         return not any(n in disabled for n in self._norm(names))
 
+    def allows_manual(self, *names: str) -> bool:
+        """Plugins passed to :func:`register_plugin` are on unless named in ``disabled``.
+
+        The app author chose them, so the ``enabled`` allowlist (which picks
+        which *installed* entry points to trust) does not apply to them.
+        """
+        return self.allows_builtin(*names)
+
     def explicitly_enabled(self, *names: str) -> bool:
         """True when one of ``names`` is listed in ``enabled`` (not just allowed)."""
         if self.enabled is None:
@@ -585,7 +593,7 @@ class PluginRegistry:
                     )
                 elif name in seen:
                     rec.status, rec.error, rec.plugin = "error", "duplicate plugin name", None
-                elif not self.policy.allows(str(raw), name):
+                elif not self.policy.allows_manual(str(raw), name):
                     rec.status, rec.plugin = "disabled", None
                 else:
                     try:

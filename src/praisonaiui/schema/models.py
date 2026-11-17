@@ -629,7 +629,8 @@ class ExtensionsConfig(BaseModel):
 
     - ``enabled`` omitted: every installed plugin is imported (``pip install``
       means trust). A list makes it a strict allowlist of *third-party*
-      plugins only; it never switches a built-in off.
+      plugins only; it never switches a built-in or a plugin passed to
+      ``aiui.register_plugin()`` off.
     - ``disabled`` always wins, and a disabled plugin is never imported. It
       also takes built-in record names, ``builtin.<name>`` (for example
       ``builtin.training``), which removes that built-in's pages and its

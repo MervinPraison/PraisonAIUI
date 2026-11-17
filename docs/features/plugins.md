@@ -681,7 +681,9 @@ extensions:
 `extensions: [hello]` is shorthand for `enabled`. From Python:
 `aiui.set_extensions(enabled=["hello"])` (it beats YAML). A plugin object
 registered with `aiui.register_plugin(obj)` was chosen by the app author and is
-always trusted.
+always trusted: the `enabled` allowlist does not apply to it, so
+`extensions: {enabled: [hello]}` never switches your own plugin off. Only
+`extensions.disabled` (its name) does.
 
 `AIUI_DISABLE_PLUGIN_AUTOLOAD=1` skips the entry-point group entirely (the test
 suite sets it).
