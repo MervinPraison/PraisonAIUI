@@ -173,6 +173,13 @@
 - Plugins: a plugin's `features()` routes go when a later `create_app()` in the
   same process disables the plugin, and a built-in that is switched back on
   takes its feature name back from a plugin that borrowed it.
+- Logs: Clear on the Logs page now sticks. `GET /api/logs` read a second
+  buffer that `POST /api/logs/clear` never emptied, so the next poll brought
+  every entry back and `/api/logs/stats` disagreed with it. One buffer and one
+  handler remain, owned by `builtin.logs`: `GET /api/logs` is a `LogsFeature`
+  route, each record is stored once, and with the built-in disabled
+  `create_app` no longer imports `features/logs.py` or adds a root log handler.
+  `server.api_logs` still imports and delegates to the feature.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

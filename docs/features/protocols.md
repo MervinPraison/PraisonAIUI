@@ -370,6 +370,7 @@ Real-time log streaming via WebSocket with level filtering.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/api/logs` | GET | Recent entries (`?level=ERROR&limit=100`); the same buffer the routes below read and clear |
 | `/api/logs/stream` | WS | WebSocket for real-time log streaming |
 | `/api/logs/levels` | GET | Available log levels with colors |
 | `/api/logs/stats` | GET | Log buffer statistics |

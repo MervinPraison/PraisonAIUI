@@ -9,7 +9,6 @@ import os
 import re
 import sys
 import time
-from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,8 +85,6 @@ def _get_data_dir() -> Path:
     return data_dir
 
 
-# In-memory log buffer for /api/logs
-_log_buffer: deque = deque(maxlen=500)
 # Usage tracking (token counts per session/model)
 _usage_stats: dict[str, Any] = {
     "total_requests": 0,
@@ -138,7 +135,9 @@ def reset_state() -> None:
     _custom_page_ids.clear()
     _builtin_page_ids.clear()
     _active_tasks.clear()
-    _log_buffer.clear()
+    _logs = sys.modules.get("praisonaiui.features.logs")
+    if _logs is not None:  # never import a feature module just to reset it
+        _logs.get_log_buffer().clear()
     _usage_stats.update(
         {
             "total_requests": 0,
@@ -2423,14 +2422,10 @@ async def api_config_handler(request: Request) -> JSONResponse:
 
 
 async def api_logs(request: Request) -> JSONResponse:
-    """Return recent log entries."""
-    level = request.query_params.get("level", "").upper()
-    limit = int(request.query_params.get("limit", "100"))
-    logs = list(_log_buffer)
-    if level:
-        logs = [entry for entry in logs if entry.get("level", "") == level]
-    logs = logs[-limit:]
-    return JSONResponse({"logs": logs, "total": len(_log_buffer)})
+    """Return recent log entries (kept for imports: LogsFeature serves the route)."""
+    from praisonaiui.features.logs import list_logs
+
+    return await list_logs(request)
 
 
 async def api_usage(request: Request) -> JSONResponse:
@@ -2466,6 +2461,7 @@ async def api_debug(request: Request) -> JSONResponse:
             pkg_versions[pkg] = pkg_version(pkg)
         except Exception:
             pkg_versions[pkg] = "not installed"
+    _logs = sys.modules.get("praisonaiui.features.logs")
     return JSONResponse(
         {
             "python": sys.version,
@@ -2475,7 +2471,7 @@ async def api_debug(request: Request) -> JSONResponse:
             "agents_registered": list(_agents.keys()),
             "datastore_type": type(_datastore).__name__,
             "config_path": str(_config_path) if _config_path else None,
-            "log_buffer_size": len(_log_buffer),
+            "log_buffer_size": len(_logs.get_log_buffer()) if _logs is not None else 0,
         }
     )
 
@@ -3152,19 +3148,6 @@ def track_usage(session_id: str = "unknown", model: str = "unknown", tokens: int
         session_id=session_id or "unknown",
         agent_name="unknown",
     )
-
-
-class LogBufferHandler(logging.Handler):
-    """Logging handler that captures log entries into the in-memory buffer."""
-
-    def emit(self, record: logging.LogRecord) -> None:
-        entry = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": self.format(record),
-        }
-        _log_buffer.append(entry)
 
 
 async def get_starters(request: Request) -> JSONResponse:
@@ -3998,9 +3981,6 @@ def create_app(
     if config:
         _config_cache = config
 
-    # Install log buffer handler to capture logs for /api/logs
-    _install_log_handler()
-
     # ── Dynamic JSON config endpoints ──────────────────────────────
     # The React frontend ALWAYS fetches these 3 JSON files before rendering.
     # In docs mode the compiler generates static files. In dashboard/chat/agents
@@ -4620,26 +4600,3 @@ def create_app(
     )
 
     return app
-
-
-def _install_log_handler():
-    """Install the log buffer handler on the root logger.
-
-    Installs BOTH the server-local LogBufferHandler (for /api/logs legacy)
-    and the feature's WebSocketLogHandler (for the Logs page websocket).
-    """
-    handler = LogBufferHandler()
-    handler.setFormatter(logging.Formatter("%(name)s - %(message)s"))
-    handler.setLevel(logging.INFO)
-    root = logging.getLogger()
-    # Avoid duplicate handlers
-    if not any(isinstance(h, LogBufferHandler) for h in root.handlers):
-        root.addHandler(handler)
-
-    # Also install the feature WebSocket handler so the /logs page works
-    try:
-        from praisonaiui.features.logs import install_log_handler as _install_ws
-
-        _install_ws()
-    except ImportError:
-        pass

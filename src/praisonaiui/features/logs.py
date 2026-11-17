@@ -55,7 +55,8 @@ LOG_LEVELS = {
     "CRITICAL": {"color": "#dc2626", "priority": 50},
 }
 
-# In-memory log buffer (shared with server.py's _log_buffer)
+# The one in-memory log buffer: GET /api/logs, /stats, /clear and /stream all
+# read it, and WebSocketLogHandler is the only handler that writes it.
 _log_buffer: deque = deque(maxlen=500)
 _ws_clients: Set[WebSocket] = set()
 _broadcast_lock = asyncio.Lock()
@@ -120,11 +121,30 @@ def get_log_buffer() -> deque:
     return _log_buffer
 
 
+async def list_logs(request: Request) -> JSONResponse:
+    """GET /api/logs — recent entries, optionally one ``level``, newest last."""
+    level = request.query_params.get("level", "").upper()
+    try:
+        limit = int(request.query_params.get("limit", "100"))
+    except ValueError:
+        limit = 100
+    logs = list(_log_buffer)
+    if level:
+        logs = [entry for entry in logs if entry.get("level", "") == level]
+    logs = logs[-limit:]
+    return JSONResponse({"logs": logs, "total": len(_log_buffer)})
+
+
 class LogsFeature(BaseFeatureProtocol):
     """Real-time log streaming feature."""
 
     feature_name = "logs"
     feature_description = "Real-time log streaming with WebSocket"
+
+    def __init__(self) -> None:
+        # Capture logs only while builtin.logs is on: the handler is installed
+        # when the record's feature is built, never by create_app itself.
+        install_log_handler()
 
     @property
     def name(self) -> str:
@@ -136,6 +156,7 @@ class LogsFeature(BaseFeatureProtocol):
 
     def routes(self) -> List[Route]:
         return [
+            Route("/api/logs", list_logs, methods=["GET"]),
             WebSocketRoute("/api/logs/stream", self._websocket_stream),
             Route("/api/logs/levels", self._levels, methods=["GET"]),
             Route("/api/logs/clear", self._clear, methods=["POST"]),
