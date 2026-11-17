@@ -209,6 +209,11 @@
 - CI lints the whole frontend (`npm run lint`), not only the core and engine
   folders: the app pages, layouts, layout features (R17) and the legacy React
   App are linted too. The 73 errors already there are fixed.
+- Plugins: a plugin layout's module and stylesheet get the SRI check the docs
+  promise. The module's `integrity` is now in the import map (it was left out,
+  so a stale or half-written layout file loaded unchecked), and the css hash
+  is kept (`LayoutSpec.css_integrity`, `cssIntegrity` on the wire) and set on
+  the `<link>`.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

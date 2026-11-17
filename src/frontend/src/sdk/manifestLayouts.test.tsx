@@ -156,3 +156,29 @@ test('the eager plugin loader never imports a layout module', async () => {
   await loadPluginModules(m, { importModule: async (u) => void urls.push(u), onError: () => {} })
   assert.deepEqual(urls, [])
 })
+
+test('a plugin layout stylesheet is added with its SRI when the layout first loads', async () => {
+  type FakeLink = { rel: string; href: string; crossOrigin: string; integrity: string; dataset: Record<string, string>; addEventListener: () => void }
+  const links: FakeLink[] = []
+  const g = globalThis as { document?: unknown }
+  const before = g.document
+  g.document = {
+    querySelectorAll: () => links,
+    createElement: (): FakeLink => ({ rel: '', href: '', crossOrigin: '', integrity: '', dataset: {}, addEventListener: () => {} }),
+    head: { appendChild: (l: FakeLink) => void links.push(l) },
+  }
+  try {
+    const css = '/_plugins/aurora/layout.css'
+    const cssIntegrity = 'sha384-layoutcss'
+    registerManifestLayouts(manifestWith([{ ...PLUGIN, css, cssIntegrity }]), { importModule: async () => ({ default: Frame }) })
+    assert.equal(normalizeManifest({ pages: [], layouts: { default: '', userChoice: true, available: [{ ...PLUGIN, cssIntegrity }] } })!.layouts!.available[0].cssIntegrity, cssIntegrity)
+    assert.equal(links.length, 0, 'nothing is added before the layout loads')
+    await render('aurora')
+    assert.equal(links.length, 1)
+    assert.match(links[0].href, /\/_plugins\/aurora\/layout\.css$/)
+    assert.equal(links[0].integrity, cssIntegrity)
+    assert.equal(links[0].crossOrigin, 'anonymous')
+  } finally {
+    g.document = before
+  }
+})

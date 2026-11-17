@@ -175,6 +175,8 @@ export interface ShellLayoutSpec {
   module?: string
   css?: string
   integrity?: string
+  /** SRI of `css` (a plugin layout's stylesheet), set on its `<link>`. */
+  cssIntegrity?: string
   /** The page `/` opens while this layout is active (`layout.defaultPage` still wins). */
   home?: string
   /** Page ids for the layout's primary nav, in order (YAML `layout.primary` wins). */
@@ -296,7 +298,7 @@ function normalizeLayoutSpec(v: unknown): ShellLayoutSpec | null {
     title: typeof v.title === 'string' && v.title ? v.title : v.id,
     source: typeof v.source === 'string' && v.source ? v.source : 'builtin',
   }
-  for (const key of ['description', 'module', 'css', 'integrity', 'home'] as const) {
+  for (const key of ['description', 'module', 'css', 'integrity', 'cssIntegrity', 'home'] as const) {
     const value = v[key]
     if (typeof value === 'string') spec[key] = value
   }

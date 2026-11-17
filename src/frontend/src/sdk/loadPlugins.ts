@@ -305,13 +305,13 @@ export function registerManifestLayouts(manifest: ShellManifest, opts: Pick<Load
   for (const spec of manifest.layouts?.available ?? []) {
     if (!spec.module || manifestLayouts.get(spec.id) === spec.module) continue
     if (getLayoutComponent(spec.id) && !manifestLayouts.has(spec.id)) continue
-    const { id, module, css } = spec
+    const { id, module, css, cssIntegrity } = spec
     const meta: LayoutMeta = spec.description ? { title: spec.title, description: spec.description } : { title: spec.title }
     const load = async (): Promise<{ default: LayoutComponent }> => {
       const url = resolveModuleUrl(module)
       if (!url) throw new Error(`layout '${id}' (${spec.source}) has no loadable module URL`)
       const cssUrl = resolveModuleUrl(css)
-      if (cssUrl) addStylesheet(cssUrl)
+      if (cssUrl) addStylesheet(cssUrl, cssIntegrity)
       let p = imported.get(url)
       if (!p) {
         p = importModule(url)

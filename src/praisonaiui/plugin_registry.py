@@ -239,6 +239,8 @@ class LayoutSpec:
     home: Optional[str] = None
     primary: Optional[tuple[str, ...]] = None
     source: str = "builtin"
+    #: SRI of ``css`` (``cssIntegrity`` on the wire), like ``PageSpec.css_integrity``.
+    css_integrity: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         d = _to_wire(self)
@@ -1210,7 +1212,7 @@ def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
     # First-party layouts ship in the bundle; a plugin's module and css
     # resolve into its static dir like its pages do.
     module, sri = (s.module, None) if builtin else _asset_url(rec, s.module)
-    css = s.css if builtin else _asset_url(rec, s.css)[0]
+    css, css_sri = (s.css, None) if builtin else _asset_url(rec, s.css)
     if not builtin and not module:
         raise ValueError(f"layout {lid!r}: a plugin layout needs a module (its ESM file)")
     return LayoutSpec(
@@ -1224,6 +1226,7 @@ def _resolve_layout(rec: PluginRecord, spec: Any) -> LayoutSpec:
         home=home,
         primary=primary,
         source="builtin" if builtin else f"plugin:{rec.name}",
+        css_integrity=s.css_integrity or css_sri,
     )
 
 

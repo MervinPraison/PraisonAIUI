@@ -1528,8 +1528,9 @@ def _shell_importmap(cache_bust: int, manifest: Optional[dict[str, Any]]) -> str
     importmap: dict[str, Any] = {"imports": imports}
     integrity: dict[str, str] = {}
     if manifest:
+        layouts = (manifest.get("layouts") or {}).get("available") or []
         for item in [*manifest.get("pages", []), *manifest.get("blocks", []),
-                     *manifest.get("toolRenderers", [])]:
+                     *manifest.get("toolRenderers", []), *layouts]:
             mod, sri = item.get("module"), item.get("integrity")
             if mod and sri and str(mod).startswith("/_plugins/"):
                 integrity[mod] = sri

@@ -131,6 +131,42 @@ def test_a_plugin_layout_can_be_the_default():
     assert deck["source"] == "plugin:deck" and deck["module"] == "/x/deck.js"
 
 
+def test_plugin_layout_module_and_css_carry_sri(tmp_path):
+    """plugins.md: a relative layout module gets an SRI hash and css is
+    resolved the same way. The module hash must reach the import map (the
+    layout is imported through it, possibly long after the manifest was
+    built) and the css hash the manifest (cssIntegrity)."""
+    import base64
+    import hashlib
+
+    static = tmp_path / "deck_static"
+    static.mkdir()
+    (static / "deck.js").write_text("export default function Deck() { return null }\n")
+    (static / "deck.css").write_text(".deck { color: inherit }\n")
+
+    def sri(name: str) -> str:
+        digest = hashlib.sha384((static / name).read_bytes()).digest()
+        return "sha384-" + base64.b64encode(digest).decode()
+
+    class _Deck:
+        name = "deck"
+
+        def layouts(self):
+            return [LayoutSpec(id="deck", title="Deck", module="deck.js", css="deck.css")]
+
+        def static_dir(self):
+            return static
+
+    aiui.register_plugin(_Deck())
+    client = _client()
+    deck = next(s for s in _manifest(client)["layouts"]["available"] if s["id"] == "deck")
+    assert deck["module"] == "/_plugins/deck/deck.js" and deck["integrity"] == sri("deck.js")
+    assert deck["css"] == "/_plugins/deck/deck.css" and deck["cssIntegrity"] == sri("deck.css")
+    html = client.get("/").text
+    importmap = json.loads(html.split('<script type="importmap">', 1)[1].split("</script>", 1)[0])
+    assert importmap["integrity"]["/_plugins/deck/deck.js"] == sri("deck.js")
+
+
 # ── a built-in shell-only page (the mechanism the layout tracks use) ─
 
 
