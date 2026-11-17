@@ -251,7 +251,7 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     await waitForRunEnd(page)
     await expect(title(page)).toContainText(/markdown phone/i)
     // The header's line is the agent and the model (CanvasPhone.dc.html), the composer's own placeholder.
-    await expect(page.locator('[data-cc-subtitle]')).toContainText(/^Mock · \S+/)
+    await expect(page.locator('[data-cc-subtitle]')).toContainText(/^Mock\s*·\s*\S+/)
     await expect(page.getByRole('textbox', { name: 'Message' })).toHaveAttribute('placeholder', 'Ask a follow-up')
 
     const toggle = page.locator('[data-chat-aside-switch]')
