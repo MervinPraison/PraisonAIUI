@@ -2,7 +2,7 @@
 // Text of the explained approval card and the A/D keys of the keyboard strip.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { commandLabel, commandOf, gateTitle, whyAsked } from './gateText'
+import { commandLabel, commandOf, gateTitle, isShellCommand, whyAsked } from './gateText'
 import { handleGateKey, holdKeys, ignoreKey, keyDecision } from './keys'
 
 test('commandOf: the command-like argument first, else compact JSON, clipped to one line', () => {
@@ -24,6 +24,16 @@ test('commandLabel names what the chip shows', () => {
   assert.equal(commandLabel({ path: '/tmp/x' }), 'File')
   assert.equal(commandLabel({ query: 'q' }), 'Query')
   assert.equal(commandLabel({ a: 1 }), 'Details')
+})
+
+test('isShellCommand: a non-empty command or cmd, not code, a script or an empty list', () => {
+  assert.equal(isShellCommand({ command: 'pip install numpy' }), true)
+  assert.equal(isShellCommand({ cmd: ['ls', '-la'] }), true)
+  assert.equal(isShellCommand({ command: '', cmd: 'ls' }), true)
+  assert.equal(isShellCommand({ code: 'import os' }), false)
+  assert.equal(isShellCommand({ script: 'echo hi' }), false)
+  assert.equal(isShellCommand({ command: [] }), false)
+  assert.equal(isShellCommand(undefined), false)
 })
 
 test('gateTitle and whyAsked: plain words from the agent, the tool and the risk level', () => {

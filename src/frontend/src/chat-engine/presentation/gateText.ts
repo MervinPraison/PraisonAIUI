@@ -8,6 +8,18 @@ export const isHighRisk = (risk?: string) => risk === 'high' || risk === 'critic
 // What a gate acts on: in ./command, small enough for the chat route's inline gate.
 export { commandLabel, commandOf } from './command'
 
+/**
+ * Whether the gate runs a shell command (a non-empty `command` / `cmd`, the
+ * argument commandOf shows first): the card then says "wants to run a
+ * command" and prefixes `$`. Code (`code`, `script`) is not a shell line.
+ */
+export function isShellCommand(args: Readonly<Record<string, unknown>> | undefined): boolean {
+  return ['command', 'cmd'].some((k) => {
+    const v = args?.[k]
+    return typeof v === 'string' ? !!v.trim() : Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string')
+  })
+}
+
 /** The agent's name, or "the agent". */
 const who = (agent?: string) => agent?.trim() || 'the agent'
 

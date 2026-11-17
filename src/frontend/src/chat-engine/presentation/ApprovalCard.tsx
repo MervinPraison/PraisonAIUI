@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { useDecision, type GateProps } from './decision'
-import { commandLabel, commandOf, gateTitle, isHighRisk, whyAsked } from './gateText'
+import { commandLabel, commandOf, gateTitle, isHighRisk, isShellCommand, whyAsked } from './gateText'
 import './approvals.css'
 
 /** "medium" → "Medium" (only the first letter: "Medium risk", not "Medium Risk"). */
@@ -28,7 +28,7 @@ export default function ApprovalCard(p: GateProps): JSX.Element {
   const agent = p.agent || msgAgent
   const tool = p.label || p.toolName
   const command = commandOf(p.args)
-  const shell = !!command && commandLabel(p.args) === 'Command'
+  const shell = isShellCommand(p.args)
   const high = isHighRisk(p.risk)
   // The tool's description says what it does; the gate's prompt says what is asked. Show both once.
   const lead = p.description && p.description !== p.prompt ? p.description : p.prompt
