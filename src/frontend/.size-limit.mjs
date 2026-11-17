@@ -194,7 +194,10 @@ export default [
   // with both, inside the 252 kB #373 set, so the larger need stands alone.
   // +0.5 kB (252.02 kB measured, #387): the Knowledge page's registration
   // (one more lazy pagePlugin loader in builtin/appPages, next to Agents).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.5 kB', gzip: true },
+  // +0.1 kB (252.55 kB measured, #419, owner-approved): the layout host sets
+  // a layout's look (<html data-aiui-look>, Chat + Canvas's Paper) and
+  // builtin.layouts registers "Switch look: Paper / Pro".
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '252.6 kB', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -210,5 +213,7 @@ export default [
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
   { name: 'Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono, latin woff2, as served)', path: abs(PAPER_FONTS), limit: '140 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9 MB', brotli: false },
+  // 9.1 MB (9.07 MB measured, #419, owner-approved): the Paper look's three
+  // woff2 files (127 kB).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9.1 MB', brotli: false },
 ]
