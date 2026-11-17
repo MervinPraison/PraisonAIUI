@@ -122,7 +122,7 @@ if (!opts.src) {
 let command
 if (opts.docs) {
   const site = path.join(work, 'site')
-  const config = path.join(HERE, 'docs-site', 'aiui.template.yaml')
+  const config = path.join(HERE, 'docs-site', 'aiui.yaml')
   const build = spawnSync(python, ['-m', 'praisonaiui.cli', 'build', '--config', config, '--output', site], {
     env,
     cwd: work,
