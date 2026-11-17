@@ -106,9 +106,15 @@ function TocLinks({ headings, activeId }: { headings: TocHeading[]; activeId: st
     )
 }
 
-export function MobileToc({ selectedItem }: { selectedItem: NavItem | null }) {
+/**
+ * "On this page" folded above the article on narrow screens. `expectHeadings`
+ * draws it before the headings are read from the page (while the page loads,
+ * and with an article whose Markdown has sections), so nothing below it moves
+ * when they arrive.
+ */
+export function MobileToc({ selectedItem, expectHeadings = false }: { selectedItem: NavItem | null; expectHeadings?: boolean }) {
     const { headings, activeId } = usePageHeadings(selectedItem)
-    if (!selectedItem || headings.length === 0) return null
+    if (!selectedItem || (headings.length === 0 && !expectHeadings)) return null
 
     return (
         <details className="aiui-docs-mtoc">

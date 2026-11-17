@@ -1067,6 +1067,10 @@ img.aiui-docs-mark {
   display: block;
   width: 100%;
   height: auto;
+  /* Reserve the box before the file arrives (no layout shift); `auto` takes
+     the image's own ratio once it loads. 16:10 fits app screenshots. */
+  aspect-ratio: auto 16 / 10;
+  background: var(--muted);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl, 12px);
   box-shadow: var(--pro-shadow-float, none);

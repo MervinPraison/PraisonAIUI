@@ -35,6 +35,16 @@ test('the hero, actions and features render; unknown icons are left out', () => 
     assert.equal((html.match(/aiui-docs-feature-icon/g) ?? []).length, 1)
 })
 
+test('the hero image for the mode on screen loads first; the hidden one waits', () => {
+    // Server render: no document, so the light image is the one on screen.
+    const html = renderToStaticMarkup(<DocsHome home={home} homePath="/docs/index" onNavigate={() => {}} />)
+    const light = html.match(/<img[^>]*data-theme="light"[^>]*>/)?.[0] ?? ''
+    const dark = html.match(/<img[^>]*data-theme="dark"[^>]*>/)?.[0] ?? ''
+    assert.match(light, /fetchpriority="high"/i)
+    assert.doesNotMatch(light, /loading="lazy"/)
+    assert.match(dark, /loading="lazy"/)
+})
+
 test('an empty home renders no hero parts', () => {
     const html = renderToStaticMarkup(<DocsHome home={{}} homePath="/docs/index" onNavigate={() => {}} />)
     assert.doesNotMatch(html, /<h1|<img|aiui-docs-features/)

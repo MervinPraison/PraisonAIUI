@@ -142,3 +142,25 @@ export function canonicalDocPath(path: string, base = '/docs'): string {
     const p = normalizeDocPath(path)
     return p === base || p === `${base}/index` ? '/' : p
 }
+
+/**
+ * Whether a page's Markdown has sections for "On this page" (## to ####
+ * headings outside code fences). Lets the phone's folded TOC render in the
+ * same frame as the article instead of a frame later (a layout shift).
+ */
+export function hasSectionHeadings(md: string): boolean {
+    let fence: string | null = null
+    for (const line of md.split('\n')) {
+        const m = /^\s*(`{3,}|~{3,})/.exec(line)
+        if (fence) {
+            if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null
+            continue
+        }
+        if (m) {
+            fence = m[1]
+            continue
+        }
+        if (/^#{2,4}\s+\S/.test(line)) return true
+    }
+    return false
+}

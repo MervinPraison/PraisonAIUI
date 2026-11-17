@@ -18,6 +18,15 @@ function homeHref(link: string, homePath: string): string {
     return resolveDocTarget(link.trim(), homePath)
 }
 
+/**
+ * Loading hints for a hero image. The one for the colour mode on screen is
+ * the page's largest paint, so it loads first; the other is display: none,
+ * so it waits (lazy) until the reader switches mode.
+ */
+function heroLoading(hidden: boolean): { loading?: 'lazy'; fetchPriority?: 'high' } {
+    return hidden ? { loading: 'lazy' } : { fetchPriority: 'high' }
+}
+
 interface DocsHomeProps {
     home: DocsHomeConfig
     /** The home page's docs path (`/docs/index`): relative links and images resolve against it. */
@@ -29,6 +38,8 @@ interface DocsHomeProps {
 export function DocsHome({ home, homePath, onNavigate }: DocsHomeProps) {
     const hero = home.hero ?? {}
     const features = home.features ?? []
+    // The mode at render; a later switch shows the lazy variant, which then loads.
+    const darkNow = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
     const follow = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
         if (isExternal(href) || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
@@ -64,6 +75,7 @@ export function DocsHome({ home, homePath, onNavigate }: DocsHomeProps) {
                         data-theme={hero.imageDark ? 'light' : undefined}
                         src={homeHref(hero.image, homePath)}
                         alt={hero.imageAlt ?? ''}
+                        {...heroLoading(!!hero.imageDark && darkNow)}
                     />
                     {hero.imageDark && (
                         <img
@@ -71,6 +83,7 @@ export function DocsHome({ home, homePath, onNavigate }: DocsHomeProps) {
                             data-theme="dark"
                             src={homeHref(hero.imageDark, homePath)}
                             alt={hero.imageAlt ?? ''}
+                            {...heroLoading(!darkNow)}
                         />
                     )}
                 </div>

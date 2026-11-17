@@ -223,5 +223,7 @@ export default [
   // woff2 files (127 kB). 9,105,362 B (measured, raised by exactly the
   // overage): docs page actions and section links (+6,965 B on main's
   // 9,098,397 B; the docs Paper type and search took the rest of the headroom).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9105362 B', brotli: false },
+  // 9,105,873 B (measured, raised by exactly the overage): no layout shift
+  // from the docs hero image or the phone's folded TOC (+511 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9105873 B', brotli: false },
 ]
