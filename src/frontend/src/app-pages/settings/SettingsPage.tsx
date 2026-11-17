@@ -24,7 +24,6 @@ import { inLayoutOnly, providerName, useJson, type AppPageProps, type Tone } fro
 import { StatusDot } from '../ui'
 import { changedPaths, matchField, providerNote, setPath, settingsSections, valueOf, type Config, type Health, type SettingsField } from './model'
 
-
 function SettingsPage({ page }: AppPageProps) {
   // One name everywhere: the page's own title (the nav and the top bar say the same).
   const pageName = page.title || 'Settings'

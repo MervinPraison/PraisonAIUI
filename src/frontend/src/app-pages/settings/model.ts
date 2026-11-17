@@ -18,7 +18,6 @@ export function providerNote(h: Health | null | undefined): string {
   return name && name !== 'PraisonAIProvider' ? `Chats are answered by ${providerName(name)}. These settings apply to the built-in PraisonAI provider.` : ''
 }
 
-
 export interface FieldSchema {
   type?: string
   title?: string
