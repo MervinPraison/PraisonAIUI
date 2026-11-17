@@ -251,6 +251,13 @@
   features through a new optional `BaseFeatureProtocol.on_config_reload()`
   hook, so it never imports a disabled built-in. `builtin.video` loads the jobs
   store only when it renders, not at startup.
+- Sessions: listing sessions no longer parses every session file on each call.
+  The JSON and SDK file stores keep each session's row until its file
+  changes (500 sessions of 40 messages, 29 MB: about 70-77 ms per list before,
+  7-15 ms after the first), and the app shell lists them after every chat
+  turn. `GET /api/sessions` and `GET /sessions` take optional
+  `?limit=&offset=` and report `total`; the Overview counts sessions through
+  a new `BaseDataStore.count_sessions()` instead of listing them.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

@@ -2141,9 +2141,12 @@ async def delete_team_session(request: Request) -> JSONResponse:
 
 
 async def list_sessions(request: Request) -> Response:
-    """List all sessions (a browser navigation opens the Sessions page instead)."""
-    sessions = await _datastore.list_sessions()
-    return JSONResponse({"sessions": sessions})
+    """List sessions, newest first; ``?limit=&offset=`` pages (a browser
+    navigation opens the Sessions page instead)."""
+    from praisonaiui.datastore import list_sessions_page, page_params
+
+    sessions, total = await list_sessions_page(_datastore, *page_params(request.query_params))
+    return JSONResponse({"sessions": sessions, "total": total})
 
 
 async def get_session(request: Request) -> JSONResponse:
@@ -2312,7 +2315,8 @@ async def api_feedback_list(request: Request) -> JSONResponse:
 
 async def api_overview(request: Request) -> JSONResponse:
     """Dashboard overview — health, version, stats."""
-    sessions = await _datastore.list_sessions()
+    count = getattr(_datastore, "count_sessions", None)
+    total_sessions = await count() if count else len(await _datastore.list_sessions())
     profiles_cb = _callbacks.get("profiles")
     profiles = []
     if profiles_cb:
@@ -2363,7 +2367,7 @@ async def api_overview(request: Request) -> JSONResponse:
             "features_loaded": len(features),
             "channels": channels_info,
             "stats": {
-                "total_sessions": len(sessions),
+                "total_sessions": total_sessions,
                 "active_tasks": len(_active_tasks),
                 "registered_agents": len(_agents),
                 "registered_profiles": len(profiles),

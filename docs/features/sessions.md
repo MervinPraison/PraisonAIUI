@@ -84,8 +84,9 @@ Implement `BaseDataStore` for any database (SQLite, PostgreSQL, Redis, MongoDB, 
 from praisonaiui.datastore import BaseDataStore
 
 class PostgresDataStore(BaseDataStore):
-    # The six session/message methods are abstract; update_session, close
-    # and the feedback methods have defaults.
+    # The six session/message methods are abstract; update_session, close,
+    # count_sessions (len(list_sessions()) by default; override it when the
+    # database can count) and the feedback methods have defaults.
     def __init__(self, dsn: str):
         self.dsn = dsn
         # ... set up connection pool

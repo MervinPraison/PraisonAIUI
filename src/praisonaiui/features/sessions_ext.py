@@ -271,18 +271,22 @@ class SessionsFeature(BaseFeatureProtocol):
     # ── API handlers ─────────────────────────────────────────────────
 
     async def _list_sessions(self, request: Request) -> JSONResponse:
-        """GET /api/sessions — List all known sessions.
+        """GET /api/sessions — List known sessions, newest first.
 
         Uses the same _datastore as the Chat page so both views are consistent.
+        ``?limit=&offset=`` returns one page; ``total`` counts them all.
         """
+        from praisonaiui.datastore import list_sessions_page, page_params
+
         sessions = []
+        total = 0
 
         # Primary source: the server's own datastore (same as /sessions for Chat)
         try:
             from praisonaiui.server import get_datastore
 
             ds = get_datastore()
-            ds_sessions = await ds.list_sessions()
+            ds_sessions, total = await list_sessions_page(ds, *page_params(request.query_params))
             for s in ds_sessions or []:
                 sid = s.get("id", s.get("session_id", ""))
                 if not sid:
@@ -335,7 +339,7 @@ class SessionsFeature(BaseFeatureProtocol):
         # Conversations only: an agent registered with the gateway is not a
         # session (the Agents page lists agents). Listing each as an empty
         # "agent:<name>" placeholder put one into the chat sidebar per agent.
-        return JSONResponse({"sessions": sessions, "count": len(sessions)})
+        return JSONResponse({"sessions": sessions, "count": len(sessions), "total": total})
 
     async def _search_sessions(self, request: Request) -> JSONResponse:
         """GET /api/sessions/search?q= — filter sessions by title or id."""
