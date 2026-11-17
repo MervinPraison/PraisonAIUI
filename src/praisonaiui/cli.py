@@ -3872,6 +3872,14 @@ def _builtin_page_ids(extensions: Any = None) -> Optional[set[str]]:
 def _doctor_plugin(rec, static_files: dict, findings: list) -> dict:
     """Check one loaded plugin. Appends (level, plugin, check, detail) findings."""
 
+    from praisonaiui.plugin_registry import (
+        _resolve_layout,
+        _resolve_nav_group,
+        _resolve_page,
+        _resolve_settings_section,
+        _resolve_theme,
+    )
+
     def add(level: str, check: str, detail: str) -> None:
         findings.append((level, rec.name, check, detail))
 
@@ -3943,6 +3951,11 @@ def _doctor_plugin(rec, static_files: dict, findings: list) -> dict:
                 pid = str(_spec_get(spec, "id") or "")
                 page_kind = _spec_get(spec, "kind") or "blocks"
                 contributed["pages"].append(pid)
+                try:
+                    _resolve_page(rec, spec)  # what the server does: same rules, same message
+                except Exception as exc:  # noqa: BLE001
+                    add("error", "pages", f"page {pid!r} is dropped: {exc}")
+                    continue
                 if page_kind == "react" and not _spec_get(spec, "module"):
                     add("error", "pages", f"page {pid!r}: kind 'react' needs a module")
                 if page_kind == "blocks" and not _spec_get(spec, "api_endpoint") and not callable(
@@ -3959,6 +3972,40 @@ def _doctor_plugin(rec, static_files: dict, findings: list) -> dict:
                 tname = str(_spec_get(spec, "tool_name") or "")
                 contributed["tools"].append(tname)
                 check_asset("tools", f"tool {tname!r}", _spec_get(spec, "module"), _spec_get(spec, "integrity"))
+
+    # settings(), nav_groups(), themes(), layouts(): each entry goes through
+    # the resolver the server uses, which drops an invalid one from the UI.
+    for hook_name, resolve, label in (
+        ("settings", _resolve_settings_section, lambda s: f"section {s.id!r}"),
+        ("nav_groups", _resolve_nav_group, lambda g: f"group {g.name!r}"),
+        ("themes", _resolve_theme, lambda t: f"theme {t.id!r}"),
+        ("layouts", _resolve_layout, lambda lay: f"layout {lay.id!r}"),
+    ):
+        hook = getattr(plugin, hook_name, None)
+        if not callable(hook):
+            continue
+        try:
+            specs = list(hook() or ())
+        except Exception as exc:  # noqa: BLE001
+            add("error", hook_name, f"{hook_name}() raised {type(exc).__name__}: {exc}")
+            continue
+        seen_ids: set = set()
+        for spec in specs:
+            try:
+                resolved = resolve(rec, spec)
+            except Exception as exc:  # noqa: BLE001
+                add("error", hook_name, f"invalid entry {spec!r} is dropped: {exc}")
+                continue
+            ident = label(resolved)
+            if hook_name == "settings" and resolved.id in seen_ids:
+                add("error", hook_name, f"{ident} is declared twice; the second is dropped")
+                continue
+            seen_ids.add(getattr(resolved, "id", None))
+            if hook_name == "layouts":
+                check_asset("layouts", ident, _spec_get(spec, "module"), _spec_get(spec, "integrity"))
+                check_asset("layouts", f"{ident} css", _spec_get(spec, "css"), None)
+            else:
+                add("ok", hook_name, ident)
 
     hook = getattr(plugin, "routes", None)
     if callable(hook):

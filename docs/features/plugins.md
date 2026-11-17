@@ -113,6 +113,11 @@ the same field names work too.
 | `blocks` | A server-driven block tree (see below) | `api_endpoint`, default `/api/plugins/<name>/pages/<id>` |
 | `iframe` | `module` in a sandboxed iframe (no same-origin access) | `module` |
 
+These three are the only kinds a plugin can use. `native` and `legacy` are
+first-party only (the shell never imports a plugin's legacy view): a plugin
+page with another `kind`, or a misspelt one, is dropped with a warning and
+`aiui plugins doctor` fails on it.
+
 A relative `module` (`"hello.js"`) resolves into `static_dir()`; the server
 then serves `/_plugins/<name>/hello.js` and adds its `sha384` integrity to the
 manifest and the import map.
@@ -221,8 +226,11 @@ variable. Values are plain CSS values; anything else (another property, `;`,
 braces, `url(...)`) is rejected. The viewer picks a preset in the command
 palette ("Sunrise theme", "Default theme"); the choice is kept per browser.
 
-Invalid entries of all three hooks are dropped one by one with a logged
-warning, and one hook that raises does not drop the others. The
+Invalid entries of all three hooks (and of `layouts()`) are dropped one by
+one with a warning, and one hook that raises does not drop the others. The
+warning is printed once per start in the `aiui run` terminal (and on the Logs
+page), and `aiui plugins doctor` runs every entry through the same checks and
+fails on each one it would drop. The
 contributions travel on the plugin's record in the shell manifest
 (`plugins[].settings`, `plugins[].navGroups`, `plugins[].themes`), only for
 plugins whose browser surfaces the viewer may load.
@@ -695,7 +703,7 @@ suite sets it).
 | Command | Does |
 |---|---|
 | `aiui plugins list [--json] [--config aiui.yaml]` | The built-in records (`builtin.<name>`: status `ok` or `disabled`, whether the host requires part of it, its pages), then installed plugins with version, status (`ok`, `error`, `disabled`, `incompatible`, `disabled-by-default`) and load error. `--json` puts the built-ins under `builtins` |
-| `aiui plugins doctor [--config aiui.yaml] [--no-builtin]` | Loads each plugin and checks SDK version, `static_dir()`, every module file and its `sha384`, routes, CLI name clashes and page ids shadowed by built-in pages or other plugins. A page shadowed by a built-in names the `builtin.<name>` to add to `extensions.disabled`; a `builtin.` name that matches no record is a warning. Exits 1 on any failure |
+| `aiui plugins doctor [--config aiui.yaml] [--no-builtin]` | Loads each plugin and checks SDK version, `static_dir()`, every module file and its `sha384` (pages, blocks, tool renderers, layouts), page kinds, every `settings()`, `nav_groups()`, `themes()` and `layouts()` entry, routes, CLI name clashes and page ids shadowed by built-in pages or other plugins. A page shadowed by a built-in names the `builtin.<name>` to add to `extensions.disabled`; a `builtin.` name that matches no record is a warning. Exits 1 on any failure |
 | `aiui <plugin> …`, `aiui plugins <plugin> …` | The plugin's own commands |
 
 `aiui --help` and built-in commands never import plugins; discovery runs only

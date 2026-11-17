@@ -272,6 +272,65 @@ def test_enabled_allowlist_never_disables_a_manual_plugin(site):
     assert _records()["mine"].status == "disabled"
 
 
+def test_plugin_page_kind_must_be_react_blocks_or_iframe(site, monkeypatch, caplog):
+    """native and legacy are first-party only: the shell never loads a
+    plugin's legacy view, so the page is dropped with a warning instead of
+    reaching the manifest and failing in the browser."""
+    import logging
+
+    monkeypatch.setenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", "1")
+
+    class Kinds:
+        name = "kinds"
+
+        def pages(self):
+            return [
+                PageSpec(id="ok-react", title="R", kind="react", module="https://x.y/r.js"),
+                PageSpec(id="ok-frame", title="F", kind="iframe", module="https://x.y"),
+                {"id": "ok-blocks", "title": "B"},
+                PageSpec(id="old-view", title="L", kind="legacy", module="https://x.y/v.js"),
+                PageSpec(id="ported", title="N", kind="native"),
+                {"id": "typo", "title": "T", "kind": "Reactt", "module": "https://x.y/t.js"},
+            ]
+
+    get_plugin_registry().register(Kinds())
+    with caplog.at_level(logging.WARNING, logger="praisonaiui.plugin_registry"):
+        ids = [p.id for p in get_plugin_registry().pages()]
+    assert ids == ["ok-react", "ok-frame", "ok-blocks"]
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert "kind 'legacy' is not available to plugins" in text
+    assert "kind 'native'" in text and "kind 'Reactt'" in text
+
+
+def test_invalid_hook_entry_warns_once_and_reaches_the_terminal(site, monkeypatch, capsys):
+    """create_app() leaves only in-memory handlers on the root logger, which
+    silences Python's last-resort output; the registry's own fallback prints
+    the warning to stderr, once, not on every manifest request."""
+    import logging
+
+    from praisonaiui.plugin_registry import NavGroupSpec
+
+    monkeypatch.setenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", "1")
+
+    class Groups:
+        name = "groups"
+
+        def nav_groups(self):
+            return [NavGroupSpec(name="First", order="first")]
+
+    get_plugin_registry().register(Groups())
+    client = _local(style="app")
+    root = logging.getLogger()
+    monkeypatch.setattr(root, "handlers", [h for h in root.handlers
+                                           if type(h).__module__.startswith("praisonaiui.")])
+    capsys.readouterr()
+    for _ in range(3):
+        assert client.get("/api/shell/manifest").status_code == 200
+    err = capsys.readouterr().err
+    assert err.count("invalid nav_groups entry") == 1, err
+    assert "groups" in err and "order must be a number" in err
+
+
 def test_dict_specs_and_bad_spec_isolation(site, monkeypatch, tmp_path):
     monkeypatch.setenv("AIUI_DISABLE_PLUGIN_AUTOLOAD", "1")
     static = tmp_path / "inline_static"

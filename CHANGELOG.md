@@ -224,6 +224,18 @@
   `aiui run --config` is compressed and sent `no-cache`, and its
   `/assets/theme.css` no longer 404s. `aiui serve` no longer answers
   `/docs/x` with a 307 to `/docs/x/`.
+- Plugins: `aiui plugins doctor` now checks every `settings()`, `nav_groups()`,
+  `themes()` and `layouts()` entry (and each layout's module and css file)
+  and fails on any entry the server would drop. Before, a malformed section,
+  group, theme or layout vanished from the UI while the doctor reported
+  success.
+- Plugins: a plugin page must be `kind` `react`, `blocks` or `iframe`.
+  `legacy`, `native` or a typo used to pass the doctor and reach the manifest,
+  then show "No handler for page" in the browser; it is now dropped with a
+  warning and the doctor fails on it.
+- Plugins: the warning for a dropped plugin entry is printed in the
+  `aiui run` terminal on a plain install (it only reached the Logs page) and
+  once per start, not again on every manifest request.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs
