@@ -207,7 +207,10 @@ export default [
   // composerTool region wiring in the boot path (the "@" loader, meta.chat
   // validation), 0.06 kB.
   // 253,124 B (measured, raised by exactly the overage, +324 B): the same re-split.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253124 B', gzip: true },
+  // 253,128 B (measured, raised by exactly the overage, +4 B): no code added;
+  // the classic chat's error boundary gives legacy-app-entry a new content
+  // hash, and index.js, which names that chunk, gzips 4 B larger.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253128 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -244,5 +247,8 @@ export default [
   // out at their real height from the first frame (+132 B).
   // 9,134,317 B (measured, raised by exactly the overage, +8,459 B): the style
   // layouts as lazy chunks; the bytes are chunk boundaries, no page loads more.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134317 B', brotli: false },
+  // 9,134,625 B (measured, raised by exactly the overage, +308 B): the classic
+  // chat's element error boundary (MultimediaElements), which replaces a
+  // try/catch that could not catch render errors.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134625 B', brotli: false },
 ]

@@ -21,6 +21,13 @@ interface RealtimeSession {
   modalities: string[];
 }
 
+/** A server event from the realtime WebSocket (only the fields this view reads). */
+interface RealtimeEvent {
+  type: string;
+  item?: { id: string; type?: string; role: TranscriptItem['role']; content?: { text?: string }[] };
+  error?: string;
+}
+
 interface TranscriptItem {
   id: string;
   role: 'user' | 'assistant';
@@ -164,7 +171,7 @@ export const RealtimeView: React.FC = () => {
       setSession(null);
       setTranscript([]);
       
-    } catch (err) {
+    } catch {
       setError('Failed to close session');
     }
   };
@@ -194,7 +201,7 @@ export const RealtimeView: React.FC = () => {
       initializeAudioVisualization(stream);
       setIsRecording(true);
       
-    } catch (err) {
+    } catch {
       setError('Microphone access denied');
     }
   };
@@ -221,22 +228,24 @@ export const RealtimeView: React.FC = () => {
   };
 
   // Handle realtime events from WebSocket
-  const handleRealtimeEvent = (event: any) => {
+  const handleRealtimeEvent = (event: RealtimeEvent) => {
     switch (event.type) {
-      case 'conversation.item.created':
+      case 'conversation.item.created': {
         const item = event.item;
-        if (item.type === 'message' && item.content?.[0]?.text) {
+        const text = item?.type === 'message' ? item.content?.[0]?.text : undefined;
+        if (item && text) {
           setTranscript(prev => [...prev, {
             id: item.id,
             role: item.role,
-            content: item.content[0].text,
+            content: text,
             timestamp: new Date()
           }]);
         }
         break;
+      }
         
       case 'error':
-        setError(event.error);
+        setError(event.error ?? null);
         break;
         
       default:

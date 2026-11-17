@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { DashboardPageProps } from '../types/dashboard'
 
 interface AgentInfo {
     name: string
     created_at: string
 }
 
-export function AgentsView(_props: DashboardPageProps) {
+export function AgentsView() {
     const [agents, setAgents] = useState<AgentInfo[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

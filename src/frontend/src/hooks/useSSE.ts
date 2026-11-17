@@ -5,7 +5,7 @@
  * another session's in-flight fetch.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import {
   cancelStream,
   getSessionState,
@@ -31,25 +31,20 @@ interface UseSSEReturn {
   pendingElements: (import('../types').MessageElementUnion | Record<string, unknown>)[]
 }
 
+/** The snapshot while no session is open: one object, so the store read is stable. */
+const NO_SESSION = getSessionState(null)
+const unsubscribeNothing = () => {}
+
 export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
-  const { externalSessionId } = options
+  const { externalSessionId, onSessionId, onEnd } = options
 
-  // Snapshot of the current session's stream state
-  const [snap, setSnap] = useState(() => getSessionState(externalSessionId))
-
-  // Re-subscribe whenever the session changes
-  useEffect(() => {
-    if (!externalSessionId) {
-      setSnap(getSessionState(null))
-      return
-    }
-    // Immediately read any existing state (handles back-navigation to streaming session)
-    setSnap(getSessionState(externalSessionId))
-    // Subscribe to future updates
-    return subscribeToSession(externalSessionId, () => {
-      setSnap(getSessionState(externalSessionId))
-    })
-  }, [externalSessionId])
+  // The current session's stream state, re-subscribed whenever the session
+  // changes (a back-navigation reads that session's in-flight state at once).
+  const subscribe = useCallback(
+    (onChange: () => void) => (externalSessionId ? subscribeToSession(externalSessionId, onChange) : unsubscribeNothing),
+    [externalSessionId],
+  )
+  const snap = useSyncExternalStore(subscribe, () => (externalSessionId ? getSessionState(externalSessionId) : NO_SESSION))
 
   const sendMessage = useCallback(
     (message: string, agentName?: string) => {
@@ -63,12 +58,12 @@ export function useSSE(options: UseSSEOptions = {}): UseSSEReturn {
         onSessionId: (newId) => {
           // The server returned a real session ID. Notify parent.
           resolvedId = newId
-          options.onSessionId?.(newId)
+          onSessionId?.(newId)
         },
-        onEnd: () => options.onEnd?.(resolvedId),
+        onEnd: () => onEnd?.(resolvedId),
       })
     },
-    [externalSessionId, options.onSessionId, options.onEnd],
+    [externalSessionId, onSessionId, onEnd],
   )
 
   const cancel = useCallback(() => {

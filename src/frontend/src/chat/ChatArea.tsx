@@ -13,6 +13,17 @@ interface ChatAreaProps {
     onSessionChange?: (sessionId: string) => void
 }
 
+/** One stored run from GET /sessions/{id}/runs (older servers name the text `message`). */
+interface StoredRun {
+    id?: string
+    role?: ChatMessage['role']
+    content?: string
+    message?: string
+    timestamp?: string
+    toolCalls?: ChatMessage['toolCalls']
+    elements?: ChatMessage['elements']
+}
+
 export function ChatArea({ config, className = '', sessionId: externalSessionId, onSessionChange }: ChatAreaProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [loadingHistory, setLoadingHistory] = useState(false)
@@ -52,7 +63,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
             if (response.ok) {
                 const data = await response.json()
                 const runs = data.runs || []
-                const loaded: ChatMessage[] = runs.map((run: any) => ({
+                const loaded: ChatMessage[] = runs.map((run: StoredRun) => ({
                     id: run.id || crypto.randomUUID(),
                     role: run.role || 'user',
                     content: run.content || run.message || '',

@@ -3,9 +3,8 @@
  */
 
 export { FlexibleLayout } from './FlexibleLayout'
+export { WIDGET_REGISTRY, renderWidget } from './widgetRegistry'
 export {
-    WIDGET_REGISTRY,
-    renderWidget,
     StatsCard,
     QuickLinks,
     Newsletter,

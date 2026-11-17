@@ -1,26 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import type { I18nConfig } from '../types'
-
-interface LocaleContextValue {
-  locale: string
-  locales: string[]
-  rtlLocales: string[]
-  setLocale: (locale: string) => void
-  t: (key: string, variables?: Record<string, string>) => string
-  isRTL: boolean
-  strings: Record<string, string>
-  loading: boolean
-}
-
-const LocaleContext = createContext<LocaleContextValue | null>(null)
-
-export function useLocale() {
-  const context = useContext(LocaleContext)
-  if (!context) {
-    throw new Error('useLocale must be used within LocaleProvider')
-  }
-  return context
-}
+import { LocaleContext, type LocaleContextValue } from './context'
 
 interface LocaleProviderProps {
   config?: I18nConfig

@@ -201,6 +201,14 @@
   index and on disk.
 - `aiui run chat.yaml`: the YAML's `datastore:` is used. It applied only
   when `--datastore memory` was also passed; a `--datastore` flag still wins.
+- Chat (classic `chat` style): an inline image, PDF, video, file or A2UI
+  surface that fails to render now shows "Failed to render element" in its
+  place instead of taking the whole message down. The old `try`/`catch`
+  around the element's JSX could not catch render errors; an error boundary
+  does.
+- CI lints the whole frontend (`npm run lint`), not only the core and engine
+  folders: the app pages, layouts, layout features (R17) and the legacy React
+  App are linted too. The 73 errors already there are fixed.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

@@ -64,7 +64,7 @@ Frontend (only when `src/frontend/**` changed; Node from `src/frontend/.nvmrc`):
 cd src/frontend && npm ci
 npx tsc -b && npm run typecheck:e2e
 npm test && npm run test:scripts
-npx eslint src/shell src/chat-engine src/markdown src/legacy src/sdk src/blocks src/builtin e2e
+npm run lint
 npm run build && npm run size && npm run check:closure
 npm run sync && npm run check:bundle
 ```

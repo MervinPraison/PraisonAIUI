@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { DashboardPageProps } from '../types/dashboard'
 
 interface UsageData {
     usage: {
@@ -14,7 +13,7 @@ interface UsageData {
     }
 }
 
-export function UsageView(_props: DashboardPageProps) {
+export function UsageView() {
     const [data, setData] = useState<UsageData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

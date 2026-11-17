@@ -237,14 +237,15 @@ export function useTaskState(sessionId: string): TaskState {
 // SSE event integration (to be called from ChatArea or similar)
 // ---------------------------------------------------------------------------
 
-export function handleTaskSSEEvent(sessionId: string, event: any): boolean {
+/** A parsed SSE event; only `task_list.*` events carry a task list. */
+export function handleTaskSSEEvent(sessionId: string, event: { type?: unknown }): boolean {
   if (event.type === 'task_list.init') {
-    initTaskList(sessionId, event)
+    initTaskList(sessionId, event as Parameters<typeof initTaskList>[1])
     return true
   }
   
   if (event.type === 'task_list.update') {
-    updateTaskList(sessionId, event)
+    updateTaskList(sessionId, event as Parameters<typeof updateTaskList>[1])
     return true
   }
   
