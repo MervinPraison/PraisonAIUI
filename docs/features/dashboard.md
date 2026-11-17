@@ -44,9 +44,14 @@ graph LR
 ```
 
 1. **`@aiui.page()`** registers a page with the server
-2. **`dashboard.js`** fetches `/api/pages`, builds the sidebar automatically
+2. **`dashboard.js`** fetches `/api/pages` and `/ui-config.json` once each on load, builds the sidebar automatically
 3. When a page is selected, it fetches `/api/pages/{id}/data`
 4. If the data contains `_components`, they render as real UI elements (cards, tables, etc.)
+
+The Chat page highlights code with highlight.js, which it loads from
+`cdnjs.cloudflare.com` the first time a reply contains a code block. A chat
+with no code never contacts the CDN; without internet access, code shows
+unhighlighted.
 
 ## Registering Pages
 
