@@ -29,8 +29,12 @@ Run it:
 aiui run app.py
 ```
 
-Open http://127.0.0.1:8000 and send a message. If port 8000 is taken, `aiui run`
-picks the next free port and prints the URL it used.
+Open http://127.0.0.1:8000 and send a message.
+
+<Tip>
+If port 8000 is taken, `aiui run` picks the next free port and prints the URL
+it used.
+</Tip>
 
 An app that only has a `@aiui.reply` callback opens in the React app shell
 (`style: app`) in its `chat` layout: the chat, with your conversations and the
@@ -40,7 +44,22 @@ other pages in the sidebar. The same app is
 ## 2. Reply with a model
 
 Stream tokens from any client library with `aiui.stream_token()`. With OpenAI
-(`pip install openai`, then `export OPENAI_API_KEY=...`):
+(`pip install openai`), set your key first:
+
+<Tabs>
+<Tab title="macOS and Linux">
+```bash
+export OPENAI_API_KEY=sk-...
+```
+</Tab>
+<Tab title="Windows">
+```powershell
+setx OPENAI_API_KEY sk-...
+```
+
+Then open a new terminal.
+</Tab>
+</Tabs>
 
 ```python title="app.py" {9,14-16}
 import praisonaiui as aiui
@@ -146,6 +165,11 @@ Open http://127.0.0.1:8000/docs/. To publish it, see
 
 ## If something is wrong
 
+<Warning>
+Never paste an API key into `app.py` or `aiui.yaml`: read it from the
+environment, as above.
+</Warning>
+
 With the server running, in another terminal:
 
 ```bash
@@ -155,6 +179,14 @@ aiui health --detailed         # per-feature health
 
 ## Next steps
 
-- [CLI Usage](cli.md): the commands you will use most
-- [Python API](../api/python.md): decorators, message functions, `set_*` setters
-- [Configuration](../concepts/configuration.md): the YAML file
+<CardGroup cols={3}>
+<Card title="CLI" icon="terminal" href="cli.md">
+The commands you will use most.
+</Card>
+<Card title="Python API" icon="code" href="../api/python.md">
+Decorators, message functions and the `set_*` setters.
+</Card>
+<Card title="Configuration" icon="book-open" href="../concepts/configuration.md">
+Everything the YAML file can say.
+</Card>
+</CardGroup>
