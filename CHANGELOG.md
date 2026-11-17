@@ -189,6 +189,10 @@
 
 ### Fixed
 
+- Docs: the plugin guide no longer tells you to pass `--style app` because a
+  reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
+  says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export
+  (33) and catalog counts, now checked by `tests/unit/test_architecture_counts.py`.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`
