@@ -320,3 +320,20 @@ test('preset paper: the Paper look, serif titles, self-hosted Paper fonts', asyn
   expect(fonts.some((url) => /googleapis|gstatic/.test(url))).toBe(false)
   expect(errors.pageErrors).toEqual([])
 })
+
+test('phone: the page does not shift as the article and "On this page" arrive', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cls: number }
+    w.__cls = 0
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!e.hadRecentInput) w.__cls += e.value
+    }).observe({ type: 'layout-shift', buffered: true })
+  })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await expect(page.locator('.aiui-docs-mtoc')).toBeVisible()
+  await page.waitForTimeout(600)
+  // The folded TOC is drawn from the first frame, not a frame after the article.
+  expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBeLessThan(0.01)
+})

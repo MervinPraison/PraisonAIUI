@@ -9,7 +9,7 @@ import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/La
 import { MobileToc } from './Toc'
 import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
 import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
-import { docSourcePath, prepareDocSource } from './docs/docSource'
+import { docSourcePath, hasSectionHeadings, prepareDocSource } from './docs/docSource'
 import { docNeighbours, docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
@@ -154,7 +154,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
-                    <MobileToc selectedItem={selectedItem} />
+                    {/* Drawn from the first frame (most pages have sections) and kept once
+                        the article is in if it has any, so nothing below it moves. */}
+                    <MobileToc selectedItem={selectedItem} expectHeadings={!contentReady || hasSectionHeadings(markdown)} />
                     {!home && (
                         <div className="aiui-docs-pagehead">
                             {section ? <p className="aiui-docs-eyebrow">{section}</p> : <span />}

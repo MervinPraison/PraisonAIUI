@@ -133,6 +133,9 @@
 - Docs home: the hero image no longer shifts the page as it loads (it keeps
   a 16:10 box until the file arrives), and only the image for the colour
   mode on screen downloads at first.
+- Docs on phones: the folded "On this page" no longer appears a frame after
+  the article and pushes it down (layout shift 0.070 → 0 on the home page,
+  0.086 → 0.017 on Quick Start).
 - Docs sites (`aiui build`): pages make far fewer requests, all to the site
   itself. The default `site.plugins` is now `fetch-retry` and
   `nav-intercept`: `mermaid`, `syntax-highlight`, `code-copy`, `toc`,

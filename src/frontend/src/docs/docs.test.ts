@@ -1,7 +1,7 @@
 // Docs style helpers: page source fixes (docSource.ts) and reading order (docNav.ts).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { docSourcePath, pageRoute, prepareDocSource, resolveDocTarget, resolveDocUrls, stripFrontmatter, docPathAliases } from './docSource'
+import { docSourcePath, hasSectionHeadings, pageRoute, prepareDocSource, resolveDocTarget, resolveDocUrls, stripFrontmatter, docPathAliases } from './docSource'
 import { docNeighbours, docPages, docSearchGroups, docSection } from './docNav'
 import { scoreDocMatch } from './searchRank'
 import { detectActiveTabIndex, filterNavByTab, navItemTabGroupIndex } from './navTabs'
@@ -199,4 +199,12 @@ test('the docs home page has one URL, the site root', () => {
     assert.equal(canonicalDocPath('/docs/guide'), '/docs/guide')
     assert.equal(canonicalDocPath('/docs/guide/index'), '/docs/guide/index')
     assert.equal(canonicalDocPath('/handbook/index', '/handbook'), '/')
+})
+
+test('a page has sections for "On this page" when it has ## to #### headings outside code', () => {
+    assert.equal(hasSectionHeadings('# Title\n\nText.\n\n## Install\n'), true)
+    assert.equal(hasSectionHeadings('# Title\n\n#### Deep\n'), true)
+    assert.equal(hasSectionHeadings('# Title only\n\n##not a heading\n'), false)
+    assert.equal(hasSectionHeadings('# T\n\n```bash\n## a shell comment\n```\n'), false)
+    assert.equal(hasSectionHeadings('# T\n\n~~~~\n## inside\n~~~~\n\n### After\n'), true)
 })
