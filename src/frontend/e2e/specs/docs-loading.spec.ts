@@ -107,12 +107,31 @@ test('first load: a hung manifest is retried and the page still shows within sec
   expect(requests).toBeGreaterThanOrEqual(2) // the app's retry (legacy topnav may read it too)
 })
 
-test('first load: a deep link fetches its page alongside the manifests, not after them', async ({ page }) => {
+test('first load: a page renders from the markdown inlined in its HTML, with no request for it', async ({ page }) => {
+  const mdRequests: string[] = []
+  page.on('request', (r) => { if (new URL(r.url()).pathname.endsWith('.md')) mdRequests.push(new URL(r.url()).pathname) })
+  // Slow manifests: the inlined markdown must not wait on anything but the app.
+  await page.route(/\/(ui-config|docs-nav|route-manifest)\.json$/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+    await route.continue()
+  })
+  await page.goto('/docs/guide/second')
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  expect(mdRequests.filter((p) => p === '/docs/guide/second.md')).toEqual([])
+  await expect(page.locator('#aiui-initial-doc')).toHaveCount(0) // read once, then removed
+})
+
+test('first load: without the inlined block, a deep link fetches its page alongside the manifests', async ({ page }) => {
   const started: Record<string, number> = {}
   const finished: Record<string, number> = {}
   page.on('request', (r) => { started[new URL(r.url()).pathname] ??= Date.now() })
   page.on('requestfinished', (r) => { finished[new URL(r.url()).pathname] ??= Date.now() })
-  // The manifests take 1 s; the page must not wait for them before asking for its markdown.
+  // An HTML without the block (an older build, a host that rewrote it).
+  await page.route(/\/docs\/guide\/second\/?$/, async (route) => {
+    const response = await route.fetch()
+    const body = (await response.text()).replace(/<script type="application\/json" id="aiui-initial-doc">[\s\S]*?<\/script>/, '')
+    await route.fulfill({ response, body })
+  })
   await page.route(/\/(ui-config|docs-nav|route-manifest)\.json$/, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1_000))
     await route.continue()
