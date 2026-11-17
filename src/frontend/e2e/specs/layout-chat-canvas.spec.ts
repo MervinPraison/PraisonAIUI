@@ -147,9 +147,12 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     expect(bodySize).toBeGreaterThanOrEqual(14)
 
     // A conversation: table, code block, an approval decided on the card.
-    // The connection is chrome (the top bar's line), not a pill in the thread.
+    // The connection is chrome, not a pill in the thread: "Connected" at the
+    // sidebar's foot; the top bar's line names it only while it is not open.
     await expect(page.locator('[data-connection="open"]')).toBeAttached()
-    await expect(page.locator('[data-cc-connection="open"]')).toBeVisible()
+    await expect(sidebar.locator('[data-aiui-connection="online"]')).toContainText('Connected')
+    await expect(page.locator('[data-cc-connection]')).toHaveCount(0)
+    await expect(sidebar.locator('[data-cc-more]')).toContainText('More')
     const pillWidth = await page.locator('[data-aiui-chat] [data-connection]').evaluate((el) => el.getBoundingClientRect().width)
     expect(pillWidth, 'the chat page badge is for screen readers only').toBeLessThanOrEqual(1)
     await send(page, 'markdown apok')
@@ -188,7 +191,11 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
     // The canvas, when the artifacts feature is in the build.
     if (HAS_CANVAS) {
       await expect(page.getByRole('complementary', { name: 'Canvas' })).toBeVisible()
-      await expect(page.locator('[data-chat-aside-toggle]')).toContainText('Canvas')
+      // The toggle sits in the top bar (pressed while open), the chat's row counts its artifacts.
+      const toggle = page.locator('header [data-chat-aside-toggle]')
+      await expect(toggle).toContainText('Canvas')
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+      await expect(open.locator('[data-cc-chat-meta]')).toContainText(/\d artifacts? · /)
     } else {
       await expect(page.locator('[data-chat-aside]')).toHaveCount(0)
     }

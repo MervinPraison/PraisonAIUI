@@ -1,8 +1,9 @@
 /**
  * The Chat and Canvas top bars. Desktop (Canvas.dc.html): the title over
- * "Researcher · connected · 3 artifacts · edited 2 min ago", Search or run
- * a command (⌘K), Share (copies the link; the chat page only) and the theme switch, then the shell's
- * `header:actions` slot. Phone (CanvasPhone.dc.html): menu, the centred
+ * "Researcher · 3 artifacts · edited 2 min ago", Search or run a command
+ * (⌘K), the chat's Canvas toggle (portalled into `[data-aiui-aside-slot]`),
+ * Share (copies the link; the chat page only) and the theme switch, then
+ * the shell's `header:actions` slot. Phone (CanvasPhone.dc.html): menu, the centred
  * title and line, New chat; 44 px targets.
  */
 import type { ReactNode } from 'react'
@@ -41,11 +42,14 @@ export function TopBar({
   collapsed,
   onExpand,
   share = true,
+  onChatPage = false,
 }: {
   line: TitleLine
   chrome: LayoutChrome
   /** Share the link: on the chat page only (a dashboard page has nothing to share; pages add their own actions in header:actions). */
   share?: boolean
+  /** The chat page: its Canvas toggle joins the bar. */
+  onChatPage?: boolean
   /** The sidebar is hidden: show the button that brings it back. */
   collapsed: boolean
   onExpand(): void
@@ -82,6 +86,8 @@ export function TopBar({
         <span className="flex-1 text-left max-lg:sr-only">Search or run a command</span>
         <ShortcutHint combo="mod+k" className="max-lg:hidden" />
       </Button>
+      {/* The chat's Canvas toggle (pressed while open, with the count) is portalled here from the chat page. */}
+      {onChatPage && <span className="contents" data-aiui-aside-slot="" />}
       {share && (
         <Button variant="outline" className="h-[34px] text-foreground" onClick={() => void copyLink()} data-cc-share="">
           <Share />

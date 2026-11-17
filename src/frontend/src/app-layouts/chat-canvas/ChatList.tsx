@@ -1,6 +1,6 @@
 /**
  * The sidebar's chats (meta.chat.sessions 'frame'): two-line rows, the
- * title over "Working…" or when it last changed, the open chat raised on
+ * title over "3 artifacts · now" ("Working…" while a run goes), the open chat raised on
  * the card colour; a search toggle in the heading. Over the `sessions` feed
  * (the kit's useSessions), so it renders nothing while builtin.chat is off.
  */
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessions, type KitSize } from '@/app-layouts/kit'
 import { cn } from '@/lib/utils'
-import { shortTime } from './format'
+import { chatRowMeta, relativeTime } from './format'
 
 // The rows' times, to the minute, as of the last render (no timer of its own).
 const noSubscribe = () => () => {}
@@ -24,11 +24,13 @@ export interface ChatListProps {
   /** After a chat is opened (the frame shows the chat page, a sheet closes). */
   onOpen?(sessionId: string): void
   className?: string
+  /** Artifacts per chat (the artifacts index), for the rows' second line. */
+  counts?: ReadonlyMap<string, number>
   /** For tests: the clock. */
   now?: number
 }
 
-export function ChatList({ size = 'default', limit = 30, onOpen, className, now }: ChatListProps) {
+export function ChatList({ size = 'default', limit = 30, onOpen, className, counts, now }: ChatListProps) {
   const sessions = useSessions()
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
@@ -95,7 +97,7 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
           {shown.map((s) => {
             const active = s.id === state.activeId
             const running = state.runningIds.has(s.id)
-            const meta = running ? 'Working…' : shortTime(s.updatedAt, clock)
+            const meta = running ? 'Working…' : chatRowMeta(counts?.get(s.id), relativeTime(s.updatedAt, clock))
             return (
               <li key={s.id}>
                 <button
@@ -103,9 +105,9 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
                   aria-current={active ? 'true' : undefined}
                   data-aiui-session={s.id}
                   className={cn(
-                    'flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 text-left outline-none transition-colors',
+                    'flex w-full min-w-0 flex-col rounded-lg px-2.5 py-1.5 text-left outline-none transition-colors',
                     'hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-ring',
-                    touch ? 'min-h-11' : 'h-8',
+                    touch && 'min-h-11',
                     // The open chat: the accent fill and a 2px primary edge, visible on the grey sidebar in light mode too.
                     active ? 'bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_var(--primary)]' : 'text-sidebar-foreground',
                   )}
@@ -114,9 +116,11 @@ export function ChatList({ size = 'default', limit = 30, onOpen, className, now 
                     onOpen?.(s.id)
                   }}
                 >
-                  <span className={cn('min-w-0 flex-1 truncate', touch ? 'text-[15px]' : 'text-sm', active && 'font-medium')}>{s.title}</span>
+                  <span className={cn('w-full truncate', touch ? 'text-[15px]' : 'text-sm', active && 'font-semibold')}>{s.title}</span>
                   {meta && (
-                    <span className={cn('shrink-0 text-xs tabular-nums', running ? 'font-medium text-warning' : 'text-muted-foreground')}>{meta}</span>
+                    <span className={cn('w-full truncate text-xs tabular-nums', running ? 'font-medium text-warning' : 'text-muted-foreground')} data-cc-chat-meta="">
+                      {meta}
+                    </span>
                   )}
                 </button>
               </li>
