@@ -195,6 +195,13 @@
   route, each record is stored once, and with the built-in disabled
   `create_app` no longer imports `features/logs.py` or adds a root log handler.
   `server.api_logs` still imports and delegates to the feature.
+- Channels: with the built-in in-process gateway (no `praisonai` wrapper
+  installed), starting a channel bot no longer fails on the gateway path with
+  `StandaloneGateway._create_bot() takes 4 positional arguments but 6 were
+  given` and silently falls back to the direct import. The standalone gateway
+  now takes the same `(platform, token, agent, bot_config, ch_cfg)` call as
+  `WebSocketGateway`, so registered bot factories (`register_bot_factory`)
+  build channel bots again.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs
