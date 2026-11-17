@@ -18,6 +18,12 @@
  *               index.css): setTokenSystem('pro') while a
  *               frame is mounted, setTokenSystem(null) for the classic frame
  *               and the fallback
+ *   look        the frame's meta.look (Chat + Canvas: "paper") as
+ *               <html data-aiui-look> while it is mounted, unless the viewer
+ *               chose plain Pro (proTokens setLookChoice, the "Switch look: …"
+ *               commands of builtin.layouts); the
+ *               looks' CSS (styles/paper.css) ships here beside pro.css, so a
+ *               look paints before the frame's chunk arrives
  *
  * The host names no layout: ids come from the manifest and the registry.
  */
@@ -37,6 +43,7 @@ import {
 import { useTheme } from 'next-themes'
 import {
   activateLayout,
+  useLayout,
   LAYOUT_BREAKPOINTS,
   layoutViewport,
   setLayout,
@@ -49,7 +56,8 @@ import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { notify } from '@/sdk/notify'
 import '@/styles/pro.css'
 import '@/styles/fonts.css'
-import { setTokenSystem } from '@/proTokens'
+import '@/styles/paper.css'
+import { getLookChoice, setTokenSystem, subscribeLookChoice } from '@/proTokens'
 import { buildLayoutNav, MAIN_ID } from './layoutNav'
 import type { ActiveLayout } from './layoutSelect'
 import { siteLogo, siteTitle, type NavGroupsConfig } from './nav'
@@ -148,11 +156,19 @@ export function FrameSkeleton() {
 // ── token system ─────────────────────────────────────────────────────
 
 /** Pro tokens while a layout frame is mounted (the server may already have set them for first paint). */
-function useProTokens(): void {
+function useProTokens(layoutLook: string | undefined): void {
   useLayoutEffect(() => {
     setTokenSystem('pro')
     return () => setTokenSystem(null)
   }, [])
+  const choice = useSyncExternalStore(subscribeLookChoice, getLookChoice, getLookChoice)
+  const look = choice === 'pro' ? undefined : layoutLook
+  useLayoutEffect(() => {
+    if (!look) return
+    const root = document.documentElement
+    root.setAttribute('data-aiui-look', look)
+    return () => root.removeAttribute('data-aiui-look')
+  }, [look])
 }
 
 /** The classic frame paints with the classic tokens, whatever the server guessed for first paint. */
@@ -224,7 +240,7 @@ export interface LayoutHostProps {
 }
 
 function LayoutFrame({ active, manifest, groups, routeId, page, fullBleed, Frame }: LayoutHostProps & { Frame: LayoutComponent }) {
-  useProTokens()
+  useProTokens(useLayout()?.meta.look)
   const viewport = useViewport()
   const { resolvedTheme, setTheme } = useTheme()
   const spec = useMemo(

@@ -53,7 +53,7 @@ export function ArtifactView({ artifact: a, versions, onShow, onRestore, compact
     <div className="flex min-w-0 flex-col gap-3.5 px-5 py-4" onKeyDown={onKeyDown} data-artifact={a.key} data-version={a.version}>
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1 basis-56">
-          <h2 id={headingId} className={cn('m-0 truncate text-2xl leading-tight font-medium tracking-tight', isFile && 'font-mono text-xl')}>
+          <h2 id={headingId} className={cn('m-0 truncate font-display text-2xl leading-tight font-medium tracking-tight', isFile && 'font-mono text-xl')}>
             {a.title}
           </h2>
           <div className="mt-0.5 text-xs text-tier-3">

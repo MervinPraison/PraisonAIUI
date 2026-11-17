@@ -5,7 +5,7 @@
  * Its own module, with no imports, so the shell (shell/LayoutHost.tsx) and
  * builtin.layouts load only this and not themes.ts, which the legacy React
  * App shares (a shared module lands whole in the boot path). themes.ts
- * re-exports every name. Python themes.PRO_ACCENTS holds the same table
+ * re-exports the accent and token-system names. Python themes.PRO_ACCENTS holds the same table
  * (tests/unit/test_seed_theme.py keeps them equal).
  */
 
@@ -58,6 +58,49 @@ export function setTokenSystem(system: TokenSystem | null, root?: HTMLElement): 
 export function getTokenSystem(root?: HTMLElement): TokenSystem | null {
     const el = root ?? (typeof document === 'undefined' ? null : document.documentElement)
     return el?.getAttribute(TOKEN_SYSTEM_ATTR) === 'pro' ? 'pro' : null
+}
+
+// ── looks ────────────────────────────────────────────────────────────
+// A look is a variant of the Pro tokens a layout paints with by default
+// (its meta.look, e.g. Chat + Canvas's "paper"; CSS in styles/paper.css).
+// The viewer may prefer plain Pro everywhere: a per-viewer convenience in
+// localStorage, kept in memory too when storage is blocked.
+
+/** localStorage: `pro` when the viewer chose plain Pro over a layout's own look. */
+export const LOOK_STORAGE_KEY = 'aiui-look'
+export type LookChoice = 'layout' | 'pro'
+
+let lookChoice: LookChoice | undefined
+const lookListeners = new Set<() => void>()
+
+/** The viewer's look choice (`layout` unless they picked plain Pro). */
+export function getLookChoice(): LookChoice {
+    if (!lookChoice) {
+        try {
+            lookChoice = localStorage.getItem(LOOK_STORAGE_KEY) === 'pro' ? 'pro' : 'layout'
+        } catch {
+            lookChoice = 'layout'
+        }
+    }
+    return lookChoice
+}
+
+/** Choose the layout's own look or plain Pro; saved in this browser and applied at once. */
+export function setLookChoice(choice: LookChoice): void {
+    lookChoice = choice
+    try {
+        if (choice === 'pro') localStorage.setItem(LOOK_STORAGE_KEY, choice)
+        else localStorage.removeItem(LOOK_STORAGE_KEY)
+    } catch {
+        /* kept for this page only */
+    }
+    lookListeners.forEach((fn) => fn())
+}
+
+/** Called when the look choice changes (useSyncExternalStore). */
+export function subscribeLookChoice(fn: () => void): () => void {
+    lookListeners.add(fn)
+    return () => lookListeners.delete(fn)
 }
 
 /** Per-mode `--seed-pro-<role>` seeds for one swatch (registerThemePreset light/dark). */

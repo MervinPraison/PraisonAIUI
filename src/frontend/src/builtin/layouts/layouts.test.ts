@@ -7,6 +7,7 @@ import { getLayoutComponent, getLayouts, resetLayoutsForTests } from '@/sdk/layo
 import type { ShellLayouts } from '@/sdk/manifest'
 import { getSettingsSections, getThemePresets } from '@/sdk/contributions'
 import { getCommands, resetServicesForTests } from '@/sdk/services'
+import { getLookChoice, setLookChoice } from '@/proTokens'
 import { activateLayouts, APPEARANCE_SECTION_ID, BUILTIN_LAYOUTS, currentChoice, isBuiltinLayout, layoutChoices, layoutsBuiltin } from './index'
 
 const g = globalThis as unknown as Record<string, unknown>
@@ -43,6 +44,7 @@ beforeEach(() => {
   resetLayoutsForTests()
   resetServicesForTests()
   for (const off of removers.splice(0)) off()
+  setLookChoice('layout')
 })
 
 test('the five built-in layouts each have a descriptor with a lazy loader', () => {
@@ -95,9 +97,26 @@ test('palette commands switch to each offered layout, plugin ones included, and 
   const cmds = getCommands().filter((c) => c.group === 'Layout')
   assert.deepEqual(
     cmds.map((c) => c.title),
-    ['Switch layout: Chat + Canvas', 'Switch layout: Aurora', 'Switch layout: Mission Control', 'Switch layout: Classic'],
+    [
+      'Switch layout: Chat + Canvas',
+      'Switch layout: Aurora',
+      'Switch layout: Mission Control',
+      'Switch layout: Classic',
+      // Chat + Canvas paints with its own look (meta.look 'paper'); plain Pro is the other choice.
+      'Switch look: Paper',
+      'Switch look: Pro',
+    ],
   )
-  assert.deepEqual(cmds.map((c) => c.id).at(-1), 'layouts.switch.classic')
+  assert.deepEqual(cmds.map((c) => c.id).slice(-3), ['layouts.switch.classic', 'layouts.look.layout', 'layouts.look.pro'])
+})
+
+test('the look: "Switch look: Paper / Pro" save the viewer\'s choice; the host reads it', async () => {
+  activateLayouts(sdk, offered())
+  assert.equal(getLookChoice(), 'layout')
+  await getCommands().find((c) => c.id === 'layouts.look.pro')!.run()
+  assert.equal(getLookChoice(), 'pro')
+  await getCommands().find((c) => c.id === 'layouts.look.layout')!.run()
+  assert.equal(getLookChoice(), 'layout')
 })
 
 test('Settings → Appearance lists the same choices and reads the stored choice', async () => {
@@ -120,6 +139,11 @@ test('without a user choice there is no Appearance section (the server decides)'
   activateLayouts(sdk, offered({ userChoice: false }))
   assert.equal(getSettingsSections().some((s) => s.id === APPEARANCE_SECTION_ID), false)
   assert.ok(getCommands().some((c) => c.group === 'Layout'), 'the tab-only switch stays in the palette')
+})
+
+test('no offered layout with a look: no look commands', () => {
+  activateLayouts(sdk, offered({ available: [{ id: 'mission', title: 'Mission Control', source: 'builtin' }] }))
+  assert.equal(getCommands().some((c) => c.id.startsWith('layouts.look.')), false)
 })
 
 test('the Pro accents are offered as theme presets that set only Pro seeds', () => {
