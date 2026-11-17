@@ -10,10 +10,12 @@ import { MobileToc } from './Toc'
 import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
 import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
 import { docSourcePath, prepareDocSource } from './docs/docSource'
-import { docSection } from './docs/docNav'
+import { docNeighbours, docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
+import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
+import { Button } from '@/components/ui/button'
 
 interface ContentProps {
     config: UIConfig
@@ -30,6 +32,9 @@ interface ContentProps {
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'
 
+/** Longest wait for the renderer chunks before a fetched page paints. */
+const PAINT_WAIT_MS = 1000
+
 /** SPA navigation to an internal href (the same event the sidebar sends). */
 function navigateTo(href: string) {
     window.history.pushState({ path: href }, '', href)
@@ -40,15 +45,25 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const [markdown, setMarkdown] = useState<string>('')
     const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
+    const [loadError, setLoadError] = useState(false)
+    const [retryCount, setRetryCount] = useState(0)
     const articleRef = useRef<HTMLElement>(null)
     const loadedEventPath = useRef<string | null>(null)
+    const navRef = useRef(nav)
+    navRef.current = nav
     const theme = config.site?.theme
 
-    // Load markdown from URL path (source of truth) to avoid stale selectedItem races
+    // Prefetch a docs link's markdown on hover, focus and pointerdown.
+    useEffect(() => installDocPrefetch(), [])
+
+    // Load markdown from URL path (source of truth) to avoid stale selectedItem races.
+    // docLoader bounds every attempt and retries, caches answers and shares
+    // prefetches; the next navigation aborts this one (the last click wins).
     useEffect(() => {
         const urlPath = normalizeDocPath(currentPath)
         // The site root shows the docs home page (docs/index.md) when the nav has one.
         const sourcePath = docSourcePath(urlPath, selectedItem?.path)
+        setLoadError(false)
         if (!sourcePath) {
             setLoadingContent(false)
             setLoadedPath('')
@@ -59,46 +74,60 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const mdUrl = docPathToMarkdown(sourcePath)
         const pageTitle = sourcePath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
         const controller = new AbortController()
+        let cancelIdle = () => {}
+
+        const prepare = (text: string) => preprocessMkdocsMarkdown(prepareDocSource(text, sourcePath))
+        const show = (result: DocResult, content = result.ok ? prepare(result.text) : '') => {
+            loadedEventPath.current = urlPath // announced once the article has committed
+            setMarkdown(result.ok ? content : `*Content for **${pageTitle}** not found.*`)
+            setLoadedPath(urlPath)
+            setLoadingContent(false)
+            // Warm the previous and next pages while the reader reads this one.
+            cancelIdle = whenIdle(() => {
+                const docsNav = navRef.current
+                const { prev, next } = docsNav ? docNeighbours(docsNav, sourcePath) : {}
+                for (const item of [prev, next]) {
+                    if (item?.path) prefetchDoc(docPathToMarkdown(item.path))
+                }
+            })
+        }
+
+        // A page read before (or prefetched) renders at once; the renderer is warm.
+        const cached = peekDoc(mdUrl)
+        if (cached) {
+            show(cached)
+            return () => cancelIdle()
+        }
 
         setMarkdown('')
         setLoadedPath('')
         setLoadingContent(true)
         loadedEventPath.current = null
 
-        const loadContent = async () => {
-            try {
-                const response = await fetch(mdUrl, { signal: controller.signal })
-                if (controller.signal.aborted) return
-                if (response.ok) {
-                    const content = preprocessMkdocsMarkdown(prepareDocSource(await response.text(), sourcePath))
-                    // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
-                    // unstyled-code flash); grammars and mermaid stay lazy.
-                    await Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])
-                    if (controller.signal.aborted) return
-                    loadedEventPath.current = urlPath // announced once the article has committed
-                    setMarkdown(content)
-                    setLoadedPath(urlPath)
-                } else {
-                    setMarkdown(`*Content for **${pageTitle}** not found.*`)
-                    setLoadedPath(urlPath)
-                }
-            } catch {
-                if (controller.signal.aborted) return
-                setMarkdown(`*Failed to load content for **${pageTitle}**.*`)
-                setLoadedPath(urlPath)
-            } finally {
-                if (!controller.signal.aborted) {
-                    setLoadingContent(false)
-                }
-            }
-        }
+        loadDoc(mdUrl, controller.signal).then(async (result) => {
+            if (controller.signal.aborted) return
+            if (!result.ok) return show(result)
+            // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
+            // unstyled-code flash), but never more than PAINT_WAIT_MS: past
+            // that the text shows and upgrades when they arrive.
+            const content = prepare(result.text)
+            await Promise.race([
+                Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)]),
+                new Promise((resolve) => setTimeout(resolve, PAINT_WAIT_MS)),
+            ])
+            if (!controller.signal.aborted) show(result, content)
+        }, () => {
+            if (controller.signal.aborted) return
+            setLoadError(true)
+            setLoadingContent(false)
+        })
 
-        loadContent()
         return () => {
             controller.abort()
+            cancelIdle()
             setLoadingContent(false)
         }
-    }, [currentPath, selectedItem?.path])
+    }, [currentPath, selectedItem?.path, retryCount])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
@@ -153,7 +182,15 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                     {contentReady && nav && onNavigate && (
                         <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}
-                    {!loadingContent && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
+                    {loadError && (
+                        <div className="aiui-docs-notice" role="alert">
+                            <p>Couldn't load this page. Check your connection and try again.</p>
+                            <Button type="button" variant="outline" onClick={() => setRetryCount((n) => n + 1)}>
+                                Retry
+                            </Button>
+                        </div>
+                    )}
+                    {!loadingContent && !loadError && !contentReady && loadedPath === normalizeDocPath(currentPath) && (
                         <p className="aiui-docs-notice">
                             Content for <strong>{selectedItem.title}</strong> would be displayed here.
                         </p>

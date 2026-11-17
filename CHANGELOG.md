@@ -115,6 +115,19 @@
   with links home and to search, instead of the developer view of the
   config (now only with `debug: true`).
 
+- Docs sites: one slow connection no longer leaves a page on the loading
+  skeleton for 20-30 seconds. Each request for a page's `.md` gets 5 seconds
+  to answer, then a fresh request goes out (three attempts: 5 s, 5 s, 10 s).
+  Pages are kept in memory and prefetched on hover, focus and press, and the
+  previous / next pages while idle; the next click cancels the previous
+  request; the renderer chunks hold up a fetched page for at most a second.
+  When every attempt fails the page says "Couldn't load this page" with a
+  Retry button. `fetch-retry.js` no longer retries `.md` (one retry layer) and
+  never retries an aborted request. In a throttled probe a page whose request
+  hangs for 30 s shows in 5.3 s instead of 31 s, and one whose new connection
+  stalls for 18 s in 5.5 s instead of 18.5 s. See
+  [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
+
 - Docs sites (`aiui build`): the site root shows `docs/index.md` instead of an
   empty page; pages work on any static host (each page also has
   `docs/<page>/index.html`, and index pages and numbered files have their
