@@ -48,6 +48,7 @@ def _isolated(tmp_path, monkeypatch):
     # the process-wide registry are not part of the default table.
     monkeypatch.setattr(features, "_features", {})
     monkeypatch.setattr(features, "_builtin_registered", {})
+    monkeypatch.setattr(features, "_plugin_registered", {})
     srv.reset_state()
     yield
     srv.reset_state()

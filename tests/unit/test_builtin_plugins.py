@@ -738,6 +738,29 @@ def test_plugin_feature_takes_the_name_of_a_disabled_builtin():
     _features.pop("training", None)
 
 
+def test_reenabled_builtin_wins_over_a_plugin_feature_that_took_its_name():
+    from praisonaiui.features import get_feature
+    from praisonaiui.features.training import TrainingFeature
+
+    class PluginTraining(TrainingFeature):
+        pass
+
+    class Mine:
+        name = "mine"
+
+        def features(self):
+            return [PluginTraining()]
+
+    get_plugin_registry().register(Mine())
+    set_extensions(disabled=["builtin.training"])
+    _client()
+    assert type(get_feature("training")) is PluginTraining
+    set_extensions(disabled=[])
+    client = _client()
+    assert type(get_feature("training")) is TrainingFeature  # an enabled built-in wins
+    assert client.get("/api/training/status").status_code == 200
+
+
 def test_no_builtin_feature_route_is_shadowed():
     """Built-in features register in record order, which is not the order of
     the old hardcoded list. That is only safe while no route of one feature

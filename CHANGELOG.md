@@ -158,6 +158,13 @@
 
 ### Fixed
 
+- Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
+  the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
+  installed entry points to trust, as the docs say; only `extensions.disabled`
+  turns your own plugin off.
+- Plugins: a plugin's `features()` routes go when a later `create_app()` in the
+  same process disables the plugin, and a built-in that is switched back on
+  takes its feature name back from a plugin that borrowed it.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

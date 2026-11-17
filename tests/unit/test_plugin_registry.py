@@ -151,6 +151,7 @@ def site(tmp_path, monkeypatch):
     srv.reset_state()
     features_registry._features.clear()
     features_registry._features.update(saved_features)
+    features_registry._plugin_registered.clear()
     for m in _MODS:
         sys.modules.pop(m, None)
 
@@ -245,6 +246,30 @@ def test_manual_register_without_packaging(site, monkeypatch):
     assert [p.id for p in get_plugin_registry().pages()] == ["inline"]
     # in-process plugins are trusted even for restricted (remote/auth) viewers
     assert [p.id for p in get_plugin_registry().pages(restricted=True)] == ["inline"]
+
+
+def test_enabled_allowlist_never_disables_a_manual_plugin(site):
+    """``enabled`` picks which *installed* plugins to trust; a plugin the app
+    passed to register_plugin() is trusted already (docs: Trust and policy)."""
+
+    class Mine:
+        name = "mine"
+
+        def pages(self):
+            return [PageSpec(id="mine", title="Mine", kind="blocks")]
+
+    reg = get_plugin_registry()
+    reg.register(Mine())
+    reg.set_policy(ExtensionPolicy(enabled=["fakeplug"]))
+    recs = _records()
+    assert recs["mine"].status == "ok" and recs["mine"].plugin is not None
+    assert recs["never"].status == "disabled"  # still an allowlist for entry points
+    assert "mine" in [p.id for p in reg.pages(restricted=True)]
+    client = _remote(style="app", extensions={"enabled": ["fakeplug"]})
+    assert "mine" in {p["id"] for p in client.get("/api/shell/manifest").json()["pages"]}
+    # ``disabled`` still switches it off
+    reg.set_policy(ExtensionPolicy(enabled=["fakeplug"], disabled=["mine"]))
+    assert _records()["mine"].status == "disabled"
 
 
 def test_dict_specs_and_bad_spec_isolation(site, monkeypatch, tmp_path):
@@ -408,6 +433,19 @@ def test_plugin_routes_static_and_feature_mounted(site):
     assert client.get("/api/fakeplug-feature/ping").json() == {"pong": True}
     plugin = next(r for r in get_plugin_registry().active() if r.name == "fakeplug").plugin
     assert plugin.setup_ctx["style"] == "app"
+
+
+def test_plugin_feature_goes_when_a_later_app_disables_the_plugin(site):
+    client = _local()
+    assert client.get("/api/fakeplug-feature/ping").status_code == 200
+    set_extensions(disabled=["fakeplug"])
+    client = _local()
+    assert _records()["fakeplug"].status == "disabled"
+    assert "fakeplug-feature" not in features_registry.get_features()
+    assert client.get("/api/fakeplug-feature/ping").status_code == 404
+    set_extensions(disabled=[])
+    client = _local()
+    assert client.get("/api/fakeplug-feature/ping").json() == {"pong": True}
 
 
 def test_legacy_api_pages_gets_blocks_plugin_pages_only(site):

@@ -4368,19 +4368,10 @@ def create_app(
     auto_register_defaults()
     # Entry-point plugins may contribute whole feature protocols (same
     # contract as built-ins); registered before routes are collected.
-    # An enabled built-in's feature names win.
-    from praisonaiui.features import register_feature as _register_feature
+    # An enabled built-in's feature names win; a disabled plugin's go.
+    from praisonaiui.features import sync_plugin_features
 
-    for _pf in _plugin_registry.features():
-        try:
-            if _pf.name not in get_features():
-                _register_feature(_pf)
-            else:
-                logging.getLogger(__name__).warning(
-                    "plugin feature %r ignored: a feature with that name exists", _pf.name
-                )
-        except Exception as exc:  # noqa: BLE001
-            logging.getLogger(__name__).warning("plugin feature registration failed: %s", exc)
+    sync_plugin_features(_plugin_registry.features())
     for feature in get_features().values():
         routes.extend(feature.routes())
 

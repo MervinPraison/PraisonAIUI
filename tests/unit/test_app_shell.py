@@ -922,8 +922,11 @@ def test_extensions_bare_list_in_data_dir_config(_isolated):
     get_plugin_registry().register(_Inline("blocked"))
     get_plugin_registry().register(_Inline("allowed"))
     client = _client(style="app")
+    assert get_plugin_registry().policy.enabled == ["allowed"]
+    # The allowlist picks installed entry points; register_plugin() objects
+    # were chosen by the app and stay on (plugins.md "Trust and policy").
     status = {p["name"]: p["status"] for p in client.get("/api/plugins").json()["plugins"]}
-    assert status == {"blocked": "disabled", "allowed": "ok"}
+    assert status == {"blocked": "ok", "allowed": "ok"}
 
 
 def test_extensions_policy_does_not_leak_between_apps(_isolated):

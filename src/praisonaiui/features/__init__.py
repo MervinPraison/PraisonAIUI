@@ -16,6 +16,8 @@ from ._base import BaseFeatureProtocol
 _features: Dict[str, BaseFeatureProtocol] = {}
 # Features auto_register_defaults() added (name -> the instance it registered)
 _builtin_registered: Dict[str, BaseFeatureProtocol] = {}
+# Features sync_plugin_features() added for plugin records (same shape)
+_plugin_registered: Dict[str, BaseFeatureProtocol] = {}
 
 
 def register_feature(feature: BaseFeatureProtocol) -> None:
@@ -82,7 +84,11 @@ def auto_register_defaults() -> None:
             )
         for feat in feats:
             wanted.add(feat.name)
-            if feat.name not in _features:
+            current = _features.get(feat.name)
+            # An enabled built-in wins over a plugin feature that took its
+            # name while it was off; never over the app's register_feature().
+            if current is None or current is _plugin_registered.get(feat.name):
+                _plugin_registered.pop(feat.name, None)
                 register_feature(feat)
                 _builtin_registered[feat.name] = feat
 
@@ -96,10 +102,40 @@ def auto_register_defaults() -> None:
         del _builtin_registered[name]
 
 
+def sync_plugin_features(feats) -> None:
+    """Register the ``features()`` of the active third-party plugins.
+
+    Called by ``create_app()`` after :func:`auto_register_defaults`, with
+    ``PluginRegistry.features()``. A plugin feature registered by an earlier
+    call is unregistered first, so one whose plugin is now disabled (or no
+    longer offers it) does not outlive the policy. A name that is already
+    registered (an enabled built-in or the app's ``register_feature()``)
+    keeps its feature and the plugin's is ignored with a warning.
+    """
+    import logging
+
+    _log = logging.getLogger(__name__)
+    for name, feat in list(_plugin_registered.items()):
+        if _features.get(name) is feat:
+            del _features[name]
+        del _plugin_registered[name]
+    for feat in feats:
+        try:
+            name = feat.name
+            if name in _features:
+                _log.warning("plugin feature %r ignored: a feature with that name exists", name)
+                continue
+            register_feature(feat)
+            _plugin_registered[name] = feat
+        except Exception as exc:  # noqa: BLE001 - one plugin never blocks the rest
+            _log.warning("plugin feature registration failed: %s", exc)
+
+
 __all__ = [
     "BaseFeatureProtocol",
     "register_feature",
     "get_features",
     "get_feature",
     "auto_register_defaults",
+    "sync_plugin_features",
 ]
