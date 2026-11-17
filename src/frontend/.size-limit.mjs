@@ -225,5 +225,7 @@ export default [
   // 9,098,397 B; the docs Paper type and search took the rest of the headroom).
   // 9,105,873 B (measured, raised by exactly the overage): no layout shift
   // from the docs hero image or the phone's folded TOC (+511 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9105873 B', brotli: false },
+  // 9,110,651 B (measured, raised by exactly the overage): docs code block
+  // file names, highlighted lines and code groups (+4,778 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9110651 B', brotli: false },
 ]

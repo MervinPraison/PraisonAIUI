@@ -14,6 +14,7 @@ import { docNeighbours, docSection } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
+import { DocsPre } from './docs/DocsPre'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
@@ -29,6 +30,9 @@ interface ContentProps {
     /** Opens the docs search (the "Page not found" view offers it). */
     onSearch?: () => void
 }
+
+/** Docs-only element overrides (code titles and highlights). Module scope: Markdown wants a stable object. */
+const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'
@@ -188,7 +192,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             ref={articleRef}
                             className="aiui-doc prose max-w-none min-w-0"
                         >
-                            <Markdown variant="docs">{markdown}</Markdown>
+                            <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS}>{markdown}</Markdown>
                         </article>
                     )}
                     {contentReady && nav && onNavigate && (

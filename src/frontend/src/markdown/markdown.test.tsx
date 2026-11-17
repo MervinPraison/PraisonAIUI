@@ -738,3 +738,19 @@ test('hastTextLength counts the trimmed text of nested nodes', () => {
   assert.equal(hastTextLength({ type: 'element', children: [{ type: 'text', value: ' O(n ' }, { type: 'element', children: [{ type: 'text', value: 'log n)' }] }] }), 9)
   assert.equal(hastTextLength(undefined), 0)
 })
+
+test('convertMkdocsBlocks turns a <CodeGroup> into tabs labelled by file name or language', () => {
+    const md = ['Intro', '', '<CodeGroup>', '', '```bash pip', 'pip install aiui', '```', '', '```python title="app.py" {2}', 'import a', 'b = 1', '```', '', '```js', 'x()', '```', '', '</CodeGroup>', '', 'After'].join('\n')
+    const out = convertMkdocsBlocks(md)
+    assert.match(out, /<aiui-tabs>/)
+    assert.deepEqual([...out.matchAll(/<aiui-tab title="([^"]*)">/g)].map((m) => m[1]), ['pip', 'app.py', 'js'])
+    // The fences, meta included, stay as written inside their tabs.
+    assert.match(out, /<aiui-tab title="app.py">\n\n```python title="app.py" \{2\}\nimport a\nb = 1\n```/)
+    assert.doesNotMatch(out, /CodeGroup/)
+    assert.match(out, /<\/aiui-tabs>\n+After$/)
+})
+
+test('a <CodeGroup> inside a fence is code, not a group', () => {
+    const md = '````markdown\n<CodeGroup>\n```js\nx()\n```\n</CodeGroup>\n````'
+    assert.equal(convertMkdocsBlocks(md), md)
+})

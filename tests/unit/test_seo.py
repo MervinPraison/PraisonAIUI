@@ -81,7 +81,7 @@ class TestSeoBuild:
         # link rewrite lives in its `a` component (markdown/docsComponents.tsx).
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")
         assert 'key={currentPath}' in content
-        assert '<Markdown variant="docs">' in content
+        assert '<Markdown variant="docs"' in content
         links = Path("src/frontend/src/markdown/docsComponents.tsx").read_text(encoding="utf-8")
         assert "normalizeDocHref" in links
         assert "isInternalDocHref" in links

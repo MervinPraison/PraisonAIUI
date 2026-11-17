@@ -14,7 +14,7 @@ pip install aiui
 
 Create `app.py`:
 
-```python
+```python title="app.py"
 import praisonaiui as aiui
 
 
@@ -42,7 +42,7 @@ other pages in the sidebar. The same app is
 Stream tokens from any client library with `aiui.stream_token()`. With OpenAI
 (`pip install openai`, then `export OPENAI_API_KEY=...`):
 
-```python
+```python title="app.py" {9,14-16}
 import praisonaiui as aiui
 from openai import AsyncOpenAI
 
@@ -85,7 +85,7 @@ See [React app shell](../features/react-shell.md) and
 Register a page with `@aiui.page`. An app with pages opens in the `dashboard`
 style, with your page in the sidebar next to the built-in ones:
 
-```python
+```python title="app.py"
 import praisonaiui as aiui
 
 
@@ -117,8 +117,7 @@ A YAML file can define the agent without Python. It runs on PraisonAI Agents,
 so install that first: `pip install praisonaiagents` (or the full
 `pip install "aiui[praisonai]"`), and set `OPENAI_API_KEY`.
 
-```yaml
-# chat.yaml
+```yaml title="chat.yaml"
 name: My Assistant
 instructions: You are a helpful assistant. Be concise.
 model: gpt-4o-mini

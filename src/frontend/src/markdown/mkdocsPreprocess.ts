@@ -78,6 +78,47 @@ export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
 }
 
+const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
+const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
+
+/** A fence's tab label in a code group: its file name, else its language. */
+function fenceLabel(info: string): string {
+    const [lang = '', ...rest] = info.trim().split(/\s+/)
+    const meta = rest.join(' ')
+    const titled = /(?:title|filename)=(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(meta)
+    if (titled) return titled[1] ?? titled[2] ?? titled[3]
+    const bare = rest.find((w) => !/^\{.*\}$/.test(w) && !w.includes('=') && w !== 'noLineNumbers')
+    return bare ?? (lang || 'Code')
+}
+
+/**
+ * `<CodeGroup>` … `</CodeGroup>` around fences → one set of tabs, one tab per
+ * fence, labelled with its file name or language (the MkDocs tabs renderer).
+ */
+function convertCodeGroup(lines: string[], start: number): [string[], number] {
+    const tabs: string[] = []
+    let i = start
+    while (i < lines.length && !CODE_GROUP_CLOSE.test(lines[i])) {
+        const f = lines[i].match(FENCE_RE)
+        if (!f) {
+            i++
+            continue
+        }
+        const marker = f[1]
+        const label = fenceLabel(lines[i].trim().slice(marker.length))
+        const body = [lines[i]]
+        i++
+        while (i < lines.length) {
+            body.push(lines[i])
+            const close = lines[i].match(FENCE_RE)
+            i++
+            if (close && close[1][0] === marker[0] && close[1].length >= marker.length && lines[i - 1].trim() === close[1]) break
+        }
+        tabs.push(`<aiui-tab title="${attr(label)}">`, '', ...body, '', '</aiui-tab>', '')
+    }
+    return [['', '<aiui-tabs>', '', ...tabs, '</aiui-tabs>', ''], Math.min(i + 1, lines.length)]
+}
+
 // Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
 const ADMONITION_RE = /^(!!!|\?\?\?\+?)\s+([\w-]+)(?:\s+"(.*)")?\s*$/
 const TAB_RE = /^===\+?\s+"(.+)"\s*$/
@@ -112,7 +153,7 @@ function collectIndented(lines: string[], start: number): [string[], number] {
 
 /**
  * `!!! note "Title"` / `??? tip` / `???+ warning` → <aiui-admonition>, and
- * consecutive `=== "Tab"` groups → <aiui-tabs><aiui-tab>. Bodies are
+ * consecutive `=== "Tab"` groups and `<CodeGroup>` blocks → <aiui-tabs><aiui-tab>. Bodies are
  * converted recursively. Blank lines around the tags keep the inner markdown
  * parsed (CommonMark HTML block type 7). Fenced code is never touched.
  */
@@ -134,6 +175,13 @@ export function convertMkdocsBlocks(md: string): string {
         if (fence) {
             out.push(line)
             i++
+            continue
+        }
+
+        if (CODE_GROUP_OPEN.test(line)) {
+            const [group, next] = convertCodeGroup(lines, i + 1)
+            out.push(...group)
+            i = next
             continue
         }
 
