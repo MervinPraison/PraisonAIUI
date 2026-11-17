@@ -89,3 +89,22 @@ test('the index is fetched once; a missing index means title search only', async
         resetSearchIndexCache()
     }
 })
+
+test('a network failure is retried on the next open', async () => {
+    const realFetch = globalThis.fetch
+    let calls = 0
+    globalThis.fetch = (async () => {
+        calls += 1
+        if (calls === 1) throw new TypeError('offline')
+        return new Response(JSON.stringify(index), { status: 200 })
+    }) as typeof fetch
+    try {
+        resetSearchIndexCache()
+        assert.equal(await loadSearchIndex(), null)
+        assert.equal((await loadSearchIndex())?.pages.length, 3)
+        assert.equal(calls, 2)
+    } finally {
+        globalThis.fetch = realFetch
+        resetSearchIndexCache()
+    }
+})

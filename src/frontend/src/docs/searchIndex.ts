@@ -27,12 +27,18 @@ export interface SearchResult {
 
 let cached: Promise<SearchIndex | null> | null = null
 
-/** The site's search index, fetched once; null when the site has none (title search only). */
+/**
+ * The site's search index, fetched once; null when the site has none (title
+ * search only). A network failure is not kept: the next open tries again.
+ */
 export function loadSearchIndex(url = '/search-index.json'): Promise<SearchIndex | null> {
     cached ??= fetch(url)
         .then((r) => (r.ok ? r.json() : null))
         .then((j: SearchIndex | null) => (j && Array.isArray(j.pages) ? j : null))
-        .catch(() => null)
+        .catch(() => {
+            cached = null
+            return null
+        })
     return cached
 }
 
