@@ -183,7 +183,10 @@ The three modes (`AUTH_ENFORCE` → `AuthEnforcementMiddleware`;
 `AIUI_REQUIRE_TOKEN` / `auth.requireToken` → `TokenQueryMiddleware`) deny by
 default for both `http` and `websocket` scopes. The only public surface is
 `http_guard.is_public_http` (`PUBLIC_EXACT_PATHS`, `PUBLIC_PREFIXES`,
-`mark_public`). Browsers open a WebSocket with a single-use 60 s ticket from
+`PUBLIC_API_PREFIXES` for the OAuth redirects, `mark_public`). A `static_dir`
+mount is public only for its code, styles, fonts, images and the HTML shell
+(`static_dir_public_predicate`); its content files need credentials in every
+mode. Browsers open a WebSocket with a single-use 60 s ticket from
 `POST /api/auth/ws-ticket` (`?ticket=`), never a long-lived key in a URL.
 Secrets never appear in URLs or logs (`install_secret_redaction`). Request
 bodies are capped by `BodySizeLimitMiddleware` (`AIUI_MAX_BODY_MB`, 64 KiB on

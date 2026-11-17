@@ -2896,8 +2896,13 @@ async def oauth_callback_handler(request: Request) -> Response:
         token = create_token(user.identifier)
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse({"user": user.to_dict(), "token": token})
-        return_url = state_data.get("return_url", "/")
-        return RedirectResponse(url=f"{return_url}?token={token}", status_code=302)
+        # Same-origin path only, and the token in the fragment: browsers never
+        # send a fragment to a server, a log or a Referer (R8). The dashboard
+        # reads it and strips it from history.
+        from praisonaiui.oauth_providers import safe_return_url
+
+        return_url = safe_return_url(state_data.get("return_url", "/"))
+        return RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
     except ImportError:
         return JSONResponse({"error": "OAuth providers not available"}, status_code=500)
     except Exception as e:
@@ -4495,14 +4500,16 @@ def create_app(
 
     # The surface a logged-out browser needs (see http_guard.is_public_http):
     # the HTML shell for page navigations and the share-link viewer.
-    from praisonaiui.http_guard import NavigationRoute, mark_public
+    from praisonaiui.http_guard import NavigationRoute, mark_public, static_dir_public_predicate
 
     mark_public(_serve_index)
     mark_public(view_shared_thread_handler)
     _page_host: Any = _serve_index
     if static_dir and static_dir.exists():
-        mark_public(_http_only_static)
-        _page_host = mark_public(_static_entry)
+        # Public: code, styles, fonts, images and the shell; content needs credentials.
+        _static_public = static_dir_public_predicate(_static_root)
+        mark_public(_http_only_static, when=_static_public)
+        _page_host = mark_public(_static_entry, when=_static_public)
     # First: a browser opening /<page id> gets the page even where a JSON API
     # shares the path (GET /agents, /sessions); fetch() keeps getting JSON.
     routes.insert(

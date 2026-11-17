@@ -76,6 +76,20 @@ PUBLIC_PREFIXES = (
     "/dashboard-plugins/",
 )
 
+#: API prefixes a logged-out browser needs (GET only): starting OAuth sign-in
+#: and the provider's callback. They redirect; they return no user data.
+PUBLIC_API_PREFIXES = ("/api/auth/oauth/",)
+
+#: Static files served publicly from a ``static_dir`` (code, styles, fonts,
+#: images). Anything else there (markdown, JSON, HTML pages) holds content and
+#: needs credentials like any other route.
+PUBLIC_STATIC_SUFFIXES = frozenset(
+    {
+        ".js", ".mjs", ".css", ".map", ".woff", ".woff2", ".ttf", ".otf", ".eot",
+        ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".ico",
+    }
+)
+
 #: Attribute set on endpoints that answer a logged-out browser: True, or a
 #: ``(Request) -> bool`` predicate (e.g. "only a browser page navigation").
 PUBLIC_ATTR = "__aiui_public__"
@@ -113,7 +127,7 @@ def is_public_http(scope: dict) -> bool:
         return True
     if scope.get("method", "GET") not in _SAFE_METHODS:
         return False
-    if path.startswith(PUBLIC_PREFIXES):
+    if path.startswith(PUBLIC_PREFIXES) or path.startswith(PUBLIC_API_PREFIXES):
         return True
     if path.startswith("/api/"):
         return False
@@ -127,6 +141,45 @@ def is_public_http(scope: dict) -> bool:
         except Exception:
             return False
     return False
+
+
+def static_dir_public_predicate(root: Any) -> Callable[[Request], bool]:
+    """Which requests to a ``create_app(static_dir=...)`` mount need no credentials.
+
+    Public: a path with no file behind it (the server answers with the
+    generated HTML shell) and code, style, font and image files
+    (:data:`PUBLIC_STATIC_SUFFIXES`). Markdown, JSON, HTML pages and any other
+    file need credentials in every auth mode, as they do under
+    ``AIUI_REQUIRE_TOKEN``. ``AIUI_PUBLIC_STATIC_DIR=1`` makes the whole
+    folder public again (a public docs site in front of a private API).
+    """
+    from pathlib import Path
+
+    base = Path(root).resolve()
+
+    def _inside(candidate: Path) -> Optional[Path]:
+        try:
+            resolved = candidate.resolve()
+        except (OSError, RuntimeError, ValueError):
+            return None
+        return resolved if resolved == base or resolved.is_relative_to(base) else None
+
+    def _public(request: Request) -> bool:
+        if os.environ.get("AIUI_PUBLIC_STATIC_DIR", "").strip().lower() in ("1", "true", "yes"):
+            return True
+        rel = request.scope.get("path", "").lstrip("/")
+        if not rel:
+            return True
+        target = _inside(base / rel)
+        if target is not None and target.is_dir():
+            target = _inside(target / "index.html")
+        elif target is None or not target.is_file():
+            target = _inside(base / f"{rel.rstrip('/')}.html")
+        if target is None or not target.is_file():
+            return True  # no file: the generated HTML shell
+        return target.suffix.lower() in PUBLIC_STATIC_SUFFIXES
+
+    return _public
 
 
 # ── Page navigations ─────────────────────────────────────────────────

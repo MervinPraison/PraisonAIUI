@@ -93,6 +93,19 @@
   public login routes. Chat attachments over their 10 MB limit are refused
   before the file is read into memory, and a malformed login body gets 400
   instead of 500. See [Deployment → Environment Variables](docs/features/deployment.md#environment-variables).
+- **Behaviour change:** under `AUTH_ENFORCE` and `require_auth`, a
+  `static_dir` folder is no longer public as a whole. Its code, styles, fonts,
+  images and the HTML shell still are; markdown, JSON (a search index) and HTML
+  pages need credentials, as they already did in URL-token mode.
+  `AIUI_PUBLIC_STATIC_DIR=1` restores a public folder. See
+  [Deployment → Auth Enforcement](docs/features/deployment.md#auth-enforcement).
+- **Behaviour change:** OAuth sign-in returns only to a path on the same
+  server (an off-site `return_url` falls back to `/`), and the session token
+  arrives in the URL fragment (`#token=`) instead of the query string (`?token=`),
+  so it never reaches a server log or a `Referer`. The dashboard reads both.
+  The OAuth routes now answer without credentials in every auth mode, so
+  sign-in can start under `require_auth`. See
+  [Deployment → OAuth sign-in](docs/features/deployment.md#oauth-sign-in).
 
 ### New
 

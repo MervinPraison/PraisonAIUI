@@ -370,12 +370,32 @@ def get_oauth_config_from_env(provider_name: str) -> Optional[dict[str, str]]:
 _oauth_states: dict[str, dict[str, Any]] = {}
 
 
+def safe_return_url(return_url: Any) -> str:
+    """*return_url* if it is a same-origin path, else ``"/"``.
+
+    Only a path that starts with a single ``/`` is kept: ``//host``,
+    ``/\\host``, absolute URLs and anything with a control character would
+    send the browser (and the token handed over after sign-in) to another
+    site. A fragment is dropped, since the token travels in the fragment.
+    """
+    if not isinstance(return_url, str) or not return_url.startswith("/"):
+        return "/"
+    if return_url[1:2] in ("/", "\\") or any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in return_url):
+        return "/"
+    path = return_url.split("#", 1)[0]
+    parts = urllib.parse.urlsplit(path)
+    if parts.scheme or parts.netloc:
+        return "/"
+    return path or "/"
+
+
 def create_oauth_state(provider: str, return_url: str = "/") -> str:
     """Create a new OAuth state token.
 
     Args:
         provider: OAuth provider name
-        return_url: URL to redirect to after successful authentication
+        return_url: Same-origin path to return to after sign-in; anything
+            else becomes ``"/"`` (:func:`safe_return_url`).
 
     Returns:
         State token string
@@ -383,7 +403,7 @@ def create_oauth_state(provider: str, return_url: str = "/") -> str:
     state = secrets.token_urlsafe(32)
     _oauth_states[state] = {
         "provider": provider,
-        "return_url": return_url,
+        "return_url": safe_return_url(return_url),
         "created_at": time.time(),  # Use wall clock time for expiry
     }
     return state
