@@ -323,6 +323,58 @@ def test_plugins_doctor_detects_integrity_mismatch(site, monkeypatch):
     assert "integrity mismatch" in result.output
 
 
+def test_plugins_doctor_checks_settings_nav_groups_themes_layouts_and_page_kind(site, monkeypatch):
+    """Each malformed entry the server would drop from the UI is a named FAIL."""
+    from praisonaiui.plugin_registry import LayoutSpec, NavGroupSpec, SettingsSectionSpec, ThemeSpec
+
+    mod = __import__("fakecli_mod")
+    plugin = mod.Plugin
+    monkeypatch.setattr(plugin, "pages", lambda self: [
+        {"id": "fake-page", "title": "Fake", "kind": "react", "module": "fake.js"},
+        {"id": "old-view", "title": "Old", "kind": "legacy", "module": "fake.js"},
+        {"id": "typo", "title": "Typo", "kind": "Reactt", "module": "fake.js"},
+    ], raising=False)
+    monkeypatch.setattr(plugin, "settings", lambda self: [
+        SettingsSectionSpec(id="good", title="Good", fields=({"key": "a"},)),
+        SettingsSectionSpec(id="bad-default", title="Bad", fields=(
+            {"key": "mode", "type": "select", "options": ["x", "y"], "default": "zzz"},
+        )),
+    ], raising=False)
+    monkeypatch.setattr(plugin, "nav_groups", lambda self: [
+        NavGroupSpec(name="Fine", order=250), NavGroupSpec(name="First", order="first"),
+    ], raising=False)
+    monkeypatch.setattr(plugin, "themes", lambda self: [
+        ThemeSpec(id="ok-theme", light={"--seed-accent": "#123456"}),
+        ThemeSpec(id="primary", light={"--primary": "red"}),
+    ], raising=False)
+    monkeypatch.setattr(plugin, "layouts", lambda self: [
+        LayoutSpec(id="fake-frame", title="Frame", module="fake.js"),
+        LayoutSpec(id="gone-frame", title="Gone", module="missing-frame.js"),
+        LayoutSpec(id="classic", title="Reserved", module="fake.js"),
+    ], raising=False)
+    cfg = site / "cfg.yaml"
+    cfg.write_text("extensions:\n  enabled: [fakecli]\n")
+    result = _invoke("plugins", "doctor", "--no-builtin", "--config", str(cfg))
+    out = result.output
+    assert result.exit_code == 1, out
+    fails = [line for line in out.splitlines() if "FAIL" in line]
+    for needle in (
+        "page 'old-view' is dropped: page 'old-view': kind 'legacy' is not available to plugins",
+        "kind 'Reactt'",
+        "id='bad-default'",
+        "id='primary'",
+        "'--primary' is not a seed token",
+        "name='First'",
+        "order must be a number",
+        "layout 'gone-frame': missing-frame.js not found",
+        "'classic' is reserved",
+    ):
+        assert any(needle in line for line in fails), (needle, out)
+    for ok in ("section 'good'", "group 'Fine'", "theme 'ok-theme'", "layout 'fake-frame'"):
+        assert any(ok in line and " ok " in f" {line} " for line in out.splitlines()), (ok, out)
+    assert "/_plugins/fakecli/fake.js" in out
+
+
 # ── --style ──────────────────────────────────────────────────────────
 
 

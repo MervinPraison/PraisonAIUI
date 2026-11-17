@@ -60,12 +60,55 @@ from typing import Any, Callable, Iterable, Literal, Optional, Protocol, runtime
 
 logger = logging.getLogger(__name__)
 
+
+class _TerminalFallback(logging.Handler):
+    """Print this module's warnings to stderr when nothing else would.
+
+    ``create_app()`` puts only in-memory handlers (the Logs page buffers) on
+    the root logger, which silences Python's own last-resort stderr output,
+    so a plugin author would never see "invalid settings entry …" in the
+    ``aiui run`` terminal. Like ``logging.lastResort``, this handler writes
+    only while every handler on the way up to the root is one of aiui's own
+    in-memory ones: once the app (or a library) configures logging, its
+    handlers print the warning and this one stays quiet.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        import sys
+
+        node: Optional[logging.Logger] = logger
+        while node is not None:
+            for h in node.handlers:
+                if h is self or isinstance(h, logging.NullHandler):
+                    continue
+                if type(h).__module__.startswith("praisonaiui."):
+                    continue  # the Logs page buffers: in memory, not on screen
+                return
+            node = node.parent if node.propagate else None
+        try:
+            sys.stderr.write(self.format(record) + "\n")
+        except Exception:  # noqa: BLE001 - logging must never raise
+            self.handleError(record)
+
+
+logger.addHandler(_TerminalFallback())
+# Invalid hook entries are logged once per discovery, not on every manifest
+# request (the manifest is rebuilt for each shell page load).
+_WARNED: set[tuple[str, ...]] = set()
+
 ENTRY_POINT_GROUP = "praisonaiui.plugins"
 SDK_API_VERSION = 1
 AUTOLOAD_ENV = "AIUI_DISABLE_PLUGIN_AUTOLOAD"
 SHELL_ENV = "AIUI_SHELL"
 
 PageKind = Literal["native", "react", "blocks", "legacy", "iframe"]
+#: The page kinds a third-party plugin may declare (``native`` and ``legacy``
+#: are first-party only: the shell never imports a plugin's legacy view).
+PLUGIN_PAGE_KINDS: tuple[str, ...] = ("react", "blocks", "iframe")
 PluginStatus = Literal["ok", "error", "disabled", "incompatible", "disabled-by-default"]
 #: Where a plugin record came from. ``builtin`` = shipped with PraisonAIUI,
 #: ``entry-point`` = pip-installed package, ``manual`` = register_plugin().
@@ -108,11 +151,16 @@ class PageSpec:
     """One navigable page in the shell.
 
     kind:
-      native  – built into the React shell (ported page)
+      native  – built into the React shell (ported page; first-party only)
       react   – ESM module from a plugin; ``module`` default-exports a component
       blocks  – server-driven ``{type, props, children}`` tree from ``api_endpoint``
       legacy  – vanilla view ``render(container)``/``cleanup()`` via registerView
+                (first-party only)
       iframe  – sandboxed external URL (``module`` is the src)
+
+    A plugin page must be ``react``, ``blocks`` or ``iframe``
+    (:data:`PLUGIN_PAGE_KINDS`); any other kind is dropped with a warning
+    and ``aiui plugins doctor`` reports it.
     """
 
     id: str
@@ -541,6 +589,7 @@ class PluginRegistry:
         with self._lock:
             if self._records is not None and not refresh:
                 return self._records
+            _WARNED.clear()  # a new discovery (create_app, policy change) warns again
             records: list[PluginRecord] = []
             seen: set[str] = set()
             autoload = os.environ.get(AUTOLOAD_ENV, "").strip().lower() not in ("1", "true", "yes")
@@ -864,7 +913,13 @@ class PluginRegistry:
                 try:
                     out.append((rec, resolve(rec, spec)))
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("aiui plugin %s: invalid %s entry %r: %s", rec.name, hook, spec, exc)
+                    key = (rec.name, hook, repr(spec), str(exc))
+                    if key not in _WARNED:
+                        _WARNED.add(key)
+                        logger.warning(
+                            "aiui plugin %s: invalid %s entry %r dropped: %s (run 'aiui plugins doctor')",
+                            rec.name, hook, spec, exc,
+                        )
         return out
 
     def static_dir_of(self, rec: PluginRecord) -> Optional[Path]:
@@ -1085,6 +1140,11 @@ def _resolve_page(rec: PluginRecord, spec: Any) -> PageSpec:
     if isinstance(spec, dict):
         # Accept wire-style camelCase keys too (apiEndpoint -> api_endpoint).
         spec = PageSpec(**{_snake(str(k)): v for k, v in spec.items()})
+    if spec.kind not in PLUGIN_PAGE_KINDS:
+        raise ValueError(
+            f"page {spec.id!r}: kind {spec.kind!r} is not available to plugins "
+            f"(use {', '.join(PLUGIN_PAGE_KINDS)}; native and legacy are first-party only)"
+        )
     layout_fields = _page_layout_fields(spec)
     module, sri = _asset_url(rec, spec.module)
     css, css_sri = _asset_url(rec, spec.css)
