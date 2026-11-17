@@ -16,6 +16,7 @@ import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
+import { PageActions } from './docs/PageActions'
 
 interface ContentProps {
     config: UIConfig
@@ -154,7 +155,12 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
                     <MobileToc selectedItem={selectedItem} />
-                    {section && <p className="aiui-docs-eyebrow">{section}</p>}
+                    {!home && (
+                        <div className="aiui-docs-pagehead">
+                            {section ? <p className="aiui-docs-eyebrow">{section}</p> : <span />}
+                            <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} />
+                        </div>
+                    )}
                     {loadingContent && (
                         <div className="aiui-docs-skeleton" role="status" aria-label="Loading content">
                             <Skeleton className="h-8 w-2/3" />

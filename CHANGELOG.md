@@ -65,6 +65,10 @@
 
 ### New
 
+- **Docs page actions and section links.** Above each docs page, "Copy page"
+  copies its Markdown; the menu adds View as Markdown, Open in ChatGPT and
+  Open in Claude. Section headings get a link icon that copies the section's
+  URL. See [Writing docs pages → Page actions](docs/features/writing-docs.md#page-actions).
 - **Docs search finds sections and text**, not only page titles. `aiui build`
   writes `search-index.json` (headings and text per page); the search dialog
   ranks titles, headings and text, shows "Section › Page" with the matched

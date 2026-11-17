@@ -220,6 +220,8 @@ export default [
   { name: 'Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono, latin woff2, as served)', path: abs(PAPER_FONTS), limit: '140 kB', brotli: false },
   // Uncompressed: this is what the wheel carries.
   // 9.1 MB (9.07 MB measured, #419, owner-approved): the Paper look's three
-  // woff2 files (127 kB).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9.1 MB', brotli: false },
+  // woff2 files (127 kB). 9.105 MB (9.1042 MB measured): docs page actions
+  // and section links (+6.8 kB; the docs Paper type and search took the rest
+  // of the headroom).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9.105 MB', brotli: false },
 ]

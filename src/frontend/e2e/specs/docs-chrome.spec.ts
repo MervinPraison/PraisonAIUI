@@ -157,6 +157,59 @@ test('a deep link opens the page at its section', async ({ page }) => {
   await expect.poll(() => heading.evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBeLessThan(160)
 })
 
+test('section headings carry a copy-link anchor', async ({ page, context, baseURL }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL })
+  await page.goto('/docs/guide/first')
+  const heading = page.getByRole('heading', { name: 'Usage', level: 2 })
+  await expect(heading).toBeVisible()
+  // Located by class: its accessible name changes once the link is copied.
+  const anchor = heading.locator('a.aiui-heading-anchor')
+  await expect(anchor).toHaveAccessibleName('Copy link to Usage')
+  await expect(anchor).toHaveAttribute('href', '#usage')
+  // Hidden until the heading is hovered or the link focused; never in the TOC text.
+  expect(await anchor.evaluate((el) => getComputedStyle(el).opacity)).toBe('0')
+  await heading.hover()
+  await expect.poll(() => anchor.evaluate((el) => getComputedStyle(el).opacity)).toBe('1')
+  await expect(page.locator('.aiui-docs-toc').getByRole('link', { name: 'Usage', exact: true })).toBeVisible()
+  await anchor.click()
+  await expect(page).toHaveURL(/\/docs\/guide\/first#usage$/)
+  await expect(anchor).toHaveAccessibleName('Link to Usage copied')
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/docs\/guide\/first#usage$/)
+})
+
+test('page actions: copy the page as Markdown, view it, open it in an assistant', async ({ page, context, baseURL }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL })
+  await page.goto('/docs/guide/first')
+  const actions = page.getByRole('group', { name: 'Page actions' })
+  await expect(actions).toBeVisible()
+  await actions.getByRole('button', { name: 'Copy page' }).click()
+  await expect(actions.getByRole('button', { name: 'Copied' })).toBeVisible()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toContain('## Usage')
+  expect(copied).toContain('title: First page')
+
+  await actions.getByRole('button', { name: 'More page actions' }).click()
+  const menu = page.getByRole('menu')
+  await expect(menu.getByRole('menuitem', { name: /View as Markdown/ })).toHaveAttribute('href', '/docs/guide/first.md')
+  const md = encodeURIComponent(`${baseURL}/docs/guide/first.md`)
+  const chatgpt = await menu.getByRole('menuitem', { name: /Open in ChatGPT/ }).getAttribute('href')
+  expect(chatgpt!.startsWith(`https://chatgpt.com/?hints=search&q=Read%20${md}`)).toBe(true)
+  await expect(menu.getByRole('menuitem', { name: /Open in Claude/ })).toHaveAttribute('href', /^https:\/\/claude\.ai\/new\?q=/)
+  await expect(menu.getByRole('menuitem', { name: /Open in Claude/ })).toHaveAttribute('rel', 'noopener noreferrer')
+  const res = await page.request.get('/docs/guide/first.md')
+  expect(res.ok()).toBe(true)
+})
+
+test('phone: page actions fit beside the section and the page never scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/docs/guide/first')
+  const actions = page.getByRole('group', { name: 'Page actions' })
+  await expect(actions).toBeVisible()
+  const box = await actions.boundingBox()
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390)
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+})
+
 test('links and buttons show a 2px focus ring', async ({ page }) => {
   await page.goto('/docs/guide/first')
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()

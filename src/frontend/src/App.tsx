@@ -15,6 +15,7 @@ import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { scrollToHash, useHashScroll } from './docs/hashScroll'
+import { useHeadingAnchors } from './docs/headingAnchors'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
@@ -86,6 +87,7 @@ export default function App() {
   const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
   useDocsTokens(docsStyle, config.site?.theme?.preset)
   useHashScroll(docsStyle)
+  useHeadingAnchors(docsStyle)
   const searchGroups = useMemo(() => docSearchGroups(nav), [nav])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
 
