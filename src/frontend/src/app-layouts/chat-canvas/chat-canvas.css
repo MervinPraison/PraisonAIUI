@@ -77,3 +77,79 @@
   max-height: calc((var(--cc-collapse-rows, 6) + 1) * 2.6rem);
   overflow: auto;
 }
+
+/* ── the conversation (Canvas.dc.html, CanvasPhone.dc.html) ──────────── */
+
+/* The assistant's header: a square letter tile on the accent's soft fill, in the display face. */
+[data-aiui-layout-frame='chat-canvas'] [data-turn-meta='bubbles'] > span:first-child {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-link);
+  font-family: var(--aiui-font-display);
+  font-size: 13px;
+}
+
+/* A tool call is one compact row on the card colour: icon, the call in mono,
+   the state pill (Done on the success fill), the time. */
+[data-aiui-layout-frame='chat-canvas'] [data-role='assistant'] [data-tool]:not(:has(> [data-approval-card])) > button {
+  min-height: 38px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-role='assistant'] [data-tool] [data-tool-name] {
+  font-family: var(--aiui-font-mono);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-tool][data-state='done'] [data-tool-pill] {
+  background: var(--ui-success-soft);
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* The composer: the text on two rows above a row of attach, the model (mono)
+   and a round Send in the accent (the bottom row wraps under the text). */
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form:has(textarea[aria-label='Message']) {
+  border-radius: 16px;
+  background: var(--card);
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form:has(textarea[aria-label='Message']) > div:has(> textarea) {
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 10px 8px 14px;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form textarea[aria-label='Message'] {
+  order: -1;
+  flex-basis: 100%;
+  min-height: calc(2 * 1.45em + 0.75rem);
+  padding: 0 0 0.5rem;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form [aria-label='Attach files'] {
+  margin-left: -6px;
+}
+
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form [aria-label='Send'],
+[data-aiui-layout-frame='chat-canvas'] [data-variant] form [aria-label='Stop'] {
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  border-radius: 9999px;
+}
+
+/* The model stays on the bottom row on a phone too (CanvasPhone.dc.html). */
+[data-aiui-layout-frame='chat-canvas'] [data-composer-model] {
+  display: inline-flex;
+  height: 30px;
+  background: var(--muted);
+  font-family: var(--aiui-font-mono);
+  font-weight: 400;
+}
