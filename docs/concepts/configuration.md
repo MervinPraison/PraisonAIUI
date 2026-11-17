@@ -4,11 +4,28 @@ nav_title: YAML configuration
 
 # YAML Configuration
 
-The `aiui.template.yaml` schema: what `aiui validate` checks and `aiui build`
+The `aiui.yaml` schema: what `aiui validate` checks and `aiui build`
 compiles. The source of truth is
 [`schema/models.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/schema/models.py)
 (`Config`). The runtime state file of a running server is a different file; see
 [Runtime Persistence](#runtime-persistence-configyaml) below.
+
+## Config file name
+
+`aiui validate`, `aiui build` and `aiui serve` find the file in this order:
+
+1. `--config <path>`, when given. It always wins and prints nothing extra.
+2. `./aiui.yaml`.
+3. `./aiui.template.yaml`, the old name. It still works; the command prints one
+   dim line on stderr and its exit code does not change:
+   `Using aiui.template.yaml; rename it to aiui.yaml (the old name keeps working).`
+
+When both files exist, `aiui.yaml` is used and the command says so in one line
+(`Using aiui.yaml; aiui.template.yaml is also here and is ignored.`). With
+neither, the command stops with `Configuration file not found: aiui.yaml`.
+`aiui init` writes `aiui.yaml` and refuses to overwrite either name without
+`--force`. `aiui dev` accepts either name in each example folder. `aiui.yml`
+is not looked up; pass it with `--config`.
 
 ## Overview
 
@@ -241,7 +258,7 @@ routes:
 
 > **Single source of truth** for all runtime feature state.
 
-In addition to `aiui.template.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file**, `config.yaml` in the data directory (`AIUI_DATA_DIR`, default `~/.praisonaiui/`). This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.
+In addition to `aiui.yaml` (which drives static site generation), PraisonAIUI uses a **unified runtime config file**, `config.yaml` in the data directory (`AIUI_DATA_DIR`, default `~/.praisonaiui/`). This file stores all feature state — agents, channels, guardrails, schedules, and runtime settings — in a single YAML file that persists across server restarts.
 
 This is compatible with the `gateway.yaml` schema used by `praisonai gateway start --config`.
 
@@ -319,10 +336,10 @@ All CRUD operations (dashboard, REST API, CLI) **automatically write back** to t
 Rule of thumb: secrets (API keys, tokens) go in environment variables;
 preferences (model, theme, branding) in the config file.
 
-### Relationship to `aiui.template.yaml`
+### Relationship to `aiui.yaml`
 
 | File | Purpose | Used By |
 |------|---------|---------|
-| `aiui.template.yaml` | Static site layout, components, routes | `aiui build`, `aiui serve`, `aiui validate` |
+| `aiui.yaml` | Static site layout, components, routes | `aiui build`, `aiui serve`, `aiui validate` |
 | `$AIUI_DATA_DIR/config.yaml` | Runtime feature state (agents, channels, config) | `aiui run`, dashboard API |
 | `gateway.yaml` | Subset of `config.yaml` (legacy compatibility) | `praisonai gateway start` |

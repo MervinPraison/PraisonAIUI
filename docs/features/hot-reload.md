@@ -7,7 +7,7 @@ Two commands reload during development: `aiui serve --watch` for a docs site and
 
 ```bash
 aiui serve --watch
-aiui serve --config aiui.template.yaml --output aiui --port 8000 --watch
+aiui serve --config aiui.yaml --output aiui --port 8000 --watch
 ```
 
 `--watch` watches the folder that holds the config file (the config, `docs/`
@@ -35,7 +35,7 @@ config.
 
 `aiui dev` is not a file watcher. It serves a small dashboard (default port
 9000) that switches between the example projects in a folder (each a directory
-with an `aiui.template.yaml`, default `examples/`):
+with an `aiui.yaml`, or the old name `aiui.template.yaml`; default `examples/`):
 
 ```bash
 aiui dev --examples examples --port 9000

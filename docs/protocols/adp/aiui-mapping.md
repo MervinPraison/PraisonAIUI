@@ -4,9 +4,9 @@ nav_title: PraisonAIUI mapping
 
 # PraisonAIUI → ADP Field Mapping
 
-Field-by-field mapping from current `aiui.template.yaml` (`Config` model in `src/praisonaiui/schema/models.py`) to ADP `Application` spec.
+Field-by-field mapping from current `aiui.yaml` (`Config` model in `src/praisonaiui/schema/models.py`) to ADP `Application` spec.
 
-**Compatibility:** Flat `aiui.template.yaml` files work with the PraisonAIUI compiler today. ADP envelope format is **planned** — see [implementation-status.md](./implementation-status.md).
+**Compatibility:** Flat `aiui.yaml` files work with the PraisonAIUI compiler today. ADP envelope format is **planned** — see [implementation-status.md](./implementation-status.md).
 
 ---
 

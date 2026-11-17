@@ -14,7 +14,7 @@ Look-up pages for every public surface. For a guided start, see the
 |---|---|
 | The `aiui` command and its options | [CLI](cli.md) |
 | `import praisonaiui as aiui`: callbacks, pages, styles, layouts, themes | [Python API](python.md) |
-| `aiui.template.yaml` and the YAML app config | [YAML configuration](../concepts/configuration.md) |
+| `aiui.yaml` and the YAML app config | [YAML configuration](../concepts/configuration.md) |
 | UI components for server-driven pages | [Components](components.md) |
 | Feature endpoints under `/api/*` | [Features REST API](features-api.md) |
 | Chat sessions | [Sessions API](sessions.md) |

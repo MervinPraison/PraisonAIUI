@@ -12,7 +12,7 @@ YAML-driven website/docs generator. One YAML file, one docs folder, one command 
 
 | File | Purpose |
 |------|---------|
-| `aiui.template.yaml` | Site configuration (theme, nav, routes, components) |
+| `aiui.yaml` | Site configuration (theme, nav, routes, components) |
 | `docs/` | Markdown content directory |
 | `src/praisonaiui/` | Python source (CLI, compiler, server, providers) |
 | `src/praisonaiui/compiler/` | Build pipeline: config → static site |
@@ -29,7 +29,7 @@ aiui build            # Compile → static site in ./aiui/
 aiui build --output site --minify  # For GitHub Pages
 aiui serve            # Serve built site locally
 aiui dev              # Dev mode with hot reload
-aiui validate         # Validate aiui.template.yaml
+aiui validate         # Validate aiui.yaml (or the old aiui.template.yaml)
 ```
 
 ## Build Output

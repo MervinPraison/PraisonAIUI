@@ -137,7 +137,7 @@ aiui run chat.yaml
 `aiui build` turns a folder of Markdown into a static site:
 
 ```bash
-aiui init --template docs        # writes aiui.template.yaml
+aiui init --template docs        # writes aiui.yaml
 mkdir docs && echo "# Hello" > docs/index.md
 aiui serve                       # builds into ./aiui, then serves it
 ```

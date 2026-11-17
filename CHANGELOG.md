@@ -65,6 +65,12 @@
 
 ### New
 
+- **`aiui.yaml` is the default config file name.** `aiui init` writes
+  `aiui.yaml`, and `aiui validate`, `build` and `serve` read it when no
+  `--config` is given. `aiui.template.yaml` still works: when it is the only
+  one there it is used, with a one-line hint on stderr to rename it; when both
+  exist, `aiui.yaml` wins. `aiui dev` accepts either name in each example. See
+  [Config file name](docs/concepts/configuration.md#config-file-name).
 - App shell: a React Cron page inside the layouts: schedules in words and as
   cron, next and last run, an enabled switch, Run now, and a schedule builder.
 - Docs sites: frontmatter `layout: home` on `docs/index.md` draws a hero

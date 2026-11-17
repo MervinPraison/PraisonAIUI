@@ -115,7 +115,7 @@ routes:
 
 ```
 my-docs/
-├── aiui.template.yaml
+├── aiui.yaml
 ├── docs/
 │   ├── index.md
 │   ├── getting-started/

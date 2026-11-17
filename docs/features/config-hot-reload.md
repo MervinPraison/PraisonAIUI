@@ -27,7 +27,7 @@ curl http://localhost:8000/api/config/watcher
 2. On a change it reloads the config store, makes the agent registry and the
    skills re-read it, and reloads the channels.
 
-A YAML site config (`aiui.template.yaml`) or `app.py` is not watched; for those
+A YAML site config (`aiui.yaml`) or `app.py` is not watched; for those
 see [Hot Reload](hot-reload.md).
 
 ## Your own watcher

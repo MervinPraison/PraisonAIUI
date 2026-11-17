@@ -18,7 +18,7 @@ site:
 
 
 def _validate(tmp_path, text: str, *extra: str):
-    cfg = tmp_path / "aiui.template.yaml"
+    cfg = tmp_path / "aiui.yaml"
     cfg.write_text(text, encoding="utf-8")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")

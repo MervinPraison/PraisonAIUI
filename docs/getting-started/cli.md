@@ -25,7 +25,7 @@ layout. See [UI Styles](../features/styles.md).
 ## Build a docs site
 
 ```bash
-aiui init --template docs            # writes aiui.template.yaml
+aiui init --template docs            # writes aiui.yaml
 aiui validate --strict               # check the configuration
 aiui build --output site --minify    # static site in ./site
 aiui serve --watch                   # build, serve on :8000, rebuild on change

@@ -80,7 +80,7 @@ class TestServeAutoBuild:
     def test_serve_builds_before_serving(self, tmp_path):
         """Test that serve builds manifests if --no-build is not set."""
         # Create a config file
-        config = tmp_path / "aiui.template.yaml"
+        config = tmp_path / "aiui.yaml"
         config.write_text("""
 schemaVersion: 1
 site:

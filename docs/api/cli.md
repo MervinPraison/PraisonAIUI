@@ -56,7 +56,8 @@ aiui run app.py --backend praisonai
 
 ### `aiui init`
 
-Write a starter `aiui.template.yaml` in the current folder.
+Write a starter `aiui.yaml` in the current folder. It refuses to overwrite an
+existing `aiui.yaml` or `aiui.template.yaml` unless `--force` is given.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -73,8 +74,15 @@ Check a docs-site configuration.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
 | `--strict` | off | Unknown keys become errors |
+
+Without `--config`, `validate`, `build` and `serve` read `./aiui.yaml`. The
+old name `aiui.template.yaml` still works: when it is the only one there it is
+used, with a one-line hint on stderr to rename it, and the exit code is
+unchanged. When both files exist, `aiui.yaml` wins. An explicit `--config`
+always wins and prints no hint. See
+[Config file name](../concepts/configuration.md#config-file-name).
 
 ### `aiui build`
 
@@ -82,7 +90,7 @@ Build a static docs site from the configuration.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
 | `--output, -o` | `aiui` | Output folder |
 | `--minify` | off | Minify the JSON manifests |
 
@@ -99,7 +107,7 @@ Build (unless `--no-build`) and serve a docs site.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--config, -c` | `aiui.template.yaml` | Configuration file |
+| `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
 | `--output, -o` | `aiui` | Folder to serve |
 | `--port, -p` | `8000` | Port (next free port if taken) |
 | `--host` | `127.0.0.1` | Address to bind to |
@@ -301,7 +309,7 @@ import yaml
 from praisonaiui.compiler import Compiler
 from praisonaiui.schema import Config
 
-config = Config.model_validate(yaml.safe_load(Path("aiui.template.yaml").read_text()))
+config = Config.model_validate(yaml.safe_load(Path("aiui.yaml").read_text()))
 result = Compiler(config, base_path=Path(".")).compile(output_dir=Path("aiui"), minify=False)
 print(result.success, result.files, result.error)
 ```

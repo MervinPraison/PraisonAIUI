@@ -7,7 +7,7 @@ Honest status of ADP v1alpha1 features against the PraisonAIUI reference impleme
 | Feature | Spec reference | Status | Notes |
 |---------|----------------|--------|-------|
 | JSON Schema validation in CLI | spec §6 | Planned | Schemas published; no `aiui validate --adp` yet |
-| ADP envelope parsing (`apiVersion/kind/spec`) | spec §3 | Planned | Flat `aiui.template.yaml` works today |
+| ADP envelope parsing (`apiVersion/kind/spec`) | spec §3 | Planned | Flat `aiui.yaml` works today |
 | Component catalog validation (R6–R7) | spec §5 | Planned | Catalog split to `catalogs/default.catalog.json` |
 | `$yaml:` / `$json:` file includes | spec §7 | Planned | Not implemented in compiler |
 | Strict mode unknown-field rejection (R4) | validation-rules R4 | Planned | Pydantic allows extra fields on some models |
@@ -20,7 +20,7 @@ Honest status of ADP v1alpha1 features against the PraisonAIUI reference impleme
 
 ## What works today
 
-- Flat `aiui.template.yaml` → Pydantic `Config` → compiler → JSON manifests → React SPA
+- Flat `aiui.yaml` → Pydantic `Config` → compiler → JSON manifests → React SPA
 - Components, templates, routes, theme presets, content scanning
 - ADP example manifests validate against `application.schema.json` (standalone)
 - Unit tests in `tests/unit/test_adp_schemas.py`
