@@ -4450,6 +4450,9 @@ def create_app(
     _plugins_dir = _frontend_dir / "plugins"
     if not _plugins_dir.is_dir():
         _plugins_dir = _package_frontend_dir / "plugins"
+    # static_dir/plugins overrides per file: a stale docs build (./aiui from
+    # `aiui build`) has no dashboard.js, so missing files fall back (#424).
+    _base_plugins_dir = _plugins_dir
     if static_dir and (Path(static_dir) / "plugins").is_dir():
         _plugins_dir = Path(static_dir) / "plugins"
     _assets_dir = _frontend_dir / "assets"
@@ -4470,9 +4473,10 @@ def create_app(
     # Static code is sent gzip-compressed (the bundle budgets are gzip
     # sizes; uncompressed the chat chunk alone is ~450 KB).
     if _plugins_dir.exists():
-        routes.append(
-            Mount("/plugins", app=gzip_static(StaticFiles(directory=str(_plugins_dir))))
-        )
+        _plugins_app = StaticFiles(directory=str(_plugins_dir))
+        if _plugins_dir != _base_plugins_dir and _base_plugins_dir.is_dir():
+            _plugins_app.all_directories.append(str(_base_plugins_dir))
+        routes.append(Mount("/plugins", app=gzip_static(_plugins_app)))
     if _assets_dir.exists():
         routes.append(
             Mount(
