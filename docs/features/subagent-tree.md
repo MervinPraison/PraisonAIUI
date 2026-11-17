@@ -2,8 +2,6 @@
 
 Visualize **agent hierarchies** — see which agents spawn subagents, track their status, and monitor the full execution tree.
 
-![Subagent Tree View](../images/subagent-tree.png)
-
 ## Quick Start
 
 ```bash

@@ -4,8 +4,6 @@ Upload a file, then send a chat message with its id: PDFs and text files are
 read into the agent's prompt, images go to the model as multimodal input. The
 default limit is 10 MB per file.
 
-![Attachments Panel](../images/attachments-panel.png)
-
 ## Quick Start
 
 ```bash

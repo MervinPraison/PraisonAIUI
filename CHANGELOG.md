@@ -142,6 +142,11 @@
 
 ### Fixed
 
+- Docs: three generated mockup screenshots (an "AI Platform" upload dialog, a
+  model-fallback editor and a "Nexus AI" agent tree) are gone from the
+  Attachments, Model Fallback and Subagent Tree pages. They showed screens
+  aiui does not have; the pages document the APIs, and Subagent Tree keeps its
+  diagram.
 - Docs sites (`aiui build`): a `README` or `index` page listed in a nav tab,
   or a page with a number prefix, now opens under that tab. The header used
   to fall back to the first tab for it (for example the ADP overview at
