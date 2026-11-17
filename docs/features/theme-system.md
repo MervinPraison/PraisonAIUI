@@ -6,8 +6,6 @@ them as CSS custom properties (`--db-*`) over `/api/theme`. The vanilla
 `dashboard` style and its chat page read these variables; the React app shell
 bridges them to its own tokens.
 
-![Theme Comparison](../images/theme-comparison.png)
-
 ## Quick Start
 
 ```bash

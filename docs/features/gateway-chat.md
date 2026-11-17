@@ -2,7 +2,7 @@
 
 The Chat page of the `dashboard` style (and of the app shell, which hosts the same view): real-time agent chat over a WebSocket, with markdown rendering, tool call cards and session history. The browser side is the vanilla `chat.js` view; the server side is the chat feature (`praisonaiui.features.chat`).
 
-![Chat Interface](../images/chat-interface.png)
+![The chat in the app shell, dark: an agent thought for two seconds, ran python3 --version, answered and now waits for approval to install numpy; the table and script it made sit under the answer](../images/chat-interface.png)
 
 ## Quick Start
 
@@ -170,7 +170,7 @@ Assistant messages are rendered with full markdown support:
 
 ### Tool Call Display
 
-![Tool Call Streaming](../images/tool-streaming.png)
+![A tool call row (execute_command, Done in 0.3 s) above the answer, then an approval card for pip install numpy with Approve and Deny](../images/tool-streaming.png)
 
 When agents use tools, each call is displayed as a collapsible card:
 

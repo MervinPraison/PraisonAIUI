@@ -316,10 +316,10 @@ class TestCompilerThemeCss:
         assert "--background:" in css_zinc
         assert "--background:" in css_rose
 
-    def test_all_22_presets_produce_valid_css(self):
-        """G-NEW-2: All 22 official presets produce valid CSS with :root block."""
+    def test_all_presets_produce_valid_css(self):
+        """G-NEW-2: The 22 official presets and paper produce valid CSS with :root block."""
         from praisonaiui.themes import FALLBACK_THEMES
-        assert len(FALLBACK_THEMES) == 22, f"Expected 22 presets, got {len(FALLBACK_THEMES)}"
+        assert len(FALLBACK_THEMES) == 23, f"Expected 23 presets, got {len(FALLBACK_THEMES)}"
         for name in FALLBACK_THEMES:
             css = get_theme_css(preset=name, dark_mode=True, radius="0.5rem")
             assert ":root {" in css, f"Preset '{name}' missing :root block"
@@ -457,6 +457,37 @@ class TestThemePipelineIntegration:
         index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
         assert "__AIUI_DARK_DEFAULT__" not in index_html
         assert "var d=false" in index_html
+
+    def test_system_mode_antiflicker_follows_the_os(self, tmp_path: Path):
+        """site.theme.mode: system wins over darkMode and follows the OS."""
+        config = Config(
+            site=SiteConfig(
+                title="System Site",
+                theme=ThemeConfig(preset="zinc", dark_mode=True, mode="system"),
+            ),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        assert Compiler(config, base_path=tmp_path).compile(tmp_path / "output").success
+        index_html = (tmp_path / "output" / "index.html").read_text(encoding="utf-8")
+        assert "var d=matchMedia('(prefers-color-scheme: dark)').matches" in index_html
+        ui = json.loads((tmp_path / "output" / "ui-config.json").read_text(encoding="utf-8"))
+        assert ui["site"]["theme"]["mode"] == "system"
+
+    def test_paper_preset_marks_the_look_from_first_paint(self, tmp_path: Path):
+        """Preset paper: <html data-aiui-look="paper"> and the paper seeds in theme.css."""
+        config = Config(
+            site=SiteConfig(title="Paper Site", theme=ThemeConfig(preset="paper")),
+            templates={"docs": TemplateConfig(layout="Default", slots={})},
+            routes=[RouteConfig(match="/docs/**", template="docs")],
+        )
+        assert Compiler(config, base_path=tmp_path).compile(tmp_path / "output").success
+        out = tmp_path / "output"
+        for page in ("index.html", "404.html"):
+            assert '<html data-aiui-look="paper"' in (out / page).read_text(encoding="utf-8")
+        assert 'html[data-aiui-look="paper"]' in (out / "assets" / "theme.css").read_text(encoding="utf-8")
+        ui = json.loads((out / "ui-config.json").read_text(encoding="utf-8"))
+        assert "mode" not in ui["site"]["theme"]
 
     def test_dark_mode_antiflicker_has_dark_class(self, tmp_path: Path):
         """G-NEW-7: When darkMode=true, theme bootstrap defaults to dark."""

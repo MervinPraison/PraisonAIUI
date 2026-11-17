@@ -9,7 +9,9 @@
  *
  * Colours are tokens only. App.tsx switches the Pro tokens on for the docs
  * site (<html data-aiui-docs data-aiui-tokens="pro">, pro.css below); with
- * them off these rules draw in the classic tokens.
+ * them off these rules draw in the classic tokens. Preset `paper` adds
+ * data-aiui-look="paper": the Paper palette (paper.css) and the reading
+ * type at the end of this file.
  *
  * Unlayered, so these rules beat Streamdown's utility classes in the
  * markdown; the few `!important`s answer index.css's own `article.prose`
@@ -17,6 +19,9 @@
  */
 @import '../styles/pro.css';
 @import '../styles/fonts.css';
+/* The Paper look (preset `paper`): its palette, accent and fonts. The font
+   files are the shell's own (one hashed woff2 per face, shared). */
+@import '../styles/paper.css';
 
 /* ── Root ──────────────────────────────────────────────────────────────── */
 .aiui-docs {
@@ -400,6 +405,12 @@ img.aiui-docs-mark {
   font-size: var(--font-size-base, 0.9375rem);
   line-height: 1.7;
   overflow-wrap: break-word;
+}
+/* The markdown root carries the chat's 15px on 1.55 (text-base, leading-[1.55]);
+   the article's own size and line height win. */
+.aiui-docs article.aiui-doc > .aiui-markdown {
+  font-size: inherit;
+  line-height: inherit;
 }
 .aiui-docs article.aiui-doc :is(h1, h2, h3, h4, h5, h6) {
   color: var(--foreground) !important;
@@ -1053,4 +1064,105 @@ img.aiui-docs-mark {
 }
 .aiui-docs-empty-actions a {
   text-decoration: none;
+}
+
+/* ── The Paper look (preset `paper`, DESIGN.md "Docs style") ─────────────
+   A reading face, not a UI face: Newsreader for titles, Source Sans 3 at
+   17px on 1.7 for text, a 40rem measure (about 75 characters), JetBrains
+   Mono for code. Only type and a few surfaces change; colours come from
+   paper.css through the same tokens. */
+html[data-aiui-look='paper'] .aiui-docs {
+  --docs-measure: 40rem;
+}
+html[data-aiui-look='paper'] .aiui-docs-column {
+  max-width: calc(var(--docs-measure) + 3rem);
+}
+html[data-aiui-look='paper'] .aiui-docs-brand {
+  font-family: var(--aiui-font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+/* The brand tile: ink on paper with a serif initial, as the app's. */
+html[data-aiui-look='paper'] span.aiui-docs-mark {
+  background: var(--foreground);
+  color: var(--background);
+  font-family: var(--aiui-font-display);
+  font-size: 0.9375rem;
+  text-transform: none;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+html[data-aiui-look='paper'] .aiui-docs :is(article.aiui-doc :is(h1, h2), .aiui-docs-hero-text, .aiui-docs-empty h1, .aiui-docs-feature-title) {
+  font-family: var(--aiui-font-display);
+  font-weight: 500;
+  font-optical-sizing: auto;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 {
+  font-size: clamp(2rem, 1.6rem + 1.4vw, 2.5rem);
+  line-height: 1.12;
+  letter-spacing: -0.012em;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2 {
+  margin-top: 3.25rem;
+  font-size: 1.75rem;
+  line-height: 1.22;
+  letter-spacing: -0.008em;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h3 {
+  margin-top: 2.25rem;
+  font-size: 1.1875rem;
+  letter-spacing: -0.003em;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(h4, h5, h6) { font-size: 1.0625rem; }
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 + p {
+  font-size: 1.25rem;
+  line-height: 1.55;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(th, td) { font-size: 0.9375rem; }
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc .aiui-admonition { font-size: 0.96875rem; }
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :not(pre) > code,
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='inline-code'] {
+  background: var(--ui-code-bg);
+  font-size: 0.82em;
+}
+/* Code: the panel head of the app's canvas, mono on 1.65. */
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='code-block-header'],
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='table-header'] {
+  background: var(--ui-panel-head, var(--muted));
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='code-block-header'] > span {
+  font-family: var(--aiui-font-mono);
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='code-block-body'] :is(pre, code) {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='table-wrapper'] > .border-collapse {
+  background: var(--card);
+}
+/* Home: a serif display line, cards on the surface colour. */
+html[data-aiui-look='paper'] .aiui-docs-hero-text {
+  font-size: clamp(2.25rem, 1.5rem + 2.6vw, 3.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.018em;
+}
+html[data-aiui-look='paper'] .aiui-docs-hero-tagline { font-size: 1.1875rem; }
+html[data-aiui-look='paper'] .aiui-docs .aiui-docs-feature-title {
+  font-size: 1.1875rem;
+  letter-spacing: -0.004em;
+}
+html[data-aiui-look='paper'] .aiui-docs-feature-details { font-size: 0.9375rem; }
+html[data-aiui-look='paper'] .aiui-docs-empty h1 {
+  font-size: 2.25rem;
+  letter-spacing: -0.012em;
+}
+/* Phones: 16px text and an 18px lede (a 390px column holds about 45 characters). */
+@media (max-width: 639px) {
+  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc { font-size: 1rem; }
+  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 + p { font-size: 1.125rem; }
+  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2 { font-size: 1.5rem; margin-top: 2.5rem; }
+  html[data-aiui-look='paper'] .aiui-docs-hero-tagline { font-size: 1.0625rem; }
 }

@@ -9,7 +9,7 @@ hero:
   tagline: Stream replies, show tool calls and approvals, open what the agent makes in a canvas, and ship it as a chat app, a dashboard or a docs site. One pip package, one command.
   image: images/app-shell-chat-canvas-light.webp
   imageDark: images/app-shell-chat-canvas-dark.webp
-  imageAlt: The app shell in the Chat and Canvas layout, with a conversation on the left and the code the agent wrote open in the canvas on the right
+  imageAlt: The app shell in the Chat and Canvas layout and its Paper look. On the left an agent compares sorting algorithms, ran a tool and waits for approval to install numpy; on the right the canvas shows the comparison table above the sort_demo.py script it wrote
   actions:
     - text: Quick start
       link: getting-started/quickstart.md

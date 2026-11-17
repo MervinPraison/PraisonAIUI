@@ -9,7 +9,7 @@
 **A web UI for your AI agents from one Python file:** streaming chat, selectable
 layouts, an artifacts canvas, admin pages, plugins and documentation sites.
 
-![PraisonAIUI app shell: the Chat layout with a streamed answer](docs/images/aiui-app-chat.webp)
+![PraisonAIUI app shell in its Paper look: an agent answers, shows the tool it ran and asks before installing a package](docs/images/aiui-app-chat.webp)
 
 ## Quick start
 

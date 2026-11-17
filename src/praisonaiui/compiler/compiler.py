@@ -174,6 +174,11 @@ class Compiler:
                         "radius": self.config.site.theme.radius,
                         "preset": self.config.site.theme.preset,
                         "darkMode": self.config.site.theme.dark_mode,
+                        **(
+                            {"mode": self.config.site.theme.mode}
+                            if self.config.site.theme.mode
+                            else {}
+                        ),
                     }
                     if self.config.site.theme
                     else None
@@ -573,11 +578,28 @@ class Compiler:
             html_path.write_text(patched, encoding="utf-8")
 
     def _patch_antiflicker(self, html_path: Path) -> None:
-        """Patch theme bootstrap in index.html to respect darkMode."""
+        """Patch the theme bootstrap in index.html.
+
+        The default colour mode is ``site.theme.mode`` (``system`` follows the
+        OS), else ``darkMode``. Preset ``paper`` also marks ``<html>`` with
+        ``data-aiui-look="paper"``, which assets/theme.css paints from the
+        first frame (themes.get_paper_first_paint_css).
+        """
+        from praisonaiui.themes import PAPER_LOOK
+
         theme = self.config.site.theme
-        dark_mode = theme.dark_mode if theme else True
+        mode = theme.mode if theme else None
+        if mode is None:
+            mode = "dark" if (theme.dark_mode if theme else True) else "light"
+        dark_default = {
+            "dark": "true",
+            "light": "false",
+            "system": "matchMedia('(prefers-color-scheme: dark)').matches",
+        }[mode]
         html = html_path.read_text(encoding="utf-8")
-        html = html.replace("__AIUI_DARK_DEFAULT__", "true" if dark_mode else "false")
+        html = html.replace("__AIUI_DARK_DEFAULT__", dark_default)
+        if theme and theme.preset == PAPER_LOOK and "data-aiui-look=" not in html:
+            html = re.sub(r"<html\b", f'<html data-aiui-look="{PAPER_LOOK}"', html, count=1)
         html_path.write_text(html, encoding="utf-8")
 
     _LOADER_RE = re.compile(r"""(/plugins/plugin-loader\.js)(?:\?[^"']*)?(["'])""")

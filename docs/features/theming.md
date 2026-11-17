@@ -5,7 +5,7 @@ from Python (`aiui.set_theme()`).
 
 ## Theme Presets
 
-PraisonAIUI includes all 22 official [Tailwind CSS colors](https://tailwindcss.com/docs/colors) as theme presets:
+PraisonAIUI includes all 22 official [Tailwind CSS colors](https://tailwindcss.com/docs/colors) as theme presets, plus `paper` (below):
 
 ```yaml
 site:
@@ -36,6 +36,36 @@ shell's layouts. The preset picks the accent: a neutral preset (`zinc`,
 `blue` and `teal` their Pro swatches, and any other colour its own accent,
 derived so links and focus rings keep AA contrast. `site.custom_css` still
 overrides everything. Details: `src/frontend/DESIGN.md`, "Docs style".
+
+### The Paper preset
+
+`preset: paper` is the look of the app's Chat and Canvas screen: warm paper
+neutrals, a navy accent, Newsreader for titles, Source Sans 3 for text and
+JetBrains Mono for code. This site uses it.
+
+```yaml
+site:
+  theme:
+    preset: "paper"
+    mode: "system"   # light | dark | system; system follows the reader's OS
+```
+
+![The Paper look in light and dark: the Chat and Canvas screen with the comparison table and the script the agent wrote](../images/theme-comparison.png)
+
+What it changes:
+
+- **Docs sites** (`aiui build`) draw in the Paper look itself: the palette
+  in both modes, serif titles, 17px text on a 1.7 line height in a 40rem
+  column, and the mono for code. The page is paper from its first paint
+  (`aiui build` marks `<html data-aiui-look="paper">` and writes the paper
+  colours into `assets/theme.css`).
+- **The app shell** (`style: app`) takes Paper's navy as its accent. The
+  Paper palette and fonts there come with the layout: Chat and Canvas paints
+  in Paper by default, the other layouts in plain Pro.
+- **Other React styles** (`chat`, `agents`, `playground`) get the navy accent (`#2d4f86` light, `#a9c1ea` dark) on warm neutrals.
+
+The fonts are self-hosted (latin woff2, the same files the app shell uses)
+and download only when a page draws in them; nothing loads from a font CDN.
 
 ### Available Presets
 
@@ -70,6 +100,12 @@ overrides everything. Details: `src/frontend/DESIGN.md`, "Docs style".
 | `fuchsia` | Vibrant fuchsia |
 | `pink` | Soft pink |
 | `rose` | Warm rose |
+
+**Looks**
+
+| Preset | Description |
+|--------|-------------|
+| `paper` | Warm paper, a navy accent, serif titles ([above](#the-paper-preset)) |
 
 ## Examples
 
@@ -117,9 +153,10 @@ site:
     darkMode: true   # true | false
 ```
 
-The React styles served by `aiui run` also read `site.theme.mode` (`light`,
-`dark` or `system`), and a viewer's own choice in the theme toggle wins over
-both. The full order is in [Dark Mode](dark-mode.md#colour-mode-order).
+`site.theme.mode` (`light`, `dark` or `system`) wins over `darkMode`; `system`
+follows the reader's OS. The React styles served by `aiui run` and docs sites
+built with `aiui build` read it, and a viewer's own choice in the theme toggle
+wins over both. The full order is in [Dark Mode](dark-mode.md#colour-mode-order).
 
 ## Theme Toggle Component
 

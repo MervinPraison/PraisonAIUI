@@ -172,3 +172,53 @@ test('a URL with no page shows "Page not found", never the config dump', async (
   await expect(page.getByRole('dialog')).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
+
+test('preset paper: the Paper look, serif titles, self-hosted Paper fonts', async ({ page, baseURL }) => {
+  const errors = collectPageErrors(page)
+  // The fixture site is zinc; the reader's ui-config.json says paper.
+  await page.route('**/ui-config.json', async (route) => {
+    const res = await route.fetch()
+    const json = await res.json()
+    json.site.theme = { ...(json.site.theme ?? {}), preset: 'paper' }
+    await route.fulfill({ response: res, json })
+  })
+  const fonts: string[] = []
+  page.on('request', (r) => {
+    if (r.resourceType() === 'font') fonts.push(r.url())
+  })
+  await setColorMode(page, 'light')
+  await page.goto('/docs/markdown')
+  const h1 = page.getByRole('heading', { name: 'Markdown sample', level: 1 })
+  await expect(h1).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-aiui-look', 'paper')
+
+  expect(await h1.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Newsreader"?,/)
+  const body = page.locator('.aiui-docs')
+  expect(await body.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^"?Source Sans 3"?,/)
+  const article = page.locator('#main-content article.aiui-doc > .aiui-markdown')
+  const type = await article.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).lineHeight])
+  expect(type[0]).toBe('17px')
+  expect(parseFloat(type[1]) / 17).toBeCloseTo(1.7, 1)
+  // Paper's page and navy accent, light then dark.
+  const bg = await body.evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(await toRgb(page, bg)).toBe(await toRgb(page, '#f6f3ec'))
+  const tile = await page.locator('.aiui-docs-header .aiui-docs-mark').evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(await toRgb(page, tile)).toBe(await toRgb(page, '#1f1c17'))
+  const primary = await body.evaluate((el) => getComputedStyle(el).getPropertyValue('--primary').trim())
+  expect(await toRgb(page, primary)).toBe(await toRgb(page, '#2d4f86'))
+  await setColorMode(page, 'dark')
+  await page.reload()
+  await expect(h1).toBeVisible()
+  const darkBg = await body.evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(await toRgb(page, darkBg)).toBe(await toRgb(page, '#1a1814'))
+
+  expect(await page.evaluate(async () => {
+    await document.fonts.ready
+    return document.fonts.check('17px "Source Sans 3"') && document.fonts.check('40px Newsreader')
+  })).toBe(true)
+  const paper = fonts.filter((url) => /newsreader|source-sans|jetbrains/i.test(url))
+  expect(paper.length).toBeGreaterThan(0)
+  for (const url of paper) expect(url.startsWith(baseURL!)).toBe(true)
+  expect(fonts.some((url) => /googleapis|gstatic/.test(url))).toBe(false)
+  expect(errors.pageErrors).toEqual([])
+})

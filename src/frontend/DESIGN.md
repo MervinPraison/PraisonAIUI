@@ -544,7 +544,7 @@ Canvas.dc.html): warm paper neutrals and a navy accent.
 Type: Newsreader (`font-display`), Source Sans 3 (`font-sans`) and JetBrains
 Mono (`font-mono`), self-hosted from `@fontsource-variable` (OFL 1.1, latin
 woff2, one file each, the "Paper fonts" budget), fetched only while the look
-is on. Body line height 1.5. The brand tile is ink on paper with a serif "P" (the default mark only; a site logo stays). Chat + Canvas and Chat (the same frame) declare it. Two tokens exist
+is on. Body line height 1.5. The brand tile is ink on paper with a serif "P" (the default mark only; a site logo stays). Chat + Canvas and Chat (the same frame) declare it, and the docs site wears it for preset `paper` ([Docs style](#docs-style)). Two tokens exist
 only under Paper, so read them with a fallback: `--ui-panel-head` (panel
 header fill) and `--ui-accent-line` (accent outline). `src/styles/paper.test.ts`
 checks the scope and AA contrast of every text pair; text 3 is not used on
@@ -563,11 +563,24 @@ styles keep the classic look. The build's `assets/theme.css` adds the
 preset's Pro accent seeds (`themes.inject_theme_css`), so `site.theme.preset`
 still picks the accent; custom CSS stays unlayered and wins.
 
+**Preset `paper`** puts the docs site in the [Paper look](#looks): `App.tsx`
+adds `data-aiui-look="paper"` next to the Pro attributes, and `docs.css`
+imports `paper.css` (the same self-hosted font files as the shell, one
+hashed woff2 per face). On top of the palette the look sets reading type,
+the last block of `docs.css`: titles (`h1`, `h2`, the hero line, feature
+titles, the 404 title) in Newsreader 500; the article in Source Sans 3 at
+17px on 1.7 in a 40rem measure (`--docs-measure`, about 75 characters); the
+lede 20px (below 640px: 16px text, an 18px lede, `h2` 24px); `h3` 19/600; code in JetBrains Mono 13px on 1.65 under the
+canvas's panel-head fill; the brand tile ink on paper with a serif initial.
+`aiui build` writes `data-aiui-look="paper"` into `index.html` and the
+paper seeds into `assets/theme.css` (`themes.get_paper_first_paint_css`),
+so the first paint, before the docs chunk, is already paper.
+
 | Part | Contract |
 | --- | --- |
 | Header | 56px, sticky, the page colour at 82% with a blur, one hairline under it. Brand tile (24px, radius 7, the accent with the site initial, or the logo), section tabs with an ink underline on the hairline, a 32px field-shaped search button with a ⌘K key (an icon button on phones), links, the call to action (`Button` `sm`, hidden on phones), the theme menu (`Button` ghost `icon-sm`) |
 | Sidebar | 256px on the sunken sidebar colour with a hairline. Group labels 13/600; rows 32px, 14px, radius 8, row hover, the active page on the active-row fill with weight 500 (`aria-current="page"`). Long titles wrap. The active page scrolls into view inside the column |
-| Article | A 70ch column (plus gutters), 15px on 1.7. Title 30/600 at -0.022em, sections 22/600 with 48px above, subsections 17/600; the paragraph under the title is the lede (17px, secondary text). Links in the link colour with a 35% underline that firms up on hover. Inline code on the muted fill with a hairline, radius 5. Lists with tier-3 markers. Blockquotes: a 2px input-colour rule and secondary text, never italic |
+| Article | A 70ch column (plus gutters), 15px on 1.7 (the article's size and line height reach the markdown root, which otherwise carries the chat's 1.55). Title 30/600 at -0.022em, sections 22/600 with 48px above, subsections 17/600; the paragraph under the title is the lede (17px, secondary text). Links in the link colour with a 35% underline that firms up on hover. Inline code on the muted fill with a hairline, radius 5. Lists with tier-3 markers. Blockquotes: a 2px input-colour rule and secondary text, never italic |
 | Code blocks | The Streamdown pipeline unchanged; one hairline panel, radius 12, on the code background, a 36px header row (language in tier-3, copy on the right), 13px mono on 1.7 |
 | Tables | One hairline frame, radius 10, a soft muted header row (13/500, secondary text), hairlines between rows, 14px cells; wide tables scroll inside the frame |
 | Callouts | MkDocs admonitions: the tone's soft fill, a tone hairline, radius 10, a 16px line icon in the tone (a CSS mask, so it needs no colour literal), title 600. Info (note, info, abstract…), success (tip, hint…), warning (warning, caution…), danger (danger, error, bug…), accent for the rest |

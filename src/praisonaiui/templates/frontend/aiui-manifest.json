@@ -2901,7 +2901,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-DVY_ValA.js",
+    "file": "assets/legacy-app-entry-B7xYK24w.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -2940,11 +2940,14 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-DnuFYR5T.css"
+      "assets/legacy-app-entry-rbVqLBgT.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
-      "assets/geist-mono-latin-wght-normal-XN7g48iV.woff2"
+      "assets/geist-mono-latin-wght-normal-XN7g48iV.woff2",
+      "assets/newsreader-latin-wght-normal-CCVVNp6i.woff2",
+      "assets/source-sans-3-latin-wght-normal-Bo_j9asI.woff2",
+      "assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2"
     ]
   },
   "src/legacy/LegacyViewHost.tsx": {

@@ -44,6 +44,15 @@ test('colour presets seed the 600 shade for light and the 500 shade for dark', (
     assert.equal(presetSeedVars('rose')['--seed-accent-dark'], '#f43f5e')
 })
 
+test('paper is a colour preset: navy on warm neutrals', () => {
+    assert.deepEqual(presetSeedVars('paper'), {
+        '--seed-tint': '#6b655a',
+        '--accent-mix': '4%',
+        '--seed-accent-light': '#2d4f86',
+        '--seed-accent-dark': '#a9c1ea',
+    })
+})
+
 test('every preset name is either neutral or has accents', () => {
     for (const name of THEME_PRESETS) {
         assert.ok(name in NEUTRAL_TINTS || name in PRESET_ACCENTS, name)
