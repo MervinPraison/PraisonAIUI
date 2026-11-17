@@ -129,7 +129,7 @@ export default function ChatAside({ loader, label, sessionId, slot }: ChatAsideP
     writeRatio(next)
   }, [])
 
-  // A card asks for the aside (`{open: true}`): open it, or on a phone show its side; `{open: false}` hides it.
+  // A card asks for the aside (`{open: true}`): open it, or on a phone show its side; the canvas's Close sends `{open: false}` to hide it.
   useEffect(() => {
     const onAside = (e: Event) => {
       const want = (e as CustomEvent<{ open?: unknown }>).detail?.open !== false
