@@ -379,8 +379,10 @@ registry, a second theme store.
 **Docs markdown loading:** the React docs app loads every page's `.md`
 through `src/frontend/src/docs/docLoader.ts` (time limit per attempt, a fresh
 request on timeout, an in-memory cache, prefetch on hover / focus / press and
-of the previous / next page). The legacy `fetch-retry.js` retries only the
-site manifests. Do not add a second retry or cache layer for docs markdown.
+of the previous / next page), and `App.tsx` loads the three manifests with
+its `fetchWithRetry` and starts a deep link's `.md` alongside them. The legacy
+`fetch-retry.js` skips markdown and any request with an abort signal. Do not
+add a second retry or cache layer for these requests.
 
 ## 5. Known open gaps
 

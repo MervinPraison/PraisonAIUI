@@ -8,6 +8,7 @@ import {
     loadDoc,
     peekDoc,
     prefetchDoc,
+    prefetchInitialDoc,
     resetDocCache,
 } from './docLoader'
 
@@ -154,5 +155,22 @@ describe('docHrefMarkdownUrl', () => {
         assert.equal(docHrefMarkdownUrl('https://example.com/docs/a', page), null)
         assert.equal(docHrefMarkdownUrl('/chat', page), null)
         assert.equal(docHrefMarkdownUrl('/docs/images/x.png', page), null)
+    })
+})
+
+describe('prefetchInitialDoc', () => {
+    test('a deep link under /docs starts its markdown at boot', () => {
+        const { calls } = stubFetch(['hang'])
+        assert.equal(prefetchInitialDoc('/docs/guide/first'), '/docs/guide/first.md')
+        assert.equal(prefetchInitialDoc('/docs'), '/docs/index.md')
+        assert.equal(calls.length, 2)
+    })
+
+    test('the site root and other sections fetch nothing (chat and agents live there)', () => {
+        const { calls } = stubFetch(['hang'])
+        assert.equal(prefetchInitialDoc('/'), null)
+        assert.equal(prefetchInitialDoc('/chat'), null)
+        assert.equal(prefetchInitialDoc('/documents/x'), null)
+        assert.equal(calls.length, 0)
     })
 })
