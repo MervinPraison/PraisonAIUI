@@ -8,6 +8,10 @@ export interface NavItem {
     path?: string
     description?: string
     noindex?: boolean
+    /** Date of the page's last commit (YYYY-MM-DD), from `aiui build` with `content.docs.lastUpdated`. */
+    lastUpdated?: string
+    /** "Edit this page" link, from `content.docs.editLink.pattern`. */
+    editUrl?: string
     children?: NavItem[]
 }
 
@@ -140,6 +144,8 @@ export interface UIConfig {
     search?: SearchConfig
     /** Hero and features of the docs home page (frontmatter `layout: home`). */
     docsHome?: DocsHomeConfig
+    /** Page footer settings (`content.docs.editLink.text`, `content.docs.feedback.issues`). */
+    pageFooter?: { editText?: string; feedbackIssues?: string }
     footer?: {
         socials?: Record<string, string>
         links?: { header: string; items: NavbarLinkConfig[] }[]

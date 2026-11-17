@@ -433,3 +433,27 @@ test('phone: cards stack in one column and nothing scrolls sideways', async ({ p
   expect(await page.locator('.aiui-cards').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(1)
   expect(await hasHorizontalOverflow(page)).toBe(false)
 })
+
+test('page footer: was this page helpful, edit this page', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await page.goto('/docs/guide/first')
+  const foot = page.locator('footer.aiui-docs-pagefoot')
+  await expect(foot).toBeVisible()
+  await expect(foot.getByRole('link', { name: 'Edit this page' })).toHaveAttribute('href', 'https://github.com/acme/site/edit/main/docs/guide/first.md')
+  // Dates come from git and are left out in a shallow clone; when shown, they are a <time>.
+  const time = foot.locator('time')
+  if (await time.count()) await expect(time).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}$/)
+
+  await expect(foot.getByText('Was this page helpful?')).toBeVisible()
+  await foot.getByRole('button', { name: 'No' }).click()
+  const issue = foot.getByRole('link', { name: 'Tell us what was missing' })
+  const href = new URL((await issue.getAttribute('href'))!)
+  expect(href.origin + href.pathname).toBe('https://github.com/acme/site/issues/new')
+  expect(href.searchParams.get('title')).toBe('Docs: First page')
+  await expect(issue).toHaveAttribute('target', '_blank')
+  await expect(foot.getByRole('status')).toContainText('Thanks.')
+
+  await page.goto('/')
+  await expect(page.locator('.aiui-docs-pagefoot')).toHaveCount(1) // the fixture home is a plain page
+  expect(errors.pageErrors).toEqual([])
+})

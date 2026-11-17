@@ -5,6 +5,11 @@ site:
 content:
   docs:
     dir: "./docs"
+    editLink:
+      pattern: "https://github.com/acme/site/edit/main/docs/:path"
+    lastUpdated: true
+    feedback:
+      issues: "https://github.com/acme/site/issues/new"
     include:
       - "**/*.md"
 components:

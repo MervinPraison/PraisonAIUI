@@ -995,6 +995,49 @@ dialog.aiui-zoom img {
   background: var(--card);
 }
 
+/* ── Page footer (docs/PageFooter.tsx) ─────────────────────────────────── */
+.aiui-docs-pagefoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--ui-text-3);
+  font-size: 0.875rem;
+}
+.aiui-docs-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.aiui-docs-feedback > span { margin-right: 0.25rem; color: var(--muted-foreground); }
+.aiui-docs-feedback p { margin: 0; color: var(--muted-foreground); }
+.aiui-docs-feedback svg,
+.aiui-docs-pagefoot-meta svg { width: 0.875rem; height: 0.875rem; }
+.aiui-docs-pagefoot a { color: var(--ui-link); text-decoration: none; }
+.aiui-docs-pagefoot a:hover { text-decoration: underline; }
+.aiui-docs-pagefoot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+.aiui-docs-pagefoot-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.aiui-docs-pagefoot + .aiui-docs-pager { margin-top: 1.5rem; }
+/* Touch screens: the 28px buttons keep their look and get a 44px hit area. */
+@media (hover: none) {
+  .aiui-docs-feedback > button { position: relative; }
+  .aiui-docs-feedback > button::after { content: ''; position: absolute; inset: -0.5rem -0.25rem; }
+}
+
 /* ── Pager (previous / next) ───────────────────────────────────────────── */
 .aiui-docs-pager {
   display: grid;
