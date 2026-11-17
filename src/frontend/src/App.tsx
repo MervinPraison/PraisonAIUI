@@ -22,26 +22,34 @@ const DocsSearch = lazy(() => import('./docs/DocsSearch'))
 /** Styles that render the docs chrome (header, nav, article, footer). */
 const DOCS_CHROME_STYLES = new Set(['docs', 'custom'])
 
+/** Theme presets that are a look of the Pro tokens (styles/paper.css), not only a colour. */
+const DOCS_LOOKS = new Set(['paper'])
+
 /**
  * The docs site draws in the PraisonAI Pro tokens: <html data-aiui-docs
  * data-aiui-tokens="pro"> switches styles/pro.css on (imported through
- * docs/docs.css). The chat, agents and playground styles keep the classic
- * tokens.
+ * docs/docs.css). Preset `paper` adds data-aiui-look="paper" (paper.css,
+ * DESIGN.md "Looks"). The chat, agents and playground styles keep the
+ * classic tokens.
  */
-function useDocsTokens(active: boolean) {
+function useDocsTokens(active: boolean, preset?: string) {
+    const look = preset && DOCS_LOOKS.has(preset) ? preset : null
     useEffect(() => {
         if (!active) return
         const html = document.documentElement
-        // The attribute proTokens.setTokenSystem('pro') writes. Not imported:
-        // proTokens.ts lives in the shell's boot chunk, and a module the
-        // legacy App shared with it would move into a shared boot chunk.
+        // The attributes proTokens.setTokenSystem('pro') and the shell's
+        // layout host write. Not imported: proTokens.ts lives in the shell's
+        // boot chunk, and a module the legacy App shared with it would move
+        // into a shared boot chunk.
         html.setAttribute('data-aiui-docs', '')
         html.setAttribute('data-aiui-tokens', 'pro')
+        if (look) html.setAttribute('data-aiui-look', look)
         return () => {
             html.removeAttribute('data-aiui-docs')
             html.removeAttribute('data-aiui-tokens')
+            if (look) html.removeAttribute('data-aiui-look')
         }
-    }, [active])
+    }, [active, look])
 }
 
 function SkipLink({ enabled }: { enabled?: boolean }) {
@@ -72,7 +80,7 @@ export default function App() {
 
   const navTabs = config.navigation?.tabs ?? []
   const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
-  useDocsTokens(docsStyle)
+  useDocsTokens(docsStyle, config.site?.theme?.preset)
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
 
   // "Search docs" and ⌘K / Ctrl+K: a page listening for `aiui:search-open`

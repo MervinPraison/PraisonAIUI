@@ -97,6 +97,8 @@ PRESET_COLORS: Dict[str, Dict[str, str]] = {
     "fuchsia": {"accent": "#d946ef", "accentRgb": "217,70,239"},
     "pink": {"accent": "#ec4899", "accentRgb": "236,72,153"},
     "rose": {"accent": "#f43f5e", "accentRgb": "244,63,94"},
+    # Paper's dark-mode navy (themes.PRESET_ACCENT_LIGHT has its light one).
+    "paper": {"accent": "#a9c1ea", "accentRgb": "169,193,234"},
 }
 
 # Validate PRESET_COLORS keys match the single source of truth

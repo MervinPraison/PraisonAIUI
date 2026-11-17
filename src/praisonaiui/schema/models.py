@@ -34,9 +34,17 @@ class ThemeConfig(BaseModel):
         "fuchsia",
         "pink",
         "rose",
+        "paper",
     ] = "zinc"
     radius: Literal["none", "sm", "md", "lg", "xl"] = "md"
     dark_mode: bool = Field(default=True, alias="darkMode")
+    mode: Optional[Literal["light", "dark", "system"]] = Field(
+        default=None,
+        description=(
+            "Colour mode before the viewer picks one; wins over darkMode. "
+            "'system' follows the OS."
+        ),
+    )
     accent: Optional[str] = Field(
         default=None,
         description=(

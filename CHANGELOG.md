@@ -65,6 +65,13 @@
 
 ### New
 
+- **Theme preset `paper`** (the look of the Chat and Canvas screen) and
+  `site.theme.mode: light | dark | system` for `aiui build`. A docs site with
+  `preset: paper` draws in warm paper, a navy accent, Newsreader titles and
+  Source Sans 3 text at 17px on 1.7, from its first paint; ui.praison.ai uses
+  it and follows the reader's OS. New page:
+  [Writing docs pages](docs/features/writing-docs.md). See
+  [Theming → The Paper preset](docs/features/theming.md#the-paper-preset).
 - **`aiui.yaml` is the default config file name.** `aiui init` writes
   `aiui.yaml`, and `aiui validate`, `build` and `serve` read it when no
   `--config` is given. `aiui.template.yaml` still works: when it is the only

@@ -15,7 +15,10 @@ from praisonaiui.features.theme import PRESET_COLORS
 from praisonaiui.schema.models import Config, SiteConfig
 from praisonaiui.schema.validators import find_legacy_hsl_vars, validate_config
 from praisonaiui.themes import (
+    COLOR_PRESET_TINTS,
     NEUTRAL_TINTS,
+    PAPER_PRO_ACCENT,
+    PAPER_SEEDS,
     PRESET_ACCENT_LIGHT,
     PRESET_NAMES,
     PRO_ACCENT_KEYS,
@@ -23,6 +26,7 @@ from praisonaiui.themes import (
     PRO_ACCENTS,
     PRO_DEFAULT_ACCENT,
     PRO_NEUTRALS,
+    get_paper_first_paint_css,
     get_pro_seed_css,
     get_seed_theme_css,
     inject_theme_css,
@@ -57,7 +61,7 @@ class TestPresets:
         assert d["--seed-accent-light"] == PRESET_ACCENT_LIGHT[preset]
         assert d["--seed-accent-dark"] == PRESET_COLORS[preset]["accent"]
         assert d["--accent-mix"] == "4%"
-        assert d["--seed-tint"] == NEUTRAL_TINTS["zinc"]
+        assert d["--seed-tint"] == COLOR_PRESET_TINTS.get(preset, NEUTRAL_TINTS["zinc"])
         assert "--seed-accent" not in d  # theme.css picks light/dark per mode
         assert d["--db-accent-rgb"] == PRESET_COLORS[preset]["accentRgb"]
 
@@ -173,6 +177,10 @@ class TestFrontendMirrors:
     def test_themes_ts_neutral_tints_match_python(self):
         body = self._ts_table("NEUTRAL_TINTS")
         assert dict(re.findall(r"(\w+): '(#[0-9a-f]{6})'", body)) == NEUTRAL_TINTS
+
+    def test_themes_ts_colour_preset_tints_match_python(self):
+        body = self._ts_table("COLOR_PRESET_TINTS")
+        assert dict(re.findall(r"(\w+): '(#[0-9a-f]{6})'", body)) == COLOR_PRESET_TINTS
 
     def test_themes_ts_accent_mix_matches(self):
         assert "COLOR_PRESET_ACCENT_MIX = '4%'" in THEMES_TS.read_text(encoding="utf-8")
@@ -537,3 +545,76 @@ class TestDesignDocBundle:
         doc = self.DESIGN_MD.read_text(encoding="utf-8")
         named = set(re.findall(r"(?<![\w-])(--[a-z][a-z0-9-]*[a-z0-9])", doc)) & theme_vars
         assert sorted(v for v in named if f"{v}:" not in bundle) == []
+
+
+PAPER_CSS = Path("src/frontend/src/styles/paper.css")
+DOCS_CSS = Path("src/frontend/src/docs/docs.css")
+
+
+def _paper_rule(head: str) -> dict[str, str]:
+    css = PAPER_CSS.read_text(encoding="utf-8")
+    at = css.index(head)
+    return _pro_decls(css[css.index("{", at) + 1 : css.index("}", at)])
+
+
+class TestPaperPreset:
+    """Preset ``paper``: the Paper look (styles/paper.css) as a theme preset."""
+
+    LOOK = 'html:is([data-aiui-shell="react"], [data-aiui-docs])[data-aiui-tokens="pro"][data-aiui-look="paper"]'
+
+    def test_is_a_colour_preset_with_navy_on_warm_neutrals(self):
+        d = _decls(get_seed_theme_css("paper"))
+        assert d["--seed-accent-light"] == "#2d4f86"
+        assert d["--seed-accent-dark"] == "#a9c1ea"
+        assert d["--seed-tint"] == "#6b655a"
+
+    def test_schema_accepts_paper_and_mode(self):
+        from praisonaiui.schema.models import ThemeConfig
+
+        t = ThemeConfig.model_validate({"preset": "paper", "mode": "system"})
+        assert (t.preset, t.mode) == ("paper", "system")
+        assert ThemeConfig().mode is None
+
+    @pytest.mark.parametrize("mode", ["light", "dark"])
+    def test_pro_accent_is_paper_css_own_seeds(self, mode):
+        light = _paper_rule(f"{self.LOOK} {{")
+        for role in PRO_ACCENT_ROLES:
+            assert light[f"--seed-pro-{role}-{mode}"] == PAPER_PRO_ACCENT[mode][role]
+        d = _decls(get_pro_seed_css("paper"))
+        assert d[f"--seed-pro-accent-{mode}"] == PAPER_PRO_ACCENT[mode]["accent"]
+
+    def test_first_paint_seeds_are_paper_css_palette(self):
+        light = _paper_rule(f"{self.LOOK} {{")
+        dark = {**light, **_paper_rule(f"{self.LOOK}.dark,")}
+        names = {"ink": "foreground", "paper": "background", "sunken": "sidebar", "raised": "card"}
+        for mode, palette in (("light", light), ("dark", dark)):
+            for seed, pro in names.items():
+                assert PAPER_SEEDS[mode][seed] == palette[f"--pro-{pro}"], (mode, seed)
+
+    def test_first_paint_css_is_scoped_to_the_look(self):
+        css = get_paper_first_paint_css()
+        selectors = re.findall(r"([^{}]+)\{", css)
+        assert [s.strip() for s in selectors] == [
+            'html[data-aiui-look="paper"]',
+            'html[data-aiui-look="paper"].dark',
+        ]
+        assert "--background" not in css and "</" not in css
+
+    def test_build_theme_css_carries_first_paint_only_for_paper(self, tmp_path):
+        inject_theme_css(tmp_path, preset="paper")
+        css = (tmp_path / "assets" / "theme.css").read_text(encoding="utf-8")
+        assert get_paper_first_paint_css() in css
+        assert "--seed-pro-accent-light: #2d4f86;" in css
+        inject_theme_css(tmp_path, preset="zinc")
+        assert "data-aiui-look" not in (tmp_path / "assets" / "theme.css").read_text(encoding="utf-8")
+
+    def test_docs_css_imports_the_look_and_scopes_its_type(self):
+        css = DOCS_CSS.read_text(encoding="utf-8")
+        assert "@import '../styles/paper.css';" in css
+        tail = css[css.index("/* ── The Paper look (preset `paper`") :]
+        body = re.sub(r"/\*.*?\*/", "", tail, flags=re.S)
+        for sel in re.findall(r"([^{}]+)\{", body):
+            if sel.strip().startswith("@media"):
+                continue
+            for part in _selector_parts(sel):
+                assert part.strip().startswith("html[data-aiui-look='paper']"), part

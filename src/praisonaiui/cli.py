@@ -934,6 +934,7 @@ def dev(
             "fuchsia",
             "pink",
             "rose",
+            "paper",
         ]
         radii = ["none", "sm", "md", "lg", "xl"]
 

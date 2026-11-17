@@ -25,5 +25,7 @@ class TestPresetSync:
             cfg = ThemeConfig(preset=name)
             assert cfg.preset == name
 
-    def test_count_is_22(self):
-        assert len(PRESET_NAMES) == 22
+    def test_count_is_23(self):
+        """The 22 Tailwind colours plus the Paper look."""
+        assert len(PRESET_NAMES) == 23
+        assert PRESET_NAMES[-1] == "paper"

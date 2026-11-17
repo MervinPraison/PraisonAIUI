@@ -5,9 +5,10 @@ site:
   description: "A web UI for AI agents in Python: streaming chat, an artifacts canvas, selectable layouts, a dashboard and docs sites."
   ui: "shadcn"
   theme:
-    preset: "zinc"
+    # The Paper look of the app's Chat + Canvas screen; light or dark follows the OS.
+    preset: "paper"
     radius: "md"
-    darkMode: true
+    mode: "system"
 
 seo:
   siteUrl: "https://ui.praison.ai"
@@ -89,6 +90,7 @@ navigation:
             - features/knowledge-embeddings
         - group: "Docs sites"
           pages:
+            - features/writing-docs
             - features/content-sources
             - features/navigation
             - concepts/templates

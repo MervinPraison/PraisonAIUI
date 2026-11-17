@@ -2,7 +2,7 @@
 Theme system for PraisonAIUI.
 
 Generates CSS variables for shadcn/ui themes at build time.
-All 22 official color presets are embedded — no network required.
+All 22 official color presets and the Paper look are embedded — no network required.
 """
 
 import json
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Shadcn themes registry URL (may be unavailable; fallbacks are authoritative)
 SHADCN_THEMES_URL = "https://ui.shadcn.com/registry/colors.json"
 
-# ── All 22 official shadcn/ui color presets ──────────────────────────
+# ── The 22 official shadcn/ui color presets, plus paper ────────────────────────
 # Source: shadcn/ui registry. These are the authoritative fallback so
 # builds work offline and in air-gapped environments.
 
@@ -48,6 +48,10 @@ PRESET_NAMES: tuple[str, ...] = (
     "fuchsia",
     "pink",
     "rose",
+    # The Paper look (warm paper neutrals, a navy accent): a colour preset in
+    # the classic tokens; the docs site also draws in the look itself
+    # (styles/paper.css), see PAPER_* below.
+    "paper",
 )
 
 
@@ -148,6 +152,10 @@ FALLBACK_THEMES = {
         "0 72.2% 50.6%",
         "0 85.7% 97.3%",
         "0 72.2% 50.6%",
+    ),
+    # Paper's navy (#2d4f86 light, #a9c1ea on #13161c dark).
+    "paper": _make(
+        "217.1 49.7% 35.1%", "0 0% 100%", "217.1 49.7% 35.1%", "217.8 60.7% 79%", "220 19.1% 9.2%", "217.8 60.7% 79%"
     ),
     "rose": _make(
         "346.8 77.2% 49.8%",
@@ -358,7 +366,8 @@ def inject_theme_css(
     (``__AIUI_DARK_DEFAULT__``), and every colour has light and dark values.
     The docs site draws in the Pro tokens (styles/pro.css), so the preset's
     Pro accent seeds (:func:`get_pro_seed_css`, empty for the Pro default)
-    follow the classic seeds.
+    follow the classic seeds. Preset ``paper`` adds the Paper look's
+    first-paint seeds (:func:`get_paper_first_paint_css`).
 
     Args:
         output_dir: Build output directory
@@ -370,6 +379,8 @@ def inject_theme_css(
     pro = get_pro_seed_css(preset)
     if pro:
         css = f"{css}\n{pro}\n" if css else f"{pro}\n"
+    if (preset or "").strip().lower() == PAPER_LOOK:
+        css = f"{css}{get_paper_first_paint_css()}\n"
 
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"
@@ -433,7 +444,12 @@ PRESET_ACCENT_LIGHT: dict[str, str] = {
     "fuchsia": "#c026d3",
     "pink": "#db2777",
     "rose": "#e11d48",
+    "paper": "#2d4f86",
 }
+
+# Colour presets whose neutral surfaces take a hue of their own (the rest use
+# zinc's). Paper: its text 3, a warm grey.
+COLOR_PRESET_TINTS: dict[str, str] = {"paper": "#6b655a"}
 
 COLOR_PRESET_ACCENT_MIX = "4%"
 
@@ -552,7 +568,7 @@ def get_seed_theme_css(
     if name in NEUTRAL_TINTS:
         lines.append(f"  --seed-tint: {NEUTRAL_TINTS[name]};")
     else:
-        lines.append(f"  --seed-tint: {NEUTRAL_TINTS['zinc']};")
+        lines.append(f"  --seed-tint: {COLOR_PRESET_TINTS.get(name, NEUTRAL_TINTS['zinc'])};")
 
     if custom_accent:
         lines.append(f"  --seed-accent: {custom_accent};")
@@ -705,6 +721,40 @@ PRO_ACCENT_KEYS: dict[str, str] = {sw["light"]["accent"]: name for name, sw in P
 # a Pro accent from their 600/500 pair.
 PRO_PRESET_SWATCH: dict[str, str] = {"indigo": "indigo", "blue": "blue", "teal": "teal"}
 
+# ── The Paper look (styles/paper.css) ───────────────────────────────────
+# Preset ``paper`` picks Paper's own navy as the Pro accent (the defaults of
+# paper.css), and on the docs site (``aiui build``) switches the look on:
+# the build writes ``data-aiui-look="paper"`` on <html> and the paper seeds
+# below into assets/theme.css, so the first paint, before the docs chunk
+# brings paper.css, is already paper. tests/unit/test_seed_theme.py keeps
+# these values equal to paper.css.
+PAPER_LOOK = "paper"
+PAPER_PRO_ACCENT: dict[str, dict[str, str]] = _swatch(
+    ("#2d4f86", "#ffffff", "#e6ebf3", "#2d4f86", "#2d4f86"),
+    ("#a9c1ea", "#13161c", "#262f3e", "#b4caee", "#a9c1ea"),
+)
+# Classic seeds per mode: ink, page, sidebar, card (paper.css foreground,
+# background, sidebar, card).
+PAPER_SEEDS: dict[str, dict[str, str]] = {
+    "light": {"ink": "#1f1c17", "paper": "#f6f3ec", "sunken": "#eee9df", "raised": "#fffdf8"},
+    "dark": {"ink": "#efe9dd", "paper": "#1a1814", "sunken": "#141210", "raised": "#221f1a"},
+}
+
+
+def get_paper_first_paint_css() -> str:
+    """Paper's classic seeds, scoped to ``html[data-aiui-look="paper"]``.
+
+    Written by ``aiui build`` for preset ``paper`` so the page is paper from
+    its first paint. Under the Pro tokens pro.css maps the same values, so
+    nothing changes once the docs chunk is in.
+    """
+    sel = 'html[data-aiui-look="paper"]'
+    out = []
+    for mode, scope in (("light", sel), ("dark", f"{sel}.dark")):
+        decls = " ".join(f"--seed-{k}: {v};" for k, v in PAPER_SEEDS[mode].items())
+        out.append(f"{scope} {{ {decls} }}")
+    return "\n".join(out)
+
 # Soft fill: the design appends hex alpha 14 (light) / 29 (dark) to the accent.
 _PRO_SOFT_ALPHA = {"light": "14", "dark": "29"}
 _PRO_ON_ACCENT = ("#ffffff", "#0e0e11")
@@ -814,8 +864,9 @@ def pro_accent(
     1. A custom ``accent`` (theme.accent, set_brand_color, register_theme):
        the swatch whose key hex it is, else derived from it.
     2. The ``indigo``, ``blue`` and ``teal`` presets: their swatch.
-    3. Any other colour preset: derived from its 600 (light) / 500 (dark) pair.
-    4. Neutral, unknown or no preset: the Pro default (indigo).
+    3. ``paper``: Paper's navy (``PAPER_PRO_ACCENT``).
+    4. Any other colour preset: derived from its 600 (light) / 500 (dark) pair.
+    5. Neutral, unknown or no preset: the Pro default (indigo).
     """
     name = (preset or "zinc").strip().lower()
     custom = _custom_accent(name, accent)
@@ -826,6 +877,8 @@ def pro_accent(
         return {mode: _derive_pro_accent(custom, mode) for mode in ("light", "dark")}
     if name in PRO_PRESET_SWATCH:
         return PRO_ACCENTS[PRO_PRESET_SWATCH[name]]
+    if name == PAPER_LOOK:
+        return PAPER_PRO_ACCENT
     accents = preset_accents()
     if name in accents:
         return {mode: _derive_pro_accent(accents[name][mode], mode) for mode in ("light", "dark")}

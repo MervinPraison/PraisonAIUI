@@ -33,6 +33,7 @@ export const THEME_PRESETS = [
     'fuchsia',   // Fuchsia accent
     'pink',      // Pink accent
     'rose',      // Rose accent
+    'paper',     // The Paper look: warm paper, a navy accent
 ] as const
 
 // Named theme presets (like Gradio's themes)
@@ -332,6 +333,12 @@ export const PRESET_ACCENTS: Record<string, { light: string; dark: string }> = {
     fuchsia: { light: '#c026d3', dark: '#d946ef' },
     pink: { light: '#db2777', dark: '#ec4899' },
     rose: { light: '#e11d48', dark: '#f43f5e' },
+    paper: { light: '#2d4f86', dark: '#a9c1ea' },
+}
+
+/** Colour presets whose neutral surfaces take a hue of their own (others use zinc's). Mirrors Python themes.COLOR_PRESET_TINTS. */
+export const COLOR_PRESET_TINTS: Record<string, string> = {
+    paper: '#6b655a',
 }
 
 /** How much a colour preset's accent tints fills and strokes. */
@@ -344,7 +351,7 @@ export function presetSeedVars(preset: string): SeedVars {
     const accents = PRESET_ACCENTS[preset]
     if (accents) {
         return {
-            '--seed-tint': NEUTRAL_TINTS.zinc,
+            '--seed-tint': COLOR_PRESET_TINTS[preset] ?? NEUTRAL_TINTS.zinc,
             '--accent-mix': COLOR_PRESET_ACCENT_MIX,
             '--seed-accent-light': accents.light,
             '--seed-accent-dark': accents.dark,
