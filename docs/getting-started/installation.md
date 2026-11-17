@@ -6,9 +6,12 @@ wheel, so you do not need Node.js or npm to run an app or build a docs site.
 
 ## Requirements
 
-- Python 3.10 or higher
-- Node.js only if you change the React frontend in a clone of the repository
-  (version in `src/frontend/.nvmrc`)
+Python 3.10 or higher.
+
+<Note title="No Node.js needed">
+The browser UI ships inside the wheel. You need Node.js only to change the
+React frontend in a clone of the repository (version in `src/frontend/.nvmrc`).
+</Note>
 
 ## Install
 
@@ -36,6 +39,11 @@ Check the install:
 aiui --version
 # praisonaiui version 0.3.x
 ```
+
+<Check>
+A version number means the `aiui` command is on your path. Next: the
+[quick start](quickstart.md).
+</Check>
 
 The wheel installs two commands that do the same thing: `aiui` and `praisonaiui`.
 

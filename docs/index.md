@@ -51,15 +51,16 @@ features:
 
 ## Run it in 30 seconds
 
+<Steps>
+<Step title="Install">
 Python 3.10 or higher.
 
 ```bash
 pip install aiui
 ```
-
-Create `app.py`:
-
-```python
+</Step>
+<Step title="Write app.py">
+```python title="app.py"
 import praisonaiui as aiui
 
 
@@ -67,28 +68,45 @@ import praisonaiui as aiui
 async def on_message(message: str):
     await aiui.say(f"You said: {message}")
 ```
-
-Start it and open <http://127.0.0.1:8000>:
-
+</Step>
+<Step title="Run it">
 ```bash
 aiui run app.py
 ```
 
-The app opens in the React app shell, in its `chat` layout. Connect a model
-with `aiui.stream_token()` in the [quick start](getting-started/quickstart.md),
-or open the canvas with `AIUI_LAYOUT=chat-canvas aiui run app.py`.
+Open <http://127.0.0.1:8000>. The app opens in the React app shell, in its
+`chat` layout. Connect a model with `aiui.stream_token()` in the
+[quick start](getting-started/quickstart.md), or open the canvas with
+`AIUI_LAYOUT=chat-canvas aiui run app.py`.
+</Step>
+</Steps>
 
 ## Pick a starting point
 
-| You want to | Start with |
-|---|---|
-| Put a chat UI on an agent you already have | [Quick start](getting-started/quickstart.md) |
-| Choose between the app shell, chat, dashboard and the other styles | [UI styles](features/styles.md) |
-| Try the layouts and the artifacts canvas | [Layouts](features/layouts.md) |
-| Build your own page or extension | [UI plugins](features/plugins.md) |
-| Publish Markdown docs | [Content sources](features/content-sources.md) |
-| Run it behind a proxy, with sign-in | [Deployment](features/deployment.md) |
-| Look up a command or function | [CLI](api/cli.md), [Python API](api/python.md), [YAML configuration](concepts/configuration.md) |
+<CardGroup cols={2}>
+<Card title="Put a chat UI on your agent" icon="message-square" href="getting-started/quickstart.md">
+Stream replies, tool calls and approvals from the agent you already have.
+</Card>
+<Card title="Choose a UI style" icon="panels-top-left" href="features/styles.md">
+The app shell, the chat, the dashboard and the other styles, side by side.
+</Card>
+<Card title="Layouts and the canvas" icon="layout-dashboard" href="features/layouts.md">
+Five frames for the same app, and the canvas the agent's work opens in.
+</Card>
+<Card title="Build a page or extension" icon="plug" href="features/plugins.md">
+Add pages, settings and themes from a Python package.
+</Card>
+<Card title="Publish Markdown docs" icon="book-open" href="features/writing-docs.md">
+A folder of Markdown becomes a site like this one.
+</Card>
+<Card title="Deploy with sign-in" icon="shield-check" href="features/deployment.md">
+Behind a proxy, with auth on every route and WebSocket.
+</Card>
+</CardGroup>
+
+Looking something up? The [CLI](api/cli.md), the [Python API](api/python.md)
+and the [YAML configuration](concepts/configuration.md) cover every command,
+function and key.
 
 PraisonAIUI is MIT licensed. Install it from [PyPI](https://pypi.org/project/aiui/)
 as `aiui`; the import name is `praisonaiui` and the command is `aiui`.
