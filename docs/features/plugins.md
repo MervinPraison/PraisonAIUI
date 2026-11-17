@@ -249,11 +249,12 @@ the server does not load its feature modules, and a bundled dashboard-plugin
 folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
 to `builtin.video`) is not served either. The same holds for the routes the
 host itself serves for a built-in: `builtin.mcp` owns `/api/mcp/*`,
-`builtin.debug` owns `/api/debug`, `builtin.logs` owns `GET /api/logs` as
-well as its `/api/logs/*` feature routes, `builtin.overview` owns
+`builtin.debug` owns `/api/debug`, `builtin.overview` owns
 `GET /api/overview`, `builtin.feedback` owns `GET /api/feedback` and
 `builtin.jobs` owns the optional `/api/jobs` proxy (`set_jobs_proxy`), so
-disabling them returns 404 there. With the built-in off, an entry-point
+disabling them returns 404 there. `builtin.logs` serves `GET /api/logs` and
+`/api/logs/*` from its feature, and installs its log handler only while it is
+on. With the built-in off, an entry-point
 plugin may use its page ids and feature names.
 
 A few host routes stay mounted whichever built-ins are off, because the host,

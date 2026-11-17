@@ -81,14 +81,6 @@ def _debug_routes() -> list:
     return [Route("/api/debug", api_debug, methods=["GET"])]
 
 
-def _logs_routes() -> list:
-    from starlette.routing import Route
-
-    from praisonaiui.server import api_logs
-
-    return [Route("/api/logs", api_logs, methods=["GET"])]
-
-
 def _overview_routes() -> list:
     # GET /api/status (same handler) stays in the host: the CLI reads it.
     from starlette.routing import Route
@@ -506,7 +498,6 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
             ),
         ),
         feature_refs=(feature(".logs", "LogsFeature"),),
-        host_routes=_logs_routes,
     ),
     BuiltinPlugin(
         "debug",

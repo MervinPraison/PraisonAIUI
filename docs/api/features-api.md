@@ -730,7 +730,15 @@ Assistants API.
 
 ## Logs
 
-Real-time log streaming via WebSocket.
+Real-time log streaming via WebSocket. Every logs route reads one in-memory
+buffer (500 entries), so a clear empties what `GET /api/logs` returns too.
+
+### GET /api/logs
+Recent entries, newest last. Query: `?level=ERROR`, `?limit=100`.
+
+```json
+{"logs": [{"timestamp": "...", "level": "ERROR", "logger": "...", "message": "..."}], "total": 42}
+```
 
 ### WS /api/logs/stream
 WebSocket for real-time log streaming. Query: `?level=INFO`, `?search=agent`
