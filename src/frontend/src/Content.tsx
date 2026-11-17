@@ -154,9 +154,13 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
-                    {/* Drawn from the first frame (most pages have sections) and kept once
-                        the article is in if it has any, so nothing below it moves. */}
-                    <MobileToc selectedItem={selectedItem} expectHeadings={!contentReady || hasSectionHeadings(markdown)} />
+                    {/* Drawn from the first frame while the page loads (most pages have
+                        sections) and kept once the article is in if it has any, so nothing
+                        below it moves. Not on an error or empty page. */}
+                    <MobileToc
+                        selectedItem={selectedItem}
+                        expectHeadings={contentReady ? hasSectionHeadings(markdown) : !!shownPath && !loadError && loadedPath !== normalizeDocPath(currentPath)}
+                    />
                     {!home && (
                         <div className="aiui-docs-pagehead">
                             {section ? <p className="aiui-docs-eyebrow">{section}</p> : <span />}
