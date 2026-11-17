@@ -12,6 +12,7 @@ from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
 from praisonaiui.compiler.nav_builder import NavBuilder
 from praisonaiui.schema.validators import validate_config
+from praisonaiui.utils import json_for_html
 
 if TYPE_CHECKING:
     from praisonaiui.schema.models import Config
@@ -1191,7 +1192,7 @@ class Compiler:
                 "name": self.config.site.title,
                 "url": f"{site_url}/",
             }
-        return f'  <script type="application/ld+json">{json.dumps(payload, ensure_ascii=False)}</script>'
+        return f'  <script type="application/ld+json">{json_for_html(payload, separators=None)}</script>'
 
     # The JSON script docs/docLoader.ts adoptInlinedDoc() reads.
     INITIAL_DOC_ID = "aiui-initial-doc"
@@ -1210,9 +1211,7 @@ class Compiler:
             if candidate.is_file() and candidate.stat().st_size <= self.INITIAL_DOC_MAX_BYTES:
                 url = "/" + candidate.relative_to(output_dir).as_posix()
                 text = candidate.read_text(encoding="utf-8")
-                payload = json.dumps({"url": url, "text": text}, ensure_ascii=False)
-                payload = payload.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
-                payload = payload.replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+                payload = json_for_html({"url": url, "text": text}, separators=None)
                 return f'<script type="application/json" id="{self.INITIAL_DOC_ID}">{payload}</script>'
         return ""
 

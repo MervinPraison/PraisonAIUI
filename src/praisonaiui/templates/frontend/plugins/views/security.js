@@ -3,7 +3,7 @@
  * Shows security status, audit entries, agent security config.
  * API: /api/security, /api/security/status, /api/security/audit, /api/security/config
  */
-import { helpBanner, inAppShell, statusChip, glyph, emptyState } from '/plugins/views/_helpers.js';
+import { helpBanner, inAppShell, statusChip, glyph, emptyState, esc } from '/plugins/views/_helpers.js';
 
 // Shell: a status chip and a sentence-case label; dashboard: the original text.
 const flag = (on, onText, offText) => (inAppShell() ? statusChip(on ? onText : offText, on ? 'success' : 'neutral') : `${on ? '✅' : '❌'} ${on ? onText : offText}`);
@@ -69,10 +69,10 @@ export async function render(container) {
             </tr></thead>
             <tbody>${agents.map(a => `
               <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
-                <td style="padding:10px 14px;font-size:.85rem">${a.name}</td>
+                <td style="padding:10px 14px;font-size:.85rem">${esc(a.name)}</td>
                 <td style="padding:10px 14px;text-align:center">${a.has_guardrail ? glyph('🛡️', 'shield') : '—'}</td>
                 <td style="padding:10px 14px;text-align:center">${a.has_tools ? glyph('🔧') : '—'}</td>
-                <td style="padding:10px 14px;text-align:center">${a.tool_count}</td>
+                <td style="padding:10px 14px;text-align:center">${esc(a.tool_count)}</td>
               </tr>`).join('')}
             </tbody></table>
         </div>` : ''}
@@ -92,10 +92,10 @@ export async function render(container) {
               <tbody>${entries.map(e => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
                   <td style="padding:10px 14px;font-size:.75rem;opacity:.6">${new Date(e.timestamp*1000).toLocaleTimeString()}</td>
-                  <td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${e.event_type}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${e.agent_id || '—'}</td>
-                  <td style="padding:10px 14px">${inAppShell() ? statusChip(e.severity, e.severity === 'error' ? 'danger' : e.severity === 'warning' ? 'warning' : 'info') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${e.severity==='error'?'rgba(239,68,68,.15)':e.severity==='warning'?'rgba(245,158,11,.15)':'rgba(59,130,246,.1)'}">${e.severity}</span>`}</td>
-                  <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis">${JSON.stringify(e.data).substring(0,60)}</td>
+                  <td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${esc(e.event_type)}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(e.agent_id || '—')}</td>
+                  <td style="padding:10px 14px">${inAppShell() ? statusChip(e.severity, e.severity === 'error' ? 'danger' : e.severity === 'warning' ? 'warning' : 'info') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${e.severity==='error'?'rgba(239,68,68,.15)':e.severity==='warning'?'rgba(245,158,11,.15)':'rgba(59,130,246,.1)'}">${esc(e.severity)}</span>`}</td>
+                  <td style="padding:10px 14px;font-size:.75rem;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(JSON.stringify(e.data)?.substring(0,60))}</td>
                 </tr>`).join('')}
               </tbody></table>`
         }

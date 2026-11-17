@@ -193,8 +193,10 @@ auth-required servers unless named in `extensions.enabled`.
 (`security` label: manual merge).
 
 **R9. Untrusted text is escaped; untrusted markdown is hardened.** Inline JSON
-in HTML goes through `server._json_for_html`. Legacy views build HTML with an
-`escapeHtml` helper, never raw interpolation. React code does not use
+in HTML goes through `praisonaiui.utils.json_for_html` (`server._json_for_html`
+wraps it; `compiler.py` and `features/replay.py` call it). Legacy views build
+HTML with the `esc` helper from `plugins/views/_helpers.js` (it escapes quotes,
+so it is safe in attribute values), never raw interpolation. React code does not use
 `dangerouslySetInnerHTML` for untrusted content. Markdown: one `<Markdown>`
 (`markdown/Markdown.tsx`) whose rehype list keeps `rehype-sanitize` (never
 Streamdown's `allowedTags`); chat links open external URLs with
@@ -203,7 +205,8 @@ Streamdown's `allowedTags`); chat links open external URLs with
 (`markdown/urlPolicy.ts`). Plugin JS is trusted code (no sandbox);
 `kind: iframe` is the sandboxed option and never combines `allow-scripts` with
 `allow-same-origin`.
-*Check:* `markdown/markdown.test.tsx`, `e2e/specs/markdown.spec.ts`; grep the diff
+*Check:* `markdown/markdown.test.tsx`, `e2e/specs/markdown.spec.ts`,
+`tests/unit/test_script_json_escaping.py`, `tests/unit/test_legacy_view_escaping.py`; grep the diff
 for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 
 **R10. Performance budgets hold.** Gzip budgets from `src/frontend/.size-limit.mjs`

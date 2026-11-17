@@ -38,6 +38,7 @@ from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__
     register_component_schema,
     reset_component_schemas,
 )
+from praisonaiui.utils import json_for_html
 
 # Registry for callbacks
 _callbacks: dict[str, Callable] = {}
@@ -1373,15 +1374,8 @@ async def _serve_shell_external(request: Request) -> Response:
 
 
 def _json_for_html(value: Any) -> str:
-    """JSON safe to inline in <script> (no '<', '>' or '&' reach the tokenizer)."""
-    return (
-        json.dumps(value, separators=(",", ":"), ensure_ascii=False)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
+    """JSON safe to inline in <script>; see :func:`praisonaiui.utils.json_for_html`."""
+    return json_for_html(value)
 
 
 def _resolved_dashboard_config() -> Optional[dict[str, Any]]:

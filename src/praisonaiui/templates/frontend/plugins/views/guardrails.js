@@ -87,12 +87,12 @@ export async function render(container) {
               </tr></thead>
               <tbody>${guardrailsList.map(g => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
-                  <td style="padding:10px 14px;font-size:.85rem">${g.description || g.agent_name || '-'}</td>
-                  <td style="padding:10px 14px">${shell ? statusChip(g.type === 'llm' ? 'LLM' : humanize(g.type), g.type === 'llm' ? 'info' : 'neutral') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${g.type==='llm'?'rgba(34,197,94,.15)':g.type==='input'?'rgba(59,130,246,.15)':'rgba(168,85,247,.15)'}">${g.type}</span>`}</td>
-                  ${shell ? `<td style="padding:10px 14px;font-size:.85rem">${esc(className(g.guardrail))}</td>` : `<td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${g.guardrail || '-'}</td>`}
-                  <td style="padding:10px 14px;font-size:.75rem;opacity:.5">${g.source}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(g.description || g.agent_name || '-')}</td>
+                  <td style="padding:10px 14px">${shell ? statusChip(g.type === 'llm' ? 'LLM' : humanize(g.type), g.type === 'llm' ? 'info' : 'neutral') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${g.type==='llm'?'rgba(34,197,94,.15)':g.type==='input'?'rgba(59,130,246,.15)':'rgba(168,85,247,.15)'}">${esc(g.type)}</span>`}</td>
+                  ${shell ? `<td style="padding:10px 14px;font-size:.85rem">${esc(className(g.guardrail))}</td>` : `<td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${esc(g.guardrail || '-')}</td>`}
+                  <td style="padding:10px 14px;font-size:.75rem;opacity:.5">${esc(g.source)}</td>
                   <td style="padding:10px 14px;text-align:right">
-                    <button class="gr-delete-btn" data-id="${g.id}" style="padding:4px 12px;${shell ? 'background:transparent;color:var(--db-error);border:1px solid var(--db-border)' : 'background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)'};border-radius:6px;cursor:pointer;font-size:.75rem" title="Delete">${L('✕ Delete', 'Delete')}</button>
+                    <button class="gr-delete-btn" data-id="${esc(g.id)}" style="padding:4px 12px;${shell ? 'background:transparent;color:var(--db-error);border:1px solid var(--db-border)' : 'background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)'};border-radius:6px;cursor:pointer;font-size:.75rem" title="Delete">${L('✕ Delete', 'Delete')}</button>
                   </td>
                 </tr>`).join('')}
               </tbody></table>`
@@ -114,10 +114,10 @@ export async function render(container) {
               <tbody>${violations.map(v => `
                 <tr style="border-bottom:1px solid rgba(128,128,128,.1)">
                   <td style="padding:10px 14px;font-size:.75rem;opacity:.6">${new Date(v.timestamp*1000).toLocaleTimeString()}</td>
-                  <td style="padding:10px 14px;font-size:.85rem">${v.agent_id}</td>
-                  <td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${v.guardrail}</td>
-                  <td style="padding:10px 14px">${shell ? statusChip(humanize(v.level), v.level === 'ERROR' ? 'danger' : 'warning') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${v.level==='ERROR'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'}">${v.level}</span>`}</td>
-                  <td style="padding:10px 14px;font-size:.8rem">${v.message}</td>
+                  <td style="padding:10px 14px;font-size:.85rem">${esc(v.agent_id)}</td>
+                  <td style="padding:10px 14px;font-size:.85rem;font-family:monospace">${esc(v.guardrail)}</td>
+                  <td style="padding:10px 14px">${shell ? statusChip(humanize(v.level), v.level === 'ERROR' ? 'danger' : 'warning') : `<span style="padding:2px 8px;border-radius:6px;font-size:.75rem;background:${v.level==='ERROR'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'}">${esc(v.level)}</span>`}</td>
+                  <td style="padding:10px 14px;font-size:.8rem">${esc(v.message)}</td>
                 </tr>`).join('')}
               </tbody></table>`
         }
@@ -162,7 +162,7 @@ export async function render(container) {
       const id = btn.dataset.id;
       if (!await showConfirm('Delete Guardrail', 'Delete this guardrail?')) return;
       try {
-        const res = await fetch(`/api/guardrails/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/guardrails/${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         render(container);
       } catch(e) {

@@ -41,6 +41,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from starlette.routing import Route
 
+from ..utils import json_for_html
 from . import _trace_jsonl as tj
 from ._base import BaseFeatureProtocol
 
@@ -84,15 +85,8 @@ def configure_replay_app() -> None:
 
 
 def _json_for_script(obj: Any) -> str:
-    """JSON that is safe inside an inline ``<script>`` element."""
-    text = json.dumps(obj, default=str, separators=(",", ":"))
-    return (
-        text.replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("\u2028", "\\u2028")
-        .replace("\u2029", "\\u2029")
-    )
+    """JSON that is safe inside an inline ``<script>`` element (shared escaper, R9)."""
+    return json_for_html(obj, default=str, ensure_ascii=True)
 
 
 def standalone_html(

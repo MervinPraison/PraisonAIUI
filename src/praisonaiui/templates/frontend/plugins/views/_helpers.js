@@ -184,11 +184,14 @@ export function searchInput(placeholder = 'Search…', id = 'db-search-input') {
   return `<input id="${id}" type="search" placeholder="${placeholder}" style="width:100%;max-width:320px;padding:8px 12px;background:var(--db-card-bg);border:1px solid var(--db-border);border-radius:8px;color:var(--db-text);font-size:13px;box-sizing:border-box" />`;
 }
 
-/** Escape a string for safe interpolation into template literals. */
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/**
+ * Escape a string for safe interpolation into template literals, in element
+ * text and in quoted attribute values alike (quotes are escaped too; R9).
+ */
 export function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
+  return (s == null ? '' : String(s)).replace(/[&<>"']/g, (c) => ESC_MAP[c]);
 }
 
 /**

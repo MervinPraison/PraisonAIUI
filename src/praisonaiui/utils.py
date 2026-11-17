@@ -7,6 +7,36 @@ that yields to the event emitter to keep UI responsive.
 from __future__ import annotations
 
 import asyncio
+import json
+from typing import Any, Callable, Optional
+
+# Characters that must never reach the HTML tokenizer inside a <script> element.
+_SCRIPT_JSON_ESCAPES = {
+    "<": "\\u003c",
+    ">": "\\u003e",
+    "&": "\\u0026",
+    "\u2028": "\\u2028",
+    "\u2029": "\\u2029",
+}
+_SCRIPT_JSON_TABLE = str.maketrans(_SCRIPT_JSON_ESCAPES)
+
+
+def json_for_html(
+    value: Any,
+    *,
+    separators: Optional[tuple[str, str]] = (",", ":"),
+    ensure_ascii: bool = False,
+    default: Optional[Callable[[Any], Any]] = None,
+) -> str:
+    """JSON that is safe to inline in a ``<script>`` element (ARCHITECTURE R9).
+
+    The one escaper for inline JSON: ``<``, ``>``, ``&``, U+2028 and U+2029 are
+    written as ``\\uXXXX`` escapes, so the text can never close the element or
+    open a comment, and still parses to the same value. The keyword arguments
+    pass through to :func:`json.dumps`.
+    """
+    text = json.dumps(value, separators=separators, ensure_ascii=ensure_ascii, default=default)
+    return text.translate(_SCRIPT_JSON_TABLE)
 
 
 async def sleep(seconds: float) -> None:

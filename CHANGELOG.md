@@ -62,6 +62,14 @@
   its prompts, over WebSocket and over `POST /api/chat/abort`.
 - Plugin HTTP routes (`/api/plugins/<name>/*`) follow the same default-deny
   policy as plugin browser code for remote and auth-enforced servers.
+- The dashboard's Knowledge, Guardrails, Traces, Security and Telemetry views
+  escape the records they show (file names, guardrail descriptions, violation
+  messages, span names, agent ids). Markup stored in those records used to run
+  in the dashboard. The views' `esc()` helper now escapes quotes too, so it is
+  safe inside attribute values.
+- Inline JSON in HTML has one escaper, `praisonaiui.utils.json_for_html`, used
+  by the app shell, the standalone replay page and built docs sites. The docs
+  JSON-LD block, which used to inline page titles unescaped, now uses it too.
 
 ### New
 

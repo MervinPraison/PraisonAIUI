@@ -11,7 +11,7 @@
  *   DELETE /api/knowledge/{id}     — delete entry
  */
 import { showToast, showConfirm } from '../toast.js';
-import { inAppShell, glyph, statusChip, emptyState, shellButton, humanize } from '/plugins/views/_helpers.js';
+import { inAppShell, glyph, statusChip, emptyState, shellButton, humanize, esc } from '/plugins/views/_helpers.js';
 
 // Shell only: sentence-case labels and theme colours over the rules below.
 const SHELL_CSS = `
@@ -163,8 +163,8 @@ async function loadStatus() {
     el.innerHTML = `
       <div class="kb-stat"><div class="kb-stat-label">Entries</div><div class="kb-stat-value">${data.total || 0}</div></div>
       <div class="kb-stat"><div class="kb-stat-label">Files</div><div class="kb-stat-value">${data.files || 0}</div></div>
-      <div class="kb-stat"><div class="kb-stat-label">Backend</div><div class="kb-stat-value" style="font-size:14px">${inAppShell() ? backendLabel(data.backend) : data.backend || 'unknown'}</div></div>
-      <div class="kb-stat"><div class="kb-stat-label">Status</div>${inAppShell() ? `<div style="margin-top:6px">${data.status === 'ok' ? statusChip('Ready', 'success') : statusChip(data.status === 'degraded' ? 'Limited' : humanize(data.status || 'unknown'), 'neutral')}</div>` : `<div class="kb-stat-value" style="font-size:14px;color:${data.status === 'ok' ? '#22c55e' : '#eab308'}">${data.status || '?'}</div>`}</div>
+      <div class="kb-stat"><div class="kb-stat-label">Backend</div><div class="kb-stat-value" style="font-size:14px">${esc(inAppShell() ? backendLabel(data.backend) : data.backend || 'unknown')}</div></div>
+      <div class="kb-stat"><div class="kb-stat-label">Status</div>${inAppShell() ? `<div style="margin-top:6px">${data.status === 'ok' ? statusChip('Ready', 'success') : statusChip(data.status === 'degraded' ? 'Limited' : humanize(data.status || 'unknown'), 'neutral')}</div>` : `<div class="kb-stat-value" style="font-size:14px;color:${data.status === 'ok' ? '#22c55e' : '#eab308'}">${esc(data.status || '?')}</div>`}</div>
     `;
   } catch (e) {
     console.warn('[Knowledge] Status load failed:', e);
@@ -200,19 +200,19 @@ function renderEntries(entries) {
     const div = document.createElement('div');
     div.className = 'kb-entry';
     const meta = entry.metadata || {};
-    const source = meta.source ? ` · source: ${meta.source}` : '';
-    const filename = meta.filename ? ` · ${glyph('📄')} ${meta.filename}` : '';
+    const source = meta.source ? ` · source: ${esc(meta.source)}` : '';
+    const filename = meta.filename ? ` · ${glyph('📄')} ${esc(meta.filename)}` : '';
     div.innerHTML = `
       <div class="kb-entry-head">
-        <span class="kb-entry-id">${entry.id || '?'}</span>
+        <span class="kb-entry-id">${esc(entry.id || '?')}</span>
         <div class="kb-entry-meta">
           ${entry.created_at ? '<span>' + new Date(entry.created_at * 1000).toLocaleString() + '</span>' : ''}
           <span>${source}${filename}</span>
         </div>
       </div>
-      <div class="kb-entry-text">${escapeHtml(entry.text || '').substring(0, 500)}${(entry.text || '').length > 500 ? '…' : ''}</div>
+      <div class="kb-entry-text">${esc((entry.text || '').substring(0, 500))}${(entry.text || '').length > 500 ? '…' : ''}</div>
       <div class="kb-entry-actions">
-        <button class="kb-entry-del" data-id="${entry.id}">${glyph('🗑️')} Delete</button>
+        <button class="kb-entry-del" data-id="${esc(entry.id)}">${glyph('🗑️')} Delete</button>
       </div>
     `;
     div.querySelector('.kb-entry-del').addEventListener('click', () => deleteEntry(entry.id));
@@ -226,12 +226,6 @@ function backendLabel(name) {
   if (!n || n === 'unknown') return 'Not configured';
   if (/^SDK/.test(n)) return 'PraisonAI SDK';
   return humanize(n.replace(/Manager$/, ''));
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 async function addKnowledge() {
@@ -297,7 +291,7 @@ async function searchKnowledge() {
 
 async function deleteEntry(id) {
   try {
-    await fetch(`/api/knowledge/${id}`, { method: 'DELETE' });
+    await fetch(`/api/knowledge/${encodeURIComponent(id)}`, { method: 'DELETE' });
     await loadStatus();
     await loadEntries();
   } catch (e) {
