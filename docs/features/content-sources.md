@@ -92,6 +92,12 @@ features:
 The Markdown below the frontmatter renders under the hero.
 ```
 
+- The hero image keeps a 16:10 box until the file arrives, so nothing below it
+  jumps as it loads; once loaded it takes the image's own shape. Screenshots
+  at 16:10 (1600 × 1000, say) never move the page. Only the image for the
+  colour mode on screen downloads at first; the other one waits until the
+  reader switches.
+
 - Links and images resolve against the home page like Markdown links, and
   links to other sites open in a new tab.
 - `icon` is one of `message-square`, `panels-top-left`, `layout-dashboard`,

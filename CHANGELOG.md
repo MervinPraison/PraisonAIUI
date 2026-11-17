@@ -130,6 +130,9 @@
   to fall back to the first tab for it (for example the ADP overview at
   `/docs/protocols/adp` showed under "Get started" instead of "Reference"),
   and the section eyebrow was missing.
+- Docs home: the hero image no longer shifts the page as it loads (it keeps
+  a 16:10 box until the file arrives), and only the image for the colour
+  mode on screen downloads at first.
 - Docs sites (`aiui build`): pages make far fewer requests, all to the site
   itself. The default `site.plugins` is now `fetch-retry` and
   `nav-intercept`: `mermaid`, `syntax-highlight`, `code-copy`, `toc`,
