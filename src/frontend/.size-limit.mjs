@@ -242,5 +242,7 @@ export default [
   // and the phone breadcrumb (+1,134 B).
   // 9,125,858 B (measured, raised by exactly the overage): docs code blocks laid
   // out at their real height from the first frame (+132 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9125858 B', brotli: false },
+  // 9,134,317 B (measured, raised by exactly the overage, +8,459 B): the style
+  // layouts as lazy chunks; the bytes are chunk boundaries, no page loads more.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134317 B', brotli: false },
 ]
