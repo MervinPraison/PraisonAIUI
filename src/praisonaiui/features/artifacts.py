@@ -291,6 +291,20 @@ def get_artifact_store() -> ArtifactStore:
     return _store
 
 
+def forget_session_artifacts(session_id: str) -> int:
+    """Delete a session's artifacts when the session is deleted.
+
+    Called by ``DELETE /sessions/{id}`` (the chat, the Sessions page and
+    ``aiui sessions delete``), so a deleted chat leaves no content behind.
+    Returns how many artifacts went; never raises.
+    """
+    try:
+        return get_artifact_store().delete(session_id)
+    except Exception:
+        logger.warning("could not delete the artifacts of session %s", session_id, exc_info=True)
+        return 0
+
+
 # ── feature ──────────────────────────────────────────────────────────
 
 

@@ -193,6 +193,14 @@
   reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
   says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export
   (33) and catalog counts, now checked by `tests/unit/test_architecture_counts.py`.
+- Dashboard Overview: Approve and Deny work. They post no body, and the
+  server answered `Content-Length: 0` with a 500, so the tool stayed paused.
+- API: malformed or empty JSON sent to a route that expects a body is a 400
+  (`Request body is not valid JSON`), not a 500 with a traceback in the log.
+- Chat: deleting a chat deletes its artifacts. They stayed in the Artifacts
+  index and on disk.
+- `aiui run chat.yaml`: the YAML's `datastore:` is used. It applied only
+  when `--datastore memory` was also passed; a `--datastore` flag still wins.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

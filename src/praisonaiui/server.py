@@ -2171,6 +2171,9 @@ async def delete_session(request: Request) -> JSONResponse:
     deleted = await _datastore.delete_session(session_id)
     if not deleted:
         return JSONResponse({"error": "Session not found"}, status_code=404)
+    from praisonaiui.features.artifacts import forget_session_artifacts
+
+    forget_session_artifacts(session_id)
     return JSONResponse({"status": "deleted"})
 
 
@@ -4591,10 +4594,13 @@ def create_app(
         ),
     )
 
+    from praisonaiui.http_guard import json_exception_handlers
+
     app = Starlette(
         routes=routes,
         middleware=middleware,
         lifespan=_lifespan_handler,
+        exception_handlers=json_exception_handlers(),  # malformed JSON: 400
     )
 
     return app

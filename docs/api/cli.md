@@ -29,7 +29,7 @@ aiui run APP_FILE [OPTIONS]
 | `--reload, -r` | off | Restart when files change |
 | `--style, -s` | detected | `app` (the React app shell), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` or `custom` |
 | `--backend, -b` | `standalone` | `standalone`, or `praisonai` to use the PraisonAI WebSocket gateway |
-| `--datastore, -d` | `sdk` | Session storage: `sdk` (shared with PraisonAI Agents), `sdk:/path`, `json`, `json:/path` or `memory` |
+| `--datastore, -d` | `sdk` | Session storage: `sdk` (shared with PraisonAI Agents), `sdk:/path`, `json`, `json:/path` or `memory`. Without the flag, a chat YAML's `datastore:` key is used |
 | `--config, -c` | none | A docs-site YAML to build before serving (optional) |
 | `--output, -o` | `aiui` | Folder the UI files are written to; by default next to `APP_FILE` |
 

@@ -728,6 +728,25 @@ def _is_non_object_json(body: bytes) -> bool:
     return not isinstance(value, dict) and value is not None
 
 
+async def invalid_json_handler(request, exc):
+    """``json.JSONDecodeError`` from a handler: 400 when the request had a body.
+
+    Handlers read their body with ``await request.json()``; malformed or
+    empty JSON raised there and came back as a 500 with a logged traceback.
+    Any other source of the error (no request body) stays a 500.
+    """
+    if request.method not in _BODY_METHODS:
+        raise exc
+    return JSONResponse({"error": "Request body is not valid JSON"}, status_code=400)
+
+
+def json_exception_handlers() -> dict:
+    """The ``exception_handlers`` mapping ``create_app`` installs."""
+    import json
+
+    return {json.JSONDecodeError: invalid_json_handler}
+
+
 # ── Log redaction ────────────────────────────────────────────────────
 
 _SECRET_QS = re.compile(r"([?&](?:token|ticket|api_key|access_token)=)[^&\s\"']+", re.IGNORECASE)

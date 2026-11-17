@@ -63,6 +63,26 @@ def _is_critical(entry: Dict[str, Any]) -> bool:
 # ── Approval Protocol ────────────────────────────────────────────────
 
 
+
+async def _optional_json_body(request: Request) -> Optional[Dict[str, Any]]:
+    """The JSON object body of an approve/deny call; ``{}`` when it is empty.
+
+    ``Content-Length: 0`` (a ``fetch`` with no body) used to reach
+    ``request.json()`` and fail with a 500. None means "not a JSON object".
+    """
+    import json
+
+    raw = await request.body()
+    if not raw.strip():
+        return {}
+    try:
+        body = json.loads(raw)
+    except ValueError:
+        return None
+    if body is None:
+        return {}
+    return body if isinstance(body, dict) else None
+
 class ApprovalProtocol(ABC):
     """Protocol interface for approval backends."""
 
@@ -660,7 +680,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
     async def _approve(self, request: Request) -> JSONResponse:
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
-        body = await request.json() if request.headers.get("content-length") else {}
+        body = await _optional_json_body(request)
+        if body is None:
+            return JSONResponse({"error": "Request body must be a JSON object"}, status_code=400)
         modified_args = body.get("modified_args")
         if modified_args is not None and not isinstance(modified_args, dict):
             return JSONResponse({"error": "modified_args must be an object"}, status_code=400)
@@ -679,7 +701,9 @@ class ApprovalsFeature(BaseFeatureProtocol):
     async def _deny(self, request: Request) -> JSONResponse:
         mgr = get_approval_manager()
         approval_id = request.path_params["approval_id"]
-        body = await request.json() if request.headers.get("content-length") else {}
+        body = await _optional_json_body(request)
+        if body is None:
+            return JSONResponse({"error": "Request body must be a JSON object"}, status_code=400)
         entry = mgr.deny(
             approval_id,
             reason=body.get("reason", ""),
