@@ -11,8 +11,6 @@ edit.
     clears it. Use it as a setting your own provider or `@aiui.reply` callback
     reads (see below).
 
-![Model Fallback Configuration](../images/model-fallback.png)
-
 ## Quick Start
 
 ```bash
