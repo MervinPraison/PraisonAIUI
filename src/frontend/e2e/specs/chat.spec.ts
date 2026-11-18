@@ -184,6 +184,20 @@ test('WebSocket: a question from the agent can be answered', async ({ page }) =>
   expect(JSON.stringify(answer)).toContain('A')
 })
 
+test('WebSocket: an aiui.ask in a @reply gets the answer and the reply goes on', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await openChat(page, 'ws')
+  await send(page, 'cbask me')
+  const ask = page.locator('[data-tool="aiui_ask"]')
+  await expect(ask).toContainText('Pick one')
+  await ask.getByRole('group', { name: 'Answers' }).getByRole('button', { name: 'B', exact: true }).click()
+  await expect(ask).toHaveAttribute('data-ask-state', 'answered')
+  // The callback got "B" and finished its reply (it used to hang until a timeout).
+  await expect(page.getByText('You picked B')).toBeVisible({ timeout: 10_000 })
+  await waitForRunEnd(page)
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('SSE: a question explains that answering needs a live connection', async ({ page }) => {
   const errors = collectPageErrors(page)
   await openChat(page, 'sse')

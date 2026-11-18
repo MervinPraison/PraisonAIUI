@@ -1558,3 +1558,98 @@ def test_suggest_outside_a_run_is_a_no_op():
 
     aiui.suggest(["nothing to attach to"])
     assert chat_mod._run_suggestions == {}
+
+
+# ── ask / prompt answered from the chat (callback mode) ──────────────
+
+
+def _reply_app(monkeypatch, fn):
+    """The real provider in callback mode, with *fn* as the ``@aiui.reply``."""
+    import praisonaiui as aiui
+    import praisonaiui.server as server
+    from praisonaiui.providers import PraisonAIProvider
+
+    monkeypatch.setattr(server, "_callbacks", dict(server._callbacks))
+    aiui.reply(fn)
+    _use_provider(monkeypatch, PraisonAIProvider())
+
+
+def _ask_and_answer(ws, session_id: str, answer: str) -> List[Dict[str, Any]]:
+    ws.send_json({"type": "chat", "content": "hi", "session_id": session_id})
+    frames = _read_until(ws, lambda f: f.get("type") == "run_paused")
+    run_id = next(f["run_id"] for f in frames if f.get("type") == "run_started")
+    ws.send_json(
+        {"type": "ask_response", "session_id": session_id, "run_id": run_id, "response": answer}
+    )
+    return _read_until(ws, _turn_done(session_id))
+
+
+@pytest.mark.parametrize("api", ["ask", "prompt", "AskUserMessage", "context"])
+def test_ask_response_reaches_the_waiting_reply(monkeypatch, api):
+    import praisonaiui as aiui
+
+    async def on_reply(message):
+        if api == "ask":
+            answer = await aiui.ask("Pick one", options=["A", "B"], timeout=10)
+        elif api == "prompt":
+            answer = (await aiui.prompt("Pick one", options=["A", "B"], timeout=10)).choice
+        elif api == "AskUserMessage":
+            answer = (await aiui.AskUserMessage(content="Pick one", options=["A", "B"]).send())[
+                "output"
+            ]
+        else:
+            answer = await message.ask("Pick one", options=["A", "B"], timeout=10)
+        await aiui.say(f"you picked {answer}")
+
+    _reply_app(monkeypatch, on_reply)
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        frames = _ask_and_answer(ws, "s-ask", "B")
+        (ack,) = [f for f in frames if f.get("type") == "ask_response_ack"]
+        assert ack["status"] == "received"
+        terminals = [f for f in frames if f.get("type") in ("run_completed", "run_error")]
+        assert [f["type"] for f in terminals] == ["run_completed"], frames
+        assert "you picked B" in terminals[0]["content"]
+        history = client.get("/api/chat/history/s-ask").json()["messages"]
+        assert any("you picked B" in (m.get("content") or "") for m in history)
+
+
+def test_ask_response_with_nothing_waiting_is_not_acked_as_received(monkeypatch):
+    async def on_reply(message):
+        await message.stream("no question here")
+
+    _reply_app(monkeypatch, on_reply)
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "hi", "session_id": "s-none"})
+        frames = _read_until(ws, _turn_done("s-none"))
+        run_id = next(f["run_id"] for f in frames if f.get("type") == "run_started")
+        ws.send_json(
+            {"type": "ask_response", "session_id": "s-none", "run_id": run_id, "response": "X"}
+        )
+        ack = _read_until(ws, lambda f: f.get("type") == "ask_response_ack")[-1]
+        assert ack["status"] == "no_pending_ask"
+
+
+def test_waiting_on_an_answer_does_not_trip_the_idle_timeout(monkeypatch):
+    import time
+
+    import praisonaiui as aiui
+
+    monkeypatch.setenv("AIUI_REPLY_IDLE_TIMEOUT", "0.3")
+
+    async def on_reply(message):
+        answer = await aiui.ask("Pick one", options=["A", "B"], timeout=10)
+        await aiui.say(f"you picked {answer}")
+
+    _reply_app(monkeypatch, on_reply)
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "hi", "session_id": "s-slow"})
+        frames = _read_until(ws, lambda f: f.get("type") == "run_paused")
+        run_id = next(f["run_id"] for f in frames if f.get("type") == "run_started")
+        time.sleep(0.8)  # the user takes longer than the idle timeout
+        ws.send_json(
+            {"type": "ask_response", "session_id": "s-slow", "run_id": run_id, "response": "A"}
+        )
+        frames = _read_until(ws, _turn_done("s-slow"))
+        terminals = [f for f in frames if f.get("type") in ("run_completed", "run_error")]
+        assert [f["type"] for f in terminals] == ["run_completed"], frames
+        assert "you picked A" in terminals[0]["content"]

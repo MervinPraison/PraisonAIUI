@@ -32,6 +32,53 @@ DEFAULT_REPLY_IDLE_TIMEOUT_S = 600.0
 CALLBACK_CANCEL_GRACE_S = 5.0
 
 
+#: The ``MessageContext`` of each live ``@reply`` run, by chat run id, so an
+#: ``ask_response`` from the chat can answer the callback's pending ask.
+_live_reply_contexts: Dict[str, Any] = {}
+
+
+def _pending_ask_future(ctx: Any) -> Any:
+    """The future a callback is awaiting for the user's answer, if any.
+
+    ``aiui.ask`` / ``aiui.prompt`` / ``AskUserMessage`` wait on
+    ``ctx._pending_ask``; ``AskActionMessage`` / ``AskFileMessage`` /
+    ``AskElementMessage`` on an entry of ``ctx._pending_asks`` (latest wins).
+    """
+    fut = getattr(ctx, "_pending_ask", None)
+    if fut is not None and not fut.done():
+        return fut
+    for fut in reversed(list((getattr(ctx, "_pending_asks", None) or {}).values())):
+        if fut is not None and not fut.done():
+            return fut
+    return None
+
+
+async def answer_reply_ask(
+    session_id: Optional[str], run_id: Optional[str], response: Any
+) -> bool:
+    """Give the user's answer to the ``@reply`` callback waiting on it.
+
+    Called by the chat WebSocket for an ``ask_response`` frame, whatever the
+    provider (any provider can run a callback through ``_run_callback_mode``).
+    The run is found by its chat run id, else by session (the latest run there
+    that is waiting). Returns False when nothing is waiting for an answer.
+    """
+    ctx = _live_reply_contexts.get(run_id) if run_id else None
+    if ctx is None and session_id:
+        for candidate in reversed(list(_live_reply_contexts.values())):
+            if candidate.session_id == session_id and _pending_ask_future(candidate):
+                ctx = candidate
+                break
+    fut = _pending_ask_future(ctx) if ctx is not None else None
+    if fut is None:
+        return False
+    fut.set_result(response)
+    queue = getattr(ctx, "_stream_queue", None)
+    if queue is not None:
+        await queue.put({"type": "ask_answered"})  # restarts the idle clock
+    return True
+
+
 def reply_idle_timeout() -> Optional[float]:
     """The ``@reply`` inactivity timeout in seconds, or None for no limit."""
     raw = os.environ.get("AIUI_REPLY_IDLE_TIMEOUT", "").strip()
@@ -768,6 +815,13 @@ class PraisonAIProvider(BaseProvider):
         )
         stream_queue: asyncio.Queue = asyncio.Queue()
         msg._stream_queue = stream_queue
+        try:
+            from praisonaiui.features.chat import current_run_id
+
+            run_key = current_run_id.get() or str(uuid.uuid4())
+        except ImportError:
+            run_key = str(uuid.uuid4())
+        _live_reply_contexts[run_key] = msg
 
         async def _run_cb():
             try:
@@ -798,6 +852,8 @@ class PraisonAIProvider(BaseProvider):
                 try:
                     event = await asyncio.wait_for(stream_queue.get(), timeout=idle_timeout)
                 except asyncio.TimeoutError:
+                    if _pending_ask_future(msg) is not None:
+                        continue  # waiting on the user is not inactivity
                     ended = True
                     yield RunEvent(
                         type=RunEventType.RUN_ERROR,
@@ -809,6 +865,8 @@ class PraisonAIProvider(BaseProvider):
                 if evt_type == "done":
                     drained = True
                     break
+                if evt_type == "ask_answered":
+                    continue  # restarts the idle clock; nothing to forward
                 if evt_type == "cancelled":
                     ended = True
                     yield RunEvent(type=RunEventType.RUN_CANCELLED)
@@ -884,6 +942,7 @@ class PraisonAIProvider(BaseProvider):
                     else:
                         yield RunEvent(type=RunEventType.RUN_CONTENT, extra_data=event)
         finally:
+            _live_reply_contexts.pop(run_key, None)
             if session_id and _active_tasks.get(session_id) is task:
                 _active_tasks.pop(session_id, None)
             if not drained and not task.done():
@@ -899,6 +958,12 @@ class PraisonAIProvider(BaseProvider):
             await task
 
         yield RunEvent(type=RunEventType.RUN_COMPLETED, content=full_response)
+
+    async def submit_ask_response(
+        self, session_id: Optional[str], run_id: Optional[str], response: Any
+    ) -> bool:
+        """Give the user's answer to the ``@reply`` callback waiting on it."""
+        return await answer_reply_ask(session_id, run_id, response)
 
     async def _run_direct_mode(
         self,

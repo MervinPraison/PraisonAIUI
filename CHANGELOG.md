@@ -453,3 +453,9 @@
   configurable with `AIUI_REPLY_IDLE_TIMEOUT` (`0` turns it off). When it
   fires the callback is cancelled; its late answer used to be dropped while
   it kept running, and a `run_completed` followed the timeout error.
+- Chat: `aiui.ask`, `aiui.prompt` and `AskUserMessage` in a `@reply` get the
+  user's answer. The WebSocket acknowledged the answer as "received" and
+  dropped it, so the callback waited until its timeout (and the run failed
+  after 60 s of waiting). Waiting for an answer no longer counts against the
+  reply's inactivity timeout, and `ask_response_ack` now says
+  `no_pending_ask` when nothing was waiting.
