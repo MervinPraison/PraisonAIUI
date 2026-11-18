@@ -164,3 +164,40 @@ test.describe('light and dark', () => {
     expect(luminance(fieldText), `input text ${fieldText}`).toBeLessThan(0.1)
   })
 })
+
+/** Every request the page finishes from now on, with the bytes it took off the wire. */
+async function transferLog(page: Page): Promise<{ path: string; url: string; bytes: number }[]> {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Network.enable')
+  const urls = new Map<string, string>()
+  const log: { path: string; url: string; bytes: number }[] = []
+  cdp.on('Network.requestWillBeSent', (e) => urls.set(e.requestId, e.request.url))
+  cdp.on('Network.loadingFinished', (e) => {
+    const url = urls.get(e.requestId)
+    if (url && /^https?:/.test(url)) log.push({ path: new URL(url).pathname, url, bytes: e.encodedDataLength })
+  })
+  return log
+}
+
+test.describe('loading', () => {
+  test('a second visit takes the view module from the browser cache', async ({ page }) => {
+    const log = await transferLog(page)
+    const views = () => log.filter((r) => r.path === '/plugins/views/chat.js')
+    await openChat(page)
+    await expect.poll(() => views().length).toBe(1)
+    const [first] = views()
+    // Imported at dashboard.js's own build stamp, never a per-load timestamp.
+    const dashboard = log.find((r) => r.path === '/plugins/dashboard.js')
+    expect(dashboard).toBeDefined()
+    const stamp = new URL(first.url).searchParams.get('v')
+    expect(stamp).toBe(new URL(dashboard!.url).searchParams.get('v'))
+    expect(first.bytes).toBeGreaterThan(10_000)
+
+    await openChat(page)
+    // Same URL, and the body is not downloaded again (a cache hit or a 304).
+    for (const again of views().slice(1)) {
+      expect(again.url).toBe(first.url)
+      expect(again.bytes).toBeLessThan(1_000)
+    }
+  })
+})

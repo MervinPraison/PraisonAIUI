@@ -170,18 +170,23 @@ class TestLegacyPathUnchanged:
             assert "applyThemeFromConfig" not in reach, entry
         assert "buildDashboard(" not in _function_body("initHostRuntime")
 
-    def test_bundle_uses_the_unchanged_selectpage_cache_bust(self):
-        # Legacy selectPage keeps ?v=Date.now(); host mounts use the build id.
-        assert "viewModule + '?v=' + Date.now()" in _function_body("selectPage")
-        body = _code_only(_function_body("_mountViewBody"))
-        assert "Date.now()" not in body
-        assert "_importHostView(pageId, viewModule)" in body
-        url = _code_only(_function_body("_hostViewUrl"))
+    def test_view_modules_use_the_build_stamp_never_a_timestamp(self):
+        # selectPage (default style) and host mounts import a view at one URL
+        # per build, so the browser caches it across reloads.
+        for fn in ("selectPage", "_mountViewBody"):
+            body = _code_only(_function_body(fn))
+            assert "Date.now()" not in body, fn
+            assert "_importViewModule(pageId, viewModule)" in body, fn
+        url = _code_only(_function_body("_viewUrl"))
         assert "Date.now()" not in url
-        assert "window.__AIUI_BUILD__" in url
+        assert "_viewBuildStamp()" in url
+        stamp = _code_only(_function_body("_viewBuildStamp"))
+        assert "window.__AIUI_BUILD__" in stamp
+        # Default style: the ?v= plugin-loader.js imported dashboard.js with.
+        assert "import.meta.url" in stamp
         # A failed import is retried under a new URL (browsers cache the failure).
-        assert "'&r=' + failures" in _function_body("_hostViewUrl")
-        assert "_hostViewImportFailures[pageId]" in _function_body("_importHostView")
+        assert "'&r=' + failures" in _function_body("_viewUrl")
+        assert "_viewImportFailures[pageId]" in _function_body("_importViewModule")
 
 
 class TestHostModeTheming:
