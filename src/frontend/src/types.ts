@@ -4,6 +4,7 @@ export interface NavItem {
     title: string
     /** The page's own title, when the sidebar shows a shorter frontmatter `nav_title`. */
     pageTitle?: string
+    /** A link, not a page: frontmatter `url:` or a `{label, href}` nav entry (an external one opens in a new tab). */
     href?: string
     path?: string
     description?: string
@@ -16,12 +17,24 @@ export interface NavItem {
     lastUpdated?: string
     /** "Edit this page" link, from `content.docs.editLink.pattern`. */
     editUrl?: string
-    /** Sidebar icon (a lucide name from docs/docsHomeIcons.ts): group `icon:` in the nav YAML, page frontmatter `icon:`. */
+    /** Sidebar icon (docsHomeIcons.ts docsIcon: a lucide name, an emoji or an image URL): group `icon:` in the nav YAML, page frontmatter `icon:`. */
     icon?: string
     /** A group's `expanded:` in the nav YAML: false starts it folded (the active page's group always opens). */
     expanded?: boolean
-    /** A group's badge (`tag:` in the nav YAML). */
+    /** A badge after the label (`tag:` on a nav group or in a page's frontmatter). */
     tag?: string
+    /** Frontmatter `description` set: it shows under the title. */
+    lede?: boolean
+    /** Frontmatter `deprecated: true`: a sidebar badge, the label struck through and a notice on the page. */
+    deprecated?: boolean
+    /** Frontmatter `mode`: wide (no "On this page"), center (no sidebar either), custom (only the article), frame (custom with the sidebar). */
+    mode?: 'wide' | 'center' | 'custom' | 'frame'
+    /** Frontmatter `hideFooterPagination: true`: no previous / next links under the page. */
+    hidePager?: boolean
+    /** Frontmatter `noAnchor: true`: no copy-link icon on the headings. */
+    noAnchor?: boolean
+    /** The page's other frontmatter keys (scalars): `data-fm-*` on the article, `meta` in `aiui:content-loaded`. */
+    meta?: Record<string, string | number | boolean>
     /** `card` | `accordion`: the build lists the group's pages on its page. */
     directory?: string
     children?: NavItem[]

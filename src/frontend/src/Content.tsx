@@ -22,6 +22,7 @@ import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { metaAttributes, modeHidesToc, modeIsBare, withPageHead } from './docs/pageHead'
 import { stripBase, withBase } from './lib/url'
 
 interface ContentProps {
@@ -62,6 +63,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const loadedEventPath = useRef<string | null>(null)
     const navRef = useRef(nav)
     navRef.current = nav
+    const itemRef = useRef(selectedItem)
+    itemRef.current = selectedItem
     const theme = config.site?.theme
 
     // Prefetch a docs link's markdown on hover, focus and pointerdown.
@@ -87,7 +90,13 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const controller = new AbortController()
         let cancelIdle = () => {}
 
-        const prepare = (text: string) => preprocessMkdocsMarkdown(prepareDocSource(text, sourcePath))
+        // The title and description at the top (frontmatter), except on the home hero and the bare modes.
+        const item = itemRef.current
+        const head = item && !modeIsBare(item.mode) && !(config.docsHome && sourcePath === DOCS_HOME_PATH)
+        const prepare = (text: string) => {
+            const source = prepareDocSource(text, sourcePath)
+            return preprocessMkdocsMarkdown(head ? withPageHead(source, item) : source)
+        }
         const show = (result: DocResult, content = result.ok ? prepare(result.text) : '') => {
             loadedEventPath.current = urlPath // announced once the article has committed
             setMarkdown(result.ok ? content : `*Content for **${pageTitle}** not found.*`)
@@ -138,7 +147,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             cancelIdle()
             setLoadingContent(false)
         }
-    }, [currentPath, selectedItem?.path, retryCount])
+    }, [currentPath, selectedItem?.path, retryCount, config.docsHome])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
@@ -148,7 +157,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             const path = loadedEventPath.current
             if (path) {
                 loadedEventPath.current = null
-                window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { path } }))
+                // `meta`: the page's custom frontmatter keys, for custom JS.
+                window.dispatchEvent(new CustomEvent('aiui:content-loaded', { detail: { path, meta: itemRef.current?.meta ?? {} } }))
             }
         })
         return () => window.cancelAnimationFrame(frame)
@@ -165,17 +175,18 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         // The eyebrow: the page's group, or with `styling.eyebrows: breadcrumbs` every group above it.
         const trail = nav && !home ? docTrail(nav, currentPath) : []
         const crumbs = config.styling?.eyebrows === 'breadcrumbs' ? trail : trail.slice(-1)
+        const bare = modeIsBare(selectedItem.mode)
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
                     {/* Drawn from the first frame while the page loads (most pages have
                         sections) and kept once the article is in if it has any, so nothing
                         below it moves. Not on an error or empty page. */}
-                    <MobileToc
+                    {!modeHidesToc(selectedItem.mode) && <MobileToc
                         selectedItem={selectedItem}
                         expectHeadings={contentReady ? hasSectionHeadings(markdown) : !!shownPath && !loadError && loadedPath !== normalizeDocPath(currentPath)}
-                    />
-                    {!home && (
+                    />}
+                    {!home && !bare && (
                         <div className="aiui-docs-pagehead">
                             {crumbs.length ? (
                                 // Section › Page: the page part shows on phones, where the sidebar is folded away.
@@ -206,6 +217,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             <Skeleton className="h-4 w-4/5" />
                         </div>
                     )}
+                    {contentReady && selectedItem.deprecated && (
+                        <p className="aiui-docs-deprecated" role="note">This page is deprecated and may be removed in a future release.</p>
+                    )}
                     {contentReady && home && (
                         <DocsHome home={home} homePath={DOCS_HOME_PATH} onNavigate={navigateTo} />
                     )}
@@ -215,7 +229,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         // toc) leave `#main-content article.prose` alone. Without it they
                         // re-highlight and wrap the React-rendered code blocks.
                         <div key={currentPath} className={side ? 'aiui-docs-split' : 'contents'}>
-                            <article ref={articleRef} className="aiui-doc prose max-w-none min-w-0">
+                            <article ref={articleRef} className="aiui-doc prose max-w-none min-w-0"
+                                data-no-anchor={selectedItem.noAnchor ? '' : undefined} {...metaAttributes(selectedItem.meta)}>
                                 <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{main}</Markdown>
                             </article>
                             {side && (
@@ -227,8 +242,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             )}
                         </div>
                     )}
-                    {contentReady && !home && <PageFooter item={selectedItem} config={config.pageFooter} />}
-                    {contentReady && nav && onNavigate && (
+                    {contentReady && !home && !bare && <PageFooter item={selectedItem} config={config.pageFooter} />}
+                    {contentReady && nav && onNavigate && !bare && !selectedItem.hidePager && (
                         <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}
                     {loadError && (

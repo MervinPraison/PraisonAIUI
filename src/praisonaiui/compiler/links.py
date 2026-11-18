@@ -382,7 +382,7 @@ def check_site_links(cfg: Config, config_path: Path, *, external: bool = False, 
         for entry in group.pages:
             if isinstance(entry, str):
                 nav_entry(entry)
-            else:
+            elif hasattr(entry, "group"):  # a nested group; a `{label, href}` link names no page
                 walk(entry)
 
     links: list[str] = []

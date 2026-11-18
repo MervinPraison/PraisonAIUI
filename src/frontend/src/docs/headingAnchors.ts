@@ -30,7 +30,7 @@ const label = (text: string, copied: boolean) => (copied ? `Link to ${text} copi
 export function addHeadingAnchors(root: ParentNode): number {
     let added = 0
     root.querySelectorAll<HTMLElement>('h2[id], h3[id], h4[id]').forEach((h) => {
-        if (!h.id || h.querySelector(`:scope > .${ANCHOR}`)) return
+        if (!h.id || h.querySelector(`:scope > .${ANCHOR}`) || h.closest('[data-no-anchor]')) return // frontmatter noAnchor
         const text = (h.textContent ?? '').trim()
         const a = document.createElement('a')
         a.className = ANCHOR

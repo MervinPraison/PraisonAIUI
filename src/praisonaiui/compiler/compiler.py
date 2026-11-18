@@ -14,7 +14,7 @@ from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
-from praisonaiui.compiler.nav_builder import NavBuilder, manual_entries, nav_trails
+from praisonaiui.compiler.nav_builder import NavBuilder, external_url, manual_entries, nav_trails
 from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.openapi_pages import api_catalog, build_api_reference, strip_excluded
@@ -1567,6 +1567,9 @@ class Compiler:
         # The browser renders the source (`<route>.source.md`); `<route>.md`,
         # and the copy of the page's own file, are the agent-ready Markdown.
         for page in scanner.scan():
+            if external_url(page.frontmatter):  # a sidebar link elsewhere: nothing to publish
+                (docs_output / page.path.relative_to(docs_dir)).unlink(missing_ok=True)
+                continue
             md = route_dir / am.page_md_path(f"/{page.slug}", "/").lstrip("/")
             md.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(page.path, md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX))

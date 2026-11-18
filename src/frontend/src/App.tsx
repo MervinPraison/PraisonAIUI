@@ -6,6 +6,7 @@ import { Sidebar, MobileNavSheet } from './Sidebar'
 import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
 import { Toc } from './Toc'
+import { modeHidesToc } from './docs/pageHead'
 import { Footer } from './Footer'
 import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
@@ -620,7 +621,8 @@ export default function App() {
       case 'ThreeColumnLayout':
       default:
         return (
-          <div className="aiui-docs-shell docs-shell">
+          // Frontmatter `mode` (docs/pageHead.ts): docs.css drops the sidebar for center and custom.
+          <div className="aiui-docs-shell docs-shell" data-mode={selectedItem?.mode}>
             <Sidebar nav={filteredNav} activeItem={activeItemPath} onItemClick={handleItemClick} />
             <Content
               config={config}
@@ -631,7 +633,7 @@ export default function App() {
               onNavigate={handleItemClick}
               onSearch={searchEnabled ? openSearch : undefined}
             />
-            {showToc && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
+            {showToc && !modeHidesToc(selectedItem?.mode) && <Toc selectedItem={selectedItem} zones={zones} showToc={showToc} />}
           </div>
         )
     }
