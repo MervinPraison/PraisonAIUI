@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import type { DashboardPageProps } from '../types/dashboard'
 
 interface LogEntry {
     timestamp: string
@@ -8,7 +7,7 @@ interface LogEntry {
     message: string
 }
 
-export function LogsView(_props: DashboardPageProps) {
+export function LogsView() {
     const [logs, setLogs] = useState<LogEntry[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

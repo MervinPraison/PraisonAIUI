@@ -33,7 +33,7 @@ function buildTabGroups(pages: DashboardPageDef[]): DashboardTabGroup[] {
     return groups
 }
 
-export function DashboardLayout({ config, layout: _layout, title, logo }: DashboardLayoutProps) {
+export function DashboardLayout({ config, title, logo }: DashboardLayoutProps) {
     const [activeTab, setActiveTab] = useState('chat')
     const [navCollapsed, setNavCollapsed] = useState(false)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)

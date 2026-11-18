@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Component, useState, type ReactNode } from 'react'
 import type { MessageElementUnion, ImageElement, PdfElement, VideoElement, AudioElement, FileElement, CodeElement } from '../types'
 
 interface ImageElementProps {
@@ -304,111 +304,135 @@ interface ElementRendererProps {
     className?: string
 }
 
+/**
+ * Catches a render error in one element (a broken image, PDF or surface) and
+ * shows the fallback card in its place, so the rest of the message renders.
+ */
+export class ElementBoundary extends Component<{ className: string; children: ReactNode }, { failed: boolean }> {
+    state = { failed: false }
+
+    static getDerivedStateFromError() {
+        return { failed: true }
+    }
+
+    componentDidCatch(error: unknown) {
+        console.warn('Error rendering element:', error)
+    }
+
+    render() {
+        if (!this.state.failed) return this.props.children
+        return (
+            <div className={`flex items-center justify-center bg-muted rounded-md p-4 ${this.props.className}`}>
+                <span className="text-muted-foreground text-sm">Failed to render element</span>
+            </div>
+        )
+    }
+}
+
 export function ElementRenderer({ element, className = '' }: ElementRendererProps) {
+    return (
+        <ElementBoundary className={className}>
+            <ElementBody element={element} className={className} />
+        </ElementBoundary>
+    )
+}
+
+function ElementBody({ element, className = '' }: ElementRendererProps) {
     // Type guard to check if element has required properties
     const hasType = element && typeof element === 'object' && 'type' in element
     if (!hasType) return null
 
     const elementType = element.type as string
 
-    try {
-        switch (elementType) {
-            case 'image': {
-                const img = element as ImageElement
-                return (
-                    <ImageElement
-                        url={img.url}
-                        alt={img.alt}
-                        className={`${className} ${getDisplayModeClass(img.display)}`}
-                    />
-                )
-            }
-            case 'pdf': {
-                const pdf = element as PdfElement
-                return (
-                    <PdfElement
-                        url={pdf.url}
-                        name={pdf.name}
-                        display={pdf.display}
-                        className={`${className} ${getDisplayModeClass(pdf.display)}`}
-                    />
-                )
-            }
-            case 'video': {
-                const video = element as VideoElement
-                return (
-                    <VideoElement
-                        url={video.url}
-                        className={`${className} ${getDisplayModeClass(video.display)}`}
-                    />
-                )
-            }
-            case 'audio': {
-                const audio = element as AudioElement
-                return (
-                    <AudioElement
-                        url={audio.url}
-                        className={`${className} ${getDisplayModeClass(audio.display)}`}
-                    />
-                )
-            }
-            case 'file': {
-                const file = element as FileElement
-                return (
-                    <FileElement
-                        url={file.url}
-                        name={file.name || 'File'}
-                        size={file.size}
-                        type={file.mimeType}
-                        className={`${className} ${getDisplayModeClass(file.display)}`}
-                    />
-                )
-            }
-            case 'code': {
-                const code = element as CodeElement
-                return (
-                    <CodeBlock
-                        code={code.content}
-                        language={code.language}
-                        className={`${className} ${getDisplayModeClass(code.display)}`}
-                    />
-                )
-            }
-            case 'a2ui_surface': {
-                const el = element as Record<string, unknown>
-                const messages = (el.messages ?? []) as Record<string, unknown>[]
-                return (
-                    <SurfaceHost
-                        mode="auto"
-                        messages={messages}
-                        surfaceId={el.surface_id as string | undefined}
-                        className={className}
-                    />
-                )
-            }
-            default:
-                // Fallback for legacy/unknown element types
-                if ('url' in element && typeof element.url === 'string') {
-                    if (elementType === 'image') {
-                        return <ImageElement url={element.url} className={className} />
-                    } else if (elementType === 'video') {
-                        return <VideoElement url={element.url} className={className} />
-                    } else if (elementType === 'audio') {
-                        return <AudioElement url={element.url} className={className} />
-                    } else {
-                        const name = ('name' in element && typeof element.name === 'string') ? element.name : 'File'
-                        return <FileElement url={element.url} name={name} className={className} />
-                    }
-                }
-                return null
+    switch (elementType) {
+        case 'image': {
+            const img = element as ImageElement
+            return (
+                <ImageElement
+                    url={img.url}
+                    alt={img.alt}
+                    className={`${className} ${getDisplayModeClass(img.display)}`}
+                />
+            )
         }
-    } catch (error) {
-        console.warn('Error rendering element:', error)
-        return (
-            <div className={`flex items-center justify-center bg-muted rounded-md p-4 ${className}`}>
-                <span className="text-muted-foreground text-sm">Failed to render element</span>
-            </div>
-        )
+        case 'pdf': {
+            const pdf = element as PdfElement
+            return (
+                <PdfElement
+                    url={pdf.url}
+                    name={pdf.name}
+                    display={pdf.display}
+                    className={`${className} ${getDisplayModeClass(pdf.display)}`}
+                />
+            )
+        }
+        case 'video': {
+            const video = element as VideoElement
+            return (
+                <VideoElement
+                    url={video.url}
+                    className={`${className} ${getDisplayModeClass(video.display)}`}
+                />
+            )
+        }
+        case 'audio': {
+            const audio = element as AudioElement
+            return (
+                <AudioElement
+                    url={audio.url}
+                    className={`${className} ${getDisplayModeClass(audio.display)}`}
+                />
+            )
+        }
+        case 'file': {
+            const file = element as FileElement
+            return (
+                <FileElement
+                    url={file.url}
+                    name={file.name || 'File'}
+                    size={file.size}
+                    type={file.mimeType}
+                    className={`${className} ${getDisplayModeClass(file.display)}`}
+                />
+            )
+        }
+        case 'code': {
+            const code = element as CodeElement
+            return (
+                <CodeBlock
+                    code={code.content}
+                    language={code.language}
+                    className={`${className} ${getDisplayModeClass(code.display)}`}
+                />
+            )
+        }
+        case 'a2ui_surface': {
+            const el = element as Record<string, unknown>
+            const messages = (el.messages ?? []) as Record<string, unknown>[]
+            return (
+                <SurfaceHost
+                    mode="auto"
+                    messages={messages}
+                    surfaceId={el.surface_id as string | undefined}
+                    className={className}
+                />
+            )
+        }
+        default:
+            // Fallback for legacy/unknown element types
+            if ('url' in element && typeof element.url === 'string') {
+                if (elementType === 'image') {
+                    return <ImageElement url={element.url} className={className} />
+                } else if (elementType === 'video') {
+                    return <VideoElement url={element.url} className={className} />
+                } else if (elementType === 'audio') {
+                    return <AudioElement url={element.url} className={className} />
+                } else {
+                    const name = ('name' in element && typeof element.name === 'string') ? element.name : 'File'
+                    return <FileElement url={element.url} name={name} className={className} />
+                }
+            }
+            return null
     }
 }
 

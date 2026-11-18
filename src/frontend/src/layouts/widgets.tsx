@@ -1,12 +1,11 @@
 /**
- * Widget Registry - Maps widget type names to React components
+ * Zone widget components; ./widgetRegistry maps their type names to them.
  */
 
-import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
-interface WidgetProps {
+export interface WidgetProps {
     props?: Record<string, unknown>
 }
 
@@ -134,31 +133,3 @@ export function HeroBanner({ props }: WidgetProps) {
         </div>
     )
 }
-
-// ============ WIDGET REGISTRY ============
-export const WIDGET_REGISTRY: Record<string, React.ComponentType<WidgetProps>> = {
-    StatsCard,
-    QuickLinks,
-    Newsletter,
-    SocialLinks,
-    Copyright,
-    HeroBanner,
-}
-
-/**
- * Renders a widget by type name
- */
-export function renderWidget(widget: { type: string; props?: Record<string, unknown> }): React.ReactNode {
-    const Widget = WIDGET_REGISTRY[widget.type]
-    if (Widget) {
-        return <Widget props={widget.props} />
-    }
-    // Fallback for unknown widget types
-    return (
-        <div className="p-4 border rounded-lg bg-muted/30">
-            <span className="text-muted-foreground text-sm">Unknown widget: {widget.type}</span>
-        </div>
-    )
-}
-
-export default WIDGET_REGISTRY

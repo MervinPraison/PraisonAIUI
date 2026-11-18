@@ -1,4 +1,4 @@
-import { useLocale } from './LocaleProvider'
+import { useLocale } from './context'
 
 export function LocaleSwitcher() {
   const { locale, locales, setLocale } = useLocale()

@@ -220,7 +220,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
 | Chat route (added by `/chat`) | 141,167 B |
-| `/chat` first-screen JS (boot + chat route) | 253,124 B |
+| `/chat` first-screen JS (boot + chat route) | 253,128 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
@@ -232,7 +232,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 9,134,317 B |
+| Wheel: all of `dist/assets` (uncompressed) | 9,134,625 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
@@ -451,7 +451,7 @@ ruff check src/praisonaiui                     # CI lint
 AIUI_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/unit -q
 cd src/frontend && npm ci
 npx tsc -b && npm test && npm run test:scripts
-npx eslint src/shell src/chat-engine src/markdown src/legacy src/sdk src/blocks src/builtin e2e
+npm run lint                                     # eslint on all of src/ and e2e/
 npm run build && npm run size && npm run check:closure
 npm run sync && npm run check:bundle             # commit templates/frontend
 npm run test:e2e                                 # Playwright; serves dist/

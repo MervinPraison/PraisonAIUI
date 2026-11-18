@@ -41,7 +41,9 @@ export function SessionsView({ onNavigate }: DashboardPageProps) {
         try {
             const res = await fetch(`/sessions/${id}`, { method: 'DELETE' })
             if (res.ok) setSessions((prev) => prev.filter((s) => s.id !== id))
-        } catch { }
+        } catch {
+            // Offline or server error: the row stays, so the user can try again.
+        }
     }
 
     const renameSession = async (id: string) => {
@@ -56,7 +58,9 @@ export function SessionsView({ onNavigate }: DashboardPageProps) {
                 prev.map((s) => (s.id === id ? { ...s, title: editTitle } : s))
             )
             setEditingId(null)
-        } catch { }
+        } catch {
+            // Offline or server error: keep the editor open with the typed title.
+        }
     }
 
     const filtered = filter

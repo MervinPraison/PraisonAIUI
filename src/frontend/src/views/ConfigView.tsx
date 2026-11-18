@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { DashboardPageProps } from '../types/dashboard'
 
 interface ConfigData {
     config: Record<string, unknown>
     config_path: string | null
 }
 
-export function ConfigView(_props: DashboardPageProps) {
+export function ConfigView() {
     const [data, setData] = useState<ConfigData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

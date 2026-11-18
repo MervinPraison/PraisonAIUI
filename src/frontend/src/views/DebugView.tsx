@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { DashboardPageProps } from '../types/dashboard'
 
 interface DebugData {
     python: string
@@ -12,7 +11,7 @@ interface DebugData {
     log_buffer_size: number
 }
 
-export function DebugView(_props: DashboardPageProps) {
+export function DebugView() {
     const [data, setData] = useState<DebugData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

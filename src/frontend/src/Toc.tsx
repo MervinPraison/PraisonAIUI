@@ -50,12 +50,15 @@ function usePageHeadings(selectedItem: NavItem | null) {
     }, [])
 
     useEffect(() => {
-        refreshHeadings()
+        // Read the new page's headings on the next frame (an effect paints
+        // first anyway), then again while the article settles.
+        const frame = requestAnimationFrame(refreshHeadings)
         const timer = window.setTimeout(refreshHeadings, 100)
         const timer2 = window.setTimeout(refreshHeadings, 500)
         // The article renders after its markdown arrives.
         window.addEventListener('aiui:content-loaded', refreshHeadings)
         return () => {
+            cancelAnimationFrame(frame)
             window.clearTimeout(timer)
             window.clearTimeout(timer2)
             window.removeEventListener('aiui:content-loaded', refreshHeadings)
