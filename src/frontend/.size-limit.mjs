@@ -68,7 +68,9 @@ const LAYOUT_BUDGETS = {
   // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
-  'layout-chat-canvas': '12.36 kB',
+  // 12.362 kB (+2 B, exactly the overage): chunk hashes renamed by the docs
+  // component tags change; no layout code changed.
+  'layout-chat-canvas': '12.362 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -314,5 +316,7 @@ export default [
   // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9141792 B', brotli: false },
+  // 9,145,081 B (measured, raised by exactly the overage, +3,289 B): docs
+  // component tags anywhere (docsTags.ts, one component per element, {#id}).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9145081 B', brotli: false },
 ]

@@ -1,9 +1,9 @@
 /**
  * Docs-variant overrides that carry behaviour: heading ids for the TOC and
- * anchors, SPA-normalised internal links, feature-card lists. Styling is
+ * anchors (`{#id}` sets one by hand), SPA-normalised internal links, feature-card lists. Styling is
  * Streamdown's defaults plus tokens. (The map is assembled in Markdown.tsx.)
  */
-import type { JSX } from 'react'
+import type { JSX, ReactNode } from 'react'
 import { defaultComponents, type ExtraProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { slugify } from './slug'
@@ -16,10 +16,26 @@ type Props<K extends keyof JSX.IntrinsicElements> = JSX.IntrinsicElements[K] & E
 /** `/docs/x.md` style links become canonical SPA routes (SEO + nav-intercept). */
 const docsHref = (href: string): string => (isInternalDocHref(href) ? normalizeDocHref(href) : href)
 
+/** `## Title {#custom-id}`: the id the author chose, kept off the page. */
+const CUSTOM_ID = /\s*\{#([\w-]+)\}\s*$/
+
+function withoutCustomId(children: ReactNode): ReactNode {
+    const parts = Array.isArray(children) ? [...children] : [children]
+    const last = parts.length - 1
+    if (typeof parts[last] === 'string') parts[last] = parts[last].replace(CUSTOM_ID, '')
+    return parts
+}
+
 const docsHeading = (level: 1 | 2 | 3 | 4, cls: string) => {
     const Default = defaultComponents[`h${level}`]
-    return function DocsHeading({ className, node, ...rest }: Props<'h1'>) {
-        return <Default {...rest} node={node} id={slugify(hastText(node))} className={cn(cls, 'scroll-mt-20', className)} />
+    return function DocsHeading({ className, node, children, ...rest }: Props<'h1'>) {
+        const text = hastText(node)
+        const custom = CUSTOM_ID.exec(text)
+        return (
+            <Default {...rest} node={node} id={custom ? custom[1] : slugify(text)} className={cn(cls, 'scroll-mt-20', className)}>
+                {custom ? withoutCustomId(children) : children}
+            </Default>
+        )
     }
 }
 

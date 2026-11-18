@@ -185,6 +185,24 @@ workaround needed.
 
 ---
 
+### Adding a docs component (`<Badge>`, `<Tooltip>`, ...)
+
+Docs tags are driven by one table, `DOCS_TAGS` in
+`src/frontend/src/markdown/docsTags.ts`. A new tag is three small changes:
+
+1. An entry: the `aiui-*` element it becomes (`el`), the lower-case
+   attributes the sanitizer keeps (`attrs`), an optional `map` from the
+   author's attributes, and `inline: true` for a tag inside a sentence:
+   `Badge: { el: 'aiui-badge', attrs: ['color'], inline: true }`.
+2. Its React component under the same element name in `DOCS_TAG_COMPONENTS`
+   (`src/frontend/src/docs/DocsBlocks.tsx`): those attributes are its props.
+3. The name in `KNOWN_DOCS_TAGS` (`src/praisonaiui/compiler/docs_tags.py`) so
+   `aiui build` stops warning; `tests/unit/test_docs_tags.py` checks the lists.
+
+Placement (own line, one line, list items, self-closing, code left alone) and
+the sanitizer allowlist come with the table. Rebuild the bundle and document
+the tag in `docs/features/writing-docs.md`.
+
 ## 4. Add a client-only page
 
 **Goal**: A page rendered entirely in the browser — no server round-trip on navigation.

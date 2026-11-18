@@ -3,8 +3,10 @@
  * variant of <Markdown> renders as components (MkdocsBlocks.tsx).
  *
  * Every transform here is fence-aware: text inside ``` / ~~~ code blocks is
- * never rewritten.
+ * never rewritten. Mintlify-style component tags (`<Note>`, `<Card>`, …) are
+ * expanded by docsTags.ts, the one table of docs components.
  */
+import { expandDocsTags } from './docsTags'
 
 export const MKDOCS_ICON_MAP: Record<string, string> = {
     ':material-file-document:': '📄',
@@ -76,54 +78,6 @@ export function replaceMkdocsIcons(text: string): string {
 /** Drop the `<div class="grid cards" markdown>` wrappers MkDocs Material uses (not their content). */
 export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
-}
-
-/**
- * Mintlify-style component tags, each on its own line, map onto blocks the
- * docs renderer already allows: callouts and accordions onto
- * <aiui-admonition>, tabs onto <aiui-tabs>, and steps, cards and frames onto
- * a <div itemtype="aiui:…"> that docs/DocsBlocks.tsx draws (the sanitizer
- * keeps `itemtype`, `title`, `label` and `value` on a div). Attributes:
- * title="…", icon="…", href="…", caption="…", cols={2}, defaultOpen.
- */
-const CALLOUTS: Record<string, string> = { note: 'note', info: 'info', tip: 'tip', check: 'check', warning: 'warning', danger: 'danger' }
-const TAG_LINE = /^\s*<(\/)?(Note|Info|Tip|Check|Warning|Danger|Accordion|AccordionGroup|Tabs|Tab|Steps|Step|CardGroup|Card|Frame)\b([^>]*?)(\/)?>\s*$/
-const TAG_ATTR = /(\w+)(?:=(?:"([^"]*)"|'([^']*)'|\{([^}]*)\}))?/g
-
-function tagAttrs(raw: string): Record<string, string> {
-    const out: Record<string, string> = {}
-    for (const m of raw.matchAll(TAG_ATTR)) out[m[1]] = m[2] ?? m[3] ?? m[4] ?? 'true'
-    return out
-}
-
-/** The opening and closing HTML for one component tag. */
-function componentTag(name: string, a: Record<string, string>): [string, string] {
-    const t = (v?: string) => (v ? ` title="${attr(v)}"` : '')
-    const callout = CALLOUTS[name.toLowerCase()]
-    if (callout) return [`<aiui-admonition type="${callout}"${t(a.title)}>`, '</aiui-admonition>']
-    switch (name) {
-        case 'Accordion':
-            return [`<aiui-admonition type="accordion"${t(a.title || 'Details')} collapsible="${a.defaultOpen ? 'open' : 'closed'}">`, '</aiui-admonition>']
-        case 'Tabs':
-            return ['<aiui-tabs>', '</aiui-tabs>']
-        case 'Tab':
-            return [`<aiui-tab${t(a.title || 'Tab')}>`, '</aiui-tab>']
-        case 'AccordionGroup':
-            return ['<div itemtype="aiui:accordions">', '</div>']
-        case 'Steps':
-            return ['<div itemtype="aiui:steps">', '</div>']
-        case 'Step':
-            return [`<div itemtype="aiui:step"${t(a.title)}>`, '</div>']
-        case 'CardGroup':
-            return [`<div itemtype="aiui:cards" value="${attr(a.cols ?? '2')}">`, '</div>']
-        case 'Card': {
-            const icon = a.icon ? ` label="${attr(a.icon)}"` : ''
-            const href = a.href ? ` value="${attr(a.href)}"` : ''
-            return [`<div itemtype="aiui:card"${t(a.title)}${icon}${href}>`, '</div>']
-        }
-        default: // Frame
-            return [`<div itemtype="aiui:frame"${t(a.caption)}>`, '</div>']
-    }
 }
 
 const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
@@ -226,16 +180,6 @@ export function convertMkdocsBlocks(md: string): string {
             continue
         }
 
-        const tag = line.match(TAG_LINE)
-        if (tag) {
-            const [, closing, name, raw, selfClosing] = tag
-            const [open, close] = componentTag(name, tagAttrs(raw))
-            if (closing) out.push('', close, '')
-            else out.push('', open, '', ...(selfClosing ? [close, ''] : []))
-            i++
-            continue
-        }
-
         if (CODE_GROUP_OPEN.test(line)) {
             const [group, next] = convertCodeGroup(lines, i + 1)
             out.push(...group)
@@ -284,6 +228,7 @@ export function convertMkdocsBlocks(md: string): string {
 export function preprocessMkdocsMarkdown(md: string): string {
     let result = stripMkdocsGridWrappers(md)
     result = replaceMkdocsIcons(result)
+    result = expandDocsTags(result) // <Note>, <Card>, … (docsTags.ts)
     result = convertMkdocsBlocks(result)
     return result
 }

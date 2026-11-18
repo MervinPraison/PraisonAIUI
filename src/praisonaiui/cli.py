@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 from praisonaiui.__version__ import __version__
@@ -487,9 +488,15 @@ def validate(
         else:
             result.warnings.append(issue)
 
+    # Docs pages that use component tags the renderer does not know.
+    from praisonaiui.compiler import Compiler
+
+    for docs_warning in Compiler(cfg, base_path=config.parent).lint_docs():
+        result.warnings.append(ValidationError(code=1004, category="docs", message=docs_warning))
+
     for warning in result.warnings:
         console.print(
-            f"  [yellow]\\[{warning.category}] {warning.code} {warning.message}[/yellow]"
+            f"  [yellow]\\[{warning.category}] {warning.code} {escape(warning.message)}[/yellow]"
         )
         if warning.suggestion:
             console.print(f"    💡 {warning.suggestion}")
@@ -578,6 +585,8 @@ def build(
             )
             for path in result.excluded:
                 console.print(f"  - {path}", markup=False)
+        for warning in result.warnings:
+            console.print(f"[yellow]Warning:[/yellow] {escape(warning)}")
     else:
         console.print(f"[red]Error:[/red] Build failed: {result.error}")
         raise typer.Exit(code=3)
