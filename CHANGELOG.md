@@ -189,6 +189,10 @@
 
 ### Fixed
 
+- e2e: the page-types screenshot tests report **skipped** on a platform with
+  no baseline (Linux CI today) after running their DOM checks, instead of
+  passing without comparing anything. ARCHITECTURE §5 and the e2e README now
+  list them with legacy-parity as not enforced on Linux yet.
 - Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
   package smoke checklist, attachments, MCP connect security, the feature
   APIs), not 2 of its files, and e2e shard 1 runs the dashboard view

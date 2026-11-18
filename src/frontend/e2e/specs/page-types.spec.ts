@@ -12,8 +12,10 @@
  * {light, dark} at 1440x900, and the same pages under chat-canvas at a
  * 390x844 phone, in e2e/__baseline__/<platform>/page-type-*.png. Only the
  * page region within the viewport is captured (the template is what this
- * suite owns; each layout's frame has its own suite). A platform without baselines skips the
- * comparison (see e2e/README.md); capture them with
+ * suite owns; each layout's frame has its own suite). On a platform without
+ * baselines the test still runs every DOM check (overflow, page errors) and is
+ * then reported as skipped, never as passed, because the screenshot was not
+ * compared (see e2e/README.md); capture them with
  * `npx playwright test -c e2e/playwright.config.ts --project page-types --update-snapshots`.
  */
 import { existsSync } from 'node:fs'
@@ -140,16 +142,16 @@ for (const mode of MODES) {
   })
 }
 
-/** Compare against the platform baseline; skip without one unless capturing. */
-async function compare(page: Page, info: TestInfo, id: string, name: string) {
+/**
+ * Compare against the platform baseline. Without one (and not capturing) it
+ * compares nothing and returns the reason; the caller finishes its DOM checks
+ * and then calls skipUncompared(), so the report says "skipped", not "passed".
+ */
+async function compare(page: Page, info: TestInfo, id: string, name: string): Promise<string | null> {
   const capturing = info.config.updateSnapshots === 'all' || info.config.updateSnapshots === 'changed'
   const baseline = info.snapshotPath(name)
   if (!capturing && !existsSync(baseline)) {
-    info.annotations.push({
-      type: 'skip',
-      description: `no ${process.platform} baseline (${path.basename(path.dirname(baseline))}/${name})`,
-    })
-    return
+    return `screenshot not compared: no ${process.platform} baseline (${path.basename(path.dirname(baseline))}/${name}); see e2e/README.md`
   }
   // The page region as it is on screen: frames scroll the page in their own
   // container, so an element screenshot of a tall page would come out blank
@@ -169,6 +171,12 @@ async function compare(page: Page, info: TestInfo, id: string, name: string) {
     maxDiffPixelRatio: MAX_DIFF,
     mask: VOLATILE.map((s) => page.locator(s)),
   })
+  return null
+}
+
+/** Call last: every assertion above it ran; mark the test skipped if nothing was compared. */
+function skipUncompared(missing: string | null) {
+  test.skip(missing !== null, missing ?? '')
 }
 
 async function settle(page: Page) {
@@ -188,8 +196,9 @@ for (const layout of LAYOUTS) {
         await open(page, id, layout)
         await settle(page)
         expect(await hasHorizontalOverflow(page)).toBe(false)
-        await compare(page, info, id, `page-type-${id}-${layout}-${mode}.png`)
+        const missing = await compare(page, info, id, `page-type-${id}-${layout}-${mode}.png`)
         expect(errors.pageErrors).toEqual([])
+        skipUncompared(missing)
       })
     }
   }
@@ -308,7 +317,7 @@ for (const mode of MODES) {
       await page.clock.setFixedTime(FIXED_TIME)
       await open(page, id, 'chat-canvas')
       await settle(page)
-      await compare(page, info, id, `page-type-${id}-chat-canvas-phone-${mode}.png`)
+      skipUncompared(await compare(page, info, id, `page-type-${id}-chat-canvas-phone-${mode}.png`))
     })
   }
 }

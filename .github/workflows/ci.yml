@@ -170,11 +170,12 @@ jobs:
         working-directory: src/frontend
 
       # The suites serve dist/ (never the committed bundle) from real servers
-      # with a scripted provider. Legacy-parity screenshots compare against
-      # e2e/__baseline__/<platform>/ and skip on a platform with no baseline:
-      # only macOS baselines are committed so far, so on this runner the
-      # screenshot comparison is not enforced yet (the DOM checks are). See
-      # src/frontend/e2e/README.md for how to add the Linux baselines.
+      # with a scripted provider. Legacy-parity and page-types screenshots
+      # compare against e2e/__baseline__/<platform>/ and report skipped on a
+      # platform with no baseline: only macOS baselines are committed so far,
+      # so on this runner the screenshot comparison is not enforced yet (the
+      # DOM checks are). See src/frontend/e2e/README.md for how to add the
+      # Linux baselines.
       - name: Playwright suites (shard ${{ matrix.shard }}/4)
         run: npx playwright test -c e2e/playwright.config.ts --shard=${{ matrix.shard }}/4
         working-directory: src/frontend

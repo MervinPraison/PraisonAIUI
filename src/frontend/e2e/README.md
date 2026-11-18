@@ -115,6 +115,18 @@ To enforce the comparison in CI, run the same commands inside the CI image
 (`mcr.microsoft.com/playwright:v1.65.0-jammy`) and commit
 `__baseline__/linux/`.
 
+## Page-type baselines
+
+`page-types.spec.ts` compares 36 `page-type-*` shots (six pages in
+chat-canvas and workbench, light and dark, plus the phone shots) against the
+same per-platform folders, also `darwin` only so far. On a platform without
+a baseline each test still runs its DOM checks (no sideways scroll, no page
+errors) and then reports **skipped**, with the reason "screenshot not
+compared: no linux baseline", so the CI report never shows an uncompared
+shot as passed. Capture new ones with
+`npx playwright test -c e2e/playwright.config.ts --project page-types --update-snapshots`,
+inside the CI image for `__baseline__/linux/` **(planned)**.
+
 ## Environment
 
 | Variable | Default | Meaning |
