@@ -175,7 +175,7 @@ To use a custom domain (e.g., `docs.example.com`):
 |--------|------|
 | `mkdocs.yml` | `aiui.yaml` |
 | `mkdocs build` → `./site/` | `aiui build --output site` → `./site/` |
-| `mkdocs serve` | `aiui serve --watch` |
+| `mkdocs serve` | `aiui dev` |
 | `pip install mkdocs-material` | `pip install aiui` |
 
 What carries over from Material for MkDocs pages:
@@ -200,10 +200,10 @@ What carries over from Material for MkDocs pages:
 ## Local preview
 
 ```bash
-aiui serve --watch     # build, serve on http://127.0.0.1:8000, rebuild on change
+aiui dev     # build, serve on http://127.0.0.1:8000, reload the browser on save
 ```
 
-`--watch` rebuilds the site; reload the page to see the change.
+See [Hot Reload](../features/hot-reload.md).
 
 ## Build output
 

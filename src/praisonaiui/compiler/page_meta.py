@@ -76,8 +76,12 @@ def annotate_nav(
     *,
     edit_pattern: Optional[str] = None,
     last_updated: bool = False,
+    date_of: Optional[Callable[[Path], Optional[str]]] = None,
 ) -> None:
-    """Add ``lastUpdated`` / ``editUrl`` to every page item of a docs-nav dict, in place."""
+    """Add ``lastUpdated`` / ``editUrl`` to every page item of a docs-nav dict, in place.
+
+    ``date_of`` replaces :func:`git_last_updated` (``aiui dev`` passes a cached one).
+    """
     from praisonaiui.compiler.docs_scanner import DocsScanner
 
     read_frontmatter = DocsScanner(docs_dir)._extract_frontmatter
@@ -96,7 +100,7 @@ def annotate_nav(
                         item["editUrl"] = edit_url(edit_pattern, rel)
                     fm = read_frontmatter(source.read_text(encoding="utf-8")) if source.is_file() else {}
                     shown = fm.get("timestamp") if isinstance(fm.get("timestamp"), bool) else last_updated
-                    date = shown and (frontmatter_date(fm.get("lastUpdatedDate")) or git_last_updated(source))
+                    date = shown and (frontmatter_date(fm.get("lastUpdatedDate")) or (date_of or git_last_updated)(source))
                     if date:
                         item["lastUpdated"] = date
             if item.get("children"):

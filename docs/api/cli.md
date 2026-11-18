@@ -174,7 +174,7 @@ Build (unless `--no-build`) and serve a docs site.
 | `--port, -p` | `8000` | Port (next free port if taken) |
 | `--host` | `127.0.0.1` | Address to bind to |
 | `--no-build` | off | Serve the existing output without building |
-| `--watch, -w` | off | Rebuild when a file in the configuration's folder changes (reload the page yourself) |
+| `--watch, -w` | off | Rebuild when a file in the configuration's folder changes (reload the page yourself; `aiui dev` reloads it for you) |
 | `--cors-origins` | empty | Comma-separated allowed origins; empty means same-origin only |
 | `--ssl-certfile` | none | Certificate file for HTTPS |
 | `--ssl-keyfile` | none | Private key file for HTTPS |
@@ -184,14 +184,25 @@ try to leave the output folder are refused.
 
 ### `aiui dev`
 
-A local dashboard that lists the example projects in a folder and switches
-between them while they run.
+Preview the docs site while you write it: build, serve, and reload the open
+browser tab on every save. A failed build is shown in the terminal and over
+the page while the last good build stays up. Run it in the folder that holds
+`aiui.yaml`, or in a folder with only a `docs/` folder. See
+[Hot Reload](../features/hot-reload.md).
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--examples, -e` | `examples` | Folder that holds the example projects |
-| `--port, -p` | `9000` | Port |
+| `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
+| `--port, -p` | `8000` | Port (next free port if taken) |
 | `--host` | `127.0.0.1` | Address to bind to |
+| `--open / --no-open` | `--open` | Open the preview in the browser |
+| `--base-path` | as `aiui build` | URL path to preview the site under |
+| `--examples, -e` | none | Run the examples dashboard for this folder instead (default port `9000`) |
+
+`aiui dev --examples examples` is the older dashboard that lists the example
+projects in a folder and switches between them. In a folder with no
+configuration and no `docs/` but an `examples/` folder, plain `aiui dev` still
+opens it.
 
 ## Diagnostics
 

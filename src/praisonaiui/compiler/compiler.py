@@ -70,6 +70,8 @@ class Compiler:
         self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
+        # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
+        self.git_dates: dict[Path, str | None] | None = None
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
         """
@@ -541,7 +543,16 @@ class Compiler:
 
     def _annotate_page_footer(self, nav: dict) -> None:
         """Last updated and edit links for the page footer (compiler/page_meta.py)."""
-        from praisonaiui.compiler.page_meta import annotate_nav
+        from praisonaiui.compiler.page_meta import annotate_nav, git_last_updated
+
+        date_of = None
+        if self.git_dates is not None:  # `aiui dev`: one `git log` per page per session
+            dates = self.git_dates
+
+            def date_of(path: Path) -> str | None:
+                if path not in dates:
+                    dates[path] = git_last_updated(path)
+                return dates[path]
 
         docs = self.config.content.docs
         annotate_nav(
@@ -550,6 +561,7 @@ class Compiler:
             self.base_path / docs.dir,
             edit_pattern=docs.edit_link.pattern if docs.edit_link else None,
             last_updated=docs.last_updated,
+            date_of=date_of,
         )
 
     def _generate_docs_nav(self) -> dict:

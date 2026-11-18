@@ -24,7 +24,7 @@ When both files exist, `aiui.yaml` is used and the command says so in one line
 (`Using aiui.yaml; aiui.template.yaml is also here and is ignored.`). With
 neither, the command stops with `Configuration file not found: aiui.yaml`.
 `aiui init` writes `aiui.yaml` and refuses to overwrite either name without
-`--force`. `aiui dev` accepts either name in each example folder. `aiui.yml`
+`--force`. `aiui dev` reads either name, and `aiui dev --examples` accepts either name in each example folder. `aiui.yml`
 is not looked up; pass it with `--config`.
 
 ## Split the config with `$ref`

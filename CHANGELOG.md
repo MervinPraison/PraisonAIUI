@@ -364,6 +364,14 @@
   site now works, an image in `site.logo` is the logo, and `aiui validate` warns (7102)
   about a brand image that is not in the project. See
   [Theming](docs/features/theming.md#branding-a-docs-site).
+- **`aiui dev` previews a docs site with live reload**: one command in the folder with
+  `aiui.yaml` (or just a `docs/` folder) builds, serves and opens the site, and every save
+  rebuilds it and reloads the open tab at the same scroll position. A failed build shows in the
+  terminal and over the page while the last good build stays up; `aiui build` output never
+  carries the reload script. Options: `--port`, `--host`, `--open/--no-open`, `--config`,
+  `--base-path`. The examples dashboard that `aiui dev` used to open is now
+  `aiui dev --examples <folder>` (plain `aiui dev` still opens it in a folder with only
+  `examples/`). See [Hot Reload](docs/features/hot-reload.md).
 
 ### Deprecated
 
