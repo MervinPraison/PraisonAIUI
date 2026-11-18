@@ -190,7 +190,9 @@ export default [
   // 141,167 B (measured, raised by exactly the overage, +67 B): the docs style's
   // layouts became lazy chunks (R4) and Rollup re-split a shared module (input) the
   // chat route also uses; every docs page loads 53.6 KB gzip less.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141167 B', gzip: true },
+  // 141,169 B (measured, raised by exactly the overage, +2 B): plugin layout
+  // cssIntegrity in the manifest normalizer moved a shared module's gzip window.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141169 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -210,7 +212,9 @@ export default [
   // 253,128 B (measured, raised by exactly the overage, +4 B): no code added;
   // the classic chat's error boundary gives legacy-app-entry a new content
   // hash, and index.js, which names that chunk, gzips 4 B larger.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253128 B', gzip: true },
+  // 253,145 B (measured, raised by exactly the overage, +17 B): the manifest
+  // keeps a plugin layout's cssIntegrity and the loader sets it on the <link>.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253145 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -250,5 +254,7 @@ export default [
   // 9,134,625 B (measured, raised by exactly the overage, +308 B): the classic
   // chat's element error boundary (MultimediaElements), which replaces a
   // try/catch that could not catch render errors.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134625 B', brotli: false },
+  // 9,134,657 B (measured, raised by exactly the overage, +32 B): plugin
+  // layout css SRI (cssIntegrity) in the manifest normalizer and loader.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134657 B', brotli: false },
 ]
