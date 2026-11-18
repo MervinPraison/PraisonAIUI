@@ -1307,7 +1307,12 @@ async function loadSession(sessionId) {
             appendToolCall(tc, status);
           });
         }
-        appendMessage(m.role, m.content, m.agent_name, m.elements);
+        const failed = m.role === 'assistant' && m.status === 'error';
+        const hasElements = Array.isArray(m.elements) && m.elements.length > 0;
+        if (!failed || !isBlankAssistantContent(m.content) || hasElements) {
+          appendMessage(m.role, m.content, m.agent_name, m.elements);
+        }
+        if (failed) appendMessage('system', '❌ Error: ' + (m.error || 'Unknown error'));
       }
     });
 
@@ -1528,6 +1533,7 @@ function handleWsMessage(data) {
       break;
 
     case 'run_error':
+      endAssistantStream();
       appendMessage('system', '❌ Error: ' + (data.error || 'Unknown error'));
       setStatus('error');
       setStreaming(false);
@@ -1535,6 +1541,7 @@ function handleWsMessage(data) {
       break;
 
     case 'run_cancelled':
+      endAssistantStream();
       appendMessage('system', '⬛ Run cancelled');
       setStatus('connected');
       setStreaming(false);
@@ -1890,6 +1897,20 @@ function isBlankAssistantContent(content) {
   if (content == null || content === undefined) return true;
   const s = String(content).trim();
   return !s || s === 'None';
+}
+
+// A run that ended without completing (error or Stop): keep what streamed
+// (text, media) and drop an empty "Generating response…" bubble.
+function endAssistantStream() {
+  if (currentDeltaMsgEl && isBlankAssistantContent(currentDeltaText) && !pendingMediaElements.length) {
+    currentDeltaMsgEl.remove();
+    currentDeltaEl = null;
+    currentDeltaBodyEl = null;
+    currentDeltaMsgEl = null;
+    currentDeltaText = '';
+    return;
+  }
+  finalizeDelta(currentDeltaText);
 }
 
 function finalizeDelta(content, agentName) {

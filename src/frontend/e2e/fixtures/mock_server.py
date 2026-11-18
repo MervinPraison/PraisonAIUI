@@ -17,6 +17,8 @@ Keywords in the user's message select what the scripted run does:
     ap500     pause for approval ``ap_500`` (this server answers 500)
     plain     reply with text only (no reasoning, tool, element or references)
     weather   call the get_weather tool (the example plugin renders it)
+    cbfail    a real ``@reply`` callback (callback mode) streams one token
+              and raises
 
 The exact message ``Compare sorting algorithms`` (or one containing
 ``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
@@ -208,9 +210,27 @@ async def seed_design_sessions() -> None:
         await store.update_session(sid, title=title)
 
 
+async def callback_failure(text: str, session_id):
+    """A ``@reply`` app whose callback fails, through the real callback mode."""
+    from praisonaiui.providers import PraisonAIProvider
+
+    async def failing_reply(msg):
+        await msg.stream("partial answer ")
+        raise RuntimeError("cbfail: the reply raised")
+
+    async for event in PraisonAIProvider()._run_callback_mode(
+        text, failing_reply, session_id, "Mock"
+    ):
+        yield event
+
+
 class MockProvider(BaseProvider):
     async def run(self, message, *, session_id=None, agent_name=None, **kw):
         text = str(message)
+        if "cbfail" in text:
+            async for event in callback_failure(text, session_id):
+                yield event
+            return
         if _is_sorting_demo(text):
             async for event in sorting_demo():
                 yield event

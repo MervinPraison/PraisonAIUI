@@ -10,6 +10,8 @@ Regressions covered:
   code are checked alongside, and untrusted text stays escaped (R9).
 * While a reply streamed, its reasoning and tool rows were appended below the
   answer; after a reload (the saved transcript) the tool row sits above it.
+* A run that ended with ``run_error`` or ``run_cancelled`` left the
+  "Generating response…" bubble streaming forever.
 """
 
 from __future__ import annotations
@@ -101,7 +103,7 @@ if (input.stream) {
     } else {
       mod.handleWsMessage(step);
     }
-    if (step.snapshot) out.stream.push({ at: step.snapshot, order: list.children.map(label) });
+    if (step.snapshot) out.stream.push({ at: step.snapshot, order: list.children.map(label), classes: list.children.map((c) => c.className) });
   }
 }
 console.log(JSON.stringify(out));
@@ -344,3 +346,36 @@ class TestStreamingOrder:
         first = [*self.TURN, "tool:done", "answer"]
         assert stream["live2"] == [*first, *self.TURN, "tool:running", "answer"]
         assert stream["final2"] == [*first, *first]
+
+
+def _ended(n: int, terminal: dict, tokens: list[str]) -> list[dict]:
+    steps: list[dict] = [{"user": True}, {"type": "run_started", "agent_name": "Mock", "run_id": f"e{n}"}]
+    steps += [{"type": "run_content", "token": t, "agent_name": "Mock"} for t in tokens]
+    return steps + [{**terminal, "snapshot": f"end{n}"}]
+
+
+@pytest.fixture(scope="module")
+def ended(tmp_path_factory) -> dict[str, dict]:
+    steps = (
+        _ended(1, {"type": "run_error", "error": "kaboom"}, [])
+        + _ended(2, {"type": "run_error", "error": "half"}, ["partial ", "answer"])
+        + _ended(3, {"type": "run_cancelled"}, [])
+    )
+    out = _run(tmp_path_factory.mktemp("ended"), {"stream": steps})["stream"]
+    return {s["at"]: s for s in out}
+
+
+class TestRunEnds:
+    def test_error_without_text_drops_the_placeholder(self, ended):
+        snap = ended["end1"]
+        assert snap["order"] == ["user", "chat-msg chat-msg-system"]
+
+    def test_error_after_text_keeps_the_partial_answer(self, ended):
+        snap = ended["end2"]
+        assert snap["order"][-3:] == ["user", "answer", "chat-msg chat-msg-system"]
+        assert not any("streaming" in c for c in snap["classes"])
+
+    def test_cancel_closes_the_stream(self, ended):
+        snap = ended["end3"]
+        assert snap["order"][-2:] == ["user", "chat-msg chat-msg-system"]
+        assert not any("streaming" in c for c in snap["classes"])

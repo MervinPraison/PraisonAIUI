@@ -25,6 +25,26 @@ from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
 
 logger = logging.getLogger(__name__)
 
+#: Seconds a ``@reply`` callback may send nothing before its run fails with
+#: a timeout. ``AIUI_REPLY_IDLE_TIMEOUT`` overrides it; ``0`` turns it off.
+DEFAULT_REPLY_IDLE_TIMEOUT_S = 600.0
+#: How long a cancelled ``@reply`` callback gets to unwind.
+CALLBACK_CANCEL_GRACE_S = 5.0
+
+
+def reply_idle_timeout() -> Optional[float]:
+    """The ``@reply`` inactivity timeout in seconds, or None for no limit."""
+    raw = os.environ.get("AIUI_REPLY_IDLE_TIMEOUT", "").strip()
+    if not raw:
+        return DEFAULT_REPLY_IDLE_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning("AIUI_REPLY_IDLE_TIMEOUT=%r is not a number; using %gs",
+                       raw, DEFAULT_REPLY_IDLE_TIMEOUT_S)
+        return DEFAULT_REPLY_IDLE_TIMEOUT_S
+    return value if value > 0 else None
+
 # ---------------------------------------------------------------------------
 # StreamEvent → RunEvent bridge
 # ---------------------------------------------------------------------------
@@ -755,7 +775,10 @@ class PraisonAIProvider(BaseProvider):
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as exc:
-                await stream_queue.put({"type": "error", "error": str(exc)})
+                logger.exception("@reply callback failed (session %s)", session_id)
+                await stream_queue.put(
+                    {"type": "error", "error": str(exc) or type(exc).__name__}
+                )
             finally:
                 await stream_queue.put({"type": "done"})
 
@@ -763,19 +786,31 @@ class PraisonAIProvider(BaseProvider):
         if session_id:
             _active_tasks[session_id] = task
 
+        idle_timeout = reply_idle_timeout()
         full_response = ""
+        # Exactly one terminal event per run: once an error or cancel is
+        # yielded, no RUN_COMPLETED follows (it overwrote the error in the
+        # chat, the saved history and the run ledger).
+        ended = False
+        drained = False  # the callback finished and its queue is read
         try:
             while True:
                 try:
-                    event = await asyncio.wait_for(stream_queue.get(), timeout=60.0)
+                    event = await asyncio.wait_for(stream_queue.get(), timeout=idle_timeout)
                 except asyncio.TimeoutError:
-                    yield RunEvent(type=RunEventType.RUN_ERROR, error="Timeout")
+                    ended = True
+                    yield RunEvent(
+                        type=RunEventType.RUN_ERROR,
+                        error=f"Timeout: the reply sent nothing for {idle_timeout:g} s",
+                    )
                     break
 
                 evt_type = event.get("type", "")
                 if evt_type == "done":
+                    drained = True
                     break
                 if evt_type == "cancelled":
+                    ended = True
                     yield RunEvent(type=RunEventType.RUN_CANCELLED)
                     break
 
@@ -833,7 +868,9 @@ class PraisonAIProvider(BaseProvider):
                         },
                     )
                 elif evt_type == "error":
+                    ended = True
                     yield RunEvent(type=RunEventType.RUN_ERROR, error=event.get("error", "Unknown"))
+                    break
                 elif evt_type == "memory_start":
                     yield RunEvent(type=RunEventType.MEMORY_UPDATE_STARTED)
                 elif evt_type == "memory_done":
@@ -847,9 +884,17 @@ class PraisonAIProvider(BaseProvider):
                     else:
                         yield RunEvent(type=RunEventType.RUN_CONTENT, extra_data=event)
         finally:
-            if session_id:
+            if session_id and _active_tasks.get(session_id) is task:
                 _active_tasks.pop(session_id, None)
+            if not drained and not task.done():
+                # Stop, a timeout, an error or a consumer that went away
+                # (abort cancels the chat run, which lands here): the
+                # callback must not keep running and spending tokens.
+                task.cancel()
+                await asyncio.wait({task}, timeout=CALLBACK_CANCEL_GRACE_S)
 
+        if ended:
+            return
         if not task.done():
             await task
 
