@@ -12,6 +12,7 @@ import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
+import { pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { scrollToHash, useHashScroll } from './docs/hashScroll'
 import { useHeadingAnchors } from './docs/headingAnchors'
@@ -193,7 +194,7 @@ export default function App() {
     // The home page (the site root) is titled by the site name alone, as the built index.html is.
     const formattedTitle = canonicalPath === '/' && cfg.site?.title ? cfg.site.title : formatSeoTitle(title, cfg)
     const metaDescription = description || `${title} - ${cfg.site?.description || ''}`
-    const absoluteUrl = `${seoOrigin(cfg)}${canonicalPath}`
+    const absoluteUrl = pageUrl(seoOrigin(cfg), canonicalPath, cfg.seo)
 
     document.title = formattedTitle
 
@@ -226,7 +227,7 @@ export default function App() {
       const el = document.createElement('meta')
       el.name = 'robots'
       return el
-    }).content = noindex ? 'noindex, nofollow' : 'index, follow'
+    }).content = robotsContent(noindex, cfg.seo?.robots)
 
     ensureMeta('meta[property="og:title"]', () => {
       const el = document.createElement('meta')

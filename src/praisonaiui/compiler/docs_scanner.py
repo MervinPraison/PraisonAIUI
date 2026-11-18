@@ -17,6 +17,7 @@ class DocPage:
     order: int = 0
     description: str = ""
     noindex: bool = False
+    hidden: bool = False  # frontmatter `hidden: true`: routable, but not in the sidebar
     frontmatter: dict = field(default_factory=dict)
 
 
@@ -60,17 +61,10 @@ class DocsScanner:
         return pages
 
     def _is_excluded(self, path: Path) -> bool:
-        """Check if a path matches any exclude pattern."""
-        import fnmatch
+        """Whether an exclude pattern (or ``.aiuiignore`` line) covers the path (publish.is_excluded)."""
+        from praisonaiui.compiler.publish import is_excluded
 
-        rel_path = str(path.relative_to(self.docs_dir))
-        filename = path.name
-
-        for pattern in self.exclude:
-            # Check both full path and filename for pattern matching
-            if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(filename, pattern):
-                return True
-        return False
+        return is_excluded(path.relative_to(self.docs_dir).as_posix(), self.exclude)
 
     def _parse_page(self, file_path: Path) -> DocPage:
         """Parse a markdown file and extract metadata."""
@@ -104,6 +98,7 @@ class DocsScanner:
             order=order,
             description=description,
             noindex=noindex,
+            hidden=frontmatter.get("hidden") is True,
             frontmatter=frontmatter,
         )
 

@@ -8,6 +8,8 @@ export interface NavItem {
     path?: string
     description?: string
     noindex?: boolean
+    /** Routable, but not in the sidebar or pager (frontmatter `hidden: true`, a hidden nav group or tab). */
+    hidden?: boolean
     /** Date of the page's last commit (YYYY-MM-DD), from `aiui build` with `content.docs.lastUpdated`. */
     lastUpdated?: string
     /** "Edit this page" link, from `content.docs.editLink.pattern`. */
@@ -38,6 +40,8 @@ export interface SEOConfig {
     twitter?: Record<string, string>
     siteUrl?: string
     robots?: { index?: boolean; follow?: boolean }
+    /** Canonical and og:url end in `/` (`seo.trailingSlash`). */
+    trailingSlash?: boolean
 }
 
 export interface I18nConfig {

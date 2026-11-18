@@ -563,6 +563,12 @@ def build(
         console.print(Panel(msg, title="Success"))
         for file in result.files:
             console.print(f"  • {file}")
+        if result.excluded:
+            console.print(
+                f"Not published ({len(result.excluded)}, content.docs.exclude / .aiuiignore):"
+            )
+            for path in result.excluded:
+                console.print(f"  - {path}", markup=False)
     else:
         console.print(f"[red]Error:[/red] Build failed: {result.error}")
         raise typer.Exit(code=3)

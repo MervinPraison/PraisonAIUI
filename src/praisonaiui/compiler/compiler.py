@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
 from praisonaiui.compiler.nav_builder import NavBuilder
+from praisonaiui.compiler.publish import (
+    apply_indexing,
+    content_signal,
+    is_excluded,
+    read_ignore_file,
+    robots_content,
+    set_robots_meta,
+    with_slash,
+)
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
 
@@ -25,6 +34,8 @@ class CompileResult:
     success: bool
     files: list[str]
     error: str | None = None
+    #: Docs paths left out of the output (content.docs.exclude, .aiuiignore); folders end in "/".
+    excluded: list[str] = field(default_factory=list)
 
 
 class Compiler:
@@ -33,6 +44,7 @@ class Compiler:
     def __init__(self, config: "Config", base_path: Path | None = None):
         self.config = config
         self.base_path = base_path or Path.cwd()
+        self._excluded: list[str] = []
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
         """
@@ -122,7 +134,7 @@ class Compiler:
             files.extend(self._generate_search_index(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
 
-        return CompileResult(success=True, files=files)
+        return CompileResult(success=True, files=files, excluded=self._excluded)
 
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""
@@ -281,6 +293,7 @@ class Compiler:
                         ],
                     }
                     for t in self.config.navigation.tabs
+                    if not t.hidden
                 ],
             }
 
@@ -352,6 +365,7 @@ class Compiler:
                 "twitter": self.config.seo.twitter,
                 "siteUrl": self.config.seo.site_url or self._site_url(),
                 "robots": self.config.seo.robots,
+                "trailingSlash": self.config.seo.trailing_slash,
             }
 
         # A11y configuration - basic implementation for frontend
@@ -444,7 +458,7 @@ class Compiler:
         scanner = DocsScanner(
             docs_dir=docs_dir,
             include=docs_config.include,
-            exclude=docs_config.exclude,
+            exclude=self._exclude_patterns(),
             index_files=docs_config.index_files,
         )
         pages = scanner.scan()
@@ -452,9 +466,34 @@ class Compiler:
         builder = NavBuilder(pages, base_path=self.config.site.route_base_docs)
         nav_mode = docs_config.nav.mode if docs_config.nav else "auto"
         if nav_mode == "manual" and self.config.navigation and self.config.navigation.tabs:
-            groups = [g for t in self.config.navigation.tabs for g in t.groups]
-            return builder.to_dict_grouped(groups, docs_dir=docs_dir)
-        return builder.to_dict()
+            groups = [
+                g.model_copy(update={"hidden": True}) if t.hidden else g
+                for t in self.config.navigation.tabs
+                for g in t.groups
+            ]
+            nav = builder.to_dict_grouped(groups, docs_dir=docs_dir)
+        else:
+            nav = builder.to_dict()
+        apply_indexing(nav, self.config.seo.indexing if self.config.seo else "navigable")
+        return nav
+
+    def _exclude_patterns(self) -> list[str]:
+        """``content.docs.exclude`` plus the lines of ``.aiuiignore`` next to the config."""
+        docs = self.config.content.docs if self.config.content else None
+        return [*(docs.exclude if docs else []), *read_ignore_file(self.base_path)]
+
+    def _site_noindex(self) -> bool:
+        """``seo.robots.index: false``: nothing on the site is indexed."""
+        robots = self.config.seo.robots if self.config.seo else None
+        return bool(robots) and not robots.get("index", True)
+
+    def _robots_meta(self, noindex: bool) -> str:
+        return robots_content(noindex, self.config.seo.robots if self.config.seo else None)
+
+    def _custom_root_file(self, name: str) -> Path | None:
+        """A hand-written ``robots.txt`` / ``sitemap.xml`` next to the config, published as is."""
+        path = self.base_path / name
+        return path if path.is_file() else None
 
     def _generate_route_manifest(self) -> dict:
         """Generate route-manifest.json content."""
@@ -539,10 +578,9 @@ class Compiler:
             )
             # Create 404.html as a copy of patched index.html
             # for SPA routing on static hosts like GitHub Pages
-            shutil.copy(
-                output_dir / "index.html",
-                output_dir / "404.html",
-            )
+            not_found = output_dir / "404.html"
+            html = (output_dir / "index.html").read_text(encoding="utf-8")
+            not_found.write_text(set_robots_meta(html, "noindex"), encoding="utf-8")
             # Copy root-level static files (icons, favicons, etc.)
             static_exts = {
                 ".svg",
@@ -651,7 +689,7 @@ class Compiler:
             "p+location.search+location.hash);}})();"
             "</script>"
         )
-        if 'id="aiui-canonical-url"' not in html:
+        if 'id="aiui-canonical-url"' not in html and not self._trailing_slash():
             html = html.replace("<head>", f"<head>\n  {canonical_script}", 1)
         if 'rel="sitemap"' not in html:
             html = html.replace(
@@ -783,7 +821,8 @@ class Compiler:
             )
 
             # Add canonical URL, OG tags, and noscript content before </head>
-            seo_tags = self._build_seo_tags(path, page_title, page_desc, noindex=page_noindex)
+            html = set_robots_meta(html, self._robots_meta(page_noindex))
+            seo_tags = self._build_seo_tags(path, page_title, page_desc)
             json_ld = self._build_json_ld(path, title, page_desc)
 
             # Try to load markdown content for noscript pre-rendering
@@ -835,6 +874,7 @@ class Compiler:
                             "title": item.get("pageTitle") or item.get("title", ""),
                             "description": item.get("description", ""),
                             "noindex": bool(item.get("noindex")),
+                            "hidden": bool(item.get("hidden")),
                         }
                     )
                 if item.get("children"):
@@ -861,6 +901,14 @@ class Compiler:
             return "/"
         return path
 
+    def _trailing_slash(self) -> bool:
+        return bool(self.config.seo and self.config.seo.trailing_slash)
+
+    def _page_url(self, path: str) -> str:
+        """A page's absolute URL, ending in ``/`` with ``seo.trailingSlash`` (canonical, sitemap, llms)."""
+        url = self._absolute_url(path)
+        return with_slash(url) if self._trailing_slash() else url
+
     def _absolute_url(self, path: str) -> str:
         path = self._public_path(path)
         site = self._site_url()
@@ -871,21 +919,32 @@ class Compiler:
         return f"{site}{path}"
 
     def _generate_sitemap(self, output_dir: Path, nav: dict) -> list[str]:
+        """sitemap.xml: every indexable page. A ``sitemap.xml`` next to the config
+        is published instead; with ``seo.robots.index: false`` there is none."""
+        custom = self._custom_root_file("sitemap.xml")
+        if custom:
+            (output_dir / "sitemap.xml").write_bytes(custom.read_bytes())
+            return ["sitemap.xml"]
+        if self._site_noindex():
+            (output_dir / "sitemap.xml").unlink(missing_ok=True)
+            return []
         site = self._site_url()
         if not site:
             return []
 
         urls = []
-        site_root = self._absolute_url("/")
-        root_lastmod = self._format_lastmod(self.base_path / "docs" / "index.md")
-        urls.append(self._sitemap_url_entry(site_root, root_lastmod))
-        for page in self._collect_nav_pages(nav):
+        pages = self._collect_nav_pages(nav)
+        home = self._docs_home_path(nav)
+        if not any(p["noindex"] and p["path"].rstrip("/") == home for p in pages):
+            root_lastmod = self._format_lastmod(self.base_path / "docs" / "index.md")
+            urls.append(self._sitemap_url_entry(self._absolute_url("/"), root_lastmod))
+        for page in pages:
             if page.get("noindex"):
                 continue
             path = page["path"].rstrip("/") or "/"
             if self._public_path(path) == "/":
                 continue  # the docs home is the site root, listed above
-            loc = self._absolute_url(path)
+            loc = self._page_url(path)
             lastmod = self._format_lastmod(self._resolve_md_source(path))
             urls.append(self._sitemap_url_entry(loc, lastmod))
 
@@ -939,20 +998,25 @@ class Compiler:
         return None
 
     def _generate_robots(self, output_dir: Path) -> list[str]:
-        robots = self.config.seo.robots if self.config.seo else None
-        allow_index = robots.get("index", True) if robots else True
-        allow_follow = robots.get("follow", True) if robots else True
+        """robots.txt. A ``robots.txt`` next to the config is published instead.
 
-        lines = ["User-agent: *"]
-        if allow_index:
-            lines.append("Allow: /")
-        else:
-            lines.append("Disallow: /")
-        if not allow_follow:
-            lines.append("Disallow: /docs/")
+        ``seo.robots.follow`` is a page-level hint (the robots meta); robots.txt
+        cannot say it, so it no longer blocks ``/docs/``.
+        """
+        custom = self._custom_root_file("robots.txt")
+        if custom:
+            (output_dir / "robots.txt").write_bytes(custom.read_bytes())
+            return ["robots.txt"]
+        noindex = self._site_noindex()
+        lines = ["User-agent: *", "Disallow: /" if noindex else "Allow: /"]
+        signal = content_signal(
+            self.config.seo.content_signals.model_dump() if self.config.seo and self.config.seo.content_signals else None
+        )
+        if signal and not noindex:
+            lines.append(signal)
 
         site = self._site_url()
-        if site:
+        if site and not noindex:
             lines.append(f"Sitemap: {site}/sitemap.xml")
             lines.append(f"# LLM index: {site}/llms.txt")
 
@@ -962,6 +1026,9 @@ class Compiler:
     def _generate_llms_txt(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate llms.txt index for AI crawlers (llmstxt.org convention)."""
         site = self._site_url()
+        if self._site_noindex():
+            (output_dir / "llms.txt").unlink(missing_ok=True)
+            return []
         if not site:
             return []
 
@@ -982,7 +1049,7 @@ class Compiler:
             path = page["path"].rstrip("/") or "/"
             title = page["title"]
             desc = page.get("description") or title
-            url = self._absolute_url(path)
+            url = self._page_url(path)
             lines.append(f"- [{title}]({url}): {desc}")
 
         lines.extend(["", "## Full export", "", f"- [Complete documentation]({site}/llms-full.txt): All pages in one file"])
@@ -993,6 +1060,9 @@ class Compiler:
     def _generate_llms_full_txt(self, output_dir: Path, nav: dict) -> list[str]:
         """Generate llms-full.txt — concatenated markdown for AI crawlers."""
         site = self._site_url()
+        if self._site_noindex():
+            (output_dir / "llms-full.txt").unlink(missing_ok=True)
+            return []
         if not site:
             return []
 
@@ -1006,7 +1076,7 @@ class Compiler:
             body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")).strip()
             if not body:
                 continue
-            url = self._absolute_url(page["path"].rstrip("/") or "/")
+            url = self._page_url(page["path"].rstrip("/") or "/")
             title = page["title"]
             sections.append(f"# {title}\n\nSource: {url}\n\n{body}")
 
@@ -1018,14 +1088,16 @@ class Compiler:
 
     def _generate_search_index(self, output_dir: Path, nav: dict) -> list[str]:
         """Write ``search-index.json``: every page's headings and text for the
-        docs search dialog (compiler/search_index.py). Pages marked ``noindex``
-        stay searchable on the site; only crawlers skip them."""
+        docs search dialog (compiler/search_index.py). ``noindex`` pages (and
+        hidden ones, see publish.apply_indexing) are left out, as from the sitemap."""
         from praisonaiui.compiler.search_index import page_entry
 
         if self.config.search and self.config.search.enabled is False:
             return []
         pages = []
         for page in self._collect_nav_pages(nav):
+            if page["noindex"]:
+                continue
             md_path = self._resolve_md_source(page["path"])
             body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")) if md_path else ""
             pages.append(page_entry(page["path"], page["title"], page["description"], body))
@@ -1071,6 +1143,10 @@ class Compiler:
         )
         if "</head>" in html and 'rel="canonical"' not in html:
             html = html.replace("</head>", f"{seo_tags}\n</head>", 1)
+        home_noindex = any(
+            p["noindex"] and p["path"].rstrip("/") == docs_home for p in self._collect_nav_pages(nav)
+        )
+        html = set_robots_meta(html, self._robots_meta(home_noindex))
         preload = self._hero_preload(nav)
         if preload and 'rel="preload" as="image"' not in html:
             html = html.replace("</head>", f"{preload}\n</head>", 1)
@@ -1099,9 +1175,11 @@ class Compiler:
         """Static nav links for non-JS crawlers."""
         links: list[str] = []
         for page in self._collect_nav_pages(nav):
+            if page["hidden"]:
+                continue
             path = page["path"].rstrip("/") or "/"
             title = self._escape_html(page["title"])
-            url = self._escape_html(self._absolute_url(path))
+            url = self._escape_html(self._page_url(path))
             links.append(f'<li><a href="{url}">{title}</a></li>')
 
         if not links:
@@ -1113,10 +1191,10 @@ class Compiler:
             "</nav>"
         )
 
-    def _build_seo_tags(self, path: str, title: str, description: str, *, noindex: bool = False) -> str:
-        """Build canonical, OG, and Twitter meta tags."""
+    def _build_seo_tags(self, path: str, title: str, description: str) -> str:
+        """Build canonical, OG, and Twitter meta tags (the robots meta: publish.set_robots_meta)."""
         d = self._escape_html(description)
-        canonical = self._escape_html(self._absolute_url(path))
+        canonical = self._escape_html(self._page_url(path))
         og_url = canonical
 
         # Extract original page title by removing the site title suffix if present
@@ -1166,18 +1244,10 @@ class Compiler:
             handle = self._escape_html(self.config.seo.twitter["handle"])
             tags.append(f'  <meta name="twitter:site" content="{handle}" />')
 
-        robots = self.config.seo.robots if self.config.seo else None
-        if noindex:
-            tags.append('  <meta name="robots" content="noindex, nofollow" />')
-        elif robots:
-            index = "index" if robots.get("index", True) else "noindex"
-            follow = "follow" if robots.get("follow", True) else "nofollow"
-            tags.append(f'  <meta name="robots" content="{index}, {follow}" />')
-
         return "\n".join(tags)
 
     def _build_json_ld(self, path: str, title: str, description: str) -> str:
-        url = self._absolute_url(path)
+        url = self._page_url(path)
         site_url = self._site_url()
         payload: dict = {
             "@context": "https://schema.org",
@@ -1340,8 +1410,27 @@ class Compiler:
         if docs_output.exists():
             shutil.rmtree(docs_output)
 
-        # Copy the entire docs directory
-        shutil.copytree(docs_dir, docs_output)
+        # Copy the docs folder, less what content.docs.exclude and .aiuiignore
+        # leave out: an excluded draft is never published, page or asset.
+        patterns = self._exclude_patterns()
+        self._excluded = []
+
+        def ignore(folder: str, names: list[str]) -> set[str]:
+            rel_dir = Path(folder).relative_to(docs_dir).as_posix()
+            skipped = set()
+            for name in names:
+                rel = name if rel_dir == "." else f"{rel_dir}/{name}"
+                if is_excluded(rel, patterns):
+                    skipped.add(name)
+                    self._excluded.append(rel + ("/" if (Path(folder) / name).is_dir() else ""))
+            return skipped
+
+        shutil.copytree(docs_dir, docs_output, ignore=ignore if patterns else None)
+        for rel in self._excluded:  # a folder left empty by the exclude goes too
+            folder = (docs_output / rel.rstrip("/")).parent
+            while folder != docs_output and folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()
+                folder = folder.parent
 
         # The client fetches a page's markdown at `<route>.md`. A page whose
         # route differs from its file (`typescript/index.md` -> /docs/typescript,
@@ -1351,7 +1440,7 @@ class Compiler:
         scanner = DocsScanner(
             docs_dir=docs_dir,
             include=docs_config.include,
-            exclude=docs_config.exclude,
+            exclude=patterns,
             index_files=docs_config.index_files,
         )
         for page in scanner.scan():

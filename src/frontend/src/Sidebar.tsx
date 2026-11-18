@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { canonicalDocPath } from './docs/docSource'
 import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
+import { navItemShown } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
 import { DOCS_HOME_ICONS, DocsHomeIcon } from './docs/docsHomeIcons'
 
@@ -34,6 +35,7 @@ function NavIcon({ name }: { name?: string }) {
 export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
     const renderItem = (item: NavItem, depth = 0) => {
         const key = item.title + (item.path || '')
+        if (!navItemShown(item)) return null
         if (item.children && item.children.length > 0) {
             return (
                 <div key={key} className="aiui-docs-group">

@@ -79,9 +79,12 @@ navigation:
 - A page listed twice appears once, where it is first listed.
 - Frontmatter `nav_title` gives a page a shorter sidebar title than its
   heading (`nav_title: CLI` on a page titled "CLI API Reference").
-- Pages no group lists are still built, linked and found by search; they are
-  not in any tab's sidebar. Leave a page out of the site with
+- Pages no group lists are still built and reachable by URL, but hidden: not
+  in any sidebar, search, `sitemap.xml` or `llms.txt` (see
+  [Hidden pages](seo.md#hidden-pages)). Leave a page out of the site with
   `content.docs.exclude` (see [Content Sources](content-sources.md#includeexclude-patterns)).
+- `hidden: true` on a group hides its pages the same way; on a tab it also
+  drops the tab from the header.
 - The active tab is the one whose groups list the page; for a page no group
   lists, the folder `prefix` decides as in auto mode, then the first tab.
 

@@ -27,7 +27,22 @@ content:
 ```
 
 `include` patterns are globs relative to `dir`. An `exclude` pattern matches
-either the path relative to `dir` or the bare file name.
+the path relative to `dir`, a folder holding it (`drafts`, `drafts/`) or, with
+no `/`, any file or folder name (`*.tmp`). A leading `/` anchors it to `dir`;
+`!pattern` brings back a file an earlier pattern left out.
+
+Excluded files are not published at all: `aiui build` copies neither the
+pages nor the images next to them, and it lists what it left out.
+
+The same patterns can live in an `.aiuiignore` file next to `aiui.yaml`, one
+per line (`#` starts a comment); they add to `exclude`:
+
+```text
+# .aiuiignore
+drafts/
+internal/
+*.secret.md
+```
 
 ## Index Files
 

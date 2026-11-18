@@ -128,4 +128,5 @@ class TestSeoBuild:
         assert "docs/draft" not in sitemap
 
         draft_html = (tmp_path / "output" / "docs" / "draft.html").read_text(encoding="utf-8")
-        assert 'content="noindex, nofollow"' in draft_html
+        assert '<meta name="robots" content="noindex" />' in draft_html
+        assert draft_html.count('name="robots"') == 1
