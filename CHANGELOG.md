@@ -540,3 +540,9 @@
 - A docs folder without an index page is a sidebar section only: no empty
   `/docs/<folder>` route or sitemap entry. In `nav.mode: manual`, pages no
   group lists are hidden (routable, not indexed), as Mintlify does.
+- App shell: the `@aiui.welcome` greeting shows on a new chat in the layouts
+  too (`chat`, what `aiui run` opens, `chat-canvas`, `workbench`, `command`,
+  `mission`). The layouts' new-chat hero replaced the thread heading that
+  carried it, so only Guided and the classic frame showed it. The hero now
+  shows the greeting in place of its generic "Ask anything…" line, above the
+  starters; without a greeting the hero is unchanged.

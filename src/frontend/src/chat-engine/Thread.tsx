@@ -783,7 +783,7 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
           <ThreadPrimitive.Empty>
             <div className={cn(COLUMN, 'flex flex-1 flex-col items-center justify-end gap-6 pt-10 pb-[12vh] text-center')} data-thread-empty>
               {host ? (
-                <host.Empty presentation={presentation} heading={heading}>{starters}</host.Empty>
+                <host.Empty presentation={presentation} heading={heading} welcome={welcome}>{starters}</host.Empty>
               ) : (
                 <>
                   {heading}

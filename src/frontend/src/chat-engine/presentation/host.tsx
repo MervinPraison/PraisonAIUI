@@ -121,12 +121,14 @@ export function Pinned({ presentation }: { presentation: { chat: ChatPresentatio
 }
 
 /**
- * An empty thread: the layout's `empty` region under the thread's `heading`,
- * else the new-chat hero (./EmptyHero) over `children` (the starters).
+ * An empty thread: the layout's `empty` region under the thread's `heading`
+ * (which carries the greeting), else the new-chat hero (./EmptyHero) with the
+ * app's greeting (`welcome`) over `children` (the starters).
  */
-export function Empty({ presentation, heading, children }: {
+export function Empty({ presentation, heading, welcome, children }: {
   presentation: { chat: ChatPresentation; sessionId: string | null }
   heading?: ReactNode
+  welcome?: string
   children: ReactNode
 }): JSX.Element {
   const { chat, sessionId } = presentation
@@ -136,7 +138,7 @@ export function Empty({ presentation, heading, children }: {
       <Region loader={chat.empty} name="empty" sessionId={sessionId} />
     </>
   ) : (
-    <EmptyHero>{children}</EmptyHero>
+    <EmptyHero welcome={welcome}>{children}</EmptyHero>
   )
 }
 
