@@ -26,3 +26,18 @@ test('the root of a site without a home page shows its name, not a 404', () => {
     assert.match(html, /Docs for Acme\./)
     assert.doesNotMatch(html, /Page not found/)
 })
+
+test('errors.404 sets the heading and a Markdown description', () => {
+    const custom = { ...config, errors: { notFound: { title: 'Lost?', description: 'Try the **guide**.' } } }
+    const html = renderToStaticMarkup(<DocsNotFound config={custom} path="/docs/nope" />)
+    assert.match(html, /<h1[^>]*>Lost\?<\/h1>/)
+    assert.match(html, /Try the/)
+    assert.doesNotMatch(html, /There is no page at/)
+})
+
+test('with redirects to check, nothing shows until the check has run (no 404 flash)', () => {
+    const withRules = { ...config, redirects: [{ source: '/docs/v1/:slug*', destination: '/docs/:slug*' }] }
+    const html = renderToStaticMarkup(<DocsNotFound config={withRules} path="/docs/v1/x" />)
+    assert.match(html, /aria-busy="true"/)
+    assert.doesNotMatch(html, /Page not found/)
+})

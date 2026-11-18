@@ -492,7 +492,7 @@ def validate(
     issues += [
         ValidationError(code=i.code, category="content", message=i.message, file=i.file,
                         line=i.line or None, suggestion=i.hint)
-        for i in compiler.lint_content()
+        for i in compiler.lint_content(config.name)
     ]
     for issue in issues:
         if strict:
@@ -710,6 +710,17 @@ def _under_base(app, base: str):
     return mounted
 
 
+def _built_redirects(root: Path) -> list[dict]:
+    """The ``redirects`` a build wrote to its ui-config.json."""
+    import json
+
+    try:
+        rules = json.loads((root / "ui-config.json").read_text(encoding="utf-8")).get("redirects")
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [r for r in rules or [] if isinstance(r, dict) and "source" in r and "destination" in r]
+
+
 def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     """The ASGI app ``aiui serve`` runs for a built site.
 
@@ -724,14 +735,16 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
       any other missing file is a 404.
     * A build made with ``--base-path /x`` is served under ``/x`` (``/``
       redirects there), so the preview matches the host.
+    * The build's ``redirects`` answer with 301 (302 when not permanent).
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
     from starlette.middleware import Middleware
     from starlette.middleware.cors import CORSMiddleware
-    from starlette.responses import FileResponse, PlainTextResponse
+    from starlette.responses import FileResponse, PlainTextResponse, RedirectResponse
     from starlette.routing import Mount
 
+    from praisonaiui.compiler import redirects as rd
     from praisonaiui.server import _AssetStaticFiles, gzip_static
     from praisonaiui.static_gzip import NoCacheStaticFiles, gzip_file_response
 
@@ -765,11 +778,28 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
         md = root / twin.lstrip("/") if twin else None
         return md if md and _is_safe_path(md, root) and md.is_file() else None
 
+    redirects = _built_redirects(root)
+
+    def has_file(rel: str) -> bool:
+        names = [rel, f"{rel}.html", f"{rel}/index.html"] if rel else ["index.html"]
+        return any(_is_safe_path(root / n, root) and (root / n).is_file() for n in names)
+
     async def site_app(scope, receive, send):
         if scope["type"] != "http":
             return
         path = scope.get("path", "/")
         rel = path.strip("/")
+        # redirects: (compiler/redirects.py). An exact rule's file is its stub;
+        # a wildcard rule gives way to a file at the path.
+        hit = rd.match(redirects, path) if redirects else None
+        if hit and (rd.is_exact(hit[0]["source"]) or not has_file(rel)):
+            dest = base + hit[1] if rd.is_internal(hit[1]) else hit[1]
+            query = scope.get("query_string", b"").decode("latin-1")
+            if query and "?" not in dest:
+                dest += "?" + query
+            code = 301 if hit[0].get("permanent", True) else 302
+            await RedirectResponse(dest, status_code=code)(scope, receive, send)
+            return
         # `Accept: text/markdown` on a page URL: the page as Markdown (agents).
         md = markdown_file(scope, rel)
         if md:

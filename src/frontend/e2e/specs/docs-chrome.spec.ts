@@ -311,6 +311,25 @@ test('a URL with no page shows "Page not found", never the config dump', async (
   expect(errors.pageErrors).toEqual([])
 })
 
+test('redirects: aiui serve answers 301 for exact and wildcard rules, keeping the query', async ({ page, request }) => {
+  const exact = await request.get('/docs/start?x=1', { maxRedirects: 0 })
+  expect(exact.status()).toBe(301)
+  expect(exact.headers().location).toBe('/docs/guide/first?x=1')
+  const errors = collectPageErrors(page)
+  await page.goto('/docs/old-guide/second')
+  expect(new URL(page.url()).pathname).toBe('/docs/guide/second')
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('a mistyped URL offers the closest page', async ({ page }) => {
+  await page.goto('/docs/widgts')
+  const similar = page.locator('#main-content').getByRole('navigation', { name: 'Similar pages' })
+  await expect(similar.getByRole('link', { name: 'Widgets' })).toHaveAttribute('href', '/docs/widgets')
+  await similar.getByRole('link', { name: 'Widgets' }).click()
+  await expect(page.getByRole('heading', { name: 'Widgets', level: 1 })).toBeVisible()
+})
+
 test('preset paper: the Paper look, serif titles, self-hosted Paper fonts', async ({ page, baseURL }) => {
   const errors = collectPageErrors(page)
   // The fixture site is zinc; the reader's ui-config.json says paper.

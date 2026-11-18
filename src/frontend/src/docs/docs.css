@@ -1932,6 +1932,15 @@ dialog.aiui-zoom img {
 .aiui-docs-empty-actions a {
   text-decoration: none;
 }
+.aiui-docs-empty nav ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.aiui-docs-empty nav a {
+  color: var(--primary);
+  text-underline-offset: 2px;
+}
 
 /* ── The Paper look (preset `paper`, DESIGN.md "Docs style") ─────────────
    A reading face, not a UI face: Newsreader for titles, Source Sans 3 at

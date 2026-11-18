@@ -107,6 +107,7 @@ navigation:
             - concepts/slots
             - features/widget-zones
             - features/seo
+            - features/redirects
             - features/ai-ready-docs
             - features/i18n
             - features/hot-reload

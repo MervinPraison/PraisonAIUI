@@ -28,3 +28,8 @@ templates:
 routes:
   - match: "/docs/**"
     template: docs
+redirects:
+  - source: /docs/start
+    destination: /docs/guide/first
+  - source: /docs/old-guide/:slug*
+    destination: /docs/guide/:slug*
