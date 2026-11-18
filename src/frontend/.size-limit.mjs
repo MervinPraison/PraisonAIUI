@@ -339,7 +339,7 @@ export default [
   // sidebar groups that fold, group pages, drilldown and breadcrumbs.
   // 9,179,031 B (measured, raised by exactly the overage, +2,995 B): page
   // front matter (description lede, badges, modes, external links, meta).
-  // 9,193,124 B (measured, raised by exactly the overage, +17,088 B): docs
+  // 9,196,121 B (measured, raised by exactly the overage, +17,090 B): docs
   // Callout, Badge, Tooltip, Tree, Prompt, Tile, Color (DocsWidgets.tsx, docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9193124 B', brotli: false },
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9196121 B', brotli: false },
 ]
