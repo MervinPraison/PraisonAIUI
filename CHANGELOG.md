@@ -297,6 +297,18 @@
   levels, empty pages, accent contrast (7000-7006, 7101) at `file:line`, `--format json`
   ([CLI](docs/api/cli.md#aiui-validate)). **`$ref` splits `aiui.yaml`**; `aiui schema` and the
   `$schema` line `aiui init` writes give editor autocomplete ([Configuration](docs/concepts/configuration.md#split-the-config-with-ref)).
+- **Page front matter (Mintlify keys).** `description` shows under the title
+  (and `title` becomes the `#` heading when the body has none);
+  `sidebarTitle` (alias of `nav_title`, now in the generated sidebar too);
+  `icon` takes an emoji or image URL as well as a lucide name; `tag` badges;
+  `deprecated: true`; `mode: wide | center | custom | frame`;
+  `hideFooterPagination`; `noAnchor`; `url:` makes the page an external
+  sidebar link (no route, sitemap, `llms.txt` or search entry), and nav groups
+  take `{label, href}` links; `lastUpdatedDate` and `timestamp: false/true`
+  per page; any other scalar key reaches custom JS (`aiui:content-loaded`
+  `detail.meta`) and CSS (`data-fm-*` on the article). A shallow clone now
+  keeps the date of pages changed inside its history. See [Writing docs
+  pages](docs/features/writing-docs.md#front-matter).
 
 ### Deprecated
 

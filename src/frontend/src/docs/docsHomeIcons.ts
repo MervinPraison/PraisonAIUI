@@ -4,7 +4,8 @@
  * lucide components or lib/pageIcons into the docs chunk re-splits the shared
  * chunks of the whole bundle. Keep the set small.
  */
-import { createElement } from 'react'
+import { createElement, type ReactElement } from 'react'
+import { withBase } from '../lib/url'
 
 type IconNode = [tag: 'path' | 'rect' | 'circle', attrs: Record<string, string>][]
 
@@ -44,4 +45,16 @@ export function DocsHomeIcon({ name, className }: { name: string; className?: st
         },
         nodes.map(([tag, attrs], i) => createElement(tag, { key: i, ...attrs })),
     )
+}
+
+/**
+ * Any nav or page icon (`icon:` in the nav YAML or a page's frontmatter): an image
+ * URL (`https://…` or `/…`) as <img>, a lucide name from the set above, or an
+ * emoji as text. null for a name not in the set. The one place icon values resolve.
+ */
+export function docsIcon(icon: string | undefined, className?: string): ReactElement | null {
+    if (!icon) return null
+    if (/^(https?:)?\//.test(icon)) return createElement('img', { src: withBase(icon), alt: '', className, loading: 'lazy', decoding: 'async' })
+    if (/^[a-z0-9-]+$/i.test(icon)) return DOCS_HOME_ICONS[icon.toLowerCase()] ? createElement(DocsHomeIcon, { name: icon, className }) : null
+    return createElement('span', { className, 'aria-hidden': true }, icon)
 }

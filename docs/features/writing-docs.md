@@ -30,32 +30,43 @@ The other presets and what each changes are in [Theming](theming.md).
 ## Front matter
 
 YAML at the top of a page sets its title in the sidebar, the browser tab and
-search results, and its description for search engines and `llms.txt`.
+search results, and its description for search engines and `llms.txt`. Every
+key is optional, and Mintlify page metadata works as it is.
 
 ```markdown
 ---
 title: Writing docs pages
-nav_title: Writing pages
+sidebarTitle: Writing pages
 description: Every block a docs page can use.
+icon: book-open
+tag: NEW
 ---
 ```
 
-`nav_title` is the shorter label in the sidebar; without it the sidebar uses
-`title`. The front matter never shows on the page.
-
 | Key | Type | What it does |
 |---|---|---|
-| `title` | string | Page title: sidebar, browser tab, search, `llms.txt` (default: the first `#` heading) |
-| `nav_title` | string | Shorter sidebar label |
-| `description` | string | Meta description and search snippet (default: the first paragraph) |
-| `icon` | string | Sidebar icon (a lucide name) |
-| `order` | number | Position inside its folder (default: a number prefix such as `01-`) |
-| `hidden` | `true`/`false` | Routable but left out of the sidebar |
-| `noindex` | `true`/`false` | Tells search engines not to index the page |
-| `searchable` | `true`/`false` | `false` leaves the page out of the site's own search |
-| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown |
-| `boost` | number | Search ranking weight (`2` ranks the page higher) |
-| `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)) |
+| `title` | string | The page title: the `#` heading when the body has none, the browser tab, search, `llms.txt`. Default: the first `#` heading, else the file name. |
+| `description` | string | Shown under the title (unless the first paragraph already says it), and the meta description, `llms.txt` and search snippet. Default: the first paragraph, for those but not shown again. |
+| `sidebarTitle` (or `nav_title`) | string | A shorter label in the sidebar. |
+| `icon` | string | Before the sidebar label: a lucide name (`rocket`, `terminal`, `book-open`, …), an emoji, or an image URL (`https://…` or `/icons/x.svg`). |
+| `tag` | string | A badge after the sidebar label, such as `NEW` or `BETA`. |
+| `deprecated` | `true`/`false` | `true`: a `Deprecated` badge, the label struck through, and a notice above the page. |
+| `mode` | string | `wide`: no "On this page", a wider column. `center`: no sidebar either. `custom`: only the article, full width (no breadcrumb, footer or pager). `frame`: `custom` with the sidebar. |
+| `url` | string | An `https://` URL makes the page a sidebar link that opens that site in a new tab. The page itself is not published (no route, sitemap, `llms.txt` or search entry). |
+| `hideFooterPagination` | `true`/`false` | `true`: no previous / next links under the page. |
+| `noAnchor` | `true`/`false` | `true`: no copy-link icon on the page's headings. |
+| `order` | number | Position inside its folder (default: a number prefix such as `01-`). |
+| `hidden` | `true`/`false` | Routable, but not in the sidebar, pager or indexes ([Navigation](navigation.md)). |
+| `noindex` | `true`/`false` | Tells search engines not to index the page (and leaves it out of the sitemap). |
+| `searchable` | `true`/`false` | `false` leaves the page out of the site's own search. |
+| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown. |
+| `boost` | number | Search ranking weight (`2` ranks the page higher). |
+| `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
+| `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
+| `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
+| any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
+
+The front matter never shows on the page as text.
 
 `aiui validate` checks these types and reports the line of a wrong one
 (`hidden: "yes"` is a string, so the page would stay in the sidebar), front
@@ -64,6 +75,26 @@ the same page, two sidebar entries with the same title in one folder, headings
 that skip a level, empty pages and a `theme.accent` with too little contrast.
 Each finding names `file:line` and how to fix it; `--strict` makes them errors
 for CI. See the [codes](../api/cli.md#aiui-validate).
+
+```js
+// custom JS (aiui.set_custom_js): read a page's custom keys
+window.addEventListener('aiui:content-loaded', (e) => {
+    if (e.detail.meta.product === 'cloud') document.body.dataset.product = 'cloud'
+})
+```
+
+A nav group can also list a link among its pages:
+
+```yaml
+navigation:
+  tabs:
+    - tab: Docs
+      groups:
+        - group: Resources
+          pages:
+            - guides/install
+            - { label: GitHub, href: "https://github.com/acme/site", icon: code }
+```
 
 ## Headings and "On this page"
 
@@ -859,9 +890,11 @@ content:
 - **Edit this page** links to `pattern` with `:path` replaced by the page's
   file under the docs folder (`getting-started/quickstart.md`).
 - **Last updated** is the date of the last commit that changed the page.
-  `aiui build` reads it from git; a shallow clone has only one commit, so the
-  date is left out there rather than shown wrong. In GitHub Actions, check out
-  with `fetch-depth: 0` to get the dates.
+  `aiui build` reads it from git. In a shallow clone, pages changed inside the
+  cloned history keep their date; older ones get none rather than the clone's
+  date. In GitHub Actions, check out with `fetch-depth: 0` to date every page.
+  A page's `lastUpdatedDate: 2026-05-01` sets the date by hand, and
+  `timestamp: false` (or `true`) turns it off (or on) for that page alone.
 - **Was this page helpful?** stores nothing. "Yes" thanks the reader; "No"
   offers a new issue at `issues` with the page's title and address filled in.
 

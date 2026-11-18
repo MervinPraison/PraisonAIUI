@@ -181,3 +181,14 @@ def test_tag_problems_are_reported(tmp_path):
     assert "Duplicate tag 'a'" in messages
     assert "Tag 'a': its parents form a cycle" in messages
     assert "Tag 'c': parent 'nope' is not a declared tag" in messages
+
+
+def test_label_href_links_sit_beside_spec_groups(tmp_path):
+    link = {"label": "GitHub", "href": "https://github.com/acme/pets"}
+    nav_cfg = {"pages": [link, {"group": "API", "openapi": "openapi.yaml", "pages": [link]}],
+               "tabs": [{"tab": "Guide", "groups": [{"group": "Guide", "pages": ["index", link]}]}]}
+    for mode in ("auto", "manual"):
+        out = build(tmp_path / mode, {"navigation": nav_cfg,
+                                      "content": {"docs": {"dir": "./docs", "nav": {"mode": mode}}}})
+        lines = tree(json.loads((out / "docs-nav.json").read_text())["items"])
+        assert "GitHub" in lines and "  Health /docs/api-reference/health" in lines

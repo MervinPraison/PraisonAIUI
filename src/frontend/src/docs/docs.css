@@ -322,7 +322,11 @@ img.aiui-docs-mark {
   margin-right: 0.5rem;
   color: var(--ui-text-3);
 }
-.aiui-docs-navicon svg { width: 100%; height: 100%; }
+.aiui-docs-navicon :is(svg, img) { width: 100%; height: 100%; object-fit: contain; }
+.aiui-docs-navicon span { font-size: 0.875rem; line-height: 1rem; }
+/* A deprecated page's label is struck through; a link out ends with a small arrow. */
+.aiui-docs-navitem[data-deprecated] .aiui-docs-navlabel { text-decoration: line-through; color: var(--ui-text-3); }
+.aiui-docs-navext { flex: none; width: 0.75rem; height: 0.75rem; margin-inline-start: 0.375rem; color: var(--ui-text-3); }
 .aiui-docs-navitem[aria-current='page'] .aiui-docs-navicon { color: currentColor; }
 .aiui-docs-group-items {
   display: flex;
@@ -1541,6 +1545,22 @@ dialog.aiui-zoom img {
   border-radius: var(--radius-lg, 10px);
   color: var(--muted-foreground);
 }
+.aiui-docs-deprecated {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ui-warning-line, var(--border));
+  border-radius: var(--radius-lg, 10px);
+  background: var(--ui-warning-soft);
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+/* Page modes (frontmatter `mode`, App.tsx data-mode): wide has no "On this page" and a wider
+   column; center drops the sidebar too; custom shows only the article, full width; frame is
+   custom with the sidebar. */
+.aiui-docs-shell[data-mode='wide'] .aiui-docs-column { max-width: calc(100ch + 3rem); }
+.aiui-docs-shell:is([data-mode='center'], [data-mode='custom']) > .aiui-docs-sidebar { display: none; }
+.aiui-docs-shell:is([data-mode='custom'], [data-mode='frame']) .aiui-docs-column { max-width: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .aiui-docs * { scroll-behavior: auto !important; }

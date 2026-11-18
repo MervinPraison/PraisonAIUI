@@ -22,12 +22,23 @@ class NavItem:
     page_title: str = ""  # the page's own title when the sidebar shows a shorter `nav_title`
     icon: str = ""  # a lucide icon name for the sidebar (group `icon:` in the YAML, page frontmatter `icon:`)
     expanded: bool | None = None  # a group's `expanded:` (false: starts folded)
-    tag: str = ""  # a group's badge
+    tag: str = ""  # a badge after the label: a group's `tag:` in the YAML, a page's frontmatter `tag:`
     directory: str = ""  # card | accordion: the build lists the children on the group's page
     children: list["NavItem"] = field(default_factory=list)
+    extra: dict = field(default_factory=dict)  # page_fields(): the page's other frontmatter switches
 
 
 _ICON_NAME = re.compile(r"[a-z0-9-]{1,40}")
+_ICON_URL = re.compile(r"(https?://|/)[^\s\"'<>()]{1,300}")
+_META_KEY = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,39}")
+#: Page modes besides the default: wide (no "On this page"), center (no sidebar either),
+#: custom (only the article, full width), frame (custom with the sidebar).
+PAGE_MODES = ("wide", "center", "custom", "frame")
+#: Frontmatter keys the build reads itself; every other scalar key goes to the page's `meta`.
+KNOWN_KEYS = frozenset(
+    "title description sidebarTitle nav_title icon iconType tag deprecated mode url hideFooterPagination "
+    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost".split()
+)
 
 
 def _slug(title: str) -> str:
@@ -68,6 +79,78 @@ def icon_name(value: object) -> str:
     return name if _ICON_NAME.fullmatch(name) else ""
 
 
+def icon_value(value: object) -> str:
+    """A sidebar icon: a lucide name, an image URL (``https://…`` or ``/…``) or an emoji; "" for anything else."""
+    text = value.strip() if isinstance(value, str) else ""
+    if _ICON_URL.fullmatch(text):
+        return text
+    if text and len(text) <= 8 and not any(c.isascii() for c in text):
+        return text  # an emoji (no ASCII at all, so never markup)
+    return icon_name(text)
+
+
+def external_url(frontmatter: dict) -> str:
+    """Frontmatter ``url:`` when it is an absolute http(s) URL: the page is a sidebar link to it."""
+    url = frontmatter.get("url")
+    return url.strip() if isinstance(url, str) and re.match(r"https?://\S+$", url.strip()) else ""
+
+
+def sidebar_title(page: DocPage) -> str:
+    """The sidebar label: frontmatter ``sidebarTitle`` (Mintlify) or ``nav_title``, else the title."""
+    fm = page.frontmatter
+    return str(fm.get("sidebarTitle") or fm.get("nav_title") or page.title)
+
+
+def page_fields(page: DocPage) -> dict:
+    """The page's frontmatter switches for docs-nav.json (only what differs from the default).
+
+    ``lede``: the frontmatter ``description`` shows under the title. ``deprecated``,
+    ``mode`` (PAGE_MODES), ``hidePager`` (``hideFooterPagination``), ``noAnchor``,
+    ``href`` (an external ``url:``) and ``meta``: the page's other scalar keys, for
+    custom JS and CSS (``aiui:content-loaded`` detail, ``data-fm-*`` on the article).
+    """
+    fm = page.frontmatter
+    out: dict = {}
+    if str(fm.get("description") or "").strip():
+        out["lede"] = True
+    if fm.get("deprecated") is True:
+        out["deprecated"] = True
+    if fm.get("mode") in PAGE_MODES:
+        out["mode"] = fm["mode"]
+    if fm.get("hideFooterPagination") is True:
+        out["hidePager"] = True
+    if fm.get("noAnchor") is True:
+        out["noAnchor"] = True
+    if external_url(fm):
+        out["href"] = external_url(fm)
+    meta = {
+        k: v[:200] if isinstance(v, str) else v
+        for k, v in fm.items()
+        if k not in KNOWN_KEYS and isinstance(k, str) and _META_KEY.fullmatch(k)
+        and isinstance(v, (str, int, float, bool))
+    }
+    if meta:
+        out["meta"] = dict(list(meta.items())[:20])
+    return out
+
+
+def _page_nav_item(page: DocPage, path: str, hidden: bool = False) -> NavItem:
+    """A page's sidebar entry; an external ``url:`` page has no path (no route, sitemap, llms or search entry)."""
+    title = sidebar_title(page)
+    return NavItem(
+        title=title,
+        path="" if external_url(page.frontmatter) else path,
+        description=page.description,
+        noindex=page.noindex,
+        hidden=hidden or page.hidden,
+        searchable=page.searchable,
+        page_title=page.title if title != page.title else "",
+        icon=icon_value(page.frontmatter.get("icon")),
+        tag=str(page.frontmatter.get("tag") or "").strip()[:24],
+        extra=page_fields(page),
+    )
+
+
 class NavBuilder:
     """Builds navigation tree from discovered docs pages."""
 
@@ -91,16 +174,7 @@ class NavBuilder:
         for page in self.pages:
             full_path = f"{self.base_path}/{page.slug}".rstrip("/")
 
-            # Create NavItem for this page
-            item = NavItem(
-                title=page.title,
-                path=full_path,
-                description=page.description,
-                noindex=page.noindex,
-                hidden=page.hidden,
-                searchable=page.searchable,
-                icon=icon_name(page.frontmatter.get("icon")),
-            )
+            item = _page_nav_item(page, full_path)
 
             placeholder = tree.get(page.slug)
             if placeholder is not None and placeholder.children:  # its folder section came first
@@ -169,18 +243,7 @@ class NavBuilder:
         used: set[str] = set()
 
         def page_item(page: DocPage, hidden: bool = False) -> NavItem:
-            title = str(page.frontmatter.get("nav_title") or page.title)
-            path = f"{self.base_path}/{page.slug}".rstrip("/")
-            return NavItem(
-                title=title,
-                path=path,
-                description=page.description,
-                noindex=page.noindex,
-                hidden=hidden or page.hidden,
-                searchable=page.searchable,
-                page_title=page.title if title != page.title else "",
-                icon=icon_name(page.frontmatter.get("icon")),
-            )
+            return _page_nav_item(page, f"{self.base_path}/{page.slug}".rstrip("/"), hidden)
 
         def lookup(name: str) -> DocPage | None:
             key = name.strip().strip("/")
@@ -207,7 +270,7 @@ class NavBuilder:
             root = take(group.root, hidden) if group.root else None
             if root is None and group.directory:  # a listing page at /docs/<group-slug>, or the page there
                 root = take("/".join(trail), hidden, report=False)
-            children = [c for c in (entry(e, hidden, trail) for e in group.pages) if c and (c.path or c.children)]
+            children = [c for c in (entry(e, hidden, trail) for e in group.pages) if c and (c.path or c.children or c.extra.get("href"))]
             item = root or NavItem(title=group.group, path="")
             if root is None and group.directory and any(c.path for c in children):
                 item.path = f"{self.base_path}/{'/'.join(trail)}"
@@ -215,22 +278,27 @@ class NavBuilder:
             if root is not None:
                 item.page_title = item.page_title or (item.title if item.title != group.group else "")
             item.title = group.group
-            item.icon = icon_name(group.icon) or item.icon
-            item.expanded, item.tag = group.expanded, (group.tag or "").strip()
+            item.icon = icon_value(group.icon) or item.icon
+            item.expanded, item.tag = group.expanded, (group.tag or "").strip() or item.tag
             item.directory = group.directory or ""
             item.children = children
             return item
 
         def entry(e, hidden: bool, trail: tuple[str, ...]) -> NavItem | None:
-            return take(e, hidden) if isinstance(e, str) else section(e, hidden, trail)
+            if isinstance(e, str):
+                return take(e, hidden)
+            if not hasattr(e, "group"):  # a `{label, href}` link
+                return NavItem(title=e.label, path="", hidden=hidden, icon=icon_value(e.icon),
+                               tag=(e.tag or "").strip(), extra={"href": e.href})
+            return section(e, hidden, trail)
 
-        items = [i for i in (entry(e, False, ()) for e in entries) if i and (i.path or i.children)]
-        items += [page_item(p, hidden=True) for p in self.pages if p.slug not in used]
+        items = [i for i in (entry(e, False, ()) for e in entries) if i and (i.path or i.children or i.extra.get("href"))]
+        items += [page_item(p, hidden=True) for p in self.pages if p.slug not in used and not external_url(p.frontmatter)]
         return {"items": [self._item_to_dict(item) for item in items]}
 
     def _item_to_dict(self, item: NavItem) -> dict:
         """Convert a NavItem to dictionary (a section has no path)."""
-        result: dict = {"title": item.title}
+        result: dict = {"title": item.title, **item.extra}
         if item.path:
             result["path"] = item.path
         if item.description:
@@ -245,11 +313,11 @@ class NavBuilder:
             result["pageTitle"] = item.page_title
         if item.icon:
             result["icon"] = item.icon
+        if item.tag:
+            result["tag"] = item.tag
         if item.children:
             if item.expanded is not None:
                 result["expanded"] = item.expanded
-            if item.tag:
-                result["tag"] = item.tag
             if item.directory and item.path:
                 result["directory"] = item.directory
             result["children"] = [self._item_to_dict(child) for child in item.children]

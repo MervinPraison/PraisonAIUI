@@ -110,18 +110,23 @@ def test_no_git_means_no_dates_but_edit_links_stay(tmp_path: Path, monkeypatch):
     assert ui["pageFooter"] == {"editText": "Edit this page"}
 
 
-def test_a_shallow_clone_shows_no_dates(tmp_path: Path, monkeypatch):
-    calls = []
-
-    def fake_run(args, **kwargs):
-        calls.append(args)
-
-        class R:
-            stdout = "true\n" if "--is-shallow-repository" in args else str(tmp_path) + "\n"
-
-        return R()
-
-    monkeypatch.setattr(page_meta.subprocess, "run", fake_run)
+@pytest.mark.skipif(subprocess.run(["git", "--version"], capture_output=True).returncode != 0, reason="git not installed")
+def test_a_shallow_clone_dates_only_pages_changed_inside_its_history(tmp_path: Path):
+    """The clone's boundary commit stands for every older change: those pages get no date."""
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _site(origin)
+    _git(origin, "init", "-q")
+    for name, when in (("docs/index.md", "2026-01-02"), ("docs/other.md", "2026-02-03"), ("docs/guide/first.md", "2026-03-04")):
+        (origin / name).write_text(f"# {name}\n", encoding="utf-8")
+        _git(origin, "add", name)
+        _git(origin, "commit", "-qm", name, date=f"{when}T10:00:00+00:00")
+    clone = tmp_path / "clone"
+    _git(tmp_path, "clone", "-q", "--depth", "2", origin.as_uri(), str(clone))
     page_meta.git_root.cache_clear()
-    assert page_meta.git_root(str(tmp_path)) is None
+    page_meta.shallow_boundary.cache_clear()
+
+    assert page_meta.git_last_updated(clone / "docs/guide/first.md") == "2026-03-04"
+    assert page_meta.git_last_updated(clone / "docs/index.md") is None  # older than the clone
     page_meta.git_root.cache_clear()
+    page_meta.shallow_boundary.cache_clear()

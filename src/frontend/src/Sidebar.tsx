@@ -16,7 +16,7 @@ import { BrandMark } from './docs/BrandMark'
 import { docPages, navItemHolds, navItemShown, rememberedOpen, rememberOpen } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
 import { withBase } from './lib/url'
-import { DOCS_HOME_ICONS, DocsHomeIcon } from './docs/docsHomeIcons'
+import { docsIcon } from './docs/docsHomeIcons'
 
 interface NavTreeProps {
     nav: DocsNav
@@ -26,12 +26,14 @@ interface NavTreeProps {
 
 /** A group's or page's sidebar icon (`icon:` in the nav YAML or the page's frontmatter); unknown names draw nothing. */
 function NavIcon({ name }: { name?: string }) {
-    if (!name || !DOCS_HOME_ICONS[name.toLowerCase()]) return null
-    return (
-        <span className="aiui-docs-navicon">
-            <DocsHomeIcon name={name} />
-        </span>
-    )
+    const icon = docsIcon(name)
+    return icon && <span className="aiui-docs-navicon">{icon}</span>
+}
+
+/** The badge after a label: its `tag`, or "Deprecated" for a deprecated page. */
+function NavTag({ item }: { item: NavItem }) {
+    const tag = item.tag || (item.deprecated ? 'Deprecated' : '')
+    return tag ? <span className="aiui-docs-navtag">{tag}</span> : null
 }
 
 /** A plain click (no modifier, main button): the app navigates in place. */
@@ -63,7 +65,7 @@ function NavGroup({ item, groupKey, activeItem, collapsible, drilldown, onItemCl
         <>
             <NavIcon name={item.icon} />
             <span className="aiui-docs-group-title">{item.title}</span>
-            {item.tag && <span className="aiui-docs-navtag">{item.tag}</span>}
+            <NavTag item={item} />
         </>
     )
     const chevron = <ChevronRight className="aiui-docs-group-chevron" aria-hidden="true" />
@@ -120,6 +122,21 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
             )
         }
 
+        const style = { '--depth': Math.max(0, depth - 1) } as React.CSSProperties
+        if (item.href && !item.path) {
+            // A link, not a page (frontmatter `url:`, a `{label, href}` nav entry).
+            const external = isExternal(item.href)
+            return (
+                <a key={key} href={withBase(item.href)} className="aiui-docs-navitem" style={style}
+                    target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+                    <NavIcon name={item.icon} />
+                    {item.title}
+                    <NavTag item={item} />
+                    {external && docsIcon('arrow-up-right', 'aiui-docs-navext')}
+                    {external && <span className="sr-only"> (opens in a new tab)</span>}
+                </a>
+            )
+        }
         const isActive = (item.path || item.title) === activeItem
         const href = withBase(canonicalDocPath(item.path || '/'))
         return (
@@ -129,7 +146,8 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
                 data-nav-path={item.path || ''}
                 aria-current={isActive ? 'page' : undefined}
                 className="aiui-docs-navitem"
-                style={{ '--depth': Math.max(0, depth - 1) } as React.CSSProperties}
+                data-deprecated={item.deprecated ? '' : undefined}
+                style={style}
                 onClick={(event) => {
                     if (!plainClick(event)) return
                     event.preventDefault()
@@ -137,7 +155,8 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
                 }}
             >
                 <NavIcon name={item.icon} />
-                {item.title}
+                <span className="aiui-docs-navlabel">{item.title}</span>
+                <NavTag item={item} />
             </a>
         )
     }

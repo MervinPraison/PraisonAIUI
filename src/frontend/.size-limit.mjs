@@ -337,5 +337,7 @@ export default [
   // full-text search (searchIndex.ts BM25, searchRank.ts, tab chips in DocsSearch).
   // 9,176,036 B (measured, raised by exactly the overage, +3,277 B): docs
   // sidebar groups that fold, group pages, drilldown and breadcrumbs.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9176036 B', brotli: false },
+  // 9,179,031 B (measured, raised by exactly the overage, +2,995 B): page
+  // front matter (description lede, badges, modes, external links, meta).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9179031 B', brotli: false },
 ]

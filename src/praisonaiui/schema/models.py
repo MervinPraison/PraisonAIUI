@@ -309,11 +309,24 @@ class ApiConfig(BaseModel):
     openapi: Optional[OpenApiRef] = None
 
 
+class NavLinkConfig(BaseModel):
+    """A link in a nav group's ``pages`` (``{label, href}``): an external site opens in a new tab."""
+
+    label: str
+    href: str = Field(pattern=r"^(https?://|/|mailto:)")
+    icon: Optional[str] = None
+    tag: Optional[str] = Field(default=None, max_length=24)
+
+    def page_slugs(self, trail: str = "") -> list[str]:
+        return []  # a link is not a page
+
+
 class NavGroupConfig(BaseModel):
     """A navigation group within a tab.
 
     ``pages`` lists page slugs (``getting-started/quickstart``, ``index``); an
-    entry may also be a nested group (``{group: Layouts, pages: [...]}``). With
+    entry may also be a nested group (``{group: Layouts, pages: [...]}``) or a
+    link (``{label: GitHub, href: https://github.com/...}``). With
     ``content.docs.nav.mode: manual`` the sidebar is built from these lists, in
     this order; otherwise they only assign folders to tabs.
     """
@@ -328,7 +341,7 @@ class NavGroupConfig(BaseModel):
     hidden: bool = False  # pages stay routable but leave the sidebar (and indexing, see seo.indexing)
     # Search ranking multiplier for the group's pages (a page's own `boost` wins).
     boost: Optional[float] = Field(default=None, ge=0.1, le=10)
-    pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
+    pages: list[Union[str, "NavGroupConfig", NavLinkConfig]] = Field(default_factory=list)
     openapi: Optional[OpenApiRef] = None
 
     def page_slugs(self, trail: str = "") -> list[str]:
@@ -357,7 +370,7 @@ class NavigationConfig(BaseModel):
     """Top-level navigation: header tabs, or a sidebar listed at the root."""
 
     tabs: list[NavTabConfig] = Field(default_factory=list)
-    pages: list[Union[str, NavGroupConfig]] = Field(default_factory=list)
+    pages: list[Union[str, NavGroupConfig, NavLinkConfig]] = Field(default_factory=list)
     groups: list[NavGroupConfig] = Field(default_factory=list)
 
 

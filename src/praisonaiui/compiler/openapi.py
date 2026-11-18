@@ -461,7 +461,7 @@ def spec_sources(config: "Config") -> list[SpecSource]:
     def group(g: Any, where: str) -> None:
         out.extend(_entries(g.openapi, f"{where}.openapi"))
         for k, page in enumerate(g.pages):
-            if not isinstance(page, str):
+            if hasattr(page, "group"):  # a nested group (not a page name or a link)
                 group(page, f"{where}.pages[{k}]")
 
     nav = config.navigation
@@ -471,7 +471,7 @@ def spec_sources(config: "Config") -> list[SpecSource]:
             group(g, f"navigation.tabs[{i}].groups[{j}]")
     for key in ("groups", "pages"):
         for j, g in enumerate(getattr(nav, key) if nav else []):
-            if not isinstance(g, str):
+            if hasattr(g, "group"):
                 group(g, f"navigation.{key}[{j}]")
     return out
 

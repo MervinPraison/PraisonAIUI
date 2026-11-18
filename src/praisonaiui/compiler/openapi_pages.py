@@ -93,8 +93,8 @@ class ApiReference:
 
 def _only(group: NavGroupConfig, slugs: set[str], hidden: bool) -> NavGroupConfig | None:
     """``group`` with only its generated pages (and groups holding some), or None."""
-    pages = [p if isinstance(p, str) else _only(p, slugs, False) for p in group.pages
-             if not isinstance(p, str) or p in slugs]
+    pages = [_only(p, slugs, False) if hasattr(p, "group") else p for p in group.pages
+             if hasattr(p, "group") or (isinstance(p, str) and p in slugs)]  # not `{label, href}` links
     pages = [p for p in pages if p]
     update = {"pages": pages, "root": None, "directory": None, "hidden": group.hidden or hidden}
     return group.model_copy(update=update) if pages else None
@@ -203,7 +203,7 @@ def _place(config: "Config", sections: list[ApiSection]) -> tuple["Config", list
         at.setdefault(s.ref.where.split(".openapi")[0], []).append(s)
 
     def group(g: NavGroupConfig, where: str) -> NavGroupConfig:
-        pages = [p if isinstance(p, str) else group(p, f"{where}.pages[{k}]") for k, p in enumerate(g.pages)]
+        pages = [group(p, f"{where}.pages[{k}]") if hasattr(p, "group") else p for k, p in enumerate(g.pages)]
         pages += [e for s in at.get(where, []) for e in s.entries()]
         return g.model_copy(update={"pages": pages})
 
@@ -224,7 +224,7 @@ def _place(config: "Config", sections: list[ApiSection]) -> tuple["Config", list
         nav = nav.model_copy(update={
             "tabs": tabs,
             "groups": [group(g, f"navigation.groups[{j}]") for j, g in enumerate(nav.groups)],
-            "pages": [p if isinstance(p, str) else group(p, f"navigation.pages[{k}]")
+            "pages": [group(p, f"navigation.pages[{k}]") if hasattr(p, "group") else p
                       for k, p in enumerate(nav.pages)],
         })
     api = at.get("api", [])

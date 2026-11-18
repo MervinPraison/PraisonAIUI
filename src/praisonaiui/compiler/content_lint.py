@@ -15,6 +15,7 @@ from typing import Any
 from praisonaiui.compiler.docs_scanner import DocPage
 from praisonaiui.compiler.docs_tags import strip_comments
 from praisonaiui.compiler.links import _ATX, _CODE_SPAN, _outside_code
+from praisonaiui.compiler.nav_builder import sidebar_title
 
 
 @dataclass(frozen=True)
@@ -28,12 +29,15 @@ class ContentIssue:
     hint: str = ""
 
 
-_STR, _NUM, _BOOL = "a string", "a number", "true or false"
+_STR, _NUM, _BOOL, _DATE = "a string", "a number", "true or false", "a date (YYYY-MM-DD)"
 #: Front matter keys the build reads, and the type each needs.
 FRONTMATTER_TYPES: dict[str, str] = {
     "title": _STR, "nav_title": _STR, "description": _STR, "icon": _STR, "layout": _STR,
+    "sidebarTitle": _STR, "tag": _STR, "mode": _STR, "url": _STR,
     "order": _NUM, "boost": _NUM,
     "hidden": _BOOL, "noindex": _BOOL, "searchable": _BOOL,
+    "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL,
+    "lastUpdatedDate": _DATE,
     "keywords": "a list of words (or one comma-separated string)",
 }
 
@@ -51,6 +55,8 @@ def _type_ok(kind: str, value: Any) -> bool:
         return isinstance(value, (int, float)) and not isinstance(value, bool)
     if kind == _BOOL:
         return isinstance(value, bool)
+    if kind == _DATE:
+        return hasattr(value, "isoformat") or bool(isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value))
     return isinstance(value, str) or (isinstance(value, list) and all(isinstance(v, str) for v in value))
 
 
@@ -101,6 +107,8 @@ def _type_hint(key: str, kind: str, value: Any) -> str:
         return f'Quote it: {key}: "{value}"'
     if kind == _BOOL:
         return f"Write {key}: true or {key}: false, without quotes"
+    if kind == _DATE:
+        return f"Write {key}: 2026-05-01"
     if kind == _NUM:
         try:
             return f"Write {key}: {float(value):g} without quotes"
@@ -137,7 +145,7 @@ def check_body(text: str, shown: str, frontmatter: dict, listed: bool = False) -
             if not _ALT_ATTR.search(tag):
                 out.append(ContentIssue(7002, shown, n, "<img> has no alt attribute",
                                         'Add alt="what it shows" (alt="" marks a decorative image)'))
-    home = any(k in frontmatter for k in ("hero", "features", "layout"))
+    home = any(k in frontmatter for k in ("hero", "features", "layout", "url"))  # url: a sidebar link
     if not has_text and not home and not listed:
         out.append(ContentIssue(7006, shown, first, "page has no content beyond its headings",
                                 "Write the page, or add it to content.docs.exclude until it is ready"))
@@ -165,7 +173,7 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
     for page in pages:
         by_slug[page.slug].append(page)
         if not page.hidden:
-            label = str(page.frontmatter.get("nav_title") or page.title).strip().lower()
+            label = sidebar_title(page).strip().lower()
             by_title[(page.path.parent, label)].append(page)
     for slug, same in by_slug.items():
         for page in same[1:]:
