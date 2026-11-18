@@ -97,7 +97,7 @@ def external_url(frontmatter: dict) -> str:
 
 
 def sidebar_title(page: DocPage) -> str:
-    """The sidebar label: frontmatter ``sidebarTitle`` (Mintlify) or ``nav_title``, else the title."""
+    """The sidebar label: frontmatter ``sidebarTitle`` or ``nav_title``, else the title."""
     fm = page.frontmatter
     return str(fm.get("sidebarTitle") or fm.get("nav_title") or page.title)
 

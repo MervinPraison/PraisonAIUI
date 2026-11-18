@@ -6,7 +6,7 @@ there is no second Markdown pipeline and crawlers and assistants see the expande
 See docs/features/writing-docs.md#reusable-snippets-and-variables.
 
 - ``<Snippet file="install.md" pkg="aiui" />`` puts the file's text in place;
-  ``{pkg}`` inside it becomes ``aiui``. The Mintlify form works too:
+  ``{pkg}`` inside it becomes ``aiui``. The MDX import form works too:
   ``import Install from '/snippets/install.mdx'`` then ``<Install pkg="aiui" />``.
 - ``--8<-- "install.md"`` on its own line (MkDocs ``pymdownx.snippets``) does the same.
 - ``{{name}}`` becomes the top-level ``variables:`` value from aiui.yaml;
@@ -141,7 +141,7 @@ class Snippets:
                         "Remove the reference that closes the loop")
             return written
         body = path.read_text(encoding="utf-8")
-        for name, value in props.items():  # Mintlify props: {name} in the snippet (not {{name}})
+        for name, value in props.items():  # MDX props: {name} in the snippet (not {{name}})
             body = re.sub(rf"(?<![{{\\]){{{re.escape(name)}}}(?!}})", lambda _m, v=value: v, body)
         body = self._expand(body, path, (*stack, path)).strip("\n")
         return "\n".join(s if i == 0 or not s else indent + s for i, s in enumerate(body.split("\n")))

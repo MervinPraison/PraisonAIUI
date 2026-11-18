@@ -3,7 +3,7 @@
  * variant of <Markdown> renders as components (MkdocsBlocks.tsx).
  *
  * Every transform here is fence-aware: text inside ``` / ~~~ code blocks is
- * never rewritten. Mintlify-style component tags (`<Note>`, `<Card>`, …) are
+ * never rewritten. MDX-style component tags (`<Note>`, `<Card>`, …) are
  * expanded by docsTags.ts, the one table of docs components.
  */
 import { expandDocsTags } from './docsTags'

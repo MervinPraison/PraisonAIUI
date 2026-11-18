@@ -1,4 +1,4 @@
-"""Mintlify page frontmatter (docs/features/writing-docs.md "Front matter"):
+"""Docs page frontmatter (docs/features/writing-docs.md "Front matter"):
 sidebarTitle, icon (name, emoji, image URL), tag, deprecated, mode,
 hideFooterPagination, noAnchor, description as the lede, custom keys as `meta`,
 external `url:` pages and `{label, href}` nav links, per-page dates."""

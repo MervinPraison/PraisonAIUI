@@ -25,7 +25,7 @@ function plain(text: string): string {
 const words = (text: string) => text.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().toLowerCase()
 
 /**
- * The page head Mintlify draws from frontmatter: a `#` title when the body has
+ * The page head drawn from frontmatter: a `#` title when the body has
  * none, and with `lede` the description as the paragraph under the title
  * (unless that paragraph already says it).
  */

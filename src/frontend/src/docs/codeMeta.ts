@@ -101,7 +101,7 @@ const NOTATION = /\s*(?:\/\/|#|--|;|%|<!--|\{?\/\*)?\s*\[!code\s+(\+\+|--|highli
 const KIND = { '++': 'add', '--': 'remove', highlight: 'highlight', hl: 'highlight', focus: 'focus' } as const
 
 /**
- * Shiki's notation comments, as Mintlify uses them. `[!code ++:3]` marks its
+ * Shiki's notation comments (`// [!code ++]`, `--`, `highlight`, `focus`). `[!code ++:3]` marks its
  * line and the next two. A comment alone on its line is removed and marks the
  * lines after it. Null when the code has none (the common case).
  */
