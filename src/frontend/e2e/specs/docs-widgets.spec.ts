@@ -1,6 +1,6 @@
 /**
  * Docs components on a built page (fixtures/docs-site/docs/widgets.md): <Callout color>, inline
- * <Badge> and <Tooltip>, <Frame hint caption> in Markdown, a <Tree> from a Markdown list with
+ * <Badge> and <Tooltip>, <Icon> and a <Card> with icons from lazy chunks, <Frame hint caption> in Markdown, a <Tree> from a Markdown list with
  * arrow keys, <Prompt> actions, <Color> swatches and <col width>. docs/DocsWidgets.tsx draws them.
  */
 import { expect, test } from '@playwright/test'
@@ -32,6 +32,14 @@ for (const mode of ['light', 'dark'] as const) {
     expect(box.x + box.width).toBeLessThanOrEqual(390)
     await page.keyboard.press('Escape')
     await expect(tip).toBeHidden()
+
+    // Icons: any lucide name (or alias) draws from its lazy chunk, sized and coloured; an emoji is text.
+    const icons = article.locator('.aiui-icon')
+    await expect(icons.nth(0).locator('svg path')).toHaveCount(1)
+    expect(await icons.nth(0).evaluate((e) => [getComputedStyle(e).width, getComputedStyle(e).color])).toEqual(['24px', 'rgb(15, 118, 110)'])
+    await expect(icons.nth(1).locator('svg path')).not.toHaveCount(0) // home: lucide's old name for house
+    await expect(icons.nth(2)).toHaveText('🚀')
+    await expect(article.locator('.aiui-card-icon svg circle')).toHaveCount(1) // anchor
 
     // Frame: hint above, caption below, both Markdown.
     await expect(article.locator('.aiui-frame-hint strong, .aiui-frame-hint [data-streamdown="strong"]')).toHaveText('Run')

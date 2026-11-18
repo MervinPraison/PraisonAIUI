@@ -33,6 +33,15 @@ test('<Badge> and <Tooltip> stay inside their sentence; colours map to tokens', 
     assert.match(html, /<span class="aiui-tooltip" tabindex="0" aria-describedby="([^"]+)">SDK<span class="aiui-tooltip-tip" role="tooltip" id="\1"><strong>SDK<\/strong>Software Development Kit<a href="\/docs\/guide\/sdk">Setup<\/a><\/span><\/span>\.<\/p>/)
 })
 
+test('<Icon>: any lucide name, an emoji or an image, sized and coloured, inside its sentence', () => {
+    const html = render('Go <Icon icon="rocket" size={32} color="#0f766e" /> or <Icon icon="flag" /> <Icon icon="🚀" size="12" /> <Icon icon="/i/x.svg" size={9999} color="red;x:url(y)" />.')
+    assert.match(html, /<p[^>]*>Go <span class="aiui-icon" style="--aiui-icon-size:32px;color:#0f766e"><svg[^>]*><path /)
+    assert.match(html, / or <span class="aiui-icon"><svg[^>]*><\/svg><\/span>/) // flag: its lazy chunk (no browser here)
+    assert.match(html, /<span class="aiui-icon" style="--aiui-icon-size:12px"><span aria-hidden="true">🚀<\/span><\/span>/)
+    assert.match(html, /<span class="aiui-icon"><img src="\/i\/x.svg" alt=""/) // too big a size and a bad colour are dropped
+    assert.ok(!html.includes('url(y)'), html)
+})
+
 test('<Tile>: preview, Markdown title and description; the tile is the link', () => {
     const html = render('<Columns cols={2}>\n<Tile href="guide/install.md" title="Install the **CLI**" description="In minutes">\n![Preview](a.png)\n</Tile>\n</Columns>')
     assert.match(html, /<a class="aiui-tile" data-link="" href="\/docs\/guide\/install"><span class="aiui-tile-preview">[\s\S]*Preview[\s\S]*<\/span><div class="aiui-slot" data-slot="title">\s*<p[^>]*>Install the <span[^>]*>CLI<\/span><\/p>\s*<\/div><span class="aiui-tile-desc">In minutes<\/span><\/a>/)

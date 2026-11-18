@@ -188,10 +188,10 @@ icon: terminal
 ---
 ```
 
-- The names are lucide's: `message-square`, `panels-top-left`,
-  `layout-dashboard`, `book-open`, `plug`, `shield-check`, `code`,
-  `terminal`, `bot`, `zap`, `rocket` and `palette` (the same set as the home
-  page features). Any other name shows no icon.
+- Any [lucide icon](https://lucide.dev/icons) name (`flag`, `house`, or an
+  old name such as `home`), an emoji (`icon: "🚀"`) or an image URL
+  (`https://…` or `/icons/x.svg`). See [Icons](writing-docs.md#icons).
+  `aiui validate` warns (7009) about a name that is not an icon.
 - Page icons work in both modes; group icons need `mode: manual`.
 
 ## Tabs

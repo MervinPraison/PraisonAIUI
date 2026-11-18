@@ -1,4 +1,4 @@
-"""Content checks for ``aiui validate``: codes 7000-7008 and 7101 (listed in docs/api/cli.md).
+"""Content checks for ``aiui validate``: codes 7000-7009 and 7101 (listed in docs/api/cli.md).
 
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
@@ -7,17 +7,20 @@ variables and snippets (7007, 7008) ``snippets.py``'s.
 
 from __future__ import annotations
 
+import difflib
+import json
 import re
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from praisonaiui.compiler.docs_scanner import DocPage
 from praisonaiui.compiler.docs_tags import strip_comments
 from praisonaiui.compiler.links import _ATX, _CODE_SPAN, _outside_code
-from praisonaiui.compiler.nav_builder import sidebar_title
+from praisonaiui.compiler.nav_builder import icon_name, icon_value, sidebar_title
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,8 @@ FRONTMATTER_TYPES: dict[str, str] = {
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\(")
 _IMG_TAG = re.compile(r"<img\b[^>]*>", re.I)
 _ALT_ATTR = re.compile(r"\balt\s*=", re.I)
+# `icon="…"` on a component tag (<Card icon="flag">, <Icon icon={"flag"} />).
+_ICON_ATTR = re.compile(r"<[A-Z][\w.]*\s[^<>]*?\bicon=(?:\"([^\"]*)\"|'([^']*)'|\{[\"']([^\"']*)[\"']\})")
 
 
 def _type_ok(kind: str, value: Any) -> bool:
@@ -171,6 +176,7 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
         out += check_frontmatter(text, shown(page))
         fm = page.frontmatter if isinstance(page.frontmatter, dict) else {}
         out += check_body(text, shown(page), fm, page.slug in listed)
+        out += check_icons(text, shown(page), fm)
 
     by_slug: dict[str, list[DocPage]] = defaultdict(list)
     by_title: dict[tuple, list[DocPage]] = defaultdict(list)
@@ -190,6 +196,64 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
                 out.append(ContentIssue(7004, shown(page), 1,
                                         f"sidebar title '{page.title}' is also used by {shown(same[0])} in the same group",
                                         "Give one page a different title or nav_title"))
+    return out
+
+
+@lru_cache(maxsize=4)
+def _icon_names(path: Path) -> frozenset[str]:
+    try:
+        return frozenset(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return frozenset()
+
+
+def lucide_icons() -> frozenset[str]:
+    """Every lucide icon name the served frontend build draws (its ``aiui-icons.json``); empty without one."""
+    from praisonaiui.compiler.compiler import Compiler
+
+    return _icon_names(Compiler._frontend_dirs()[0] / "aiui-icons.json")
+
+
+def icon_issue(value: object, file: str, line: int, where: str = "icon") -> list[ContentIssue]:
+    """7009: an icon value that draws nothing (not a lucide name, an emoji or an image URL)."""
+    known = lucide_icons()
+    resolved = icon_value(value)
+    if not known or not isinstance(value, str) or (resolved and not icon_name(resolved)) or resolved in known:
+        return []  # no build to check against, a wrong type (7001's), an image URL or emoji, or an icon
+    near = difflib.get_close_matches(resolved or value.strip().lower(), known, n=1)
+    return [ContentIssue(7009, file, line, f"{where} '{value}' is not a lucide icon, an emoji or an image URL; it shows nothing",
+                         (f"Did you mean '{near[0]}'? " if near else "") + "Names: https://lucide.dev/icons")]
+
+
+def check_icons(text: str, shown: str, frontmatter: dict) -> list[ContentIssue]:
+    """7009 for a page: its front matter ``icon`` and ``features[].icon``, and ``icon="…"`` on its components."""
+    raw, first = _split_frontmatter(text)
+    fm_lines = (raw or "").splitlines()
+
+    def fm_line(value: str) -> int:
+        return next((i + 1 for i, s in enumerate(fm_lines) if re.search(rf"\bicon\s*:\s*[\"']?{re.escape(value)}", s)), 2)
+
+    out: list[ContentIssue] = []
+    features = frontmatter.get("features") if isinstance(frontmatter.get("features"), list) else []
+    for value in [frontmatter.get("icon"), *(f.get("icon") for f in features if isinstance(f, dict))]:
+        if isinstance(value, str):
+            out += icon_issue(value, shown, fm_line(value))
+    lines = strip_comments(text).splitlines()[first - 1:]
+    for n, (line, in_code) in enumerate(_outside_code(lines), start=first):
+        if not in_code:
+            for m in _ICON_ATTR.finditer(_CODE_SPAN.sub("", line)):
+                out += icon_issue(next(g for g in m.groups() if g is not None), shown, n)
+    return out
+
+
+def nav_icons(entries) -> list[ContentIssue]:
+    """7009 for ``icon:`` on the navigation's groups and links (``manual_entries``)."""
+    out: list[ContentIssue] = []
+    for e in entries or ():
+        if getattr(e, "icon", None):
+            label = getattr(e, "group", None) or getattr(e, "label", "")
+            out += icon_issue(e.icon, "navigation", 0, f"icon of '{label}'")
+        out += nav_icons(getattr(e, "pages", None)) if hasattr(e, "group") else []
     return out
 
 

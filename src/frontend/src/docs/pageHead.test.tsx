@@ -41,9 +41,14 @@ test('custom keys become data attributes', () => {
     assert.deepEqual(metaAttributes(undefined), {})
 })
 
-test('docsIcon draws a lucide name, an emoji or an image URL; nothing for an unknown name', () => {
-    assert.ok(isValidElement(docsIcon('rocket')))
-    assert.equal(docsIcon('no-such-icon'), null)
+test('docsIcon draws a lucide name, an emoji or an image URL; nothing for a value that is none of them', () => {
+    assert.equal(docsIcon('Rocket')?.type, 'svg') // inline: draws at once
+    // Any other lucide name loads lazily: an empty frame until its chunk arrives.
+    const lazy = docsIcon('flag', 'x')
+    assert.ok(isValidElement(lazy) && lazy.type !== 'svg')
+    assert.match(renderToStaticMarkup(<p>{lazy}</p>), /^<p><svg [^>]*class="x"[^>]*><\/svg><\/p>$/)
+    assert.equal(docsIcon('fa-solid fa-flag'), null)
+    assert.equal(docsIcon('<b>'), null)
     const img = docsIcon('https://cdn.example.com/a.svg')
     assert.equal(img?.type, 'img')
     assert.equal((img?.props as { src: string }).src, 'https://cdn.example.com/a.svg')

@@ -4,6 +4,10 @@
 
 Status <Badge color="green" shape="pill">New</Badge>, see the <Tooltip headline="SDK" tip="Software Development Kit: prebuilt tools." cta="Setup" href="guide/first.md">SDK</Tooltip> page.
 
+Icons: <Icon icon="flag" size={24} color="#0f766e" /> <Icon icon="home" /> <Icon icon="🚀" />
+
+<Card title="Anchors" icon="anchor">Any lucide icon.</Card>
+
 <Frame hint="Click **Run** first." caption="**Note:** see [the guide](guide/first.md).">
 ![A sample](images/sample.png)
 </Frame>

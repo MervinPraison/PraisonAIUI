@@ -1075,6 +1075,241 @@
       "_TokenGate-Bvhx4h0j.js"
     ]
   },
+  "aiui-icons": {
+    "file": "assets/_aiui-icons-DowBg6qd.js",
+    "name": "_aiui-icons",
+    "src": "aiui-icons",
+    "isDynamicEntry": true,
+    "imports": [
+      "_preload-helper-PPVm8Dsz.js"
+    ],
+    "dynamicImports": [
+      "aiui-icons-0",
+      "aiui-icons-1",
+      "aiui-icons-2",
+      "aiui-icons-3",
+      "aiui-icons-4",
+      "aiui-icons-5",
+      "aiui-icons-6",
+      "aiui-icons-7",
+      "aiui-icons-8",
+      "aiui-icons-9",
+      "aiui-icons-10",
+      "aiui-icons-11",
+      "aiui-icons-12",
+      "aiui-icons-13",
+      "aiui-icons-14",
+      "aiui-icons-15",
+      "aiui-icons-16",
+      "aiui-icons-17",
+      "aiui-icons-18",
+      "aiui-icons-19",
+      "aiui-icons-20",
+      "aiui-icons-21",
+      "aiui-icons-22",
+      "aiui-icons-23",
+      "aiui-icons-24",
+      "aiui-icons-25",
+      "aiui-icons-26",
+      "aiui-icons-27",
+      "aiui-icons-28",
+      "aiui-icons-29",
+      "aiui-icons-30",
+      "aiui-icons-31"
+    ]
+  },
+  "aiui-icons-0": {
+    "file": "assets/_aiui-icons-0-CrmfFKVi.js",
+    "name": "_aiui-icons-0",
+    "src": "aiui-icons-0",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-1": {
+    "file": "assets/_aiui-icons-1-DSqBHox2.js",
+    "name": "_aiui-icons-1",
+    "src": "aiui-icons-1",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-10": {
+    "file": "assets/_aiui-icons-10-D6OssTlz.js",
+    "name": "_aiui-icons-10",
+    "src": "aiui-icons-10",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-11": {
+    "file": "assets/_aiui-icons-11-DHuA11KF.js",
+    "name": "_aiui-icons-11",
+    "src": "aiui-icons-11",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-12": {
+    "file": "assets/_aiui-icons-12-d-4RojAC.js",
+    "name": "_aiui-icons-12",
+    "src": "aiui-icons-12",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-13": {
+    "file": "assets/_aiui-icons-13-DNXKCr88.js",
+    "name": "_aiui-icons-13",
+    "src": "aiui-icons-13",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-14": {
+    "file": "assets/_aiui-icons-14-BimTbJvA.js",
+    "name": "_aiui-icons-14",
+    "src": "aiui-icons-14",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-15": {
+    "file": "assets/_aiui-icons-15-du-MVN0n.js",
+    "name": "_aiui-icons-15",
+    "src": "aiui-icons-15",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-16": {
+    "file": "assets/_aiui-icons-16-n3cOCg5f.js",
+    "name": "_aiui-icons-16",
+    "src": "aiui-icons-16",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-17": {
+    "file": "assets/_aiui-icons-17-CX2O1kFk.js",
+    "name": "_aiui-icons-17",
+    "src": "aiui-icons-17",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-18": {
+    "file": "assets/_aiui-icons-18-nckIefA-.js",
+    "name": "_aiui-icons-18",
+    "src": "aiui-icons-18",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-19": {
+    "file": "assets/_aiui-icons-19-sFsNjFi8.js",
+    "name": "_aiui-icons-19",
+    "src": "aiui-icons-19",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-2": {
+    "file": "assets/_aiui-icons-2-D1IZiuSh.js",
+    "name": "_aiui-icons-2",
+    "src": "aiui-icons-2",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-20": {
+    "file": "assets/_aiui-icons-20-BqM2Utn2.js",
+    "name": "_aiui-icons-20",
+    "src": "aiui-icons-20",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-21": {
+    "file": "assets/_aiui-icons-21-mPqRfILC.js",
+    "name": "_aiui-icons-21",
+    "src": "aiui-icons-21",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-22": {
+    "file": "assets/_aiui-icons-22-BwAFZci4.js",
+    "name": "_aiui-icons-22",
+    "src": "aiui-icons-22",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-23": {
+    "file": "assets/_aiui-icons-23-DudWBKQK.js",
+    "name": "_aiui-icons-23",
+    "src": "aiui-icons-23",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-24": {
+    "file": "assets/_aiui-icons-24-8XdVPxKD.js",
+    "name": "_aiui-icons-24",
+    "src": "aiui-icons-24",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-25": {
+    "file": "assets/_aiui-icons-25-BNXENeri.js",
+    "name": "_aiui-icons-25",
+    "src": "aiui-icons-25",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-26": {
+    "file": "assets/_aiui-icons-26-BLJHO6TA.js",
+    "name": "_aiui-icons-26",
+    "src": "aiui-icons-26",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-27": {
+    "file": "assets/_aiui-icons-27-C9vO__np.js",
+    "name": "_aiui-icons-27",
+    "src": "aiui-icons-27",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-28": {
+    "file": "assets/_aiui-icons-28-jElVZPI1.js",
+    "name": "_aiui-icons-28",
+    "src": "aiui-icons-28",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-29": {
+    "file": "assets/_aiui-icons-29-Pn7X9POA.js",
+    "name": "_aiui-icons-29",
+    "src": "aiui-icons-29",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-3": {
+    "file": "assets/_aiui-icons-3-SzQg595U.js",
+    "name": "_aiui-icons-3",
+    "src": "aiui-icons-3",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-30": {
+    "file": "assets/_aiui-icons-30-CkAVlWGB.js",
+    "name": "_aiui-icons-30",
+    "src": "aiui-icons-30",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-31": {
+    "file": "assets/_aiui-icons-31-DLFBJ6T8.js",
+    "name": "_aiui-icons-31",
+    "src": "aiui-icons-31",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-4": {
+    "file": "assets/_aiui-icons-4-D2EigaqI.js",
+    "name": "_aiui-icons-4",
+    "src": "aiui-icons-4",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-5": {
+    "file": "assets/_aiui-icons-5-DCtBvfj9.js",
+    "name": "_aiui-icons-5",
+    "src": "aiui-icons-5",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-6": {
+    "file": "assets/_aiui-icons-6-YmbqT1tT.js",
+    "name": "_aiui-icons-6",
+    "src": "aiui-icons-6",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-7": {
+    "file": "assets/_aiui-icons-7-Da1RpJe2.js",
+    "name": "_aiui-icons-7",
+    "src": "aiui-icons-7",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-8": {
+    "file": "assets/_aiui-icons-8-CvKOXSMp.js",
+    "name": "_aiui-icons-8",
+    "src": "aiui-icons-8",
+    "isDynamicEntry": true
+  },
+  "aiui-icons-9": {
+    "file": "assets/_aiui-icons-9-mbR7uEaA.js",
+    "name": "_aiui-icons-9",
+    "src": "aiui-icons-9",
+    "isDynamicEntry": true
+  },
   "index.html": {
     "file": "assets/index.js",
     "name": "index",
@@ -3171,7 +3406,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-mnimJb-p.js",
+    "file": "assets/legacy-app-entry-Dn_mfhhW.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3198,6 +3433,7 @@
       "_index-ejPu0dtQ.js"
     ],
     "dynamicImports": [
+      "aiui-icons",
       "src/docs/TabsSelect.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
@@ -3206,7 +3442,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-B5IHCPrG.css"
+      "assets/legacy-app-entry-B5ZbVs6U.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

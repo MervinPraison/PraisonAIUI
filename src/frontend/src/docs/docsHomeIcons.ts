@@ -1,13 +1,13 @@
 /**
- * Line icons for the docs home page features (frontmatter `icon`), drawn from
- * lucide's icon data (ISC licence) as inline SVG. Inline on purpose: importing
- * lucide components or lib/pageIcons into the docs chunk re-splits the shared
- * chunks of the whole bundle. Keep the set small.
+ * Docs icons. The few below are inline (lucide's icon data, ISC licence), so
+ * they draw at once with no request; importing lucide components or
+ * lib/pageIcons here would re-split the shared chunks of the whole bundle.
+ * Keep the set small: every other lucide name loads lazily (LucideIcon).
  */
-import { createElement, type ReactElement } from 'react'
+import { createElement, useEffect, useState, type ReactElement } from 'react'
 import { withBase } from '../lib/url'
 
-type IconNode = [tag: 'path' | 'rect' | 'circle', attrs: Record<string, string>][]
+type IconNode = [tag: string, attrs: Record<string, string>][]
 
 export const DOCS_HOME_ICONS: Readonly<Record<string, IconNode>> = {
     'message-square': [['path', { d: 'M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z' }]],
@@ -26,11 +26,8 @@ export const DOCS_HOME_ICONS: Readonly<Record<string, IconNode>> = {
     'arrow-up-right': [['path', { d: 'M7 7h10v10' }], ['path', { d: 'M7 17 17 7' }]],
 }
 
-/** A 24px lucide-style line icon by name, or null for a name not in the set. */
-export function DocsHomeIcon({ name, className }: { name: string; className?: string }) {
-    const nodes = DOCS_HOME_ICONS[name.toLowerCase()]
-    if (!nodes) return null
-    return createElement(
+const svg = (nodes: IconNode, className?: string) =>
+    createElement(
         'svg',
         {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -45,16 +42,59 @@ export function DocsHomeIcon({ name, className }: { name: string; className?: st
         },
         nodes.map(([tag, attrs], i) => createElement(tag, { key: i, ...attrs })),
     )
-}
+
+/** Lucide icons fetched so far: the drawing, or null for a name lucide does not have. */
+const fetched = new Map<string, IconNode | null>()
 
 /**
- * Any nav or page icon (`icon:` in the nav YAML or a page's frontmatter): an image
- * URL (`https://…` or `/…`) as <img>, a lucide name from the set above, or an
- * emoji as text. null for a name not in the set. The one place icon values resolve.
+ * Any other lucide icon, from its lazy chunk (`virtual:aiui-icons`,
+ * scripts/lib/lucide-icons.mjs): an empty frame of the same size until it
+ * arrives, nothing for a name lucide does not have. No icon is in a chunk a
+ * page already loads.
+ */
+function LucideIcon({ name, className }: { name: string; className?: string }) {
+    const [nodes, setNodes] = useState(() => fetched.get(name))
+    useEffect(() => {
+        if (nodes !== undefined) return
+        let live = true
+        import('virtual:aiui-icons')
+            .then((m) => m.default(name))
+            .then(
+                (found) => {
+                    fetched.set(name, (found as IconNode | undefined) ?? null)
+                    if (live) setNodes(fetched.get(name))
+                },
+                () => live && setNodes(null),
+            )
+        return () => {
+            live = false
+        }
+    }, [name, nodes])
+    return nodes === null ? null : svg(nodes ?? [], className)
+}
+
+/** A 24px lucide line icon by name (any lucide name; the set above draws at once), or any `docsIcon` value. */
+export function DocsHomeIcon({ name, className }: { name: string; className?: string }) {
+    return docsIcon(name, className)
+}
+
+const IMAGE_URL = /^(https?:)?\//
+const ICON_NAME = /^[a-z0-9-]{1,60}$/
+
+/**
+ * Any icon value (`icon:` in the nav YAML or a page's frontmatter, a
+ * component's `icon="…"`, `<Icon>`): an image URL (`https://…` or `/…`) as
+ * <img>, an emoji as text, or a lucide name (case-insensitive) as a line
+ * icon. null for anything else. The one place icon values resolve.
  */
 export function docsIcon(icon: string | undefined, className?: string): ReactElement | null {
-    if (!icon) return null
-    if (/^(https?:)?\//.test(icon)) return createElement('img', { src: withBase(icon), alt: '', className, loading: 'lazy', decoding: 'async' })
-    if (/^[a-z0-9-]+$/i.test(icon)) return DOCS_HOME_ICONS[icon.toLowerCase()] ? createElement(DocsHomeIcon, { name: icon, className }) : null
-    return createElement('span', { className, 'aria-hidden': true }, icon)
+    const value = icon?.trim()
+    if (!value) return null
+    if (IMAGE_URL.test(value)) return createElement('img', { src: withBase(value), alt: '', className, loading: 'lazy', decoding: 'async' })
+    // An emoji (or any short text with no ASCII, so never markup).
+    if (value.length <= 8 && ![...value].some((c) => c.charCodeAt(0) < 128)) return createElement('span', { className, 'aria-hidden': true }, value)
+    const name = value.toLowerCase()
+    if (!ICON_NAME.test(name)) return null
+    const inline = DOCS_HOME_ICONS[name]
+    return inline ? svg(inline, className) : createElement(LucideIcon, { key: name, name, className })
 }

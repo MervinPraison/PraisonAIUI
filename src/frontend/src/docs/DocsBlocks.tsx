@@ -13,7 +13,7 @@ import { isExternal } from './chrome'
 import { cardHref } from './cardHref'
 import { DocsHomeIcon } from './docsHomeIcons'
 import { DocsTabs } from './DocsTabs'
-import { Badge, ColorItem, ColorRow, Colors, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
+import { Badge, ColorItem, ColorRow, Colors, Icon, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
 
 type BlockProps = { title?: string; children?: ReactNode }
 type CardProps = BlockProps & {
@@ -151,6 +151,7 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-slot': Slot,
     'aiui-badge': Badge,
     'aiui-tooltip': Tooltip,
+    'aiui-icon': Icon,
     'aiui-tile': Tile,
     'aiui-prompt': Prompt,
     'aiui-tree': Tree,

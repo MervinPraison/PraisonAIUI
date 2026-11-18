@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import seo as head
-from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages
+from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
@@ -191,7 +191,7 @@ class Compiler:
         base = self.config.site.route_base_docs.rstrip("/") + "/"
         items = walk_nav(self._generate_docs_nav().get("items", [])) if pages else ()
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
-        return issues + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues
+        return issues + nav_icons(manual_entries(self.config)) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues
 
     def _published_pages(self) -> list:
         """The docs pages the build publishes (``content.docs`` minus excludes)."""

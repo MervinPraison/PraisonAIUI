@@ -341,5 +341,8 @@ export default [
   // front matter (description lede, badges, modes, external links, meta).
   // 9,196,121 B (measured, raised by exactly the overage, +17,090 B): docs
   // Callout, Badge, Tooltip, Tree, Prompt, Tile, Color (DocsWidgets.tsx, docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9196121 B', brotli: false },
+  // 9,573,966 B (measured, raised by exactly the overage, +377,845 B): every
+  // lucide icon for docs icons, in 32 lazy chunks no page loads unless it shows
+  // one of their icons (scripts/lib/lucide-icons.mjs; ~1,670 drawings, 377 kB).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9573966 B', brotli: false },
 ]

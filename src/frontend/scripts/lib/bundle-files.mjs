@@ -16,6 +16,8 @@ export const BUNDLE_ROOT_FILES = [
   'aiui-manifest.json',
   'aiui-externals.json',
   'aiui-sdk.d.ts',
+  // Every lucide icon name (scripts/lib/lucide-icons.mjs): `aiui validate` warns on any other.
+  'aiui-icons.json',
 ]
 
 const COPY_PREFIX = 'src/praisonaiui/templates/frontend/'

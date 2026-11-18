@@ -340,6 +340,13 @@
   JSON-LD `@graph`: Organization (`seo.organization`), WebSite with a
   SearchAction, TechArticle and BreadcrumbList. A fallback description no
   longer starts with component or HTML tags. See [SEO](docs/features/seo.md#page-level-overrides).
+- **Any lucide icon, emoji or image as a docs icon**: every `icon` (front matter, navigation groups,
+  `<Card>`, `<Callout>`, `<Step>`, `<Tab>`, `<Badge>`, …) takes any of lucide's ~1,900 names (old
+  names too), an emoji or an image URL, and the new `<Icon icon size color>` tag puts one in a
+  sentence. Icons beyond the common few load on demand from 32 small lazy chunks, so no page
+  gets heavier; `aiui validate` warns (7009) about a name that is not an icon and suggests the
+  nearest. The build ships the name list as `templates/frontend/aiui-icons.json`. See
+  [Writing docs](docs/features/writing-docs.md#icons).
 
 ### Deprecated
 

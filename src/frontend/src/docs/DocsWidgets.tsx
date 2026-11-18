@@ -1,4 +1,4 @@
-// More docs components (markdown/docsTags.ts): <Badge>, <Tooltip>, <Tile>,
+// More docs components (markdown/docsTags.ts): <Badge>, <Tooltip>, <Icon>, <Tile>,
 // <Prompt>, <Tree> and <Color>, plus the `aiui-slot` children that carry an
 // attribute written in Markdown (<Frame caption>, <Tile title>, ...).
 // Styles: docs/docs.css (.aiui-badge, .aiui-tooltip, .aiui-tile, .aiui-prompt,
@@ -8,7 +8,7 @@ import { Children, isValidElement, useId, useRef, useState, type CSSProperties, 
 import { ChevronRight, File, Folder } from 'lucide-react'
 import { cardHref } from './cardHref'
 import { isExternal } from './chrome'
-import { DocsHomeIcon } from './docsHomeIcons'
+import { DocsHomeIcon, docsIcon } from './docsHomeIcons'
 import { copyText, promptLinks } from './pageActionLinks'
 
 type Kids = { children?: ReactNode }
@@ -99,6 +99,14 @@ export function Tooltip({ tip, headline, cta, href, children }: TooltipProps) {
             </span>
         </span>
     )
+}
+
+/** <Icon icon size color>: an icon in a sentence; `size` in px (default: the text's size), `color` a token or colour. */
+export function Icon({ icon, size, color }: { icon?: string; size?: string; color?: string }) {
+    const px = Number.parseFloat(size ?? '')
+    const tone = accent(color)
+    const style = { ...(px > 0 && px <= 512 ? { '--aiui-icon-size': `${px}px` } : {}), ...(tone ? { color: tone } : {}) }
+    return <span className="aiui-icon" style={style as CSSProperties}>{docsIcon(icon)}</span>
 }
 
 /** A preview (an image or drawing), then the title and a line of description; the whole tile is the link. */
