@@ -41,7 +41,7 @@ Markdown. Pages and features extend through one plugin model: Python records
 | **Features (Python)** | `src/praisonaiui/features/*.py` (`BaseFeatureProtocol` subclasses) | Domain APIs, mounted only when their built-in record is enabled |
 | **Legacy React App** | `App.tsx`, `legacy-app-entry.tsx`, `chat/`, `agent-ui/`, `views/`, `pages/`, `surfaces/`, `components/*` (non-ui), `Header.tsx`, `Sidebar.tsx`, `Content.tsx` | The chat/docs/agents/playground/custom styles; maintained, not grown |
 | **Legacy vanilla views** | `templates/frontend/plugins/dashboard.js` + `plugins/views/*.js` (44 files, including 4 one-line page-id alias modules: `runs`, `cron`, `work`, `training`), `templates/frontend/dashboard-plugins/` (kanban, sample-board, video-studio; each claimed by a record's `dashboard_plugins`: `builtin.work`, `builtin.examples`, `builtin.video`) | The `dashboard` style; hosted in the app shell by `LegacyViewHost` |
-| **Committed bundle** | `src/praisonaiui/templates/frontend/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,aiui-sdk.d.ts,assets/}` | Build output of `src/frontend`, shipped in the wheel |
+| **Committed bundle** | `src/praisonaiui/templates/frontend/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,aiui-sdk.d.ts,aiui-icons.json,assets/}` | Build output of `src/frontend`, shipped in the wheel |
 
 ```mermaid
 flowchart TB
@@ -240,7 +240,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 9,196,121 B |
+| Wheel: all of `dist/assets` (uncompressed) | 9,573,966 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
