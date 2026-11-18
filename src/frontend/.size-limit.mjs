@@ -192,7 +192,10 @@ export default [
   // chat route also uses; every docs page loads 53.6 KB gzip less.
   // 141,169 B (measured, raised by exactly the overage, +2 B): plugin layout
   // cssIntegrity in the manifest normalizer moved a shared module's gzip window.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141169 B', gzip: true },
+  // 141,178 B (measured, raised by exactly the overage, +9 B): the access-token
+  // fetch wrapper and the sign-in prompt (lib/auth, lib/TokenGate) are shared
+  // with the legacy React App now, so Rollup re-split the chunks around them.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141178 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -215,7 +218,10 @@ export default [
   // 253,145 B (measured, raised by exactly the overage, +17 B): the manifest
   // keeps a plugin layout's cssIntegrity and the loader sets it on the <link>.
   // 253,161 B (+16 B, exactly the overage): LayoutHost clears a server-set look.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253161 B', gzip: true },
+  // 253,339 B (measured, raised by exactly the overage, +178 B): the same
+  // re-split (lib/auth and lib/TokenGate in a chunk the shell and the legacy
+  // App share) and the 401 hook for docs content.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253339 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -258,5 +264,7 @@ export default [
   // 9,134,657 B (measured, raised by exactly the overage, +32 B): plugin
   // layout css SRI (cssIntegrity) in the manifest normalizer and loader.
   // 9,134,666 B (+9 B, exactly the overage): the same LayoutHost change.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134666 B', brotli: false },
+  // 9,135,130 B (measured, raised by exactly the overage, +464 B): the legacy
+  // App's sign-in (AuthGate) and the shared auth chunk.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9135130 B', brotli: false },
 ]
