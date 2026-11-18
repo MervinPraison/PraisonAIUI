@@ -211,6 +211,9 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
             )
         )
     api_specs = _check_api_specs(config, base, errors, found_warnings)
+    nav_issues = nav_warnings(config, base)
+    (errors if strict else found_warnings).extend(i for i in nav_issues if i.code == 2101)
+    found_warnings.extend(i for i in nav_issues if i.code != 2101)
 
     # Track component usage
     used_components = set()
@@ -400,6 +403,52 @@ def layout_warnings(config: Any) -> list[ValidationError]:
                 suggestion="Set 'style: app', or remove layout.default and layout.available",
             )
         )
+    return out
+
+
+# Keys the schema accepts that nothing reads yet: validate says so rather than
+# silently ignoring them. {(section, field): why}
+_IGNORED_KEYS = {
+    ("content.docs.nav", "max_depth"): "the generated sidebar nests one folder level; "
+    "list deeper trees with nested groups in navigation.groups",
+    ("i18n", "fallback_locale"): "no translated pages are built yet",
+    ("i18n", "translations_dir"): "no translated pages are built yet",
+}
+
+
+def nav_warnings(config: Any, base: Path) -> list[ValidationError]:
+    """Sidebar config problems: a listed page that matches no docs page (2101,
+    an error under --strict) and accepted keys that have no effect (1004)."""
+    import difflib
+
+    from praisonaiui.compiler.docs_scanner import DocsScanner
+    from praisonaiui.compiler.nav_builder import NavBuilder
+
+    out: list[ValidationError] = []
+    docs = config.content.docs if getattr(config, "content", None) else None
+    sections = {"content.docs.nav": docs.nav if docs else None, "i18n": getattr(config, "i18n", None)}
+    for (section, name), why in _IGNORED_KEYS.items():
+        model = sections[section]
+        if model is not None and name in model.model_fields_set:
+            alias = type(model).model_fields[name].alias or name
+            out.append(ValidationError(1004, "navigation" if section.endswith("nav") else "i18n",
+                                       f"{section}.{alias} is accepted but has no effect: {why}"))
+    nav = getattr(config, "navigation", None)
+    docs_dir = base / docs.dir if docs else None
+    if not nav or docs_dir is None or not docs_dir.is_dir():
+        return out
+    entries = [*nav.pages, *nav.groups, *(g for t in nav.tabs for g in t.groups)]
+    if not entries:
+        return out
+    scanner = DocsScanner(docs_dir, include=docs.include, exclude=docs.exclude, index_files=docs.index_files)
+    builder = NavBuilder(scanner.scan(), base_path=config.site.route_base_docs)
+    builder.to_dict_grouped(entries, docs_dir=docs_dir)
+    slugs = [p.slug for p in builder.pages]
+    for name in dict.fromkeys(builder.unresolved):
+        close = difflib.get_close_matches(name.strip("/").removesuffix(".md"), slugs, n=1)
+        out.append(ValidationError(
+            2101, "navigation", f"navigation lists '{name}', but no docs page has that name (left out of the sidebar)",
+            suggestion=f"Did you mean '{close[0]}'?" if close else "Name a page by its URL path under the docs base"))
     return out
 
 

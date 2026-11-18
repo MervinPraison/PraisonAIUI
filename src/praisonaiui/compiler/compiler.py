@@ -13,7 +13,8 @@ from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
-from praisonaiui.compiler.nav_builder import NavBuilder
+from praisonaiui.compiler.nav_builder import NavBuilder, manual_entries, nav_trails
+from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.publish import (
     apply_indexing,
     content_signal,
@@ -23,6 +24,7 @@ from praisonaiui.compiler.publish import (
     set_robots_meta,
     with_slash,
 )
+from praisonaiui.schema.models import NavConfig
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
 
@@ -150,10 +152,13 @@ class Compiler:
             copied = self._copy_docs(output_dir)
             files.extend(copied)
             warnings.extend(self.lint_docs())
+            warnings.extend(w.message for w in validation.warnings if w.category == "navigation")
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
             nav = self._generate_docs_nav()
+            base, site = self.config.site.route_base_docs, self._site_url() or self.url_base
+            files.extend(write_directory_pages(nav, output_dir, base, site))
             route_files = self._generate_route_pages(output_dir, nav)
             files.extend(route_files)
             files.extend(self._generate_sitemap(output_dir, nav))
@@ -339,6 +344,10 @@ class Compiler:
                 ],
             }
 
+        # The line above a docs page title (styling.eyebrows)
+        if self.config.styling and "eyebrows" in self.config.styling.model_fields_set:
+            result["styling"] = {"eyebrows": self.config.styling.eyebrows}
+
         # Page footer text and "Was this page helpful?" (per-page facts are in docs-nav.json)
         docs = self.config.content.docs if self.config.content else None
         if docs and (docs.edit_link or docs.feedback):
@@ -501,26 +510,25 @@ class Compiler:
         docs_config = self.config.content.docs
         docs_dir = self.base_path / docs_config.dir
 
+        nav_config = docs_config.nav or NavConfig()
         scanner = DocsScanner(
             docs_dir=docs_dir,
             include=docs_config.include,
             exclude=self._exclude_patterns(),
             index_files=docs_config.index_files,
+            sort=nav_config.sort,
         )
         pages = scanner.scan()
 
-        builder = NavBuilder(pages, base_path=self.config.site.route_base_docs)
-        nav_mode = docs_config.nav.mode if docs_config.nav else "auto"
-        if nav_mode == "manual" and self.config.navigation and self.config.navigation.tabs:
-            groups = [
-                g.model_copy(update={"hidden": True}) if t.hidden else g
-                for t in self.config.navigation.tabs
-                for g in t.groups
-            ]
-            nav = builder.to_dict_grouped(groups, docs_dir=docs_dir)
-        else:
-            nav = builder.to_dict()
+        builder = NavBuilder(pages, base_path=self.config.site.route_base_docs, directory=nav_config.directory)
+        entries = manual_entries(self.config)
+        nav = builder.to_dict_grouped(entries, docs_dir=docs_dir) if entries else builder.to_dict()
         apply_indexing(nav, self.config.seo.indexing if self.config.seo else "navigable")
+        # Sidebar behaviour (docs/features/navigation.md): only what differs from the default.
+        if not nav_config.collapsible:
+            nav["collapsible"] = False
+        if self.config.interaction and self.config.interaction.drilldown:
+            nav["drilldown"] = True
         return nav
 
     def _exclude_patterns(self) -> list[str]:
@@ -870,6 +878,7 @@ class Compiler:
         pages = self._collect_nav_pages(nav)
         home_path = self._docs_home_path(nav)
         hero_preload = self._hero_preload(nav)
+        trails = nav_trails(nav)
 
         for page in pages:
             path = page["path"]  # e.g. "/docs/concepts/configuration"
@@ -903,7 +912,7 @@ class Compiler:
             # Add canonical URL, OG tags, and noscript content before </head>
             html = set_robots_meta(html, self._robots_meta(page_noindex))
             seo_tags = self._build_seo_tags(path, page_title, page_desc)
-            json_ld = self._build_json_ld(path, title, page_desc)
+            json_ld = self._build_json_ld(path, title, page_desc, trails.get(path, []))
 
             # Try to load markdown content for noscript pre-rendering
             noscript_content = self._get_noscript_content(output_dir, path)
@@ -1088,13 +1097,8 @@ class Compiler:
 
         rel = route_path[len(base) :].lstrip("/")
         docs_dir = self.base_path / self.config.content.docs.dir
-        candidates = [
-            docs_dir / f"{rel}.md",
-            docs_dir / f"{rel}.mdx",
-            docs_dir / rel / "index.md",
-            docs_dir / rel / "index.mdx",
-            docs_dir / rel / "README.md",
-        ]
+        index_files = ["index.md", "index.mdx", "README.md", *self.config.content.docs.index_files]
+        candidates = [docs_dir / f"{rel}.md", docs_dir / f"{rel}.mdx", *(docs_dir / rel / n for n in index_files)]
         if rel in ("", "index"):
             candidates[:0] = [docs_dir / "index.md", docs_dir / "index.mdx"]
 
@@ -1299,7 +1303,7 @@ class Compiler:
         href = self._escape_html(self._md_url(path))
         return f'  <link rel="alternate" type="text/markdown" href="{href}" />'
 
-    def _build_json_ld(self, path: str, title: str, description: str) -> str:
+    def _build_json_ld(self, path: str, title: str, description: str, trail: list[dict] | tuple = ()) -> str:
         url = self._page_url(path)
         site_url = self._site_url()
         payload: dict = {
@@ -1315,7 +1319,15 @@ class Compiler:
                 "name": self.config.site.title,
                 "url": f"{site_url}/",
             }
-        return f'  <script type="application/ld+json">{json_for_html(payload, separators=None)}</script>'
+        script = f'  <script type="application/ld+json">{json_for_html(payload, separators=None)}</script>'
+        # BreadcrumbList: the page's groups that have a page of their own, then the page.
+        crumbs = [(c["title"], self._page_url(c["path"])) for c in trail if c.get("path")]
+        if crumbs:
+            items = [{"@type": "ListItem", "position": i, "name": name, "item": item}
+                     for i, (name, item) in enumerate([*crumbs, (title, url)], 1)]
+            crumbs_ld = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": items}
+            script += f'\n  <script type="application/ld+json">{json_for_html(crumbs_ld, separators=None)}</script>'
+        return script
 
     # The JSON script docs/docLoader.ts adoptInlinedDoc() reads.
     INITIAL_DOC_ID = "aiui-initial-doc"

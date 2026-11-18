@@ -279,6 +279,13 @@
   a "did you mean" fix and exits 1 for CI (`--external` checks URLs too).
   `aiui validate --strict` and the new `aiui build --strict` fail on them. See
   [Writing docs pages](docs/features/writing-docs.md#check-links).
+- **Sidebar groups.** `navigation.pages` / `groups` list the docs sidebar at
+  the root; groups take `root`, `expanded`, `tag` and `directory: card |
+  accordion`; groups fold (remembered per reader); `interaction.drilldown`;
+  `styling.eyebrows: breadcrumbs` with a `BreadcrumbList`; `nav.sort`,
+  `collapsible`, `directory` and `indexFiles` take effect; validate warns about
+  unknown nav pages and keys that do nothing. See
+  [Navigation](docs/features/navigation.md).
 
 ### Deprecated
 

@@ -33,8 +33,82 @@ The generated tree looks like this:
 ```
 
 `content.docs.nav.mode` picks between this generated sidebar (`auto`, the
-default) and one you list in YAML (`manual`, below). `sort`, `collapsible` and
-`maxDepth` are accepted by the schema, but the build does not read them yet.
+default) and one you list in YAML (below). Options for the generated sidebar:
+
+```yaml
+content:
+  docs:
+    indexFiles: [index.md, README.md, _index.md]   # files that name their folder
+    nav:
+      sort: alpha        # filesystem (default) | alpha (title) | date (frontmatter `date`, newest first)
+      collapsible: false # groups never fold (default: true)
+      directory: card    # card | accordion: list each folder's pages (Directory Listings)
+```
+
+Frontmatter `order` wins over `sort`. A folder's index page is its section's
+own page (the label links there).
+
+## A Sidebar at the Root
+
+`navigation.pages` and `navigation.groups` list the sidebar in order, with no
+tab or `nav.mode` needed:
+
+```yaml
+navigation:
+  pages:
+    - index                   # a top-level page
+    - group: "API"
+      root: api/overview      # the group's own page: its label and breadcrumb link there
+      tag: "New"              # a badge after the label (up to 24 characters)
+      pages:
+        - api/auth
+        - group: "Errors"
+          expanded: false     # starts folded
+          pages: [api/errors]
+  groups:
+    - group: "Guides"
+      directory: card         # list the group's pages on its page
+      pages: [guide/setup, guide/deploy]
+```
+
+These group keys work in tab groups too.
+
+## Folding Groups
+
+Every group folds: click its label, or the chevron beside a label that links
+to a page. Each reader's choice is remembered across reloads and visits. The
+group holding the current page always opens. `interaction.drilldown: true`
+makes a group label with no page of its own open the group's first page.
+
+```yaml
+interaction:
+  drilldown: true
+```
+
+## Directory Listings
+
+`directory: card` (a card grid) or `accordion` (a row per page) lists a
+group's pages with their descriptions at the end of the group's page. A group
+with no `root` gets a generated page at `/docs/<group-slug>` (`Guides` is
+`/docs/guides`), or uses the page already there. `content.docs.nav.directory`
+does this for every folder of the generated sidebar.
+
+## Breadcrumbs
+
+The line above a page title is the page's group. `styling.eyebrows:
+breadcrumbs` shows every group above it, each with a page of its own linked.
+Every page's HTML carries a schema.org `BreadcrumbList` for search engines.
+
+```yaml
+styling:
+  eyebrows: breadcrumbs   # section (default) | breadcrumbs
+```
+
+## Checks
+
+`aiui validate` and `aiui build` warn about a listed page name that matches no
+page (code 2101, with the closest name; `--strict` fails) and about keys that
+do nothing yet (1004: `nav.maxDepth`, `i18n.fallbackLocale`, `translationsDir`).
 
 ## A Sidebar You List (`mode: manual`)
 
@@ -75,7 +149,8 @@ navigation:
 
 - A page is named by its URL path under the docs base (`features/layouts`),
   its file path without `.md` (`adr/0001-replay-view`, `adr/index`) or
-  `index` for the home page. A name that matches no page is skipped.
+  `index` for the home page. A name that matches no page is skipped (and
+  reported, see Checks).
 - A page listed twice appears once, where it is first listed.
 - Frontmatter `nav_title` gives a page a shorter sidebar title than its
   heading (`nav_title: CLI` on a page titled "CLI API Reference").

@@ -139,7 +139,7 @@ export default function App() {
   }, [searchEnabled, deepLinkQuery])
   const filteredNav = useMemo<DocsNav>(() => {
     if (!navTabs.length) return nav
-    return { items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
+    return { ...nav, items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
   }, [nav, navTabs, activeTabIndex])
 
   useEffect(() => {
