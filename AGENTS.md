@@ -181,7 +181,7 @@ Chat inline media (agent-generated images): `RunEventType.MESSAGE_ELEMENT` — s
 
 ## Gotchas
 
-- **Frontend bundle is committed** — changes to `src/frontend/src/` require `npm run build && npm run sync` and committing `templates/frontend/` (CI's bundle-sync check fails otherwise; after a merge to main a bot PR resyncs it)
+- **Frontend bundle is committed** — changes to `src/frontend/src/` require `npm run build && npm run sync` and committing `templates/frontend/` (CI's bundle-sync check fails otherwise; after a merge to main that leaves it stale, CI on main fails and a bot PR resyncs it, and no release ships until that PR lands)
 - **Hashed chunks** — never reference a chunk by name; read `aiui-manifest.json` (see `src/frontend/scripts/lib/build-manifest.mjs`)
 - **Pydantic V2** — uses `model_config = ConfigDict(populate_by_name=True)`, not deprecated `class Config`
 - **SPA fallback** — serve returns `index.html` for any path without a file extension

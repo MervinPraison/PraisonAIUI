@@ -20,13 +20,12 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, statSync } from 'n
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST = path.join(ROOT, 'dist')
 const DEFAULT_DEST = path.resolve(ROOT, '..', 'praisonaiui', 'templates', 'frontend')
-// aiui-sdk.d.ts: the @aiui/sdk typings (gen-externals), shipped so plugin
-// authors who pip-install praisonaiui can type-check against them.
-const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json', 'aiui-sdk.d.ts']
+const ROOT_FILES = BUNDLE_ROOT_FILES
 
 function fail(msg) {
   console.error(`sync-templates: ${msg}`)

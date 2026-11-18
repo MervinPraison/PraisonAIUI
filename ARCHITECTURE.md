@@ -293,9 +293,14 @@ file of that kind is added to that step.
 `src/praisonaiui/templates/frontend/`. Never hand-edit files under
 `templates/frontend/assets/`. Node version: `src/frontend/.nvmrc` (22.23.2),
 dependencies from `npm ci`.
-*Check:* CI step "Committed bundle matches the build" (`npm run check:bundle`,
-PRs touching the frontend only); after merge the `bundle-sync` job opens
-`bot/frontend-bundle-sync` if main drifted.
+*Check:* CI step "Committed bundle matches the build" (`npm run check:bundle`)
+on every PR that touches `src/frontend/` or a built file of the committed
+bundle (`assets/` and the root files in `scripts/lib/bundle-files.mjs`, which
+`npm run sync` and `check:bundle` share, `aiui-sdk.d.ts` included). After a
+merge the `bundle-sync` job opens `bot/frontend-bundle-sync` if main drifted
+and **fails**, so CI on that SHA is red and the release gate does not publish
+a wheel with a stale bundle until the sync PR lands
+(`tests/unit/test_bundle_sync_job.py`).
 
 **R14. Tokens and primitives only.** New UI code follows DESIGN.md: no hex,
 `rgb()` or raw palette classes; one primitive per concern from `components/ui`;
