@@ -127,6 +127,7 @@ nav:
     - Theming: features/theming.md
     - Dark Mode: features/dark-mode.md
     - SEO: features/seo.md
+    - AI-ready docs: features/ai-ready-docs.md
     - Hot Reload: features/hot-reload.md
     - Widget Zones: features/widget-zones.md
     - Code Execution: features/code-execution.md

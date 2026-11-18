@@ -124,3 +124,11 @@ test('<CodeGroup dropdown> keeps the group (attributes no longer break it) and d
     assert.equal(html.match(/class="aiui-tabs-panel"/g)?.length, 2)
     assert.match(html, /class="aiui-tabs-panel" hidden="">/)
 })
+
+test('<Visibility> shows for="humans" content on the page and never for="agents" content', () => {
+    const md = ['<Visibility for="humans">', 'Click **Save**.', '</Visibility>', '', '<Visibility for="agents">', 'Call the save API.', '</Visibility>'].join('\n')
+    const html = renderDocs(md)
+    assert.match(html, /Click <span[^>]*>Save<\/span>\./)
+    assert.ok(!html.includes('save API'), html)
+    assert.ok(!/<aiui-/.test(html), html)
+})

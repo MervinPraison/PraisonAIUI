@@ -17,7 +17,7 @@ from pathlib import Path
 KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
     "Steps Step CardGroup Card Columns Column Frame CodeGroup CodeBlock "
-    "ParamField ResponseField Expandable Panel RequestExample ResponseExample".split()
+    "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility".split()
 )
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")

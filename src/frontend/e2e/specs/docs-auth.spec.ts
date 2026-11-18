@@ -22,7 +22,7 @@ async function signIn(page: Page) {
 test('a signed-in reader reads a docs page, and its markdown goes out with the token', async ({ page }) => {
   const errors = collectPageErrors(page)
   await signIn(page)
-  const md = page.waitForRequest((r) => r.url().endsWith('/docs/guide/first.md'))
+  const md = page.waitForRequest((r) => r.url().endsWith('/docs/guide/first.source.md'))
   await page.goto('/docs/guide/first')
   expect(await (await md).headerValue('authorization')).toBe(`Bearer ${KEY}`)
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
@@ -40,6 +40,7 @@ test('a signed-out reader gets the sign-in prompt, never the page content', asyn
   const html = await (await request.get('/docs/guide/first', { headers: { Accept: 'text/html' } })).text()
   expect(html).not.toContain(BODY)
   expect((await request.get('/docs/guide/first.md')).status()).toBe(401)
+  expect((await request.get('/docs/guide/first.source.md')).status()).toBe(401)
   expect((await request.get('/search-index.json')).status()).toBe(401)
 
   await page.goto('/docs/guide/first')

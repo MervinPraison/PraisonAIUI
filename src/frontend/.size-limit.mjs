@@ -70,7 +70,8 @@ const LAYOUT_BUDGETS = {
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
   // 12.362 kB (+2 B, exactly the overage): chunk hashes renamed by the docs
   // component tags change; no layout code changed.
-  'layout-chat-canvas': '12.362 kB',
+  // 12.372 kB (+10 B, exactly the overage): chunk hashes renamed; no layout code changed.
+  'layout-chat-canvas': '12.372 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -218,7 +219,8 @@ export default [
   // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141892 B', gzip: true },
+  // 141,898 B (+6 B, exactly the overage): the <Visibility> entry in DOCS_TAGS.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141898 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -257,7 +259,8 @@ export default [
   // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254157 B', gzip: true },
+  // 254,171 B (+14 B, exactly the overage): the <Visibility> entry in DOCS_TAGS.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254171 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -327,5 +330,6 @@ export default [
   // 9,167,917 B (measured, raised by exactly the overage, +7,186 B): docs API
   // fields (ApiFields.tsx, panels.ts, docs.css: field rows, Expandable, the
   // examples side column).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9167917 B', brotli: false },
+  // 9,168,243 B (+326 B, exactly the overage): <Visibility> and docPathToSource (agent-ready .md).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9168243 B', brotli: false },
 ]

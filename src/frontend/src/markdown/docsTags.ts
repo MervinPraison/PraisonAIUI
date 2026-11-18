@@ -85,6 +85,8 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Expandable: { el: 'aiui-expandable', attrs: ['title', 'opened'], map: (a) => ({ title: a.title, opened: on(a.defaultOpen) ? 'true' : undefined }) },
     // The page's side column (docs/panels.ts); `kind` is set by <RequestExample> / <ResponseExample>.
     Panel: { el: 'aiui-panel', attrs: ['kind'], map: () => ({}) },
+    // for="humans": only on the page; for="agents": only in the .md and llms files (compiler/agent_markdown.py).
+    Visibility: { el: 'aiui-visibility', attrs: ['audience'], map: (a) => ({ audience: a.for === 'agents' ? 'agents' : 'humans' }) },
 }
 
 /** Tags converted elsewhere (code groups and examples: convertMkdocsBlocks; CodeBlock: into a fence, below). */

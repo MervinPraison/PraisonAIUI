@@ -27,11 +27,16 @@ export function isInternalDocHref(href?: string): boolean {
     }
 }
 
-/** Map a docs URL path to a markdown file path (leading slash, .md suffix). */
+/** Map a docs URL path to its agent-ready markdown (leading slash, .md suffix), what an assistant reads. */
 export function docPathToMarkdown(path: string): string {
     const normalized = normalizeDocPath(path)
     if (normalized === '/') {
         return '/docs/index.md'
     }
     return `${normalized}.md`
+}
+
+/** The page source the docs renderer draws, published beside the agent-ready .md (`aiui build`). */
+export function docPathToSource(path: string): string {
+    return docPathToMarkdown(path).replace(/\.md$/, '.source.md')
 }

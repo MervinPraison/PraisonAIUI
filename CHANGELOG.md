@@ -247,6 +247,12 @@
   lists only the shown tab's headings; `#id` in the URL opens the tab or
   accordion it names, and the accordion around a linked heading. See
   [Writing docs pages](docs/features/writing-docs.md#columns).
+- AI-ready docs: `/docs/<page>.md` is agent-ready Markdown (components as
+  plain Markdown, page links as absolute `.md` URLs; the site renders
+  `<page>.source.md`); `llms.txt` by nav group, `llms-full.txt` converted, both
+  without a site URL too; `markdown.instructions`; `<Visibility for>`; `.mdx`
+  in search; `rel="alternate"` links; `Accept: text/markdown` on `aiui serve`.
+  See [AI-ready docs](docs/features/ai-ready-docs.md).
 
 - Docs API fields: `<ParamField path|query|body|header>` and
   `<ResponseField name>` rows (type such as `string[]` or `object`,

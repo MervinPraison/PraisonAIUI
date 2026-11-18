@@ -46,8 +46,9 @@ def _inlined(html: str) -> dict:
 def test_a_page_carries_its_published_markdown(tmp_path: Path) -> None:
     out = _build(tmp_path)
     data = _inlined((out / "docs/guide/tricky.html").read_text())
-    assert data["url"] == "/docs/guide/tricky.md"
-    assert data["text"] == (out / "docs/guide/tricky.md").read_text()
+    # The browser renders the source; docs/guide/tricky.md is the agent-ready copy.
+    assert data["url"] == "/docs/guide/tricky.source.md"
+    assert data["text"] == (out / "docs/guide/tricky.source.md").read_text()
 
 
 def test_the_text_can_never_close_the_script(tmp_path: Path) -> None:
@@ -59,5 +60,5 @@ def test_the_text_can_never_close_the_script(tmp_path: Path) -> None:
 
 def test_the_home_page_carries_the_docs_home_markdown(tmp_path: Path) -> None:
     data = _inlined((_build(tmp_path) / "index.html").read_text())
-    assert data["url"] == "/docs/index.md"
+    assert data["url"] == "/docs/index.source.md"
     assert data["text"].startswith("# Home")

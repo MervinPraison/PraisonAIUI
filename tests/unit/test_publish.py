@@ -178,7 +178,7 @@ def test_trailing_slash(tmp_path: Path) -> None:
     assert '<meta property="og:url" content="https://ex.com/docs/guide/setup/" />' in setup
     assert 'id="aiui-canonical-url"' not in setup  # the URL bar keeps its slash
     assert "<loc>https://ex.com/docs/guide/setup/</loc>" in _read(out, "sitemap.xml")
-    assert "(https://ex.com/docs/guide/setup/)" in _read(out, "llms.txt")
+    assert "Source: https://ex.com/docs/guide/setup/\n" in _read(out, "llms-full.txt")
     assert json.loads(_read(out, "ui-config.json"))["seo"]["trailingSlash"] is True
     assert with_slash("https://ex.com/a?x=1#h") == "https://ex.com/a/?x=1#h"
 

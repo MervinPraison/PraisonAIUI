@@ -26,9 +26,12 @@ seo:
 
 Every key is optional; the defaults are what most sites want.
 
-`siteUrl` is needed for absolute canonical URLs, `sitemap.xml`, `llms.txt` and
-`llms-full.txt`. Without it the build falls back to a `CNAME` file next to the
-config (or in `docs/`), and without either those files are skipped.
+`siteUrl` is needed for absolute canonical URLs and `sitemap.xml`. Without it
+the build falls back to a `CNAME` file next to the config (or in `docs/`), and
+without either there is no sitemap and `llms.txt` / `llms-full.txt` use
+root-relative links. What the build publishes for agents (agent-ready `.md`
+pages, `llms.txt` by nav group, `markdown.instructions`):
+[AI-ready docs](ai-ready-docs.md).
 
 ## Build outputs
 
@@ -38,8 +41,8 @@ config (or in `docs/`), and without either those files are skipped.
 |------|---------|
 | `sitemap.xml` | All doc URLs with `lastmod` dates |
 | `robots.txt` | Crawl rules + sitemap pointer |
-| `llms.txt` | AI crawler index ([llmstxt.org](https://llmstxt.org)) |
-| `llms-full.txt` | Full markdown export for AI tools |
+| `llms.txt` | AI crawler index ([llmstxt.org](https://llmstxt.org)), one section per nav group |
+| `llms-full.txt` | Every page as agent-ready Markdown, in one file |
 | `docs/**/*.html` | Per-route HTML with meta tags + crawl nav |
 | `.nojekyll` | GitHub Pages Jekyll bypass |
 

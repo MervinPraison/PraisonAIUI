@@ -660,6 +660,7 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     from praisonaiui.static_gzip import NoCacheStaticFiles, gzip_file_response
 
     root = output.resolve()
+    base = _built_base_path(root)
 
     # Fixed names (index.html, ui-config.json …) change on every build.
     site = NoCacheStaticFiles(directory=str(root), html=True)
@@ -673,11 +674,33 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
         )
         return await gzip_file_response(response, scope)
 
+    def markdown_file(scope, rel: str) -> Optional[Path]:
+        """A page's agent-ready Markdown when the request's ``Accept`` prefers it."""
+        from starlette.datastructures import Headers
+
+        from praisonaiui.compiler.agent_markdown import markdown_twin, prefers_markdown
+
+        if "." in rel.rsplit("/", 1)[-1] or not prefers_markdown(Headers(scope=scope).get("accept", "")):
+            return None
+        page = root / (f"{rel}.html" if rel else "index.html")
+        if not (_is_safe_path(page, root) and page.is_file()):
+            return None
+        twin = markdown_twin(page.read_text(encoding="utf-8"), base)
+        md = root / twin.lstrip("/") if twin else None
+        return md if md and _is_safe_path(md, root) and md.is_file() else None
+
     async def site_app(scope, receive, send):
         if scope["type"] != "http":
             return
         path = scope.get("path", "/")
         rel = path.strip("/")
+        # `Accept: text/markdown` on a page URL: the page as Markdown (agents).
+        md = markdown_file(scope, rel)
+        if md:
+            headers = {"Cache-Control": "no-cache", "Vary": "Accept"}
+            response = FileResponse(str(md), media_type="text/markdown; charset=utf-8", headers=headers)
+            await (await gzip_file_response(response, scope))(scope, receive, send)
+            return
         # /docs/x is the canonical URL and the build writes docs/x.html beside
         # docs/x/index.html: answer it directly instead of StaticFiles' 307.
         if rel and not path.endswith("/") and "." not in rel.rsplit("/", 1)[-1]:
@@ -720,7 +743,6 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
             Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
         )
     app = Starlette(routes=routes, middleware=middleware)
-    base = _built_base_path(root)
     return _under_base(app, base) if base else app
 
 

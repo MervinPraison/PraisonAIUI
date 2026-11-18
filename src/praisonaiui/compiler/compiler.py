@@ -8,9 +8,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
-from praisonaiui.compiler.docs_tags import lint_pages, strip_comments
+from praisonaiui.compiler.docs_tags import lint_pages
+from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import NavBuilder
 from praisonaiui.compiler.publish import (
     apply_indexing,
@@ -156,8 +158,7 @@ class Compiler:
             files.extend(route_files)
             files.extend(self._generate_sitemap(output_dir, nav))
             files.extend(self._generate_robots(output_dir))
-            files.extend(self._generate_llms_txt(output_dir, nav))
-            files.extend(self._generate_llms_full_txt(output_dir, nav))
+            files.extend(write_llms_files(self, output_dir, nav))
             files.extend(self._generate_search_index(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
 
@@ -912,7 +913,7 @@ class Compiler:
             head_extra = f"\n{hero_preload}" if hero_preload and path.rstrip("/") == home_path else ""
             html = html.replace(
                 "</head>",
-                f"{seo_tags}\n{json_ld}{head_extra}\n</head>",
+                f"{seo_tags}\n{self._markdown_link(path)}\n{json_ld}{head_extra}\n</head>",
             )
 
             # Inject noscript crawl content inside <div id="root">, and the page's
@@ -1001,6 +1002,22 @@ class Compiler:
             path = f"/{path}"
         return f"{site}{path}"
 
+    def _md_url(self, path: str) -> str:
+        """The URL of a page's agent-ready Markdown (``https://site/docs/guide.md``)."""
+        return (self._site_url() or self.url_base) + am.page_md_path(path, self.config.site.route_base_docs)
+
+    def _agent_markdown(self, src: Path, title: str, description: str, instructions: bool = True) -> str:
+        """``src`` (a file in the docs folder) as agent-ready Markdown (compiler/agent_markdown.py)."""
+        base = self.config.site.route_base_docs.rstrip("/")
+        folder = src.parent.relative_to(self.base_path / self.config.content.docs.dir).as_posix()
+        markdown = self.config.markdown
+        return am.to_agent_markdown(
+            src.read_text(encoding="utf-8"), title=title, description=description,
+            page_dir=f"{base}/{folder}".removesuffix("/.") or "/", docs_base=base or "/",
+            site=self._site_url() or self.url_base,
+            instructions=markdown.instructions if markdown and instructions else None,
+        )
+
     def _generate_sitemap(self, output_dir: Path, nav: dict) -> list[str]:
         """sitemap.xml: every indexable page. A ``sitemap.xml`` next to the config
         is published instead; with ``seo.robots.index: false`` there is none."""
@@ -1069,11 +1086,13 @@ class Compiler:
         docs_dir = self.base_path / self.config.content.docs.dir
         candidates = [
             docs_dir / f"{rel}.md",
+            docs_dir / f"{rel}.mdx",
             docs_dir / rel / "index.md",
+            docs_dir / rel / "index.mdx",
             docs_dir / rel / "README.md",
         ]
         if rel in ("", "index"):
-            candidates.insert(0, docs_dir / "index.md")
+            candidates[:0] = [docs_dir / "index.md", docs_dir / "index.mdx"]
 
         for candidate in candidates:
             if candidate.is_file():
@@ -1106,69 +1125,6 @@ class Compiler:
         (output_dir / "robots.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         return ["robots.txt"]
 
-    def _generate_llms_txt(self, output_dir: Path, nav: dict) -> list[str]:
-        """Generate llms.txt index for AI crawlers (llmstxt.org convention)."""
-        site = self._site_url()
-        if self._site_noindex():
-            (output_dir / "llms.txt").unlink(missing_ok=True)
-            return []
-        if not site:
-            return []
-
-        site_title = self.config.site.title
-        site_desc = self.config.site.description or f"Documentation for {site_title}"
-        lines = [
-            f"# {site_title}",
-            "",
-            f"> {site_desc}",
-            "",
-            "## Documentation",
-            "",
-        ]
-
-        for page in self._collect_nav_pages(nav):
-            if page.get("noindex"):
-                continue
-            path = page["path"].rstrip("/") or "/"
-            title = page["title"]
-            desc = page.get("description") or title
-            url = self._page_url(path)
-            lines.append(f"- [{title}]({url}): {desc}")
-
-        lines.extend(["", "## Full export", "", f"- [Complete documentation]({site}/llms-full.txt): All pages in one file"])
-        content = "\n".join(lines).rstrip() + "\n"
-        (output_dir / "llms.txt").write_text(content, encoding="utf-8")
-        return ["llms.txt"]
-
-    def _generate_llms_full_txt(self, output_dir: Path, nav: dict) -> list[str]:
-        """Generate llms-full.txt — concatenated markdown for AI crawlers."""
-        site = self._site_url()
-        if self._site_noindex():
-            (output_dir / "llms-full.txt").unlink(missing_ok=True)
-            return []
-        if not site:
-            return []
-
-        sections: list[str] = []
-        for page in self._collect_nav_pages(nav):
-            if page.get("noindex"):
-                continue
-            md_path = self._resolve_md_source(page["path"])
-            if not md_path:
-                continue
-            body = strip_comments(self._strip_frontmatter(md_path.read_text(encoding="utf-8"))).strip()
-            if not body:
-                continue
-            url = self._page_url(page["path"].rstrip("/") or "/")
-            title = page["title"]
-            sections.append(f"# {title}\n\nSource: {url}\n\n{body}")
-
-        if not sections:
-            return []
-
-        (output_dir / "llms-full.txt").write_text("\n\n---\n\n".join(sections) + "\n", encoding="utf-8")
-        return ["llms-full.txt"]
-
     def _generate_search_index(self, output_dir: Path, nav: dict) -> list[str]:
         """Write ``search-index.json``: every page's headings and text for the
         docs search dialog (compiler/search_index.py). ``noindex`` pages (and
@@ -1183,6 +1139,7 @@ class Compiler:
                 continue
             md_path = self._resolve_md_source(page["path"])
             body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")) if md_path else ""
+            body = am.visibility(body, "humans")
             pages.append(page_entry(page["path"], page["title"], page["description"], body))
         if not pages:
             return []
@@ -1225,7 +1182,7 @@ class Compiler:
             f'content="{self._escape_html(site_desc)}"',
         )
         if "</head>" in html and 'rel="canonical"' not in html:
-            html = html.replace("</head>", f"{seo_tags}\n</head>", 1)
+            html = html.replace("</head>", f"{seo_tags}\n{self._markdown_link(docs_home)}\n</head>", 1)
         home_noindex = any(
             p["noindex"] and p["path"].rstrip("/") == docs_home for p in self._collect_nav_pages(nav)
         )
@@ -1330,6 +1287,11 @@ class Compiler:
 
         return "\n".join(tags)
 
+    def _markdown_link(self, path: str) -> str:
+        """``<link rel="alternate" type="text/markdown">``: where an agent finds the page as Markdown."""
+        href = self._escape_html(self._md_url(path))
+        return f'  <link rel="alternate" type="text/markdown" href="{href}" />'
+
     def _build_json_ld(self, path: str, title: str, description: str) -> str:
         url = self._page_url(path)
         site_url = self._site_url()
@@ -1361,7 +1323,7 @@ class Compiler:
         ``>`` and ``&`` are escaped so the text can never close the tag.
         """
         relative = path.strip("/")
-        for candidate in (output_dir / relative / "index.md", output_dir / f"{relative}.md"):
+        for candidate in (output_dir / f"{relative}{am.SOURCE_SUFFIX}", output_dir / relative / f"index{am.SOURCE_SUFFIX}"):
             if candidate.is_file() and candidate.stat().st_size <= self.INITIAL_DOC_MAX_BYTES:
                 url = "/" + candidate.relative_to(output_dir).as_posix()
                 text = candidate.read_text(encoding="utf-8")
@@ -1374,8 +1336,8 @@ class Compiler:
         # Try to find the corresponding markdown file
         relative = path.lstrip("/")
         md_candidates = [
-            output_dir / relative / "index.md",
-            output_dir / f"{relative}.md",
+            output_dir / f"{relative}{am.SOURCE_SUFFIX}",
+            output_dir / relative / f"index{am.SOURCE_SUFFIX}",
         ]
 
         md_content = None
@@ -1527,11 +1489,16 @@ class Compiler:
             exclude=patterns,
             index_files=docs_config.index_files,
         )
+        # The browser renders the source (`<route>.source.md`); `<route>.md`,
+        # and the copy of the page's own file, are the agent-ready Markdown.
         for page in scanner.scan():
-            target = route_dir / f"{page.slug}.md"
-            if not target.exists():
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(page.path, target)
+            md = route_dir / am.page_md_path(f"/{page.slug}", "/").lstrip("/")
+            md.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(page.path, md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX))
+            text = self._agent_markdown(page.path, page.title, page.description)
+            own = docs_output / page.path.relative_to(docs_dir)
+            for target in {md, own} if own.exists() else {md}:
+                target.write_text(text, encoding="utf-8")
 
         # Return list of copied files (simplified)
         return ["docs/"]
