@@ -1,9 +1,12 @@
 """Full-text search index for docs sites (``search-index.json``).
 
-``aiui build`` writes one entry per page: its path, title, description and
-the text under each ``##`` / ``###`` heading, with the heading's anchor. The
-docs search dialog (``src/frontend/src/docs/searchIndex.ts``) loads the file
-the first time a reader opens search and ranks pages, sections and text.
+``aiui build`` writes one entry per page: its path, title, description, the
+text under each ``##`` / ``###`` heading with the heading's anchor, and the
+page's front matter ``keywords`` (``k``, matched but never shown) and
+``boost`` (``b``, a ranking multiplier). Pages with ``searchable: false`` are
+left out. The docs search dialog (``src/frontend/src/docs/searchIndex.ts``)
+loads the file the first time a reader opens search and ranks pages,
+sections and text.
 
 Anchors use the same rule as the renderer's heading ids
 (``src/frontend/src/markdown/slug.ts``, or the ``{#id}`` an author wrote), so
@@ -17,9 +20,12 @@ from typing import Any
 
 from praisonaiui.compiler.docs_tags import heading_id, strip_comments
 
-#: Characters of body text kept per section (enough for a snippet and for
-#: matching words a reader would search for; keeps the file small).
-SECTION_TEXT_LIMIT = 600
+#: Characters of body text kept per section. Every word of a normal section is
+#: searchable (this repo's longest is about 5 000); the cap only guards against
+#: a giant generated section bloating the file the dialog downloads.
+SECTION_TEXT_LIMIT = 6000
+#: Range of the front matter ``boost``.
+BOOST_RANGE = (0.1, 10.0)
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 _HEADING = re.compile(r"^(#{1,3})\s+(.+?)\s*#*\s*$")
@@ -109,6 +115,34 @@ def _sections(body: str) -> list[dict[str, Any]]:
     return out
 
 
-def page_entry(path: str, title: str, description: str, body: str) -> dict[str, Any]:
+def keywords_of(value: Any) -> list[str]:
+    """Front matter ``keywords``: a list or a comma-separated string, blanks dropped."""
+    items = value.split(",") if isinstance(value, str) else value if isinstance(value, list) else []
+    return [k for k in (str(item).strip() for item in items if item is not None) if k]
+
+
+def boost_of(value: Any) -> float | None:
+    """Front matter ``boost``, clamped to ``BOOST_RANGE``; ``None`` when absent, invalid or 1."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        boost = float(value)
+    except ValueError:
+        return None
+    if boost != boost or boost <= 0:  # NaN or not a positive number
+        return None
+    boost = min(max(boost, BOOST_RANGE[0]), BOOST_RANGE[1])
+    return None if boost == 1 else boost
+
+
+def page_entry(
+    path: str, title: str, description: str, body: str, frontmatter: dict | None = None
+) -> dict[str, Any]:
     """The index entry of one page (``body`` is its Markdown without front matter)."""
-    return {"p": path, "t": title, "d": description, "s": _sections(body)}
+    entry: dict[str, Any] = {"p": path, "t": title, "d": description, "s": _sections(body)}
+    meta = frontmatter or {}
+    if keywords := keywords_of(meta.get("keywords")):
+        entry["k"] = keywords
+    if (boost := boost_of(meta.get("boost"))) is not None:
+        entry["b"] = boost
+    return entry

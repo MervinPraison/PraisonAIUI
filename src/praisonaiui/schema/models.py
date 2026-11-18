@@ -318,6 +318,8 @@ class NavGroupConfig(BaseModel):
     icon: Optional[str] = None
     prefix: Optional[str] = None
     hidden: bool = False  # pages stay routable but leave the sidebar (and indexing, see seo.indexing)
+    # Search ranking multiplier for the group's pages (a page's own `boost` wins).
+    boost: Optional[float] = Field(default=None, ge=0.1, le=10)
     pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
     openapi: Optional[OpenApiRef] = None
 
@@ -394,8 +396,13 @@ class FooterConfig(BaseModel):
 class SearchConfig(BaseModel):
     """Search configuration."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     enabled: bool = True
+    # Accepted for old configs; the built-in index is always used (validate warns).
     provider: Literal["fusejs", "lunrjs", "pagefind"] = "fusejs"
+    prompt: Optional[str] = None  # the search field's placeholder ("Search docs")
+    max_results: Optional[int] = Field(default=None, alias="maxResults", ge=1, le=100)
 
 
 class ChatProfileConfig(BaseModel):

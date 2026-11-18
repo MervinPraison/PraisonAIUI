@@ -260,7 +260,9 @@ export default [
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
   // 254,171 B (+14 B, exactly the overage): the <Visibility> entry in DOCS_TAGS.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254171 B', gzip: true },
+  // 254,172 B (+1 B, exactly the overage): new hashed DocsSearch chunk name in
+  // the entry's preload map (docs full-text search); no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254172 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -331,5 +333,7 @@ export default [
   // fields (ApiFields.tsx, panels.ts, docs.css: field rows, Expandable, the
   // examples side column).
   // 9,168,243 B (+326 B, exactly the overage): <Visibility> and docPathToSource (agent-ready .md).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9168243 B', brotli: false },
+  // 9,172,759 B (measured, raised by exactly the overage, +4,516 B): docs
+  // full-text search (searchIndex.ts BM25, searchRank.ts, tab chips in DocsSearch).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9172759 B', brotli: false },
 ]

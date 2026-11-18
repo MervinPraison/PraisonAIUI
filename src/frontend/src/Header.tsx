@@ -95,7 +95,7 @@ export function Header({
                 {searchEnabled && (
                     <button type="button" className="aiui-docs-search" onClick={openSearch} aria-label="Search documentation">
                         <Search aria-hidden="true" />
-                        <span>Search docs</span>
+                        <span>{config.search?.prompt || 'Search docs'}</span>
                         <kbd className="aiui-docs-kbd">⌘K</kbd>
                     </button>
                 )}

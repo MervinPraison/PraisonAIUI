@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { applyTheme, applyStoredThemePreference, defaultThemeMode } from './themes'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
@@ -107,8 +107,11 @@ export default function App() {
   useHashScroll(docsStyle)
   useHeadingAnchors(docsStyle)
   useImageZoom(docsStyle)
-  const searchGroups = useMemo(() => docSearchGroups(nav), [nav])
+  const searchGroups = useMemo(() => docSearchGroups(nav, config.navigation?.tabs), [nav, config.navigation?.tabs])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
+  // A shared `?q=` link opens search prefilled (DocsSearch keeps `?q=` in step with the field).
+  const [deepLinkQuery] = useState(() => new URLSearchParams(window.location.search).get('q')?.trim() ?? '')
+  const deepLinkOpened = useRef(false)
 
   // "Search docs" and ⌘K / Ctrl+K: a page listening for `aiui:search-open`
   // (custom JS with its own search) can call preventDefault to take over.
@@ -129,6 +132,11 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
+  useEffect(() => {
+    if (!searchEnabled || !deepLinkQuery || deepLinkOpened.current) return
+    deepLinkOpened.current = true
+    openSearch()
+  }, [searchEnabled, deepLinkQuery])
   const filteredNav = useMemo<DocsNav>(() => {
     if (!navTabs.length) return nav
     return { items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
@@ -506,7 +514,9 @@ export default function App() {
       />
       {searchMounted && (
         <Suspense fallback={null}>
-          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')} />
+          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')}
+            tabs={navTabs.map((t) => t.tab)} activeTab={navTabs[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
+            placeholder={config.search?.prompt} maxResults={config.search?.maxResults} />
         </Suspense>
       )}
     </>

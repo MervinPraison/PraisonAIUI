@@ -18,6 +18,7 @@ class NavItem:
     description: str = ""
     noindex: bool = False
     hidden: bool = False  # routable, but not in the sidebar or pager (publish.apply_indexing)
+    searchable: bool = True  # frontmatter `searchable: false`: not in the site's own search
     page_title: str = ""  # the page's own title when the sidebar shows a shorter `nav_title`
     icon: str = ""  # a lucide icon name for the sidebar (group `icon:` in the YAML, page frontmatter `icon:`)
     children: list["NavItem"] = field(default_factory=list)
@@ -60,6 +61,7 @@ class NavBuilder:
                 description=page.description,
                 noindex=page.noindex,
                 hidden=page.hidden,
+                searchable=page.searchable,
                 icon=icon_name(page.frontmatter.get("icon")),
             )
 
@@ -126,6 +128,7 @@ class NavBuilder:
                 description=page.description,
                 noindex=page.noindex,
                 hidden=hidden or page.hidden,
+                searchable=page.searchable,
                 page_title=page.title if title != page.title else "",
                 icon=icon_name(page.frontmatter.get("icon")),
             )
@@ -168,6 +171,8 @@ class NavBuilder:
             result["noindex"] = True
         if item.hidden:
             result["hidden"] = True
+        if not item.searchable:
+            result["searchable"] = False
         if item.page_title:
             result["pageTitle"] = item.page_title
         if item.icon:

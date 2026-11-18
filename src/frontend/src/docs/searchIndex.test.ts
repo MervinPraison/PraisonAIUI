@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { highlightRuns, loadSearchIndex, resetSearchIndexCache, searchDocs, snippetAround, type SearchIndex } from './searchIndex'
-import type { NavItem } from '../types'
+import type { NavItem, SearchGroup } from '../types'
 
 const install: NavItem = { title: 'Installation', path: '/docs/getting-started/installation', description: 'Install the package.' }
 const theming: NavItem = { title: 'Theming', path: '/docs/features/theming' }
@@ -65,11 +65,14 @@ test('highlight runs mark every word, any case, and escape regex characters', ()
         { text: 'theme', hit: true },
         { text: ' it', hit: false },
     ])
+    // Whole words are marked, punctuation never (the query's own included).
     assert.deepEqual(highlightRuns('a (b) c', '(b)'), [
-        { text: 'a ', hit: false },
-        { text: '(b)', hit: true },
-        { text: ' c', hit: false },
+        { text: 'a (', hit: false },
+        { text: 'b', hit: true },
+        { text: ') c', hit: false },
     ])
+    // Stems and prefixes mark the word the reader sees.
+    assert.deepEqual(highlightRuns('Themes and theming', 'theme').filter((r) => r.hit).map((r) => r.text), ['Themes', 'theming'])
 })
 
 test('the index is fetched once; a missing index means title search only', async () => {
@@ -107,4 +110,67 @@ test('a network failure is retried on the next open', async () => {
         globalThis.fetch = realFetch
         resetSearchIndexCache()
     }
+})
+
+const page = (title: string, path: string): NavItem => ({ title, path })
+const deploy = page('Deploy', '/docs/guide/deploy')
+const auth = page('Authentication', '/docs/api/auth')
+const errors = page('Errors', '/docs/api/errors')
+const tabbed: SearchGroup[] = [
+    { title: 'Guides', pages: [deploy], tab: 'Guides' },
+    { title: 'API', pages: [auth, errors], tab: 'API Reference' },
+]
+const long: SearchIndex = {
+    version: 1,
+    pages: [
+        { p: '/docs/guide/deploy', t: 'Deploy', s: [
+            { h: 'Static hosts', a: 'static-hosts', l: 2, x: `${'Filler words about hosting. '.repeat(40)}Cloudflare caches the index for a week.` },
+        ] },
+        { p: '/docs/api/auth', t: 'Authentication', k: ['login', 'sign in'], s: [{ h: 'Tokens', a: 'tokens', l: 2, x: 'Send a bearer token with every request.' }] },
+        { p: '/docs/api/errors', t: 'Errors', s: [{ h: 'Retries', a: 'retries', l: 2, x: 'A request that fails with a token error is retried once.' }] },
+    ],
+}
+
+test('words deep in a long section are found, with the snippet around them', () => {
+    const [hit] = searchDocs(long, tabbed, 'cloudflare')
+    assert.equal(hit.kind, 'text')
+    assert.equal(hit.anchor, 'static-hosts')
+    assert.ok(hit.snippet.includes('Cloudflare caches'), hit.snippet)
+    assert.ok(hit.snippet.startsWith('… '))
+})
+
+test('plurals, a typo, a prefix and question words still find the text', () => {
+    for (const q of ['caching index', 'clodflare', 'cloudfl', 'how do I cache the index']) {
+        assert.equal(searchDocs(long, tabbed, q)[0]?.anchor, 'static-hosts', q)
+    }
+    // Every word that matters must match somewhere in the section.
+    assert.deepEqual(searchDocs(long, tabbed, 'cloudflare tokens'), [])
+})
+
+test('keywords match like a title but are never shown', () => {
+    const [hit] = searchDocs(long, tabbed, 'login')
+    assert.equal(hit.kind, 'page')
+    assert.equal(hit.page, auth)
+    assert.ok(!hit.snippet.includes('login'))
+    assert.equal(searchDocs(long, tabbed, 'sign')[0].page, auth)
+})
+
+test('boost lifts a page within its tier, never above a better tier', () => {
+    const plain = searchDocs(long, tabbed, 'token request')
+    assert.deepEqual(plain.map((r) => r.page.title), ['Authentication', 'Errors'])
+    const boosted: SearchIndex = { ...long, pages: long.pages.map((p) => (p.p === '/docs/api/errors' ? { ...p, b: 10 } : p)) }
+    assert.deepEqual(searchDocs(boosted, tabbed, 'token request').map((r) => r.page.title), ['Errors', 'Authentication'])
+    // A nav group's boost applies when the page sets none; the page's own wins.
+    const groupBoost: SearchGroup[] = [tabbed[0], { ...tabbed[1], pages: [auth] }, { title: 'Errors', pages: [errors], boost: 10 }]
+    assert.equal(searchDocs(long, groupBoost, 'token request')[0].page, errors)
+    const pageWins: SearchIndex = { ...long, pages: long.pages.map((p) => (p.p === '/docs/api/errors' ? { ...p, b: 0.1 } : p)) }
+    assert.equal(searchDocs(pageWins, groupBoost, 'token request')[0].page, auth)
+    // A title match stays above any boosted text match.
+    assert.equal(searchDocs(boosted, tabbed, 'authentication')[0].kind, 'page')
+})
+
+test('a tab filter keeps that tab\'s pages; limit caps the list', () => {
+    assert.deepEqual(searchDocs(long, tabbed, 'token', { tab: 'Guides' }), [])
+    assert.ok(searchDocs(long, tabbed, 'token', { tab: 'API Reference' }).length >= 2)
+    assert.equal(searchDocs(long, tabbed, 'token', { limit: 1 }).length, 1)
 })

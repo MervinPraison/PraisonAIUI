@@ -329,6 +329,7 @@ class Compiler:
                                 "icon": g.icon,
                                 "prefix": g.prefix,
                                 "pages": g.page_slugs(),
+                                **({"boost": g.boost} if g.boost is not None else {}),
                             }
                             for g in t.groups
                         ],
@@ -394,6 +395,8 @@ class Compiler:
             result["search"] = {
                 "enabled": self.config.search.enabled,
                 "provider": self.config.search.provider,
+                **({"prompt": self.config.search.prompt} if self.config.search.prompt else {}),
+                **({"maxResults": self.config.search.max_results} if self.config.search.max_results else {}),
             }
 
         # ── Enterprise features (partial implementation) ──
@@ -952,6 +955,7 @@ class Compiler:
                             "description": item.get("description", ""),
                             "noindex": bool(item.get("noindex")),
                             "hidden": bool(item.get("hidden")),
+                            "searchable": item.get("searchable") is not False,
                         }
                     )
                 if item.get("children"):
@@ -1128,19 +1132,22 @@ class Compiler:
     def _generate_search_index(self, output_dir: Path, nav: dict) -> list[str]:
         """Write ``search-index.json``: every page's headings and text for the
         docs search dialog (compiler/search_index.py). ``noindex`` pages (and
-        hidden ones, see publish.apply_indexing) are left out, as from the sitemap."""
+        hidden ones, see publish.apply_indexing) are left out, as from the sitemap,
+        and so are ``searchable: false`` pages."""
         from praisonaiui.compiler.search_index import page_entry
 
         if self.config.search and self.config.search.enabled is False:
             return []
+        scanner = DocsScanner(docs_dir=self.base_path)
         pages = []
         for page in self._collect_nav_pages(nav):
-            if page["noindex"]:
+            if page["noindex"] or not page["searchable"]:
                 continue
             md_path = self._resolve_md_source(page["path"])
-            body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")) if md_path else ""
-            body = am.visibility(body, "humans")
-            pages.append(page_entry(page["path"], page["title"], page["description"], body))
+            text = md_path.read_text(encoding="utf-8") if md_path else ""
+            meta = scanner._extract_frontmatter(text)
+            body = am.visibility(self._strip_frontmatter(text), "humans")
+            pages.append(page_entry(page["path"], page["title"], page["description"], body, meta))
         if not pages:
             return []
         # Compact: the dialog downloads it once, on first open.

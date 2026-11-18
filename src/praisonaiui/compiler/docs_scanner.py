@@ -18,6 +18,7 @@ class DocPage:
     description: str = ""
     noindex: bool = False
     hidden: bool = False  # frontmatter `hidden: true`: routable, but not in the sidebar
+    searchable: bool = True  # frontmatter `searchable: false`: left out of the site's own search
     frontmatter: dict = field(default_factory=dict)
 
 
@@ -99,6 +100,7 @@ class DocsScanner:
             description=description,
             noindex=noindex,
             hidden=frontmatter.get("hidden") is True,
+            searchable=frontmatter.get("searchable") is not False,
             frontmatter=frontmatter,
         )
 

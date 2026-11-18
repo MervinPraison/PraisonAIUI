@@ -734,18 +734,39 @@ flowchart LR
 ## Search
 
 Readers press <kbd>⌘</kbd> <kbd>K</kbd> (<kbd>Ctrl</kbd> <kbd>K</kbd>) or the
-search field. Search covers page titles, every `##` and `###` heading and the
-text under it, so a reader who types "copy button" lands on the section that
-says so, with the words marked. A result opens the page at that section. Write
-headings the way readers ask questions and the search answers them.
+search field. Search covers page titles, every `##` and `###` heading and all
+the text under it, and a result opens the page at its section with the words
+marked. It forgives typing: plurals and verb forms match ("themes",
+"theming"), a word matches as you type it ("inst"), one typo in a longer word
+still matches, and question words drop out ("how do I deploy"). Titles rank
+first, then headings, then text, each BM25 style.
 
-`aiui build` writes the index (`search-index.json`); the dialog downloads it
-the first time a reader opens search. Turn search off with:
+While the dialog is open the address bar carries the query, so a link such as
+`/docs?q=api+keys` opens search filled in. On a site with header tabs
+([Navigation](navigation.md)), chips filter results by tab: search starts in
+the reader's tab, and one row offers the other tabs' results when it has none.
+
+```markdown
+---
+keywords: [login, sign in]   # found by these words, never shown (or "login, sign in")
+boost: 2                     # rank higher within its tier (0.1 to 10)
+searchable: false            # out of site search; sidebar and search engines keep it
+---
+```
+
+A navigation group's `boost:` applies to its pages (a page's own wins).
+Site settings (`search.provider` is ignored and `aiui validate` says so):
 
 ```yaml
 search:
-  enabled: false
+  prompt: "Search the handbook"   # placeholder (default "Search docs")
+  maxResults: 10                  # 1 to 100 (default 24)
+  enabled: false                  # turn search off
 ```
+
+`aiui build` writes the index (`search-index.json`, up to 6,000 characters
+per section); the dialog downloads it the first time a reader opens search.
+This repository's 103 pages make 547 KB, 186 KB gzipped.
 
 ## Links between pages
 

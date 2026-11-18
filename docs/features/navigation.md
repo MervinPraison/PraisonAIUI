@@ -85,6 +85,9 @@ navigation:
   `content.docs.exclude` (see [Content Sources](content-sources.md#includeexclude-patterns)).
 - `hidden: true` on a group hides its pages the same way; on a tab it also
   drops the tab from the header.
+- `boost: 2` on a group ranks its pages higher in site search (0.1 to 10; a
+  page's own `boost` wins; see [Search](writing-docs.md#search)). With
+  tabs, search results can be filtered by tab.
 - The active tab is the one whose groups list the page; for a page no group
   lists, the folder `prefix` decides as in auto mode, then the first tab.
 

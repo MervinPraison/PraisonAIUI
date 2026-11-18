@@ -1,13 +1,17 @@
 // Full-text docs search: the index `aiui build` writes (search-index.json,
-// compiler/search_index.py) and the ranking the search dialog shows. Pure
+// compiler/search_index.py) and the ranking the search dialog shows: BM25
+// over each section's heading and text, with stems, prefixes and one-typo
+// matches (searchRank.ts), tiered page title > heading > text and multiplied
+// by the page's (or its nav group's) `boost` within a tier. Pure
 // functions plus one cached fetch; imported only by the lazy DocsSearch chunk,
 // so it imports nothing of the App's (that would merge the App into this chunk).
-import type { NavItem } from '../types'
-import { scoreDocMatch } from './searchRank'
+import type { NavItem, SearchGroup } from '../types'
+import { bestMatch, queryTerms, scoreDocMatch, termMatch, tokenize } from './searchRank'
 
 /** One section of a page: heading, its anchor, level (1 = the intro) and text. */
 export interface IndexSection { h: string; a: string; l: number; x: string }
-export interface IndexPage { p: string; t: string; d?: string; s: IndexSection[] }
+/** A page: path, title, description, sections, frontmatter `keywords` (matched, never shown) and `boost`. */
+export interface IndexPage { p: string; t: string; d?: string; s: IndexSection[]; k?: string[]; b?: number }
 export interface SearchIndex { version: number; pages: IndexPage[] }
 
 export type ResultKind = 'page' | 'section' | 'text'
@@ -50,20 +54,22 @@ export function resetSearchIndexCache(): void {
 /** pathUtils.normalizeDocPath, kept here so this chunk stays apart from the App's. */
 const normalizeDocPath = (path: string) => (path || '/').replace(/\/+$/, '') || '/'
 
-const words = (q: string) => q.toLowerCase().split(/\s+/).filter(Boolean)
+const WORD = /[\p{L}\p{N}]+/gu
 
-/** Every word appears in `text` (case-insensitive). */
-function hasAll(text: string, ws: string[]): boolean {
-    const t = text.toLowerCase()
-    return ws.every((w) => t.includes(w))
-}
+/** Whether a word of the page matches any query term. */
+const matchesAny = (word: string, terms: string[]) => terms.some((t) => termMatch(t, word.toLowerCase()) > 0)
 
-/** About `width` characters of `text` around the first query word, cut at word edges. */
+/** About `width` characters of `text` around the first matching word, cut at word edges. */
 export function snippetAround(text: string, query: string, width = 140): string {
     if (text.length <= width) return text
-    const t = text.toLowerCase()
-    const hits = words(query).map((w) => t.indexOf(w)).filter((i) => i >= 0)
-    const at = hits.length ? Math.min(...hits) : 0
+    const terms = queryTerms(query)
+    let at = 0
+    for (const m of text.matchAll(WORD)) {
+        if (matchesAny(m[0], terms)) {
+            at = m.index
+            break
+        }
+    }
     let start = Math.max(0, at - Math.floor(width / 3))
     if (start > 0) start = text.indexOf(' ', start) + 1 || start
     let end = Math.min(text.length, start + width)
@@ -74,54 +80,145 @@ export function snippetAround(text: string, query: string, width = 140): string 
     return (start > 0 ? '… ' : '') + text.slice(start, end) + (end < text.length ? ' …' : '')
 }
 
-/** Split `text` into plain and matched runs for highlighting (rendered as text, never HTML). */
+/** Split `text` into plain and matched runs (whole words) for highlighting; rendered as text, never HTML. */
 export function highlightRuns(text: string, query: string): { text: string; hit: boolean }[] {
-    const ws = words(query).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    if (!ws.length) return [{ text, hit: false }]
-    // A capturing split puts the matches at the odd indices.
-    return text
-        .split(new RegExp(`(${ws.join('|')})`, 'gi'))
-        .map((part, i) => ({ text: part, hit: i % 2 === 1 }))
-        .filter((run) => run.text)
+    const terms = queryTerms(query)
+    const runs: { text: string; hit: boolean }[] = []
+    const push = (text: string, hit: boolean) => text && runs.push({ text, hit })
+    let from = 0
+    for (const m of text.matchAll(WORD)) {
+        if (!terms.length || !matchesAny(m[0], terms)) continue
+        push(text.slice(from, m.index), false)
+        push(m[0], true)
+        from = m.index + m[0].length
+    }
+    push(text.slice(from), false)
+    return runs.length ? runs : [{ text, hit: false }]
+}
+
+// BM25 constants (the usual ones) and the weight of a heading's words.
+const K1 = 1.2
+const B = 0.75
+const HEADING_WEIGHT = 2
+
+interface Doc { page: IndexPage; sec: IndexSection; len: number; head: string[] }
+interface Prepared { docs: Doc[]; postings: Map<string, Map<number, number>>; avgLen: number }
+const preparedIndexes = new WeakMap<SearchIndex, Prepared>()
+
+/** An inverted index over every section (word → section → count), built once per loaded index. */
+function prepare(index: SearchIndex): Prepared {
+    const cached = preparedIndexes.get(index)
+    if (cached) return cached
+    const docs: Doc[] = []
+    const postings = new Map<string, Map<number, number>>()
+    let total = 0
+    for (const page of index.pages) {
+        for (const sec of page.s) {
+            const head = tokenize(sec.h)
+            const words = [...Array<string[]>(HEADING_WEIGHT).fill(head).flat(), ...tokenize(sec.x)]
+            const id = docs.length
+            docs.push({ page, sec, len: words.length, head })
+            total += words.length
+            for (const w of words) {
+                let counts = postings.get(w)
+                if (!counts) postings.set(w, (counts = new Map()))
+                counts.set(id, (counts.get(id) ?? 0) + 1)
+            }
+        }
+    }
+    const prepared = { docs, postings, avgLen: total / Math.max(1, docs.length) || 1 }
+    preparedIndexes.set(index, prepared)
+    return prepared
+}
+
+/** BM25 score of every section holding a word that matches `term` (its best matching word counts). */
+function termScores({ docs, postings, avgLen }: Prepared, term: string): Map<number, number> {
+    const out = new Map<number, number>()
+    for (const [word, counts] of postings) {
+        const match = termMatch(term, word)
+        if (!match) continue
+        const idf = Math.log(1 + (docs.length - counts.size + 0.5) / (counts.size + 0.5))
+        for (const [id, tf] of counts) {
+            const norm = tf + K1 * (1 - B + (B * docs[id].len) / avgLen)
+            const score = (match * idf * tf * (K1 + 1)) / norm
+            if (score > (out.get(id) ?? 0)) out.set(id, score)
+        }
+    }
+    return out
+}
+
+/** Sections that match every term, with their summed BM25 score. */
+function bm25(prepared: Prepared, terms: string[]): Map<number, number> {
+    const [first, ...rest] = terms.map((t) => termScores(prepared, t))
+    for (const [id, s] of first) {
+        const more = rest.map((m) => m.get(id))
+        if (more.some((m) => m === undefined)) first.delete(id)
+        else first.set(id, more.reduce<number>((a, b) => a + (b ?? 0), s))
+    }
+    return first
+}
+
+/** A score inside its tier: grows with `x`, always below 1, so a tier never overtakes the one above. */
+const inTier = (x: number) => x / (x + 1)
+
+export interface SearchOptions {
+    /** Most results (default 24). */
+    limit?: number
+    /** Only pages of this header tab (groups carry their tab; docNav.docSearchGroups). */
+    tab?: string
 }
 
 /**
- * Rank pages, sections and section text for `query`. Titles use the title
- * rank (searchRank.ts); a heading that holds every word ranks next, then a
- * section whose text holds every word. A page appears once per section at
- * most, and `limit` caps the list.
+ * Rank pages, sections and section text for `query`. A page whose title (or
+ * keyword) matches ranks first, then a section whose heading holds every
+ * word, then a section whose text does. A page's `boost` (else its nav
+ * group's) multiplies its score within a tier. A page appears once per
+ * section at most, and `limit` caps the list.
  */
 export function searchDocs(
     index: SearchIndex | null,
-    groups: { title: string; pages: NavItem[] }[],
+    groups: SearchGroup[],
     query: string,
-    limit = 24,
+    { limit = 24, tab }: SearchOptions = {},
 ): SearchResult[] {
-    const ws = words(query)
-    if (!ws.length) return []
-    const byPath = new Map<string, { page: NavItem; group: string }>()
-    for (const g of groups) for (const page of g.pages) byPath.set(normalizeDocPath(page.path ?? ''), { page, group: g.title })
-    const out: SearchResult[] = []
-    const seenPages = new Set<string>()
-    for (const [path, { page, group }] of byPath) {
-        const s = scoreDocMatch(page.title, group, query)
-        if (s > 0) {
-            seenPages.add(path)
-            out.push({ kind: 'page', page, group, heading: '', anchor: '', snippet: page.description ?? '', score: 2 + s })
+    const terms = queryTerms(query)
+    if (!terms.length) return []
+    const entries = new Map((index?.pages ?? []).map((e) => [normalizeDocPath(e.p), e]))
+    const byPath = new Map<string, { page: NavItem; group: string; boost: number }>()
+    for (const g of groups) {
+        if (tab && g.tab !== tab) continue
+        for (const page of g.pages) {
+            const path = normalizeDocPath(page.path ?? '')
+            byPath.set(path, { page, group: g.title, boost: entries.get(path)?.b ?? g.boost ?? 1 })
         }
     }
-    for (const entry of index?.pages ?? []) {
-        const path = normalizeDocPath(entry.p)
-        const known = byPath.get(path)
-        if (!known) continue
-        for (const sec of entry.s) {
-            if (sec.h && hasAll(sec.h, ws)) {
-                const exact = sec.h.toLowerCase().startsWith(ws[0]) ? 0.2 : 0
-                out.push({ kind: 'section', page: known.page, group: known.group, heading: sec.h, anchor: sec.a, snippet: snippetAround(sec.x, query), score: 1.5 + exact - sec.l * 0.05 })
-            } else if (hasAll(sec.x, ws) || (sec.h && hasAll(`${sec.h} ${sec.x}`, ws))) {
-                if (!sec.h && seenPages.has(path)) continue
-                out.push({ kind: 'text', page: known.page, group: known.group, heading: sec.h, anchor: sec.a, snippet: snippetAround(sec.x, query), score: 1 - sec.l * 0.05 })
-            }
+    const out: SearchResult[] = []
+    const seenPages = new Set<string>()
+    for (const [path, { page, group, boost }] of byPath) {
+        const s = scoreDocMatch(page.title, group, query, entries.get(path)?.k)
+        if (s > 0) {
+            seenPages.add(path)
+            out.push({ kind: 'page', page, group, heading: '', anchor: '', snippet: page.description ?? '', score: 3 + inTier(2 * s * boost) })
+        }
+    }
+    if (index) {
+        const prepared = prepare(index)
+        for (const [id, score] of bm25(prepared, terms)) {
+            const { page: entry, sec, head } = prepared.docs[id]
+            const path = normalizeDocPath(entry.p)
+            const known = byPath.get(path)
+            if (!known) continue
+            const inHeading = sec.h !== '' && terms.every((t) => bestMatch(t, head) > 0)
+            if (!inHeading && !sec.h && seenPages.has(path)) continue
+            out.push({
+                kind: inHeading ? 'section' : 'text',
+                page: known.page,
+                group: known.group,
+                heading: sec.h,
+                anchor: sec.a,
+                snippet: snippetAround(sec.x, query),
+                score: (inHeading ? 2 : 1) + inTier(score * known.boost),
+            })
         }
     }
     // One result per page section (a heading may repeat on a page).
