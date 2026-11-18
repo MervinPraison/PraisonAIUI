@@ -6,6 +6,9 @@ nav_title: Features REST API
 
 Complete API reference for all **36** PraisonAIUI feature protocol endpoints.
 
+A running server describes every route it answers, plugins included, at
+`GET /api/openapi.json`: see [The server's OpenAPI document](../features/api-reference.md).
+
 ## Feature Registry
 
 ### GET /api/features

@@ -179,6 +179,7 @@
  ["Route", "/api/nodes/{node_id}", ["PUT"]],
  ["Route", "/api/nodes/{node_id}/agents", ["GET", "HEAD", "PUT"]],
  ["Route", "/api/nodes/{node_id}/status", ["GET", "HEAD"]],
+ ["Route", "/api/openapi.json", ["GET", "HEAD"]],
  ["Route", "/api/overview", ["GET", "HEAD"]],
  ["Route", "/api/pages", ["GET", "HEAD"]],
  ["Route", "/api/pages/{page_id}/action", ["POST"]],

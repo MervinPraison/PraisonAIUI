@@ -656,6 +656,11 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         ),
     ),
     BuiltinPlugin(
+        "api-reference",
+        "This server's own API: its OpenAPI document, read from the live route table",
+        feature_refs=(feature(".openapi", "ApiReferenceFeature"),),
+    ),
+    BuiltinPlugin(
         "theme-picker",
         "Live color scheme picker",
         (

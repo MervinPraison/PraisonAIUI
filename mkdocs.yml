@@ -159,6 +159,7 @@ nav:
     - Component API: api/components.md
     - TypeScript SDK: api/typescript.md
     - Features API: api/features-api.md
+    - Server OpenAPI: features/api-reference.md
     - Sessions: api/sessions.md
     - Testing: api/testing.md
   - TypeScript SDK:

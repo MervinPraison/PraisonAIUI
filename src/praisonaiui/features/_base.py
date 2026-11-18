@@ -125,6 +125,16 @@ class BaseFeatureProtocol(ABC):
         registered feature after the YAML file changes. Default: nothing.
         """
 
+    def openapi(self) -> Dict[str, Dict[str, Any]]:
+        """Extra OpenAPI fields for this feature's operations (optional).
+
+        Keys are ``"METHOD /path"``; values are merged into the operation that
+        ``GET /api/openapi.json`` builds from the route table, e.g.
+        ``{"POST /api/x": {"requestBody": {...}, "responses": {...}}}``.
+        Default: nothing.
+        """
+        return {}
+
     async def info(self) -> Dict[str, Any]:
         """Feature metadata for /api/features listing."""
         h = await self.health()

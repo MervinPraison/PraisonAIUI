@@ -117,6 +117,34 @@ class OpenAIAPIFeature(BaseFeatureProtocol):
             Route("/v1", self._api_info, methods=["GET"]),
         ]
 
+    def openapi(self) -> Dict[str, Dict[str, Any]]:
+        """Request bodies for GET /api/openapi.json (the API Reference page)."""
+
+        def body(props: Dict[str, Any], required: List[str], example: Dict[str, Any]) -> Dict[str, Any]:
+            schema = {"type": "object", "properties": props, "required": required}
+            return {"requestBody": {"required": True, "content": {"application/json": {"schema": schema, "example": example}}}}
+
+        model = {"type": "string", "description": "Model name"}
+        text = {"type": "string"}
+        messages = {
+            "type": "array",
+            "items": {"type": "object", "properties": {"role": text, "content": text}, "required": ["role", "content"]},
+        }
+        hello = [{"role": "user", "content": "Hello!"}]
+        return {
+            "POST /v1/chat/completions": body(
+                {"model": model, "messages": messages, "temperature": {"type": "number"},
+                 "max_tokens": {"type": "integer"}, "stream": {"type": "boolean"}},
+                ["messages"], {"model": "gpt-4o-mini", "messages": hello},
+            ),
+            "POST /v1/completions": body({"model": model, "prompt": text}, ["prompt"], {"prompt": "Say hello"}),
+            "POST /v1/embeddings": body({"model": model, "input": text}, ["input"], {"input": "Hello"}),
+            "POST /v1/responses": body(
+                {"model": model, "input": text, "instructions": text}, ["input"], {"input": "Hello!"}
+            ),
+            "POST /v1/moderations": body({"input": text}, ["input"], {"input": "Hello"}),
+        }
+
     def cli_commands(self) -> List[Dict[str, Any]]:
         return [
             {

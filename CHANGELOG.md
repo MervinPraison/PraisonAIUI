@@ -386,6 +386,14 @@
   `--base-path`. The examples dashboard that `aiui dev` used to open is now
   `aiui dev --examples <folder>` (plain `aiui dev` still opens it in a folder with only
   `examples/`). See [Hot Reload](docs/features/hot-reload.md).
+- **The server describes its own API.** `GET /api/openapi.json` is an OpenAPI 3.1 document
+  built from the live route table: every API route the server answers (core, each enabled
+  built-in, plugins), tagged by the feature that owns it, with docstring summaries, typed path
+  parameters and the auth each needs; WebSocket routes under `x-websockets`. It follows the auth
+  of every `/api` route and leaves out plugins the caller may not use. A feature adds request
+  bodies with an optional `openapi()` method (the `/v1` OpenAI-compatible routes have theirs).
+  Off with `extensions: {disabled: [builtin.api-reference]}`. See
+  [The server's OpenAPI document](docs/features/api-reference.md).
 - **Changelog pages**: `<Update label="2026-11-18" description="v1.2" tags={["API"]}>` entries,
   each an anchored section (in "On this page", search and the page's `.md`) with its label in a
   sticky left column; a tag filter kept in `?tags=`; and with front matter `rss: true` an RSS
