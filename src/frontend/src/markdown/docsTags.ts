@@ -9,6 +9,8 @@
  * children render as Markdown. `{/* … *\/}` comments go. Code is untouched.
  */
 
+import { codeBlockFence } from '../docs/codeMeta'
+
 export type TagAttrs = Record<string, string>
 
 export interface DocsTag {
@@ -47,8 +49,8 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Frame: { el: 'aiui-frame', attrs: ['caption'] },
 }
 
-/** Tags a later pass converts (convertMkdocsBlocks): the tokenizer leaves them as written. */
-const PASSTHROUGH = new Set(['CodeGroup'])
+/** Tags converted elsewhere (CodeGroup: convertMkdocsBlocks; CodeBlock: into a fence, below). */
+const PASSTHROUGH = new Set(['CodeGroup', 'CodeBlock'])
 
 /** Every tag name a page may use (the Python build checks pages against the same list). */
 export const DOCS_TAG_NAMES: readonly string[] = [...Object.keys(DOCS_TAGS), ...PASSTHROUGH]
@@ -124,6 +126,38 @@ const dedent = (s: string, n: number) => s.slice(Math.min(n, leading(s)))
 
 type Open = { name: string; spec?: DocsTag; indent: string; strip: number | null }
 
+const CODE_BLOCK = /^(\s*)<CodeBlock\b/
+const CODE_BLOCK_END = '</CodeBlock>'
+
+/**
+ * `<CodeBlock language="js" filename="a.js" lines>code</CodeBlock>` starting at
+ * `lines[li]` → the equivalent fence and the index of its last line, or null.
+ */
+function codeBlockAt(lines: string[], li: number, first: string): [string[], number] | null {
+    const indent = CODE_BLOCK.exec(first)![1]
+    let [joined, next] = [first, li]
+    let tag = parseTag(joined, indent.length)
+    while (tag === 'more' && next - li < 50 && next + 1 < lines.length) {
+        joined += ' ' + lines[++next].trim()
+        tag = parseTag(joined, indent.length)
+    }
+    if (!tag || tag === 'more') return null
+    if (tag.selfClosing) return [[], next]
+    const body: string[] = []
+    let rest = joined.slice(tag.end)
+    for (;;) {
+        const end = rest.indexOf(CODE_BLOCK_END)
+        if (end >= 0) {
+            body.push(rest.slice(0, end))
+            break
+        }
+        body.push(rest)
+        if (++next >= lines.length) return null
+        rest = lines[next]
+    }
+    return [codeBlockFence(tag.attrs, body.join('\n'), indent), next]
+}
+
 /** Rewrites docs component tags into the `aiui-*` elements the docs renderer draws. */
 export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_TAGS): string {
     const lines = md.split('\n')
@@ -158,6 +192,13 @@ export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_
         raw = dedent(raw, stripFor())
 
         const f = raw.match(FENCE)
+        const codeBlock = !fence && CODE_BLOCK.test(raw) && (stack.length > 0 || leading(raw) < 4) ? codeBlockAt(lines, li, raw) : null
+        if (codeBlock) {
+            if (out.length && out[out.length - 1].trim()) out.push('')
+            out.push(...codeBlock[0], '')
+            li = codeBlock[1]
+            continue
+        }
         if (fence || f) {
             if (!fence) fence = f![1]
             else if (f && f[1][0] === fence[0] && f[1].length >= fence.length && raw.trim() === f[1]) fence = null

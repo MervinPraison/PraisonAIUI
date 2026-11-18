@@ -16,7 +16,7 @@ from pathlib import Path
 #: Mirrors ``DOCS_TAG_NAMES`` in ``src/frontend/src/markdown/docsTags.ts``.
 KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
-    "Steps Step CardGroup Card Frame CodeGroup".split()
+    "Steps Step CardGroup Card Frame CodeGroup CodeBlock".split()
 )
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
@@ -25,20 +25,31 @@ _CODE_SPAN = re.compile(r"(`+).+?\1")
 _TAG = re.compile(r"</?([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)(?=[\s/>]|$)")
 _COMMENT = re.compile(r"\{/\*.*?\*/\}|<!--.*?-->", re.S)
 _HEADING_ID = re.compile(r"\s*\{#([\w-]+)\}\s*$")
+# <CodeBlock …>code</CodeBlock>: its body is code (the renderer turns it into a fence).
+_CODE_BLOCK = re.compile(r"^\s*<CodeBlock\b")
+_CODE_BLOCK_END = "</CodeBlock>"
 
 
 def _prose_segments(text: str) -> Iterable[tuple[bool, str]]:
-    """``(is_code, chunk)`` runs: fenced code verbatim, prose between."""
+    """``(is_code, chunk)`` runs: fenced code and ``<CodeBlock>`` bodies verbatim, prose between."""
     fence: str | None = None
     buf: list[str] = []
     for line in text.splitlines(keepends=True):
         m = _FENCE.match(line)
-        if fence is None and m:
+        if fence is None and (m or _CODE_BLOCK.match(line)):
             if buf:
                 yield False, "".join(buf)
-            buf, fence = [line], m.group(1)
+            buf, fence = [line], m.group(1) if m else _CODE_BLOCK_END
+            if fence == _CODE_BLOCK_END and _CODE_BLOCK_END in line:
+                yield True, line
+                buf, fence = [], None
             continue
         buf.append(line)
+        if fence == _CODE_BLOCK_END:
+            if _CODE_BLOCK_END in line:
+                yield True, "".join(buf)
+                buf, fence = [], None
+            continue
         if fence and m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
             if line.strip() == m.group(1):
                 yield True, "".join(buf)

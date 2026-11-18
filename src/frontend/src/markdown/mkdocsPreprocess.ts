@@ -7,6 +7,7 @@
  * expanded by docsTags.ts, the one table of docs components.
  */
 import { expandDocsTags } from './docsTags'
+import { parseCodeMeta } from '../docs/codeMeta'
 
 export const MKDOCS_ICON_MAP: Record<string, string> = {
     ':material-file-document:': '📄',
@@ -83,14 +84,10 @@ export function stripMkdocsGridWrappers(text: string): string {
 const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
 const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
 
-/** A fence's tab label in a code group: its file name, else its language. */
+/** A fence's tab label in a code group: its title (docs/codeMeta.ts), else its language. */
 function fenceLabel(info: string): string {
     const [lang = '', ...rest] = info.trim().split(/\s+/)
-    const meta = rest.join(' ')
-    const titled = /(?:title|filename)=(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(meta)
-    if (titled) return titled[1] ?? titled[2] ?? titled[3]
-    const bare = rest.find((w) => !/^\{.*\}$/.test(w) && !w.includes('=') && w !== 'noLineNumbers')
-    return bare ?? (lang || 'Code')
+    return parseCodeMeta(rest.join(' ')).title ?? (lang || 'Code')
 }
 
 /**

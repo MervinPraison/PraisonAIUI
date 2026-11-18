@@ -203,6 +203,11 @@ Placement (own line, one line, list items, self-closing, code left alone) and
 the sanitizer allowlist come with the table. Rebuild the bundle and document
 the tag in `docs/features/writing-docs.md`.
 
+A tag whose body is code is not a table entry: `<CodeBlock>` is listed in
+`PASSTHROUGH` and turned into a fence (`codeBlockFence`, `docs/codeMeta.ts`),
+so it renders through the same code frame (`docs/DocsPre.tsx`) as a fence.
+A new code option goes in `parseCodeMeta` and `DocsPre`.
+
 ## 4. Add a client-only page
 
 **Goal**: A page rendered entirely in the browser — no server round-trip on navigation.

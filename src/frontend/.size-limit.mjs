@@ -318,5 +318,8 @@ export default [
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
   // 9,145,081 B (measured, raised by exactly the overage, +3,289 B): docs
   // component tags anywhere (docsTags.ts, one component per element, {#id}).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9145081 B', brotli: false },
+  // 9,151,241 B (measured, raised by exactly the overage, +6,160 B): docs code
+  // block options (codeMeta.ts, DocsPre.tsx, docs.css: titles, flags, focus,
+  // diff notation, <CodeBlock>).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9151241 B', brotli: false },
 ]
