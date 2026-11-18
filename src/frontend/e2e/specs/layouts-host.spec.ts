@@ -214,6 +214,47 @@ for (const id of BUILTIN_IDS) {
   })
 }
 
+/** POST /welcome as an app with `@aiui.welcome` answers it (the mock server has no callback). */
+const WELCOME_SSE = 'data: ' + JSON.stringify({ type: 'message', content: 'Hello from on_welcome' }) + '\n\ndata: {"type":"end"}\n\n'
+const STARTERS = { starters: [{ label: 'Plan a trip', message: 'Plan a trip' }, { label: 'Write code', message: 'Write code' }] }
+
+/**
+ * The app's greeting (@aiui.welcome) on a new chat in every layout, with and
+ * without starters: the layouts' new-chat hero used to drop it (the thread
+ * heading that carries it is shown only by a layout with its own `empty`
+ * region, Guided), so `aiui run` (layout `chat`) and chat-canvas never showed it.
+ */
+for (const id of [...BUILTIN_IDS, 'classic']) {
+  for (const withStarters of [true, false]) {
+    test(`the app greeting shows on a new chat: ${id}, ${withStarters ? 'with' : 'no'} starters`, async ({ page }) => {
+      const errors = collectPageErrors(page)
+      await page.route('**/welcome', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream', body: WELCOME_SSE }))
+      await page.route('**/starters', (route) => route.fulfill({ json: withStarters ? STARTERS : { starters: [] } }))
+      await page.goto(`/chat?layout=${id}`)
+      const empty = page.locator('#aiui-main [data-thread-empty]')
+      await expect(empty.locator('[data-welcome]')).toHaveText('Hello from on_welcome')
+      await expect(empty.locator('[data-welcome]')).toBeVisible()
+      // The hero (layouts without their own empty region) keeps its wordmark;
+      // the greeting takes the place of the generic promise line.
+      if (await empty.locator('[data-chat-hero]').count()) {
+        await expect(empty.locator('[data-chat-hero] h2')).toBeVisible()
+        await expect(empty).not.toContainText('Ask anything. Your agents show each step')
+      }
+      // The starters stay under the greeting (Guided's templates replace them).
+      if (withStarters && id !== 'guided') await expect(empty.getByRole('button', { name: 'Plan a trip' })).toBeVisible()
+      expect(errors.pageErrors).toEqual([])
+    })
+  }
+}
+
+test('a new chat without an app greeting keeps the hero promise line and no greeting', async ({ page }) => {
+  await page.goto('/chat')
+  const empty = page.locator('#aiui-main [data-thread-empty]')
+  await expect(empty.locator('[data-chat-hero]')).toBeVisible()
+  await expect(empty).toContainText('Ask anything. Your agents show each step')
+  await expect(empty.locator('[data-welcome]')).toHaveCount(0)
+})
+
 test('?layout=classic previews the classic frame for this tab, across navigation and reload', async ({ page }) => {
   const scripts = trackScripts(page)
   await page.goto('/chat?layout=classic')

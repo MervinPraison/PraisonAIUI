@@ -3,7 +3,9 @@ import { afterEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import type { ChatPresentation } from '@/sdk/layouts'
 import { EmptyHero, HERO_PROMISE, heroMark } from './EmptyHero'
+import { Empty } from './host'
 import { loadProviderHealth, resetProviderHealthForTests, setupNotice } from './SetupBanner'
 
 const realFetch = globalThis.fetch
@@ -27,6 +29,26 @@ test('the hero: a 44px wordmark, the promise line, then the starters', () => {
   assert.match(html, /<h2[^>]*text-\[44px\][^>]*>PraisonAI<\/h2>/)
   assert.ok(html.includes(HERO_PROMISE))
   assert.ok(html.indexOf('data-chat-hero') < html.indexOf('id="starters"'))
+})
+
+test('the hero with the app greeting (@aiui.welcome): the greeting replaces the promise line, as text', () => {
+  const html = renderToStaticMarkup(createElement(EmptyHero, { welcome: 'Hi <b>there</b>', children: createElement('div', { id: 'starters' }) }))
+  assert.match(html, /<p[^>]*data-welcome=""[^>]*>Hi &lt;b&gt;there&lt;\/b&gt;<\/p>/)
+  assert.ok(!html.includes(HERO_PROMISE))
+  assert.match(html, /<h2[^>]*>PraisonAI<\/h2>/, 'the wordmark stays')
+  assert.ok(html.indexOf('data-welcome') < html.indexOf('id="starters"'), 'the starters stay, under the greeting')
+})
+
+test('Empty in a layout: the greeting shows in the hero, and under the heading of a layout with its own empty region', () => {
+  const presentation = { chat: { thread: 'bubbles' } as ChatPresentation, sessionId: null }
+  const children = createElement('div', { id: 'starters' })
+  const hero = renderToStaticMarkup(createElement(Empty, { presentation, welcome: 'Hello from on_welcome', children }))
+  assert.match(hero, /data-chat-hero=""/)
+  assert.match(hero, /data-welcome="">Hello from on_welcome</)
+  assert.ok(hero.includes('id="starters"'))
+  const plain = renderToStaticMarkup(createElement(Empty, { presentation, children }))
+  assert.ok(plain.includes(HERO_PROMISE), 'no greeting: the promise line, as before')
+  assert.doesNotMatch(plain, /data-welcome/)
 })
 
 test('setupNotice: a missing key, a provider that does not answer, otherwise nothing', () => {

@@ -2,8 +2,9 @@
  * A new chat inside a layout: the brand moment. The site's mark (the image
  * logo, a plain text logo, or else the PraisonAI glyph on the accent tile; an
  * emoji mascot reads as a toy at this size, so it gets the glyph too) and its
- * name as a 44px wordmark, one line saying what to expect, then
- * the starter cards; the thread centres all of it with the composer
+ * name as a 44px wordmark, one line saying what to expect (the app's
+ * greeting, `@aiui.welcome`, when it has one: the greeting is the message),
+ * then the starter cards; the thread centres all of it with the composer
  * (viewport.css). A layout with its own `empty` region (Guided's templates)
  * keeps that instead.
  */
@@ -21,7 +22,7 @@ export function heroMark(logo: unknown): { kind: 'img'; src: string } | { kind: 
   return /\p{Extended_Pictographic}/u.test(v) ? { kind: 'glyph' } : { kind: 'text', text: v.slice(0, 4) }
 }
 
-export function EmptyHero({ children }: { children: ReactNode }): JSX.Element {
+export function EmptyHero({ welcome, children }: { welcome?: string; children: ReactNode }): JSX.Element {
   const site = useManifest()?.site ?? {}
   const title = typeof site.title === 'string' && site.title.trim() ? site.title.trim() : 'PraisonAI'
   const mark = heroMark(site.logo)
@@ -45,7 +46,12 @@ export function EmptyHero({ children }: { children: ReactNode }): JSX.Element {
           )}
           <h2 className="m-0 text-[44px] leading-none font-semibold tracking-tight text-foreground">{title}</h2>
         </div>
-        <p className="m-0 max-w-xl text-base text-balance text-muted-foreground">{HERO_PROMISE}</p>
+        <p
+          className={`m-0 max-w-xl text-base text-balance whitespace-pre-line ${welcome ? 'text-foreground' : 'text-muted-foreground'}`}
+          data-welcome={welcome ? '' : undefined}
+        >
+          {welcome || HERO_PROMISE}
+        </p>
       </div>
       {children}
     </>

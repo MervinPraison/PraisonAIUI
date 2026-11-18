@@ -557,7 +557,9 @@ async def on_welcome():
 The chat runs it through `POST /welcome` once per page load and shows what
 it says (`aiui.say`, or streamed tokens) as plain text on the empty thread:
 in the app shell's chat and every layout, the `chat` style and the
-dashboard's chat. It is not saved to the conversation. A chat YAML's
+dashboard's chat. In a layout's new-chat hero (the site's mark and name)
+the greeting takes the place of the generic "Ask anything…" line, with the
+starters below it. It is not saved to the conversation. A chat YAML's
 `welcome:` key registers one for you.
 
 ---
