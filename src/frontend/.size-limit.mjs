@@ -381,5 +381,7 @@ export default [
   // ApiPlayground chunk and its CSS, the endpoint bar in docs.css and ApiFields.tsx).
   // 9,632,798 B (+5,415 B, exactly the overage): changelog entries and their tag
   // filter (docs/DocsUpdate.tsx, docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9632798 B', brotli: false },
+  // 9,638,998 B (+6,200 B, exactly the overage): docs tabs that navigate, tab menus,
+  // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9638998 B', brotli: false },
 ]
