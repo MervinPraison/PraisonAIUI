@@ -916,13 +916,7 @@ img.aiui-docs-mark {
 .aiui-docs article.aiui-doc .aiui-tab-icon { width: 0.875rem; height: 0.875rem; flex: none; }
 .aiui-docs article.aiui-doc .aiui-tab-label[id] { scroll-margin-top: 6rem; }
 .aiui-docs article.aiui-doc .aiui-tabs-rule { padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-.aiui-docs article.aiui-doc .aiui-tabs-picker {
-  display: flex;
-  align-items: center;
-  min-height: 2.375rem;
-  padding-inline: 0.25rem;
-  border-bottom: 1px solid var(--border);
-}
+.aiui-docs article.aiui-doc .aiui-tabs-picker { display: flex; align-items: center; min-height: 2.375rem; padding-inline: 0.25rem; border-bottom: 1px solid var(--border); }
 .aiui-docs article.aiui-doc .aiui-tabs-picker-fallback { padding: 0.5rem 0.625rem; font-size: 0.875rem; font-weight: 500; }
 .aiui-docs article.aiui-doc .aiui-tabs-panel { min-width: 0; }
 
@@ -979,18 +973,7 @@ img.aiui-docs-mark {
 /* Step options: an icon in the circle instead of the number; a step title
    set as a heading (titleSize) keeps the step's size and scrolls clear of the header. */
 .aiui-docs article.aiui-doc ol.aiui-steps > li.aiui-step[data-icon]::before { content: ''; }
-.aiui-docs article.aiui-doc .aiui-step-icon {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  color: var(--foreground);
-}
+.aiui-docs article.aiui-doc .aiui-step-icon { position: absolute; top: 0; left: 0; z-index: 1; display: flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; color: var(--foreground); }
 .aiui-docs article.aiui-doc .aiui-step-icon svg { width: 0.875rem; height: 0.875rem; }
 .aiui-docs article.aiui-doc :is(h2, h3, h4).aiui-step-title { scroll-margin-top: 5rem; letter-spacing: -0.01em; }
 .aiui-docs article.aiui-doc h2.aiui-step-title { font-size: 1.25rem; }
@@ -1045,44 +1028,14 @@ img.aiui-docs-mark {
 /* Card options: accent colour, a header image, horizontal, a call to action, a link arrow. */
 .aiui-docs article.aiui-doc .aiui-card { position: relative; }
 .aiui-docs article.aiui-doc .aiui-card[data-img] { overflow: hidden; }
-.aiui-docs article.aiui-doc .aiui-card > img.aiui-card-img {
-  width: calc(100% + 2.25rem);
-  max-width: none;
-  height: 10rem;
-  margin: -1rem -1.125rem 0.5rem;
-  object-fit: cover;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-}
-.aiui-docs article.aiui-doc .aiui-card[data-horizontal] {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.75rem;
-  align-items: center;
-  align-content: center;
-}
+.aiui-docs article.aiui-doc .aiui-card > img.aiui-card-img { width: calc(100% + 2.25rem); max-width: none; height: 10rem; margin: -1rem -1.125rem 0.5rem; object-fit: cover; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; }
+.aiui-docs article.aiui-doc .aiui-card[data-horizontal] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.75rem; align-items: center; align-content: center; }
 .aiui-docs article.aiui-doc .aiui-card[data-horizontal] > :not(.aiui-card-icon, .aiui-card-img) { grid-column: 2; }
 .aiui-docs article.aiui-doc .aiui-card[data-horizontal] > .aiui-card-icon { grid-area: 1 / 1 / span 2; margin: 0; }
 .aiui-docs article.aiui-doc .aiui-card[data-horizontal] .aiui-card-body:empty { display: none; }
-.aiui-docs article.aiui-doc .aiui-card-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.25rem;
-  color: var(--ui-link);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
+.aiui-docs article.aiui-doc .aiui-card-cta { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: 0.25rem; color: var(--ui-link); font-size: 0.875rem; font-weight: 500; }
 .aiui-docs article.aiui-doc .aiui-card-cta svg { width: 0.875rem; height: 0.875rem; }
-.aiui-docs article.aiui-doc .aiui-card-arrow {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 1rem;
-  height: 1rem;
-  color: var(--muted-foreground);
-}
+.aiui-docs article.aiui-doc .aiui-card-arrow { position: absolute; top: 1rem; right: 1rem; width: 1rem; height: 1rem; color: var(--muted-foreground); }
 .aiui-docs article.aiui-doc a.aiui-card:hover .aiui-card-arrow { color: var(--ui-link); }
 .aiui-docs article.aiui-doc .aiui-card:has(.aiui-card-arrow) .aiui-card-title { padding-right: 1.5rem; }
 .aiui-docs article.aiui-doc .aiui-card-title {
