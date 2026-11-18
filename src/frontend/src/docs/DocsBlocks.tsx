@@ -7,7 +7,7 @@
 /* eslint-disable react-refresh/only-export-components -- the element → component map is this module's contract */
 import { createContext, useContext, type CSSProperties, type ReactNode } from 'react'
 import { Admonition, MkdocsTab } from '../markdown/MkdocsBlocks'
-import { ApiField, Expandable, Panel } from './ApiFields'
+import { ApiField, Endpoint, Expandable, Panel } from './ApiFields'
 import { slugify } from '../markdown/slug'
 import { isExternal } from './chrome'
 import { cardHref } from './cardHref'
@@ -147,6 +147,7 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-tabs': DocsTabs,
     'aiui-tab': MkdocsTab,
     'aiui-field': ApiField,
+    'aiui-endpoint': Endpoint,
     'aiui-expandable': Expandable,
     'aiui-panel': Panel,
     'aiui-visibility': Visibility,

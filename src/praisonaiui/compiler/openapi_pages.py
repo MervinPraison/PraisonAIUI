@@ -3,7 +3,8 @@
 ``build_api_reference`` turns each loaded spec into one Markdown page per
 operation and webhook, written with the docs components a hand-written API page
 uses (``<ParamField>``, ``<ResponseField>``, ``<Expandable>``, ``<Tabs>`` for
-``oneOf``/``anyOf``, ``<RequestExample>`` (compiler/code_samples.py), ``<ResponseExample>``). The compiler
+``oneOf``/``anyOf``, ``<RequestExample>`` (compiler/code_samples.py), ``<ResponseExample>``) and the
+``<ApiPlayground>`` endpoint bar (its Try-it data: compiler/playground.py). The compiler
 publishes them like any page (one pipeline, R3): the browser renders the source,
 the agent ``.md`` export, ``llms*.txt``, the sitemap and site search come from it. The sidebar
 entries go where the spec is named: a group's pages, a tab's groups, or an
@@ -41,6 +42,7 @@ class ApiPage:
     group: tuple[str, ...]  # sidebar group labels, outermost first; () ungrouped
     hidden: bool  # x-hidden: built, routable, not in the sidebar
     order: int = 0  # the group's place in the spec's `tags` list
+    playground: dict | None = None  # Try-it data, published as openapi/try/<slug>.json (compiler/playground.py)
 
 
 @dataclass
@@ -150,6 +152,7 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
                         taken: set[str] | None = None) -> ApiReference | None:
     """Pages for every spec the config names, or None when it names none.
     ``taken``: slugs of hand-written pages; a generated page never replaces one."""
+    from praisonaiui.compiler.playground import playground_mode  # it builds on this module
     refs = spec_sources(config)
     in_nav = {r.source for r in refs if not r.where.startswith("api.")}
     taken = set(taken or ())
@@ -157,6 +160,8 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
     expand = bool(params and params.expanded == "all")
     examples = config.api.examples if config.api else None
     languages = examples.languages if examples else None
+    prefill = examples.prefill if examples else True
+    mode = playground_mode(config.api)
     sections: list[ApiSection] = []
     done: set[tuple] = set()
     for ref in refs:
@@ -166,14 +171,16 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
                 ref.where.startswith("api.") and ref.source in in_nav):
             continue
         done.add(key)
-        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand, languages)))
+        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand, languages,
+                                                   mode, prefill)))
     if not sections:
         return None
     return ApiReference(sections, *_place(config, sections))
 
 
 def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool = False,
-           languages: list[str] | None = None) -> list[ApiPage]:
+           languages: list[str] | None = None, mode: str = "interactive", prefill: bool = True) -> list[ApiPage]:
+    from praisonaiui.compiler.playground import TRY_DIR, playground_data
     tags = _tags(spec)
     order = {name: i for i, name in enumerate(tags)}
     folder = _path(directory) or DEFAULT_DIRECTORY
@@ -196,10 +203,12 @@ def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool =
                     or f"{op.method} {op.path}")
         description = _first_line(op.description) or (
             f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}")
-        pages.append(ApiPage(slug, title, description, page_markdown(spec, op, title, description, expand=expand,
-                                                                   languages=languages),
-                             group, op.hidden, order.get(tag, len(order)) if tag else
-                             len(order) + 1 if op.webhook else -1))
+        live = mode == "interactive" and not op.webhook
+        text = page_markdown(spec, op, title, description, expand=expand, languages=languages, playground=mode,
+                             src=f"/{TRY_DIR}/{slug}.json" if live else "")
+        pages.append(ApiPage(slug, title, description, text, group, op.hidden,
+                             order.get(tag, len(order)) if tag else len(order) + 1 if op.webhook else -1,
+                             playground_data(spec, op, prefill) if live else None))
     return pages
 
 
@@ -569,7 +578,7 @@ def sample(spec: ApiSpec, schema: Any, depth: int = 0, skip: str = "", stack: tu
         return _CYCLE
     stack = (*stack, ref) if ref else stack
     s = merged(spec, schema)
-    for key in ("example", "default", "const"):
+    for key in ("x-default", "example", "default", "const"):  # x-default: the value Try it starts with
         if key in s:
             return s[key]
     if isinstance(s.get("examples"), list) and s["examples"]:
@@ -696,9 +705,10 @@ def _callback_lines(spec: ApiSpec, op: Operation) -> list[str]:
 
 
 def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False,
-                  languages: list[str] | None = None) -> str:
+                  languages: list[str] | None = None, playground: str = "interactive", src: str = "") -> str:
     """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``;
-    ``languages``: request example languages, ``api.examples.languages``)."""
+    ``languages``: request example languages, ``api.examples.languages``; ``playground``: the display mode,
+    :func:`~praisonaiui.compiler.playground.playground_mode`; ``src``: its Try-it data URL, interactive only)."""
     from praisonaiui.compiler.code_samples import request_examples  # it builds on this module
     keywords = [f"{op.method} {op.path}", *([op.operation_id] if op.operation_id else []),
                 *dict.fromkeys(str(p.get("name")) for p in op.parameters if p.get("name"))]
@@ -711,8 +721,12 @@ def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *,
              f"# {_prose(title)}", ""]
     if op.webhook:
         lines += [f"`{op.method}` webhook `{op.path}`: your server receives this request.", ""]
-    else:
+    elif playground == "none":
         lines += [f"`{op.method}` `{op.path}`", ""]
+    else:  # the endpoint bar (docs/ApiFields.tsx); with src, its Try it button
+        lines += [f'<ApiPlayground method="{op.method}" path="{_attr(op.path)}"'
+                  + (f' src="{_attr(src)}"' if src and playground == "interactive" else "") + " />", ""]
+    if not op.webhook:
         servers = [s for s in op.servers if isinstance(s, dict) and s.get("url")]
         if servers:
             urls = ", ".join(f"`{server_url(s)}`" for s in servers)

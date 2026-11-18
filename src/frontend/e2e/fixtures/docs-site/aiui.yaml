@@ -12,6 +12,8 @@ content:
       issues: "https://github.com/acme/site/issues/new"
     include:
       - "**/*.md"
+api:
+  openapi: openapi.yaml   # one x-hidden endpoint page (Try it)
 components:
   sidebar_docs:
     type: DocsSidebar

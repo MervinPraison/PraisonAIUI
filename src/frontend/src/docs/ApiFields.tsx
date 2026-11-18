@@ -3,9 +3,15 @@
 // <ResponseExample>) that docs/panels.ts moves to the page's side column.
 // The tags become aiui-field / aiui-expandable / aiui-panel (markdown/docsTags.ts).
 // Styles: docs/docs.css (.aiui-field*, .aiui-expandable*, .aiui-panel).
-import { createContext, useContext, type ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react'
+import { Check, ChevronRight, ClipboardCopy } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { withBase } from '@/lib/url'
 import { slugify } from '../markdown/slug'
+import { copyText } from './pageActionLinks'
+
+const loadPlayground = () => import('./ApiPlayground')
+const ApiPlayground = lazy(loadPlayground)
 
 type FieldProps = {
     field?: string; at?: string; type?: string; req?: string; dep?: string
@@ -66,4 +72,34 @@ export function Panel({ kind, children }: { kind?: string; children?: ReactNode 
     return label
         ? <section className="aiui-panel" data-kind={kind} aria-label={label}>{children}</section>
         : <div className="aiui-panel">{children}</div>
+}
+
+/**
+ * <ApiPlayground method path src>: the endpoint bar under an endpoint page's title
+ * (compiler/openapi_pages.py). With `src` (display `interactive`), Try it opens the
+ * request form, a lazy chunk fetched on first hover, focus or click.
+ */
+export function Endpoint({ method = 'GET', path = '', src }: { method?: string; path?: string; src?: string }) {
+    const [open, setOpen] = useState(false)
+    const [copied, setCopied] = useState(false)
+    return (
+        <div className="aiui-endpoint">
+            <span className="aiui-endpoint-method" data-method={method}>{method}</span>
+            <code className="aiui-endpoint-path">{path}</code>
+            <Button variant="ghost" size="icon-sm" aria-label={copied ? 'Copied' : 'Copy path'} onClick={() => void copyText(path).then((ok) => {
+                setCopied(ok)
+                setTimeout(() => setCopied(false), 1500)
+            })}>{copied ? <Check /> : <ClipboardCopy />}</Button>
+            {src && (
+                <Button size="sm" onPointerEnter={() => void loadPlayground()} onFocus={() => void loadPlayground()} onClick={() => setOpen(true)}>
+                    Try it
+                </Button>
+            )}
+            {open && src && (
+                <Suspense fallback={null}>
+                    <ApiPlayground url={withBase(src)} method={method} path={path} copy={copyText} onClose={() => setOpen(false)} />
+                </Suspense>
+            )}
+        </div>
+    )
 }
