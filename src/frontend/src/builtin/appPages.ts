@@ -3,7 +3,7 @@
  * ProList four times, ProLogs and ProSettings in the Pro tokens). Each is
  * the browser half of its Python record (builtin.overview, builtin.sessions,
  * builtin.agents, builtin.knowledge, builtin.logs, builtin.config, builtin.cron;
- * builtin.connect too, a React-only page): it
+ * builtin.connect and builtin.api-reference too, React-only pages): it
  * registers only when the manifest lists the page, through the same
  * `registerPage` a plugin uses, and its code is a lazy chunk fetched when
  * the page is opened.
@@ -55,4 +55,5 @@ export const appPageBuiltins: readonly BuiltinPlugin[] = Object.freeze([
   pagePlugin('builtin.cron', 'cron', () => import('@/app-pages/cron/CronPage')),
   // Shell-only: renders in every frame (no legacy view to fall back to).
   pagePlugin('builtin.connect', 'connect', () => import('@/app-pages/connect/ConnectPage')),
+  pagePlugin('builtin.api-reference', 'api-reference', () => import('@/app-pages/api-reference/ApiReferencePage')),
 ])

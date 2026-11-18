@@ -394,6 +394,12 @@
   bodies with an optional `openapi()` method (the `/v1` OpenAI-compatible routes have theirs).
   Off with `extensions: {disabled: [builtin.api-reference]}`. See
   [The server's OpenAPI document](docs/features/api-reference.md).
+- **API Reference page in the app shell.** `/api-reference` (Control group) lists this
+  server's routes by feature from its live OpenAPI document, searches them and sends a request
+  to the same server with your session: path parameters, query, a JSON body prefilled from the
+  document's example, the response with status and time, and a cURL copy without credentials;
+  `?op=<operationId>` links one route. See
+  [API Reference page and OpenAPI document](docs/features/api-reference.md).
 - **Changelog pages**: `<Update label="2026-11-18" description="v1.2" tags={["API"]}>` entries,
   each an anchored section (in "On this page", search and the page's `.md`) with its label in a
   sticky left column; a tag filter kept in `?tags=`; and with front matter `rss: true` an RSS
