@@ -22,10 +22,11 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_COPY = path.resolve(ROOT, '..', 'praisonaiui', 'templates', 'frontend')
-const ROOT_FILES = ['index.html', 'icon.svg', 'aiui-manifest.json', 'aiui-externals.json', 'aiui-sdk.d.ts']
+const ROOT_FILES = BUNDLE_ROOT_FILES
 
 function argValue(flag) {
   const i = process.argv.indexOf(flag)

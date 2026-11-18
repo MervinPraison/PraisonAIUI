@@ -11,6 +11,7 @@ import path from 'node:path'
 import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { carryForward, previousAssets } from './carry-forward-assets.mjs'
+import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
 import { ManifestError, filesOf, findKey, loadManifest, namedChunks, staticClosure } from './lib/build-manifest.mjs'
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
@@ -210,6 +211,40 @@ test('check-bundle-sync reports missing, stale and changed files', () => {
   assert.match(out, /stale in the copy \(not in this build\) \(1\):\s+assets\/old-999\.js/)
   assert.match(out, /different content \(1\):\s+assets\/index\.js/)
   assert.match(out, /npm run build && npm run sync/)
+})
+
+function touches(files) {
+  const result = spawnSync(process.execPath, [path.join(SCRIPTS, 'touches-frontend.mjs')], {
+    input: files.join('\n'),
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr)
+  return result.stdout.trim()
+}
+
+test('touches-frontend flags source and every built bundle file, including the SDK typings', () => {
+  const copy = 'src/praisonaiui/templates/frontend/'
+  assert.equal(touches(['src/frontend/src/main.tsx']), 'frontend=true')
+  assert.equal(touches([`${copy}assets/chunk-abc.js`]), 'frontend=true')
+  for (const name of BUNDLE_ROOT_FILES) {
+    assert.equal(touches(['README.md', `${copy}${name}`]), 'frontend=true', name)
+  }
+  assert.ok(BUNDLE_ROOT_FILES.includes('aiui-sdk.d.ts'))
+})
+
+test('touches-frontend ignores hand-written files next to the bundle and everything else', () => {
+  const copy = 'src/praisonaiui/templates/frontend/'
+  assert.equal(touches([`${copy}plugins/views/chat.js`, `${copy}chat.css`, `${copy}LICENSE-fonts.txt`]), 'frontend=false')
+  assert.equal(touches(['src/praisonaiui/server.py', 'docs/index.md', '']), 'frontend=false')
+  assert.equal(touches([]), 'frontend=false')
+})
+
+test('sync and check:bundle use the same built-file list as CI', () => {
+  for (const script of ['sync-templates.mjs', 'check-bundle-sync.mjs']) {
+    const src = readFileSync(path.join(SCRIPTS, script), 'utf8')
+    assert.match(src, /from '\.\/lib\/bundle-files\.mjs'/, script)
+    assert.doesNotMatch(src, /'aiui-sdk\.d\.ts'/, `${script} keeps its own list`)
+  }
 })
 
 test('check-bundle-sync refuses to compare without a build', () => {

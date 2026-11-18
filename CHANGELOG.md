@@ -209,6 +209,13 @@
   for a "Core Tests" workflow that does not exist, so a green PR waited for
   the 10-minute scan. ARCHITECTURE R15 now names the hub `merge-gate.js` and
   this repo's `gate-config.js`, which is what runs.
+- CI: a stale committed frontend bundle on `main` fails CI (after the
+  `bundle-sync` job opens its sync PR) instead of passing, so the release
+  gate cannot publish a wheel whose React bundle does not match
+  `src/frontend`. Pull requests that change only the shipped plugin typings
+  (`templates/frontend/aiui-sdk.d.ts`) now run the bundle check too: CI reads
+  the list of built files from the same module as `npm run sync` and
+  `npm run check:bundle`.
 - Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
   package smoke checklist, attachments, MCP connect security, the feature
   APIs), not 2 of its files, and e2e shard 1 runs the dashboard view

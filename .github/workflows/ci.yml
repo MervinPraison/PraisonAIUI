@@ -103,12 +103,9 @@ jobs:
       - name: Does this pull request touch the frontend?
         id: touched
         if: github.event_name == 'pull_request'
-        run: |
-          if git diff --name-only HEAD^1 HEAD | grep -qE '^src/(frontend/|praisonaiui/templates/frontend/(assets/|index\.html$|icon\.svg$|aiui-(manifest|externals)\.json$))'; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "frontend=false" >> "$GITHUB_OUTPUT"
-          fi
+        # The built-file list is shared with `npm run sync` and check:bundle
+        # (scripts/lib/bundle-files.mjs; cases in scripts/gates.test.mjs).
+        run: git diff --name-only HEAD^1 HEAD | node src/frontend/scripts/touches-frontend.mjs >> "$GITHUB_OUTPUT"
 
       - name: Committed bundle matches the build
         if: steps.touched.outputs.frontend == 'true'
@@ -270,8 +267,11 @@ jobs:
           include-hidden-files: true
 
   # Safety net after a merge: rebuild the bundle on the CI image and, when the
-  # committed copy differs, open a pull request with the synced files. Pull
-  # requests that do not touch the frontend never have to carry a bundle.
+  # committed copy differs, open a pull request with the synced files, then
+  # fail. Pull requests that do not touch the frontend never have to carry a
+  # bundle, but main with a stale bundle must not conclude `success`: the
+  # release gate (nightly-release-gate.yml) publishes only a SHA whose CI is
+  # green, and the wheel ships the committed bundle as is.
   bundle-sync:
     name: bundle-sync
     runs-on: ubuntu-latest
@@ -320,6 +320,9 @@ jobs:
               --title "chore: sync the frontend bundle" \
               --body "Rebuilt from src/frontend at ${GITHUB_SHA} with \`npm run build && npm run sync\`. No source changes."
           fi
+          echo "::error title=Stale frontend bundle::src/praisonaiui/templates/frontend does not match a fresh build of src/frontend at ${GITHUB_SHA}. Merge the ${branch} pull request; no release ships until CI on main is green."
+          git diff --stat HEAD^ HEAD -- src/praisonaiui/templates/frontend | tail -20
+          exit 1
 
   # Docs are built and deployed to GitHub Pages only by deploy-pages.yml (one
   # deployer, with a concurrency guard). A second deployer here raced it on
