@@ -197,6 +197,27 @@ export interface UIConfig {
         socials?: Record<string, string>
         links?: { header: string; items: NavbarLinkConfig[] }[]
     }
+    /** `redirects:` the build publishes (a page at an exact source hides its rule); docs/redirects.ts follows them. */
+    redirects?: RedirectRule[]
+    /** `errors.404` (or `errors.notFound`): the page-not-found view (docs/DocsNotFound.tsx). */
+    errors?: { notFound?: NotFoundConfig }
+}
+
+/** One `redirects:` rule: `:name` is one path segment, a final `:name*` the rest of the path. */
+export interface RedirectRule {
+    source: string
+    destination: string
+    /** 301 when true (default), 302 when false; `aiui serve` and `_redirects` use it. */
+    permanent?: boolean
+}
+
+export interface NotFoundConfig {
+    /** Heading, default "Page not found". */
+    title?: string
+    /** Markdown under the heading. */
+    description?: string
+    /** Send readers to the home page instead of showing the view. */
+    redirect?: boolean
 }
 
 /** Docs home page layout (frontmatter `layout: home` on docs/index.md; compiler/docs_home.py). */

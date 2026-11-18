@@ -270,7 +270,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
-                    <DocsNotFound config={config} path={normalizeDocPath(currentPath)} onSearch={onSearch} />
+                    <DocsNotFound config={config} path={normalizeDocPath(currentPath)} onSearch={onSearch} nav={nav} onNavigate={onNavigate} />
                 </div>
             </main>
         )
