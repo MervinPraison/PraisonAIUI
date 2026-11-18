@@ -248,6 +248,20 @@ def check_operations(spec: ApiSpec) -> list[tuple[str, str, str]]:
             if var not in declared:
                 found.append(("warning", f"{op.method} {op.path}: path parameter '{var}' "
                               "is not declared", op.pointer))
+    tags = [t for t in spec.document.get("tags") or [] if isinstance(t, dict)]
+    parents = {str(t.get("name")): t.get("parent") for t in tags}
+    for i, t in enumerate(tags):
+        name, parent, where = str(t.get("name")), t.get("parent"), to_pointer(["tags", i])
+        if [str(x.get("name")) for x in tags].index(name) != i:
+            found.append(("warning", f"Duplicate tag '{name}'", where))
+        if parent is not None and str(parent) not in parents:
+            found.append(("warning", f"Tag '{name}': parent '{parent}' is not a declared tag", where))
+        seen, up = {name}, parent
+        while up is not None and str(up) in parents and str(up) not in seen:
+            seen.add(str(up))
+            up = parents[str(up)]
+        if up is not None and str(up) == name:
+            found.append(("warning", f"Tag '{name}': its parents form a cycle", where))
     return found
 
 
@@ -440,7 +454,8 @@ def _entries(value: Any, where: str) -> list[SpecSource]:
 
 
 def spec_sources(config: "Config") -> list[SpecSource]:
-    """Every spec reference: ``api.openapi``, then tabs and their (nested) groups."""
+    """Every spec reference: ``api.openapi``, then tabs and their (nested) groups,
+    then the root ``navigation.groups`` and ``navigation.pages`` groups."""
     out = _entries(config.api.openapi, "api.openapi") if config.api else []
 
     def group(g: Any, where: str) -> None:
@@ -449,10 +464,15 @@ def spec_sources(config: "Config") -> list[SpecSource]:
             if not isinstance(page, str):
                 group(page, f"{where}.pages[{k}]")
 
-    for i, tab in enumerate(config.navigation.tabs if config.navigation else []):
+    nav = config.navigation
+    for i, tab in enumerate(nav.tabs if nav else []):
         out.extend(_entries(tab.openapi, f"navigation.tabs[{i}].openapi"))
         for j, g in enumerate(tab.groups):
             group(g, f"navigation.tabs[{i}].groups[{j}]")
+    for key in ("groups", "pages"):
+        for j, g in enumerate(getattr(nav, key) if nav else []):
+            if not isinstance(g, str):
+                group(g, f"navigation.{key}[{j}]")
     return out
 
 

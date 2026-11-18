@@ -21,7 +21,8 @@ api:
   `exclusiveMinimum`/`exclusiveMaximum`, schema `example`); the published file keeps your version.
 
 `openapi` also goes on a navigation tab or group: a path or URL, `{source, directory}` or a
-list of either. A spec named twice loads once. `directory`: where its endpoint pages go **(planned)**.
+list of either. A spec named twice loads once. `directory`: the URL folder of its endpoint pages
+(default `api-reference`).
 
 ```yaml
 navigation: {tabs: [{tab: API, openapi: [v2.yaml, {source: admin.yaml, directory: api/admin}]}]}
@@ -37,10 +38,42 @@ starting with `/`, a duplicate `operationId`. Warning: a `{param}` with no path 
 
 ## Output
 
-`aiui build` writes `openapi/<slug>.json` (the spec bundled into one file; `<slug>`: file name,
-`-2` on a clash) and `openapi/index.json` (`{"specs": [{source, file, title, openapi, version, operations}]}`).
-Endpoint pages (honouring `x-hidden`, `x-excluded`, `deprecated`), schema rendering,
-code samples and a Try-it playground build on this **(planned)**.
+`aiui build` writes `openapi/<slug>.json` (the spec bundled into one file, `x-excluded`
+operations removed; `<slug>`: file name, `-2` on a clash), `openapi/index.json`
+(`{"specs": [{source, file, title, openapi, version, operations}]}`), an "OpenAPI specs"
+section in `llms.txt` and an [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) API catalog at
+`/.well-known/api-catalog` (each API's base URL, spec and first endpoint page).
+
+## Endpoint pages
+
+Every operation and 3.1 webhook gets a docs page, generated at build time as Markdown with
+the [API field components](writing-docs.md#api-fields): method and path, server URL,
+deprecation notice, path / query / header / cookie parameters, request body,
+each response (properties nested in `<Expandable>`, `$ref`s resolved, `allOf` merged, enums
+listed, recursive schemas stop), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
+`llms-full.txt`, sitemap and site search (which also matches `METHOD /path`, the
+`operationId` and every parameter and body field name).
+
+| Spec | Result |
+|---|---|
+| `api.openapi` only | an "API Reference" group at the end of the sidebar |
+| `openapi` on a tab | its tag groups join the tab ("API Reference" for untagged operations) |
+| `openapi` on a group | its tag groups go inside that group |
+| `tags` | one sidebar group per operation's first tag; label: `x-group`, `x-displayName`, `summary`, then `name`; 3.2 `parent` nests groups; a tag with another `kind` (`badge`) makes no group |
+| untagged webhook | a "Webhooks" group |
+| `x-hidden: true` | page built and routable, not in the sidebar or indexes |
+| `x-excluded: true` | no page, and removed from the published spec |
+| `deprecated: true` | a deprecation notice |
+
+URL: `/docs/<directory>/<tag name>/<slug>`, the slug from the `operationId` (`listPets` ->
+`list-pets`, so rewording a summary keeps the URL), else the summary, else method and path
+(`get-pets-id`). `x-mint: {href: /reference/pets}` sets the whole path (kebab-cased, `..`
+dropped). A slug already taken (by a hand-written page or another endpoint) gets `-2`, `-3`.
+The title is the `summary` as written, else the `operationId` in words. `aiui validate`
+warns about a duplicate tag, an unknown `parent` and a `parent` cycle.
+
+**(planned)**: an Authorization section, method and `kind: badge` pills in the sidebar, request
+and response examples (cURL and more languages), `oneOf`/`anyOf` tabs, a Try-it playground.
 
 From Python, `praisonaiui.compiler.openapi.load_spec("openapi.yaml")` returns an `ApiSpec`
 (`ok`, `issues`, `document`, `operations`, `dereference(node)`).
