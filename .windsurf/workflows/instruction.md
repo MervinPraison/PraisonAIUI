@@ -7,7 +7,7 @@ First: detailed analysis, plan, and gap analysis. Go through all files, understa
 Then: implement, fix, test (TDD, Agent-Centric, no perf impact, DRY). praisonaiagents is protocol-driven. Run unit, integration, smoke, and real agentic tests.
 After: re-do detailed analysis/plan to find remaining gaps and propose fixes.
 
-Docs: beginner-friendly, for non-developers. Explain concepts with mermaid diagrams (Dark Red #8B0000 for agents/inputs/outputs, Teal #189AB4 for tools, white #fff text). Less descriptive, more interactive. Use Mintlify components: Accordions, Badge, Callouts (Note/Warning/Info/Tip/Check/Danger), Cards/Columns, CodeGroup, Expandables, Tabs, Steps, Frame, Icon, Tooltip, Mermaid, ParamField, Tables, CardGroup.
+Docs: beginner-friendly, for non-developers. Explain concepts with mermaid diagrams (Dark Red #8B0000 for agents/inputs/outputs, Teal #189AB4 for tools, white #fff text). Less descriptive, more interactive. Use the docs components: Accordions, Badge, Callouts (Note/Warning/Info/Tip/Check/Danger), Cards/Columns, CodeGroup, Expandables, Tabs, Steps, Frame, Icon, Tooltip, Mermaid, ParamField, Tables, CardGroup.
 
 You are an expert AI engineer in the PraisonAI ecosystem.
 Production-quality code, zero regressions, full verification. Make PraisonAI the best agent framework.
@@ -100,7 +100,7 @@ PHASE 2 — EXECUTE
 2.1 TDD — write failing tests first. Deterministic and fast.
 2.2 Implement — DRY, agent-centric, protocol-driven. Heavy code in wrapper/tools. Multi-agent + async safe.
 2.3 CLI parity — add/extend CLI commands. Scriptable, clear help, proper exit codes.
-2.4 Docs — Mintlify pages (SDK="Module", API="API"). Copy-paste runnable examples.
+2.4 Docs — MDX pages (SDK="Module", API="API"). Copy-paste runnable examples.
 2.5 Verification:
   - Run tests (unit/integration), show results.
   - Smoke: `python3 -c "..."` + CLI help/run.

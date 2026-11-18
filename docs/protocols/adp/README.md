@@ -12,7 +12,7 @@ Declarative UI design standard for describing application layout, navigation, co
 
 | Document | Description |
 |----------|-------------|
-| [Research report](../application-design-protocol-report.md) | 46 standards compared; YAML vs JSON debate; design principles |
+| [Research report](../application-design-protocol-report.md) | 45 standards compared; YAML vs JSON debate; design principles |
 | [spec.md](./spec.md) | Normative specification (draft) |
 | [validation-rules.md](./validation-rules.md) | Cross-reference rules R1–R30 |
 | [aiui-mapping.md](./aiui-mapping.md) | PraisonAIUI field mapping |

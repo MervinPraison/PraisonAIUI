@@ -31,7 +31,7 @@ The other presets and what each changes are in [Theming](theming.md).
 
 YAML at the top of a page sets its title in the sidebar, the browser tab and
 search results, and its description for search engines and `llms.txt`. Every
-key is optional, and Mintlify page metadata works as it is.
+key is optional, and the common MDX page metadata keys work as they are.
 
 ```markdown
 ---
@@ -378,7 +378,7 @@ async def on_message(message: str):
 Without `title=`, every word after the language up to the first option is
 the title: `python Reply handler {3-4}` shows "Reply handler".
 `highlight={3-4}`, `hl_lines="3 4"` and `highlight="3-4"` work too, so fences
-written for MkDocs or Mintlify carry over.
+written for MkDocs or in MDX syntax carry over.
 
 ### Code block options
 
@@ -805,8 +805,8 @@ Install {{productName}} {{version}} with `pip install acme=={{version}}`.
   the page, then in `docs/snippets/`, then the docs folder; `/x.md` starts at
   the docs folder. Indent the tag inside a list item and the snippet follows
   the indent.
-- Coming from Mintlify: `import Install from '/snippets/install.mdx'` then
-  `<Install pkg="aiui" />` works as is. From MkDocs: `--8<-- "install.md"` on
+- Existing MDX snippet syntax works too: `import Install from '/snippets/install.mdx'`
+  then `<Install pkg="aiui" />`. From MkDocs: `--8<-- "install.md"` on
   a line of its own.
 - Write `\\{{name}}` for a literal `{{name}}`. A snippet tag in a code block
   stays as written.

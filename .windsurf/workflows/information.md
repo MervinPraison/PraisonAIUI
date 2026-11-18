@@ -78,4 +78,4 @@ praisonaiui.set_provider(MyCrewAIProvider())
 - **PraisonAI primary, others welcome**: PraisonAI is the default, but the architecture doesn't lock you in
 - **Frontend already ready**: The frontend `useSSE.ts` hook and components (`ToolCallDisplay`, `ThinkingSteps`, `MultimediaElements`) already handle all 27 `RunEventType` values — swapping the backend requires no frontend changes
 
-Aim is by default it need to be protocol driven, so we can easily extend, or replace any providers or function accordingly. At the same time it also need to be capable of handling clients, and the clients will be of config driven, same like chainlit or yaml config and it should work. 
+Aim is by default it need to be protocol driven, so we can easily extend, or replace any providers or function accordingly. At the same time it also need to be capable of handling clients, and the clients will be of config driven, same like a decorator-based Python app or yaml config and it should work. 

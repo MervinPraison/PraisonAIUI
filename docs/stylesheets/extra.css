@@ -1,7 +1,7 @@
-/* Mintlify-style theme for MkDocs Material */
+/* Docs theme for MkDocs Material */
 
 :root {
-  /* Mintlify-inspired colors - teal/green gradient */
+  /* Brand colors - teal/green gradient */
   --md-primary-fg-color: #0D9373;
   --md-primary-fg-color--light: #14B8A6;
   --md-primary-fg-color--dark: #047857;
@@ -9,7 +9,7 @@
   --md-accent-fg-color--transparent: rgba(14, 165, 233, 0.1);
 
   /* Custom properties */
-  --mintlify-gradient: linear-gradient(135deg, #0D9373 0%, #0EA5E9 100%);
+  --brand-gradient: linear-gradient(135deg, #0D9373 0%, #0EA5E9 100%);
 }
 
 /* Dark mode colors */
@@ -99,7 +99,7 @@
   color: #94a3b8 !important;
 }
 
-/* Navigation tabs - Mintlify style */
+/* Navigation tabs */
 .md-tabs {
   background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
@@ -192,7 +192,7 @@
   font-size: 1.125rem;
 }
 
-/* Code blocks - Mintlify style */
+/* Code blocks */
 .md-typeset code {
   background: rgba(0, 0, 0, 0.05);
   padding: 0.15em 0.4em;

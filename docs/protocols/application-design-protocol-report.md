@@ -15,13 +15,13 @@ nav_title: Research report
 
 There is no single existing standard for **designing full application UI from a declarative text file**. Instead, the problem is addressed in fragments:
 
-- **Docs-site generators** (Mintlify, PraisonAIUI, Hugo) declare navigation and layout in config files.
+- **Docs-site generators** (commercial docs platforms, PraisonAIUI, Hugo) declare navigation and layout in config files.
 - **Form libraries** (JSON Forms, RJSF) declare layout trees from JSON Schema.
 - **Agent UI protocols** (A2UI, AG-UI) declare streaming component surfaces for LLM-generated UI.
 - **Catalog standards** (OpenUI, Backstage) declare component metadata without runtime layout.
 - **Design token standards** (DTCG 2025.10) declare theming without structure.
 
-**Recommendation:** Define an **Application Design Protocol (ADP)** that synthesises proven patterns from 46 surveyed standards into a UI-only manifest format.
+**Recommendation:** Define an **Application Design Protocol (ADP)** that synthesises proven patterns from 45 surveyed standards into a UI-only manifest format.
 
 PraisonAIUI already implements approximately 60% of this model. ADP formalises, extends, and publishes what exists today.
 
@@ -37,7 +37,7 @@ A protocol that lets a developer (or LLM) describe an application's visual desig
 
 | Need | Who solves it | Gap |
 |------|---------------|-----|
-| Docs site from config | Mintlify, PraisonAIUI, Docusaurus | No shared spec; Mintlify uses JSON, others use YAML or JS |
+| Docs site from config | Commercial docs platforms, PraisonAIUI, Docusaurus | No shared spec; some use JSON, others YAML or JS |
 | Component catalog | OpenUI, A2UI | No layout or routing |
 | Layout trees | JSON Forms uiSchema | Forms only, not app shells |
 | Theming | DTCG, Material 3 | Tokens only, no pages |
@@ -55,7 +55,7 @@ A protocol that lets a developer (or LLM) describe an application's visual desig
 
 ---
 
-## 3. Standards landscape — 46 protocols in 10 categories
+## 3. Standards landscape — 45 protocols in 10 categories
 
 Each entry describes **how UI/layout/navigation is declared** — the primary comparison dimension.
 
@@ -77,11 +77,10 @@ Each entry describes **how UI/layout/navigation is declared** — the primary co
 | **RJSF** | JSON Schema + uiSchema | Schema-tree mirroring; `ui:widget`, `ui:options` | React convention | Package SemVer |
 | **Google A2UI** | JSONL stream | Flat adjacency-list; `createSurface`; catalog-constrained types | JSON Schema catalog | v0.9.1 / v1.0 RC |
 
-### Category C: Docs-site generators (6)
+### Category C: Docs-site generators (5)
 
 | Standard | Format | How UI/layout/navigation is declared | Schema | Versioning |
 |----------|--------|--------------------------------------|--------|------------|
-| **Mintlify** | JSON (`docs.json`) | `navigation.groups[].pages[]`; `$schema` URL; `$ref` splitting | Published JSON Schema URL | Platform |
 | **PraisonAIUI** | YAML | `components` → `templates{layout, slots, zones}` → `routes` | Pydantic (internal) | `schemaVersion: 1` |
 | **Docusaurus** | JS config | `themeConfig.navbar`, plugin sidebar config | TypeScript types | Package SemVer |
 | **Hugo** | TOML/YAML | `menu.main[]`, theme selection | Hugo schema | Release train |
@@ -165,13 +164,13 @@ Each entry describes **how UI/layout/navigation is declared** — the primary co
 | **Component registry + ref** | PraisonAIUI, OpenUI | Named map; templates use `ref:` | Adopt |
 | **Layout + slots** | PraisonAIUI, JSON Forms | Layout type + named regions | Adopt (unified) |
 | **Route → template** | PraisonAIUI, Flutter | URL glob → template | Adopt |
-| **Navigation tree** | Mintlify, Storybook | Hierarchical groups → pages | Adopt |
+| **Navigation tree** | Docusaurus, Storybook | Hierarchical groups → pages | Adopt |
 | **Design token file** | DTCG, Material 3 | Token JSON with aliases | Adopt |
 | **Catalog allowlist** | A2UI, OpenUI | Closed component vocabulary | Adopt |
 | **Schema + uiSchema split** | JSON Forms, RJSF | Data vs presentation | Partial |
 | **Streaming surfaces** | A2UI, AG-UI | Incremental JSON updates | Future |
 | **Layered spec** | AWP, Helm | Separate files merged at compile | Adopt |
-| **File includes** | Backstage, Mintlify | `$yaml:` / `$ref` external files | Adopt |
+| **File includes** | Backstage, OpenAPI | `$yaml:` / `$ref` external files | Adopt |
 | **Structural pruning** | K8s CRD | Reject unknown fields | Adopt |
 | **Validation rules R1–Rn** | AWP | Cross-ref beyond JSON Schema | Adopt |
 | **JS executable config** | Docusaurus, Gatsby | Code config | Reject |
@@ -180,21 +179,21 @@ Each entry describes **how UI/layout/navigation is declared** — the primary co
 
 ---
 
-## 5. Side-by-side: four closest analogues
+## 5. Side-by-side: three closest analogues
 
-| Dimension | PraisonAIUI | Mintlify | A2UI | Backstage |
-|-----------|-------------|----------|------|-----------|
-| **Authoring format** | YAML | JSON | JSON (stream) | YAML |
-| **Envelope** | `schemaVersion` only | Flat JSON | Message `version` | `apiVersion/kind/metadata/spec` |
-| **Navigation** | `navigation.tabs[]` + filesystem | `navigation.groups[]` | N/A | N/A (metadata catalog) |
-| **Components** | `components{id: type, props}` | N/A | Catalog + adjacency list | Entity kinds |
-| **Layout** | `templates{layout, slots, zones}` | Theme only | Surfaces | N/A |
-| **Routes** | `routes{match, template}` | Page paths in nav | N/A | N/A |
-| **Schema published** | Pydantic only | `$schema` URL | JSON Schema catalog | JSON Schema per kind |
-| **Runtime** | React SPA | Hosted platform | Any renderer | Catalog API |
-| **Primary use** | Docs sites | Docs sites | Agent-generated UI | Software inventory |
+| Dimension | PraisonAIUI | A2UI | Backstage |
+|-----------|-------------|------|-----------|
+| **Authoring format** | YAML | JSON (stream) | YAML |
+| **Envelope** | `schemaVersion` only | Message `version` | `apiVersion/kind/metadata/spec` |
+| **Navigation** | `navigation.tabs[]` + filesystem | N/A | N/A (metadata catalog) |
+| **Components** | `components{id: type, props}` | Catalog + adjacency list | Entity kinds |
+| **Layout** | `templates{layout, slots, zones}` | Surfaces | N/A |
+| **Routes** | `routes{match, template}` | N/A | N/A |
+| **Schema published** | Pydantic only | JSON Schema catalog | JSON Schema per kind |
+| **Runtime** | React SPA | Any renderer | Catalog API |
+| **Primary use** | Docs sites | Agent-generated UI | Software inventory |
 
-**Synthesis:** ADP combines PraisonAIUI's composition model, Mintlify's schema publishing, A2UI's catalog allowlist, and Backstage's envelope and file includes.
+**Synthesis:** ADP combines PraisonAIUI's composition model, the published `$schema` of commercial docs platforms, A2UI's catalog allowlist, and Backstage's envelope and file includes.
 
 ---
 
@@ -206,7 +205,7 @@ YAML is the best authoring format for application design manifests.
 
 ### 6.2 Counter-evidence
 
-**Mintlify** — the closest commercial docs-site analogue — uses **JSON** (`docs.json`) with a published `$schema` URL for IDE autocomplete. This works well for flat-to-moderately-nested config but becomes verbose for deep layout trees.
+**Commercial docs platforms** — the closest docs-site analogues — use **JSON** config with a published `$schema` URL for IDE autocomplete. This works well for flat-to-moderately-nested config but becomes verbose for deep layout trees.
 
 **A2UI** uses **JSON** as both authoring and wire format because LLMs emit structured JSON reliably and ambiguity is unacceptable at runtime.
 
@@ -217,7 +216,7 @@ YAML is the best authoring format for application design manifests.
 | Format | Strengths | Weaknesses for ADP |
 |--------|-----------|-------------------|
 | **YAML** | Comments; readable nesting; LLM-friendly; PraisonAIUI continuity | Ambiguous typing; merge key footguns; no native DRY |
-| **JSON** | Unambiguous; `$schema` IDE support; Mintlify-proven | No comments; verbose for layout trees |
+| **JSON** | Unambiguous; `$schema` IDE support; proven by commercial docs platforms | No comments; verbose for layout trees |
 | **TOML** | Clear flat tables (Hugo) | Poor for nested templates/zones |
 | **CUE / Jsonnet / Pkl** | Typed composition without templating | Learning curve; not LLM-default |
 | **HCL** | Modules, expressions | Ecosystem-bound; overkill for UI-only |
@@ -236,7 +235,7 @@ Author (human/LLM) → YAML (default) or JSON (alternate)
 ```
 
 - **Primary authoring:** YAML — best for nested `templates` / `zones` trees
-- **Alternate authoring:** JSON — for teams preferring Mintlify-style `$schema` tooling
+- **Alternate authoring:** JSON — for teams preferring `$schema` editor tooling
 - **Never at runtime:** YAML — always compile to JSON before serve
 - **Composition:** `$yaml:` file includes (Backstage), not Helm Go templates
 - **Power users:** Optional CUE/Jsonnet compiles to YAML before validation
@@ -390,41 +389,40 @@ See [adp/aiui-mapping.md](./adp/aiui-mapping.md) for field-by-field mapping.
 | 22 | LangGraph | https://langchain-ai.github.io/langgraph/ |
 | 23 | Material Design 3 | https://m3.material.io/ |
 | 24 | MCP | https://modelcontextprotocol.io/ |
-| 25 | Mintlify | https://mintlify.com/docs |
-| 26 | OAM | https://oam.dev/ |
-| 27 | OCI Artifact | https://opencontainers.org/ |
-| 28 | OpenAPI | https://www.openapis.org/ |
-| 29 | OpenUI | https://openuispec.org/ |
-| 30 | Pkl | https://pkl-lang.org/ |
-| 31 | PraisonAIUI | https://github.com/MervinPraison/PraisonAIUI |
-| 32 | RJSF | https://rjsf-team.github.io/react-jsonschema-form/ |
-| 33 | Storybook CSF | https://storybook.js.org/docs/api/csf |
-| 34 | W3C ARIA APG | https://www.w3.org/WAI/ARIA/apg/ |
-| 35 | Web Components | https://web.dev/articles/declarative-shadow-dom |
-| 36 | Webflow | https://webflow.com/ |
-| 37 | AutoGen | https://microsoft.github.io/autogen/ |
-| 38 | A2A | https://google.github.io/A2A/ |
-| 39 | Jsonnet | https://jsonnet.org/ |
-| 40 | Docker Compose | https://docs.docker.com/compose/ |
-| 41 | Qt QML | https://doc.qt.io/qt-6/qmlapplications.html |
-| 42 | XAML | https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/xaml-overview |
-| 43 | Jetpack Compose | https://developer.android.com/develop/ui/compose |
-| 44 | SwiftUI | https://developer.apple.com/xcode/swiftui/ |
-| 45 | HTML + CSS | https://html.spec.whatwg.org/ |
-| 46 | Flutter | https://flutter.dev/ |
+| 25 | OAM | https://oam.dev/ |
+| 26 | OCI Artifact | https://opencontainers.org/ |
+| 27 | OpenAPI | https://www.openapis.org/ |
+| 28 | OpenUI | https://openuispec.org/ |
+| 29 | Pkl | https://pkl-lang.org/ |
+| 30 | PraisonAIUI | https://github.com/MervinPraison/PraisonAIUI |
+| 31 | RJSF | https://rjsf-team.github.io/react-jsonschema-form/ |
+| 32 | Storybook CSF | https://storybook.js.org/docs/api/csf |
+| 33 | W3C ARIA APG | https://www.w3.org/WAI/ARIA/apg/ |
+| 34 | Web Components | https://web.dev/articles/declarative-shadow-dom |
+| 35 | Webflow | https://webflow.com/ |
+| 36 | AutoGen | https://microsoft.github.io/autogen/ |
+| 37 | A2A | https://google.github.io/A2A/ |
+| 38 | Jsonnet | https://jsonnet.org/ |
+| 39 | Docker Compose | https://docs.docker.com/compose/ |
+| 40 | Qt QML | https://doc.qt.io/qt-6/qmlapplications.html |
+| 41 | XAML | https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/xaml-overview |
+| 42 | Jetpack Compose | https://developer.android.com/develop/ui/compose |
+| 43 | SwiftUI | https://developer.apple.com/xcode/swiftui/ |
+| 44 | HTML + CSS | https://html.spec.whatwg.org/ |
+| 45 | Flutter | https://flutter.dev/ |
 
 ---
 
 ## 13. Conclusion
 
-ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. The research across 46 standards yields a clear synthesis:
+ADP is feasible and largely prefigured by PraisonAIUI's existing architecture. The research across 45 standards yields a clear synthesis:
 
 - **Envelope** from Backstage/K8s
 - **Composition** from PraisonAIUI (components → templates → routes)
 - **Catalog** from A2UI/OpenUI
 - **Theming** from DTCG
 - **Validation** from AWP (structural schema + R-rules)
-- **Authoring** in YAML (default) with JSON alternate (Mintlify pattern)
+- **Authoring** in YAML (default) with JSON alternate (published `$schema` pattern)
 
 **Status:** Research draft — see [adp/implementation-status.md](./adp/implementation-status.md) for implementation gaps.
 

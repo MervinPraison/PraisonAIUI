@@ -37,7 +37,7 @@ STEP 2 — Repo Inventory (evidence-based)
   - CLI commands, options, help text
   - Integrations (db/observability/tools)
   - Tests (unit/integration), fixtures, CI config
-  - Docs (Mintlify), examples, recipes
+  - Docs (MDX docs site), examples, recipes
 - Provide: file paths + key symbols + grep counts + entry points.
 - Identify DRY opportunities.
 
