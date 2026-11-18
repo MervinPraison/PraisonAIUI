@@ -248,6 +248,16 @@
   accordion it names, and the accordion around a linked heading. See
   [Writing docs pages](docs/features/writing-docs.md#columns).
 
+- Docs API fields: `<ParamField path|query|body|header>` and
+  `<ResponseField name>` rows (type such as `string[]` or `object`,
+  `required`, `deprecated`, `default`, `pre` / `post` labels), each with its
+  own link (`#param-user_id`, `#response-user-address` for a nested field);
+  `<Expandable title defaultOpen>` for nested properties.
+  `<RequestExample>` / `<ResponseExample>` (tabs, or `dropdown`) and
+  `<Panel>` move to a sticky column in place of "On this page" on wide
+  screens and follow the article on phones. See
+  [Writing docs pages](docs/features/writing-docs.md#api-fields).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
