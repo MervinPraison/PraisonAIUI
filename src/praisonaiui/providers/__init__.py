@@ -821,7 +821,6 @@ class PraisonAIProvider(BaseProvider):
             run_key = current_run_id.get() or str(uuid.uuid4())
         except ImportError:
             run_key = str(uuid.uuid4())
-        _live_reply_contexts[run_key] = msg
 
         async def _run_cb():
             try:
@@ -847,6 +846,7 @@ class PraisonAIProvider(BaseProvider):
         # chat, the saved history and the run ledger).
         ended = False
         drained = False  # the callback finished and its queue is read
+        _live_reply_contexts[run_key] = msg  # removed in the finally below
         try:
             while True:
                 try:
@@ -958,12 +958,6 @@ class PraisonAIProvider(BaseProvider):
             await task
 
         yield RunEvent(type=RunEventType.RUN_COMPLETED, content=full_response)
-
-    async def submit_ask_response(
-        self, session_id: Optional[str], run_id: Optional[str], response: Any
-    ) -> bool:
-        """Give the user's answer to the ``@reply`` callback waiting on it."""
-        return await answer_reply_ask(session_id, run_id, response)
 
     async def _run_direct_mode(
         self,
