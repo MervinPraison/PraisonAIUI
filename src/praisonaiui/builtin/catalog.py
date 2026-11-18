@@ -457,6 +457,21 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     BuiltinPlugin(
         "connect",
         "Connect editors and agents to this app's MCP server",
+        (
+            # React page in the app shell (builtin.connect in src/frontend/src/builtin);
+            # shell-only: the default dashboard style has no view for it (R6).
+            page(
+                "connect",
+                "Connect",
+                "🔗",
+                "Agent",
+                "One-click setup for Cursor, VS Code, Claude, Codex and more",
+                31,
+                kind="native",
+                nav_icon="radio",
+                shell_only=True,
+            ),
+        ),
         feature_refs=(feature(".connect", "ConnectFeature"),),
     ),
     BuiltinPlugin(

@@ -19,8 +19,7 @@ Studio, Raycast, Copilot CLI, ChatGPT, and any other MCP client.
 | One line: `AIUI_MCP_URL=https://host/mcp` | A running HTTP MCP server, for example your agents behind `serve_agents([...])` |
 | Neither | The page says how to install `praisonai-mcp` |
 
-**(planned)** The page itself ships in the next PR; this one adds its two
-routes. The page needs `style: app`. It has no view in the default `dashboard`
+The page needs `style: app`. It has no view in the default `dashboard`
 style. Turn it off with `extensions: {disabled: [builtin.connect]}`.
 
 ## What the page does

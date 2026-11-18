@@ -317,6 +317,7 @@ test('each page is the browser half of its record and registers only when listed
     ['builtin.logs', 'logs'],
     ['builtin.config', 'config'],
     ['builtin.cron', 'cron'],
+    ['builtin.connect', 'connect'],
   ])
   const registered: string[] = []
   const sdk = { registerPage: (id: string) => registered.push(id) } as never
@@ -378,4 +379,11 @@ test('no native select and no emoji in the app pages', () => {
       return statSync(f).isDirectory() ? walk(f) : /\.tsx$/.test(n) && !/\.test\./.test(n) ? [f] : []
     })
   for (const f of walk(dir)) assert.doesNotMatch(readFileSync(f, 'utf8'), /<select\b/, f)
+})
+
+test('Connect renders in any frame and starts with a labelled loading state', async () => {
+  const { default: ConnectPage } = await import('./connect/ConnectPage')
+  const out = html(ConnectPage, 'connect')
+  assert.match(out, /aria-busy="true"/)
+  assert.match(out, /Loading clients/)
 })
