@@ -28,6 +28,22 @@ pytest tests/unit/test_compiler.py::TestCompilerUiConfig -v
 pytest tests/unit/test_compiler.py::TestCompilerUiConfig::test_minimal_ui_config -v
 ```
 
+## What CI runs
+
+- **python job** (3.10, 3.11, 3.12): `pytest tests/unit tests/integration`.
+  Tests marked `live` call a real LLM provider and skip unless
+  `PRAISONAI_LIVE_TESTS=1` (or `AIUI_LIVE_LLM=1`). `tests/integration/conftest.py`
+  clears provider API keys for every other integration test, so they never
+  reach the network even when your shell has keys set.
+- **e2e shard 1**: the Python suites that need Node 22.15+,
+  `src/frontend/node_modules` or Chromium (`test_legacy_view_hygiene.py`,
+  `test_app_shell.py`, `test_dashboard_view_resolution.py`,
+  `test_dashboard_host_runtime.py`, `test_page_navigation_browser.py`,
+  `test_mkdocs_preprocess.py`) run with `RUN_BROWSER_TESTS=1` and
+  `--fail-on-skip`. That flag (defined in `tests/conftest.py`) makes the run
+  exit non-zero when anything skips, so a missing tool cannot pass as a row of
+  skips. Add a new suite of that kind to that step.
+
 ## Test Structure
 
 ```

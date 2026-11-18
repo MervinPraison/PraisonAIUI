@@ -14,9 +14,12 @@ pytest tests/unit tests/integration -v --cov=src/praisonaiui --cov-report=term-m
 ```
 
 CI runs `ruff check src/praisonaiui`, then
-`pytest tests/unit -v --no-cov --timeout=60`, then a short agentic round trip
-(`tests/integration/test_agentic_roundtrip.py`,
-`tests/test_feature_sdk_backends.py`).
+`pytest tests/unit tests/integration -v --no-cov --timeout=120`. Tests marked `live` call a real LLM
+provider and skip unless `PRAISONAI_LIVE_TESTS=1`; `tests/integration/conftest.py`
+clears provider API keys for the others. The Python suites that need Node
+22.15+, `src/frontend/node_modules` or Chromium run in e2e shard 1 with
+`RUN_BROWSER_TESTS=1` and `--fail-on-skip`, which fails the run if any test
+skips (see `tests/README.md`).
 
 | Folder | What is in it |
 |--------|---------------|

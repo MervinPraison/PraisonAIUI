@@ -24,7 +24,7 @@ All 16 standardization gaps from the AIUI gap analysis have been **implemented a
 | G-10 | `health --detailed` flag | ✅ Done | `cli.py:1642-1644` → `--detailed` per-feature health output |
 | G-11 | Deployment guide doc | ✅ Done | `docs/features/deployment.md` — 244 lines (Docker, env vars, auth, managed hosting) |
 | G-12 | Naming convention doc | ✅ Done | `docs/features/protocol-architecture.md:183` → "Naming Convention" section |
-| G-13 | Doctor CLI tests | ✅ Done | `tests/test_doctor_cli.py` — 7 test cases, all pass |
+| G-13 | Doctor CLI tests | ✅ Done | `tests/unit/test_doctor_cli.py` — 7 test cases, all pass |
 | G-14 | Data dir env var tests | ✅ Done | `tests/unit/test_data_dir.py` — 5 test cases, all pass |
 | G-15 | Docker integration test | ✅ Done | `tests/integration/test_docker.sh` — build + health check + cleanup |
 | G-16 | Auth thread-safety | ✅ Done | `auth.py:54` → `_auth_lock = threading.Lock()`, 10 `with _auth_lock:` usages |
@@ -35,13 +35,13 @@ All 16 standardization gaps from the AIUI gap analysis have been **implemented a
 
 ### New Tests: 12/12 Passed
 ```
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_help PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_server_unreachable PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_json_output PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_all_checks_present PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_json_has_seven_checks PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_summary_counts PASSED
-tests/test_doctor_cli.py::TestDoctorCLI::test_doctor_check_structure PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_help PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_server_unreachable PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_json_output PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_all_checks_present PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_json_has_seven_checks PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_summary_counts PASSED
+tests/unit/test_doctor_cli.py::TestDoctorCLI::test_doctor_check_structure PASSED
 tests/unit/test_data_dir.py::TestDataDir::test_default_data_dir PASSED
 tests/unit/test_data_dir.py::TestDataDir::test_custom_data_dir PASSED
 tests/unit/test_data_dir.py::TestDataDir::test_data_dir_created_if_missing PASSED
@@ -86,7 +86,7 @@ All 37 files have `PraisonAI* = *Feature` backward-compat aliases. Existing impo
 | `Dockerfile` | Production image (python:3.12-slim + HEALTHCHECK) |
 | `.dockerignore` | Clean Docker build context |
 | `docs/features/deployment.md` | Deployment guide (244 lines) |
-| `tests/test_doctor_cli.py` | Doctor CLI unit tests (7 cases) |
+| `tests/unit/test_doctor_cli.py` | Doctor CLI unit tests (7 cases) |
 | `tests/unit/test_data_dir.py` | AIUI_DATA_DIR tests (5 cases) |
 | `tests/integration/test_docker.sh` | Docker build + health check integration test |
 

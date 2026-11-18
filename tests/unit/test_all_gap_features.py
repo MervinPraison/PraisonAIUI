@@ -197,33 +197,38 @@ class TestThemeFeature:
         assert f.name == "theme"
 
     def test_themes_available(self):
-        from praisonaiui.features.theme import ThemeManager
+        # Themes are accent presets; light/dark is a separate mode.
+        from praisonaiui.features.theme import PRESET_COLORS, ThemeManager
         mgr = ThemeManager()
         themes = mgr.list_themes()
-        assert "dark" in themes
-        assert "light" in themes
+        assert "zinc" in themes
+        assert set(PRESET_COLORS) <= set(themes)
 
     def test_set_theme(self):
         from praisonaiui.features.theme import ThemeManager
         mgr = ThemeManager()
-        assert mgr.get_theme() == "dark"
-        mgr.set_theme("light")
-        assert mgr.get_theme() == "light"
+        assert mgr.get_theme() == "zinc"
+        mgr.set_theme("slate")
+        assert mgr.get_theme() == "slate"
+        mgr.set_theme("no-such-preset")
+        assert mgr.get_theme() == "slate"
 
     def test_css_vars(self):
-        from praisonaiui.features.theme import ThemeManager
+        from praisonaiui.features.theme import PRESET_COLORS, ThemeManager
         mgr = ThemeManager()
-        v = mgr.get_vars("dark")
-        assert "--chat-bg" in v
-        assert "--chat-text" in v
+        v = mgr.get_vars("zinc")
+        assert v["--db-accent"] == PRESET_COLORS["zinc"]["accent"]
+        assert v["--db-accent-rgb"] == PRESET_COLORS["zinc"]["accentRgb"]
+        assert "--db-bg" in v
 
     def test_custom_theme(self):
         from praisonaiui.features.theme import ThemeManager
         mgr = ThemeManager()
-        mgr.register_theme("ocean", {"--chat-bg": "#001122"})
+        mgr.register_theme("ocean", {"accent": "#001122"})
         assert "ocean" in mgr.list_themes()
         v = mgr.get_vars("ocean")
-        assert v["--chat-bg"] == "#001122"
+        assert v["--db-accent"] == "#001122"
+        assert v["--db-accent-rgb"] == "0,17,34"
 
 
 # ═══════════════════════════════════════════════════════════════════

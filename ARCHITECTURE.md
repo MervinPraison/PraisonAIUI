@@ -277,6 +277,13 @@ line count does not rise without a stated reason.
 
 `tests/conftest.py` sets `AIUI_DISABLE_PLUGIN_AUTOLOAD=1` and clears `AUTH_ENFORCE`
 and `AIUI_SHELL`; tests that start a server use a `tmp_path` `AIUI_DATA_DIR`.
+CI's python job runs `pytest tests/unit tests/integration`. A test that calls a
+real LLM is marked `live` and skips unless `PRAISONAI_LIVE_TESTS=1`;
+`tests/integration/conftest.py` clears provider keys, so the rest never reach
+the network. Python tests that need Node 22.15+, `src/frontend/node_modules`
+or Chromium skip in the python job and run in e2e shard 1 with
+`--fail-on-skip`, so a missing tool fails CI instead of passing as skips; a new
+file of that kind is added to that step.
 
 **R13. The committed bundle equals a fresh build.** A PR that changes
 `src/frontend/**` also runs `npm run build && npm run sync` and commits
@@ -448,11 +455,16 @@ Walk it top to bottom; cite the rule number in review comments.
 ```bash
 pip install -e ".[dev]"
 ruff check src/praisonaiui                     # CI lint
-AIUI_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/unit -q
+pytest tests/unit tests/integration -q          # CI python job (`live` tests skip)
 cd src/frontend && npm ci
 npx tsc -b && npm test && npm run test:scripts
 npm run lint                                     # eslint on all of src/ and e2e/
 npm run build && npm run size && npm run check:closure
 npm run sync && npm run check:bundle             # commit templates/frontend
 npm run test:e2e                                 # Playwright; serves dist/
+cd ../.. && RUN_BROWSER_TESTS=1 pytest --fail-on-skip -rs \
+  tests/unit/test_legacy_view_hygiene.py tests/unit/test_app_shell.py \
+  tests/unit/test_dashboard_view_resolution.py tests/unit/test_dashboard_host_runtime.py \
+  tests/unit/test_page_navigation_browser.py tests/unit/test_mkdocs_preprocess.py
+                                                 # e2e shard 1: needs npm ci, Playwright + Chromium
 ```
