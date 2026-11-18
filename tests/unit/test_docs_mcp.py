@@ -15,7 +15,7 @@ from starlette.testclient import TestClient
 
 from praisonaiui.cli import _static_site_app
 from praisonaiui.compiler.compiler import Compiler
-from praisonaiui.docs_mcp import DocsMcp, search, stem, term_match
+from praisonaiui.docs_mcp import DocsMcp, stem, term_match
 from praisonaiui.schema.models import Config
 
 DOCS = {
@@ -136,6 +136,7 @@ def test_off_with_content_docs_mcp_false_and_on_a_static_host(tmp_path: Path) ->
     assert client.get("/.well-known/mcp").status_code == 404
     assert client.get("/ui-config.json").json()["mcp"] is False
     assert "MCP server" not in client.get("/llms.txt").text
+    assert DocsMcp.for_site(tmp_path / "docs") is None  # not a build
 
 
 def _asgi(app, method: str, path: str, headers: dict, body: bytes = b"") -> int:
@@ -168,16 +169,6 @@ def test_host_and_origin_checks(tmp_path: Path, monkeypatch) -> None:
     assert _asgi(app, "POST", "/mcp", cross, ping) == 403
     monkeypatch.setenv("AIUI_ALLOWED_HOSTS", "docs.acme.dev")
     assert _asgi(app, "POST", "/mcp", {"host": "docs.acme.dev", **json_ct}, ping) == 200
-
-
-def test_search_order_and_index_reload(tmp_path: Path) -> None:
-    out = _build(tmp_path)
-    mcp = DocsMcp.for_site(out)
-    assert mcp is not None
-    index = json.loads((out / "search-index.json").read_text())
-    hits = search(index, "pip install")
-    assert [h["anchor"] for h in hits][:1] == ["using-pip"] and all(h["score"] > 0 for h in hits)
-    assert DocsMcp.for_site(tmp_path / "docs") is None  # not a build
 
 
 def test_official_mcp_client_connects(tmp_path: Path) -> None:

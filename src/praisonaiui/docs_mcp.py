@@ -35,45 +35,28 @@ MAX_BODY_BYTES = 64 * 1024
 MAX_RESULTS = 50
 
 _READ_ONLY = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
+
+
+def _tool(name: str, title: str, description: str, properties: dict, required: list[str]) -> dict:
+    schema = {"type": "object", "properties": properties, **({"required": required} if required else {})}
+    return {"name": name, "title": title, "description": description, "inputSchema": schema,
+            "annotations": _READ_ONLY}
+
+
 TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "search_docs",
-        "title": "Search the docs",
-        "description": "Search these docs. Returns the best matching pages and sections, each with "
-        "the path read_page takes, its URL and a snippet.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "What to look for, in a few words"},
-                "limit": {"type": "integer", "minimum": 1, "maximum": MAX_RESULTS, "default": 10,
-                          "description": "Most results (default 10)"},
-            },
-            "required": ["query"],
-        },
-        "annotations": _READ_ONLY,
-    },
-    {
-        "name": "read_page",
-        "title": "Read a docs page",
-        "description": "One page of these docs as Markdown (front matter, components and links "
-        "resolved for agents).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {"type": "string", "description": "A page path from search_docs or list_pages "
-                         "(/docs/guide/install), or the page's URL"},
-            },
-            "required": ["path"],
-        },
-        "annotations": _READ_ONLY,
-    },
-    {
-        "name": "list_pages",
-        "title": "List the docs pages",
-        "description": "Every page of these docs by section, with its description and Markdown URL (llms.txt).",
-        "inputSchema": {"type": "object", "properties": {}},
-        "annotations": _READ_ONLY,
-    },
+    _tool("search_docs", "Search the docs", "Search these docs. Returns the best matching pages and "
+          "sections, each with the path read_page takes, its URL and a snippet.", {
+              "query": {"type": "string", "description": "What to look for, in a few words"},
+              "limit": {"type": "integer", "minimum": 1, "maximum": MAX_RESULTS, "default": 10,
+                        "description": "Most results (default 10)"},
+          }, ["query"]),
+    _tool("read_page", "Read a docs page", "One page of these docs as Markdown (front matter, "
+          "components and links resolved for agents).", {
+              "path": {"type": "string", "description": "A page path from search_docs or list_pages "
+                       "(/docs/guide/install), or the page's URL"},
+          }, ["path"]),
+    _tool("list_pages", "List the docs pages", "Every page of these docs by section, with its "
+          "description and Markdown URL (llms.txt).", {}, []),
 ]
 _TOOL_NAMES = {t["name"] for t in TOOLS}
 
@@ -396,29 +379,23 @@ class DocsMcp:
         """Answer the MCP and discovery paths; ``False`` for any other request."""
         from starlette.responses import JSONResponse, PlainTextResponse, Response
 
-        from praisonaiui.http_guard import (
-            configured_hosts,
-            configured_origins,
-            header,
-            host_allowed,
-            origin_allowed,
-        )
+        from praisonaiui import http_guard as hg
 
         path, method = scope.get("path", "/"), scope.get("method", "GET")
         if path not in (ENDPOINT, *CARD_PATHS, *LLMS_PATHS, "/ui-config.json"):
             return False
         no_cache = {"Cache-Control": "no-cache"}
         response: Response
-        if not host_allowed(scope, configured_hosts()):  # DNS rebinding
+        if not hg.host_allowed(scope, hg.configured_hosts()):  # DNS rebinding
             response = PlainTextResponse("Host not allowed", status_code=400)
         elif path == ENDPOINT:
             if method != "POST":
                 response = PlainTextResponse("Method Not Allowed", 405, headers={"Allow": "POST"})
-            elif not origin_allowed(scope, configured_origins() + self.origins):
+            elif not hg.origin_allowed(scope, hg.configured_origins() + self.origins):
                 response = PlainTextResponse("Origin not allowed", status_code=403)
-            elif header(scope, b"mcp-protocol-version") not in ("", *PROTOCOL_VERSIONS):
+            elif hg.header(scope, b"mcp-protocol-version") not in ("", *PROTOCOL_VERSIONS):
                 response = PlainTextResponse("Unsupported MCP-Protocol-Version", status_code=400)
-            elif not header(scope, b"content-type").lower().startswith("application/json"):
+            elif not hg.header(scope, b"content-type").lower().startswith("application/json"):
                 response = PlainTextResponse("Send application/json", status_code=415)
             else:
                 body = b""
