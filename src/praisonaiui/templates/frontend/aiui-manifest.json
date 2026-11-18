@@ -3194,6 +3194,12 @@
       "_index-BVEjVxRM.js"
     ]
   },
+  "src/docs/redirects.ts": {
+    "file": "assets/redirects-6p4lTREI.js",
+    "name": "redirects",
+    "src": "src/docs/redirects.ts",
+    "isDynamicEntry": true
+  },
   "src/layout-features/artifacts/ArtifactCards.tsx": {
     "file": "assets/lf-artifacts-Ck-RTQ13.js",
     "name": "lf-artifacts",
@@ -3469,7 +3475,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-CH9oeLsf.js",
+    "file": "assets/legacy-app-entry-DhPY4VQM.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3500,6 +3506,7 @@
     ],
     "dynamicImports": [
       "aiui-icons",
+      "src/docs/redirects.ts",
       "src/docs/TabsSelect.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
@@ -3508,7 +3515,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-DKKp7rYh.css"
+      "assets/legacy-app-entry-CNgAMCVq.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
