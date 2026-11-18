@@ -36,6 +36,8 @@ order:
 
 A static `aiui build` site has no server to report the app's choice, so it
 uses `site.theme.darkMode` (dark by default) unless the viewer picked a mode.
+With `site.theme.strict: true` a built site has no theme toggle and ignores
+the viewer's stored choice ([Branding](theming.md#branding-a-docs-site)).
 
 ## CSS Variables
 

@@ -48,6 +48,8 @@ export interface ThemeConfig {
     darkMode?: boolean
     /** The app's colour mode (live server only): set_theme / YAML, else 'system' (follow the OS). */
     mode?: 'light' | 'dark' | 'system'
+    /** `site.theme.strict`: the configured mode only (no toggle, a stored choice is ignored). */
+    strict?: boolean
 }
 
 export interface SiteConfig {

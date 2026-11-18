@@ -226,7 +226,7 @@ export function MobileNavSheet({
                 onOpenAutoFocus={() => requestAnimationFrame(() => revealActive(scrollRef.current))}
             >
                 <SheetHeader className="aiui-docs-drawer-head">
-                    <BrandMark name={chrome?.logoText ?? title} src={chrome?.logoSrc} />
+                    <BrandMark name={chrome?.logoText ?? title} src={chrome?.logoSrc} darkSrc={chrome?.logoDarkSrc} />
                     <SheetTitle className="truncate text-sm">{title}</SheetTitle>
                     <SheetDescription className="sr-only">Documentation pages</SheetDescription>
                 </SheetHeader>

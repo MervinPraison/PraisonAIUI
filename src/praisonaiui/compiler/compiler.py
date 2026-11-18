@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
+from praisonaiui.compiler import branding
 from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
@@ -30,7 +31,7 @@ from praisonaiui.compiler.publish import (
     with_slash,
 )
 from praisonaiui.compiler.snippets import Snippets
-from praisonaiui.schema.models import NavConfig
+from praisonaiui.schema.models import LogoConfig, NavConfig
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
 
@@ -68,6 +69,7 @@ class Compiler:
         self._api = None  # openapi_pages.ApiReference: endpoint pages (compile() sets it)
         self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
+        self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
         """
@@ -145,11 +147,16 @@ class Compiler:
         from praisonaiui.themes import get_radius_value, inject_theme_css
 
         theme = self.config.site.theme
+        _, bg_light, bg_dark = branding.background(theme.background if theme else None)
         inject_theme_css(
             output_dir,
             preset=theme.preset if theme else "zinc",
             dark_mode=theme.dark_mode if theme else True,
             radius=get_radius_value(theme.radius if theme else "md"),
+            accent=theme.accent if theme else None,
+            accent_dark=theme.accent_dark if theme else None,
+            background_image=self._css_url(self._asset(bg_light)),
+            background_image_dark=self._css_url(self._asset(bg_dark)),
         )
         files.append("assets/theme.css")
 
@@ -164,6 +171,7 @@ class Compiler:
                 return CompileResult(success=False, files=files, error="; ".join(self._snippets.errors()))
             files.extend(copied)
             warnings.extend(self.lint_docs())
+        files.extend(branding.publish(self._brand_files, output_dir))  # after docs/ is rewritten
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
@@ -186,11 +194,13 @@ class Compiler:
     def lint_content(self) -> list[ContentIssue]:
         """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
         theme = self.config.site.theme if self.config.site else None
-        issues, pages = accent_contrast(theme.accent if theme else None), self._published_pages()
+        issues = accent_contrast(theme.accent, theme.accent_dark) if theme else []
+        pages = self._published_pages()
         # A group page the build appends a directory listing to is not empty (nav_directory.py).
         base = self.config.site.route_base_docs.rstrip("/") + "/"
         items = walk_nav(self._generate_docs_nav().get("items", [])) if pages else ()
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
+        issues += branding.missing_images(self.config, self.base_path)
         return issues + nav_icons(manual_entries(self.config)) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues
 
     def _published_pages(self) -> list:
@@ -274,6 +284,7 @@ class Compiler:
                             if self.config.site.theme.mode
                             else {}
                         ),
+                        **({"strict": True} if self.config.site.theme.strict else {}),
                     }
                     if self.config.site.theme
                     else None
@@ -396,12 +407,15 @@ class Compiler:
         if docs_home is not None:
             result["docsHome"] = docs_home
 
-        # Logo
-        if self.config.logo:
+        # Logo (an image in site.logo is the logo too)
+        logo = self.config.logo
+        if not logo and self.config.site.logo and branding.is_image(self.config.site.logo):
+            logo = LogoConfig(light=self.config.site.logo)
+        if logo:
             result["logo"] = {
-                "light": self.config.logo.light,
-                "dark": self.config.logo.dark,
-                "href": self.config.logo.href,
+                "light": self._asset(logo.light),
+                "dark": self._asset(logo.dark),
+                "href": logo.href,
             }
 
         # Navbar
@@ -699,6 +713,11 @@ class Compiler:
             plugins_root = frontend_dir if (frontend_dir / "plugins").is_dir() else packaged_dir
             plugins_version = self._copy_plugins(output_dir, plugins_root)
             self._patch_static_shell(output_dir / "index.html", plugins_version)
+            if self.config.favicon:
+                page = output_dir / "index.html"
+                fav = self.config.favicon
+                page.write_text(branding.patch_favicon(page.read_text(encoding="utf-8"),
+                                self._asset(fav.light), self._asset(fav.dark)), encoding="utf-8")
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -778,6 +797,14 @@ class Compiler:
         if patched != html:
             html_path.write_text(patched, encoding="utf-8")
 
+    def _css_url(self, url: str | None) -> str | None:
+        """A site path with ``site.basePath`` applied (for CSS, which the HTML rewrite misses)."""
+        return f"{self.url_base}{url}" if url and url.startswith("/") else url
+
+    def _asset(self, value: str | None) -> str | None:
+        """A logo, favicon or background image as a site URL (branding.asset_url)."""
+        return branding.asset_url(value, self.base_path, self._brand_files)
+
     def _color_mode(self) -> str:
         """``site.theme.mode`` (light, dark or system), else from ``darkMode``."""
         theme = self.config.site.theme
@@ -805,8 +832,13 @@ class Compiler:
         }[mode]
         html = html_path.read_text(encoding="utf-8")
         html = html.replace("__AIUI_DARK_DEFAULT__", dark_default)
+        if theme and theme.strict:  # the configured mode only: a stored choice is ignored
+            html = html.replace("localStorage.getItem('aiui-theme-preference')", "null")
         if theme and theme.preset == PAPER_LOOK and "data-aiui-look=" not in html:
             html = re.sub(r"<html\b", f'<html data-aiui-look="{PAPER_LOOK}"', html, count=1)
+        decoration = branding.background(theme.background if theme else None)[0]
+        if decoration and "data-aiui-bg=" not in html:
+            html = re.sub(r"<html\b", f'<html data-aiui-bg="{decoration}"', html, count=1)
         html_path.write_text(html, encoding="utf-8")
 
     _ROOT_URL_RE = re.compile(r"""(\s(?:src|href)=)(["'])/(?!/)""")
@@ -1376,7 +1408,7 @@ class Compiler:
         tags = tags or {}
         url = tags.get("canonical") or self._page_url(path)
         org = self.config.seo.organization if self.config.seo else None
-        logo = (org and org.logo) or (self.config.logo and self.config.logo.light) or self.config.site.logo
+        logo = (org and org.logo) or (self.config.logo and self._asset(self.config.logo.light)) or self.config.site.logo
         if logo and not logo.startswith(("http://", "https://", "/")):
             logo = None  # an emoji or a relative name, not an image URL
         search = self.config.search

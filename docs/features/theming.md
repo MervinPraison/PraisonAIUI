@@ -23,9 +23,9 @@ import praisonaiui as aiui
 aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
 ```
 
-Two more keys apply to the React app shell (`style: app`) only: `accent` (any
-CSS colour, overrides the preset's accent) and `density` (`compact`,
-`comfortable` or `spacious`).
+`accent` (any CSS colour) overrides the preset's accent in a docs site and the
+React app shell (`style: app`); see [Branding a docs site](#branding-a-docs-site).
+`density` (`compact`, `comfortable` or `spacious`) applies to the app shell only.
 
 ### The docs site look
 
@@ -106,6 +106,53 @@ and download only when a page draws in them; nothing loads from a font CDN.
 | Preset | Description |
 |--------|-------------|
 | `paper` | Warm paper, a navy accent, serif titles ([above](#the-paper-preset)) |
+
+## Branding a docs site
+
+Logo, favicon, brand colour, page background and a fixed colour mode for a
+site built with `aiui build`, all in `aiui.yaml`:
+
+```yaml
+logo:
+  light: images/logo.svg        # a file beside aiui.yaml, a site path or a URL
+  dark: images/logo-dark.svg    # optional
+  href: https://acme.dev        # optional; a path stays in the site
+favicon:
+  light: images/favicon.svg
+  dark: images/favicon-dark.svg # optional
+site:
+  theme:
+    accent: "#0f766e"           # any CSS colour
+    accentDark: "#5eead4"       # optional, dark mode
+    background: gradient        # gradient | grid | an image path or URL
+    mode: dark
+    strict: true                # keep `mode`, hide the light/dark toggle
+```
+
+- **One line is enough.** `logo: images/logo.svg` and
+  `favicon: images/favicon.svg` use one image in both modes.
+- **Files are published for you.** A logo, favicon or background path
+  relative to `aiui.yaml` is copied into the build at the same path, with
+  `site.basePath` applied. `aiui validate` warns (7102) when the file is
+  missing or outside the project folder.
+- **The logo swaps live.** With `logo.dark`, both images are in the page and
+  CSS shows the one for the current mode, so the theme toggle swaps them
+  with no flash. An `href` on another site is a plain link.
+- **The favicon follows the browser.** With `favicon.dark`, the built pages
+  get two icon links with `media="(prefers-color-scheme: …)"`, because the
+  tab strip follows the browser's scheme, not the page's.
+- **Brand colour with contrast kept.** `accent` and `accentDark` take any
+  colour; links and focus rings are derived from them to keep AA contrast,
+  and `aiui validate` warns (7101) with a passing shade when a button colour
+  is under 3:1 on its background.
+- **Background.** `gradient` (a soft wash of the accent at the top) and
+  `grid` (hairlines that fade out) are drawn in CSS from the theme tokens, so
+  they fit both modes and add no download. An image path or URL covers the
+  page behind the content; `background: {light: bg.png, dark: bg-dark.png}`
+  uses one image per mode.
+- **Strict mode.** `strict: true` removes the theme toggle and ignores a
+  reader's stored choice, so the site always shows `mode` (`system` still
+  follows the OS).
 
 ## Examples
 

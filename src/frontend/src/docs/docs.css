@@ -39,6 +39,29 @@
   text-rendering: optimizeLegibility;
 }
 
+/* site.theme.background: a decoration (<html data-aiui-bg>) behind the page, in tokens. */
+html[data-aiui-bg] .aiui-docs {
+  isolation: isolate;
+}
+html[data-aiui-bg] .aiui-docs::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+html[data-aiui-bg='gradient'] .aiui-docs::before {
+  background: radial-gradient(ellipse 90% 28rem at 50% -6rem, color-mix(in oklab, var(--primary) 16%, transparent), transparent);
+}
+html[data-aiui-bg='grid'] .aiui-docs::before {
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 2.5rem 2.5rem;
+  mask-image: linear-gradient(var(--foreground), transparent 24rem);
+}
+html[data-aiui-bg='image'] .aiui-docs::before {
+  background: var(--aiui-bg-image) center top / cover no-repeat;
+}
+
 /* One focus ring for links, plain buttons, tabs and disclosures. The Button
    primitive draws its own ring (data-slot), so it is left out. */
 .aiui-docs :is(a, button:not([data-slot]), summary, [role='tab']):focus-visible {
@@ -104,6 +127,11 @@
 img.aiui-docs-mark {
   background: transparent;
   object-fit: contain;
+}
+/* logo.light / logo.dark: both render, the mode shows one (a theme switch swaps them live). */
+html.dark .aiui-docs-mark[data-mode='light'],
+html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
+  display: none;
 }
 .aiui-docs-mark[data-size='sm'] {
   width: 1.25rem;

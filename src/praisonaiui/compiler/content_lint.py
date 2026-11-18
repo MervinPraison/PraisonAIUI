@@ -262,8 +262,9 @@ _BACKGROUNDS = {"light": ("#ffffff", "#18181b"), "dark": ("#0e0e11", "#ededf0")}
 _AA_NON_TEXT = 3.0
 
 
-def accent_contrast(accent: str | None) -> list[ContentIssue]:
-    """7101: a hex ``site.theme.accent`` under 3:1 on the light or dark background.
+def accent_contrast(accent: str | None, accent_dark: str | None = None) -> list[ContentIssue]:
+    """7101: a hex ``site.theme.accent`` under 3:1 on the light or dark background
+    (``accentDark``, when set, is the one checked on the dark background).
 
     WCAG 2 AA (1.4.11) asks 3:1 for buttons, focus rings and other UI parts
     drawn in the accent. Link text is derived from the accent to reach 4.5:1,
@@ -271,15 +272,16 @@ def accent_contrast(accent: str | None) -> list[ContentIssue]:
     """
     from praisonaiui.themes import _HEX_COLOR, _reach, wcag_contrast
 
-    if not accent or not _HEX_COLOR.match(accent.strip()):
-        return []
-    color = accent.strip()
     out = []
     for mode, (bg, ink) in _BACKGROUNDS.items():
+        key, color = ("accentDark", accent_dark) if mode == "dark" and accent and accent_dark else ("accent", accent)
+        color = (color or "").strip()
+        if not _HEX_COLOR.match(color):
+            continue
         ratio = wcag_contrast(color, bg)
         if ratio < _AA_NON_TEXT:
             better = _reach(color, ink, [bg], _AA_NON_TEXT + 0.1)
-            out.append(ContentIssue(7101, "site.theme.accent", 0,
+            out.append(ContentIssue(7101, f"site.theme.{key}", 0,
                                     f"accent {color} has {ratio:.1f}:1 contrast on the {mode} background "
                                     f"({bg}); WCAG AA needs 3:1 for buttons and focus rings",
                                     f"Try {better}, a shade that reaches 3:1 in {mode} mode"))

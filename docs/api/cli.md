@@ -115,6 +115,7 @@ under it:
 | 7008 | snippet not found, outside the project folder, or including itself (fails `aiui build`) |
 | 7009 | `icon` (front matter, navigation, a component's `icon="…"`) that is not a [lucide](https://lucide.dev/icons) name, an emoji or an image URL, with the nearest name |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
+| 7102 | `logo`, `favicon` or `site.theme.background` image that is not a file in the project folder ([branding](../features/theming.md#branding-a-docs-site)) |
 
 Without `--config`, `validate`, `build` and `serve` read `./aiui.yaml`. The
 old name `aiui.template.yaml` still works: when it is the only one there it is

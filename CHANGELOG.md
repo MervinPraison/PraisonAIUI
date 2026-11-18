@@ -354,6 +354,16 @@
   (`#gh-dark-mode-only`, `className="dark:hidden"`, `<picture>` with `prefers-color-scheme`) follow
   the site's theme toggle; `noZoom` opts one image out of zoom; the zoom view has Copy image and
   Download. See [Writing docs](docs/features/writing-docs.md#videos).
+- **Docs site branding in a few lines**: `logo` and `favicon` take one image or
+  `{light, dark}` (a file beside `aiui.yaml` is published for you; the logo swaps live with
+  the theme toggle, the favicon follows the browser's scheme), `site.theme.accent` now
+  colours a docs site and `accentDark` sets the dark-mode accent (contrast kept),
+  `site.theme.background` adds a `gradient`, `grid` or an image (one per mode if you
+  like) behind the page, and
+  `site.theme.strict` keeps the configured mode with no toggle. A logo `href` on another
+  site now works, an image in `site.logo` is the logo, and `aiui validate` warns (7102)
+  about a brand image that is not in the project. See
+  [Theming](docs/features/theming.md#branding-a-docs-site).
 
 ### Deprecated
 

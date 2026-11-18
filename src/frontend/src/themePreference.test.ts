@@ -99,3 +99,11 @@ test('defaultThemeMode: the server mode first, else a static build\'s darkMode',
   assert.equal(defaultThemeMode({}), 'dark', 'aiui build without darkMode keeps its dark default')
   assert.equal(defaultThemeMode(undefined), 'dark')
 })
+
+test('strict (site.theme.strict) ignores the stored choice', () => {
+  store.set(THEME_STORAGE_KEY, 'light')
+  applyStoredThemePreference('dark', true)
+  assert.equal(dark(), true)
+  applyStoredThemePreference('dark')
+  assert.equal(dark(), false)
+})
