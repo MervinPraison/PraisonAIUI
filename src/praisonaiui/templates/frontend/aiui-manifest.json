@@ -33,7 +33,7 @@
       "_vendor-react-SCdx8Lck.js",
       "_useSSE-CKCabUZ9.js",
       "_skeleton-43JnsHoL.js",
-      "src/chat/MultimediaElements.tsx",
+      "src/chat-engine/parts/media/MultimediaElements.tsx",
       "_SurfaceHost-CAvidyVu.js",
       "_chevron-down-BEJSDBA4.js",
       "_input-CML6yaic.js",
@@ -665,7 +665,7 @@
     ],
     "dynamicImports": [
       "src/chat-engine/parts/A2uiPart.tsx",
-      "src/chat/MultimediaElements.tsx"
+      "src/chat-engine/parts/media/MultimediaElements.tsx"
     ],
     "css": [
       "assets/Viewer-DMvT1Aej.css"
@@ -2578,7 +2578,40 @@
       "_refresh-cw-Be0C_xj0.js"
     ],
     "dynamicImports": [
-      "src/chat/MultimediaElements.tsx"
+      "src/chat-engine/parts/media/MultimediaElements.tsx"
+    ]
+  },
+  "src/chat-engine/parts/media/MultimediaElements.tsx": {
+    "file": "assets/MultimediaElements-spM1QuYa.js",
+    "name": "MultimediaElements",
+    "src": "src/chat-engine/parts/media/MultimediaElements.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-SCdx8Lck.js",
+      "_SurfaceHost-CAvidyVu.js",
+      "_preload-helper-BXl3LOEh.js",
+      "_card-BSAd_qZx.js",
+      "_skeleton-43JnsHoL.js",
+      "_index-W2tLlYLr.js",
+      "_badge-CLlL4s8g.js",
+      "_index-BD1fVgTs.js",
+      "_index-C1iovvJw.js",
+      "_index-GQGcTroZ.js",
+      "_chevron-down-BEJSDBA4.js",
+      "_input-CML6yaic.js",
+      "_label-CynmFsrG.js",
+      "_progress-CMX7wpqA.js",
+      "_switch-BibHfA5n.js",
+      "_check-CA2dqGka.js",
+      "_select-BMEQUc1x.js",
+      "_chevron-up-CJZQa5zs.js",
+      "_dialog-_adkK7Vd.js",
+      "_x-BWpEls9b.js",
+      "_index-BZLTICJG.js",
+      "_fence-DxO9UNAb.js",
+      "_breadcrumb-MqrfJZy8.js",
+      "_chevron-left-D-vqqHo-.js",
+      "_ellipsis-CGH_ahKx.js"
     ]
   },
   "src/chat-engine/presentation/ApprovalCard.tsx": {
@@ -2703,39 +2736,6 @@
   "src/chat-engine/presentation/steps.css": {
     "file": "assets/steps-BWjw2mdR.css",
     "src": "src/chat-engine/presentation/steps.css"
-  },
-  "src/chat/MultimediaElements.tsx": {
-    "file": "assets/MultimediaElements-spM1QuYa.js",
-    "name": "MultimediaElements",
-    "src": "src/chat/MultimediaElements.tsx",
-    "isDynamicEntry": true,
-    "imports": [
-      "_vendor-react-SCdx8Lck.js",
-      "_SurfaceHost-CAvidyVu.js",
-      "_preload-helper-BXl3LOEh.js",
-      "_card-BSAd_qZx.js",
-      "_skeleton-43JnsHoL.js",
-      "_index-W2tLlYLr.js",
-      "_badge-CLlL4s8g.js",
-      "_index-BD1fVgTs.js",
-      "_index-C1iovvJw.js",
-      "_index-GQGcTroZ.js",
-      "_chevron-down-BEJSDBA4.js",
-      "_input-CML6yaic.js",
-      "_label-CynmFsrG.js",
-      "_progress-CMX7wpqA.js",
-      "_switch-BibHfA5n.js",
-      "_check-CA2dqGka.js",
-      "_select-BMEQUc1x.js",
-      "_chevron-up-CJZQa5zs.js",
-      "_dialog-_adkK7Vd.js",
-      "_x-BWpEls9b.js",
-      "_index-BZLTICJG.js",
-      "_fence-DxO9UNAb.js",
-      "_breadcrumb-MqrfJZy8.js",
-      "_chevron-left-D-vqqHo-.js",
-      "_ellipsis-CGH_ahKx.js"
-    ]
   },
   "src/components/page/blocks/BoardBlock.tsx": {
     "file": "assets/BoardBlock-BWGsoAjk.js",
@@ -3041,7 +3041,7 @@
       "_skeleton-43JnsHoL.js",
       "_useSessionSearch-UVTSZAVz.js",
       "_useSSE-CKCabUZ9.js",
-      "src/chat/MultimediaElements.tsx",
+      "src/chat-engine/parts/media/MultimediaElements.tsx",
       "_SurfaceHost-CAvidyVu.js",
       "_preload-helper-BXl3LOEh.js",
       "_card-BSAd_qZx.js",
@@ -3081,7 +3081,7 @@
       "_skeleton-43JnsHoL.js",
       "_useSessionSearch-UVTSZAVz.js",
       "_useSSE-CKCabUZ9.js",
-      "src/chat/MultimediaElements.tsx",
+      "src/chat-engine/parts/media/MultimediaElements.tsx",
       "_SurfaceHost-CAvidyVu.js",
       "_preload-helper-BXl3LOEh.js",
       "_card-BSAd_qZx.js",
@@ -3120,7 +3120,7 @@
       "_ChatArea-Db8SEwT0.js",
       "_skeleton-43JnsHoL.js",
       "_useSSE-CKCabUZ9.js",
-      "src/chat/MultimediaElements.tsx",
+      "src/chat-engine/parts/media/MultimediaElements.tsx",
       "_SurfaceHost-CAvidyVu.js",
       "_preload-helper-BXl3LOEh.js",
       "_card-BSAd_qZx.js",

@@ -2,8 +2,8 @@
  * data-element renderer (lazy chunk). Images are drawn here; code goes
  * through the chat Markdown renderer (Shiki highlighting in both themes, a
  * language label, copy and download, the same as code in the reply text);
- * video, audio, pdf and file reuse chat/MultimediaElements.tsx (a second lazy
- * chunk).
+ * video, audio, pdf and file reuse ./media/MultimediaElements.tsx (a second
+ * lazy chunk).
  *
  * Exfiltration guard: images, video, audio and PDFs load automatically only
  * from same-origin, data:image and blob: URLs. Any other URL renders a
@@ -19,7 +19,7 @@ import { hostOf, isTrustedImageUrl, safeUrl } from '../util'
 import { LazyBoundary } from './LazyBoundary'
 
 const Multimedia = lazy(() =>
-  import('@/chat/MultimediaElements').then((m) => ({
+  import('./media/MultimediaElements').then((m) => ({
     default: function MultimediaElement({ el }: { el: Record<string, unknown> }) {
       const url = typeof el.url === 'string' ? el.url : ''
       const name = typeof el.name === 'string' ? el.name : undefined
