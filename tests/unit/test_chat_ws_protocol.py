@@ -1653,3 +1653,103 @@ def test_waiting_on_an_answer_does_not_trip_the_idle_timeout(monkeypatch):
         terminals = [f for f in frames if f.get("type") in ("run_completed", "run_error")]
         assert [f["type"] for f in terminals] == ["run_completed"], frames
         assert "you picked A" in terminals[0]["content"]
+
+
+# ── run_attach: a tab that reloads mid-run takes the run back ────────
+
+
+class _StreamingProvider(BaseProvider):
+    """Streams a few tokens, then waits (a reply still being written)."""
+
+    async def run(self, message, *, session_id=None, agent_name=None, **kw):
+        yield RunEvent(type=RunEventType.RUN_STARTED)
+        for tok in ("tok0 ", "tok1 ", "tok2 "):
+            yield RunEvent(type=RunEventType.RUN_CONTENT, token=tok)
+        await asyncio.sleep(30)
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content="done")
+
+
+def _start_run(ws, session_id: str, turn: str = "turn-1") -> str:
+    ws.send_json(
+        {"type": "chat", "content": "slow question", "session_id": session_id, "client_turn_id": turn}
+    )
+    frames = _read_until(ws, lambda f: f.get("type") == "run_content" and "tok2" in f.get("token", ""))
+    return next(f["run_id"] for f in frames if f.get("type") == "run_started")
+
+
+def _attach(ws, session_id: str) -> List[Dict[str, Any]]:
+    ws.send_json({"type": "run_attach", "session_id": session_id})
+    return _read_until(ws, lambda f: f.get("type") == "run_snapshot")[-1]["runs"]
+
+
+def test_run_events_carry_a_per_run_seq(monkeypatch):
+    _use_provider(monkeypatch, _StreamingProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        ws.send_json({"type": "chat", "content": "q", "session_id": "s-seq"})
+        frames = _read_until(ws, lambda f: f.get("type") == "run_content" and "tok2" in f.get("token", ""))
+        seqs = [f["seq"] for f in frames if f.get("run_id")]
+        assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs) and seqs[0] == 1
+        ws.send_json({"type": "chat_abort", "run_id": frames[0]["run_id"]})
+        _read_until(ws, _turn_done("s-seq"))
+
+
+def test_a_tab_that_reloads_mid_run_adopts_it_with_the_tokens_so_far(monkeypatch):
+    _use_provider(monkeypatch, _StreamingProvider())
+    with TestClient(_app()) as client:
+        with client.websocket_connect("/api/chat/ws") as first:
+            run_id = _start_run(first, "s-reload")
+        # The first tab is gone (reload); the new one opens the same chat.
+        with client.websocket_connect("/api/chat/ws") as second:
+            second.send_json({"type": "subscribe", "session_ids": ["s-reload"]})
+            _read_until(second, lambda f: f.get("type") == "subscribed")
+            (run,) = _attach(second, "s-reload")
+            assert run["run_id"] == run_id and run["adoptable"] is True
+            assert run["client_turn_id"] == "turn-1"
+            assert run["question"] == "slow question"
+            tokens = "".join(e.get("token", "") for e in run["events"] if e["type"] == "run_content")
+            assert tokens == "tok0 tok1 tok2 "
+            # Consecutive tokens are one buffered event.
+            assert sum(1 for e in run["events"] if e["type"] == "run_content") == 1
+            assert run["last_seq"] >= 4
+            # The adopting tab now owns the run: it may stop it.
+            second.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(second, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "aborted"
+            done = _read_until(second, _turn_done("s-reload"))[-1]
+            assert done["type"] == "run_cancelled" and done["seq"] > run["last_seq"]
+
+
+def test_a_second_tab_gets_a_read_only_replay(monkeypatch):
+    _use_provider(monkeypatch, _StreamingProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as owner:
+        run_id = _start_run(owner, "s-tabs")
+        with client.websocket_connect("/api/chat/ws") as other:
+            (run,) = _attach(other, "s-tabs")
+            assert run["adoptable"] is False
+            assert "tok2" in "".join(e.get("token", "") for e in run["events"])
+            other.send_json({"type": "chat_abort", "run_id": run_id})
+            reply = _read_until(other, lambda f: f.get("type") == "chat_abort_result")[-1]
+            assert reply["status"] == "forbidden"
+        owner.send_json({"type": "chat_abort", "run_id": run_id})
+        _read_until(owner, _turn_done("s-tabs"))
+
+
+def test_run_attach_with_no_live_run_and_bad_frames(monkeypatch):
+    _use_provider(monkeypatch, _StreamingProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        assert _attach(ws, "s-idle") == []
+        ws.send_json({"type": "run_attach"})
+        assert _read_until(ws, lambda f: f.get("type") == "protocol_error")[-1]["type"] == "protocol_error"
+
+
+def test_replay_buffer_is_dropped_when_the_run_ends(monkeypatch):
+    from praisonaiui.features.chat import get_chat_manager
+
+    _use_provider(monkeypatch, _StreamingProvider())
+    with TestClient(_app()) as client, client.websocket_connect("/api/chat/ws") as ws:
+        run_id = _start_run(ws, "s-end")
+        assert run_id in get_chat_manager()._run_replay
+        ws.send_json({"type": "chat_abort", "run_id": run_id})
+        _read_until(ws, _turn_done("s-end"))
+        _attach(ws, "s-end")  # a round trip: the run's cleanup has run
+        assert run_id not in get_chat_manager()._run_replay

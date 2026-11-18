@@ -25,7 +25,7 @@ import {
   APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
-import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport } from './transports'
+import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport, type AttachedRun } from './transports'
 
 export interface SessionThread {
   sessionId: string
@@ -60,12 +60,16 @@ interface Turn {
    * that one for the reply.
    */
   regenerate?: { replacedText?: string }
+  /** Adopted after a reload: events up to this `seq` came in the snapshot. */
+  lastSeq?: number
 }
 
 /** Another tab's run in this session, shown read-only. */
 interface RemoteRun {
   runId: string
   messageId: string
+  /** Seeded from a `run_attach` snapshot: events up to this `seq` are in it. */
+  lastSeq?: number
 }
 
 interface Entry {
@@ -80,6 +84,8 @@ interface Entry {
    * is reloaded (in saved order) once the own turn ends.
    */
   remoteDuringTurn?: boolean
+  /** A `run_attach` is in flight: its snapshot, not the live events, seeds the runs. */
+  attaching?: boolean
 }
 
 export const RECONNECT_WATCHDOG_MS = 60_000
@@ -291,10 +297,15 @@ function endTurn(sid: string, turn: Turn) {
   reloadIfRemoteSeen(sid)
 }
 
+/** Already part of a `run_attach` snapshot (events carry a per-run `seq`). */
+const inSnapshot = (ev: WireEvent, lastSeq: number | undefined) =>
+  lastSeq !== undefined && typeof ev.seq === 'number' && ev.seq <= lastSeq
+
 function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
   const e = entries.get(sid)
   if (!e || e.turn !== turn) return // stale turn (cancelled / replaced) or a dropped session
   if (ev.type === 'session') return // the client already owns the id
+  if (inSnapshot(ev, turn.lastSeq)) return
   const runId = str(ev.run_id)
   const ctid = str(ev.client_turn_id)
   if (ctid && ctid !== turn.id) return // another tab's run of this session
@@ -311,6 +322,72 @@ function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
   })
   if (runId || signals) set(sid, (s) => ({ activeRunId: runId ?? s.activeRunId, signals: signals ? { ...s.signals, ...signals } : s.signals }))
   if (turn.detached && TERMINAL.has(ev.type)) endTurn(sid, turn)
+}
+
+/** Resolves once the session's history is on screen. */
+function whenLoaded(sid: string): Promise<void> {
+  const e = entry(sid)
+  if (e.state.loaded) return Promise.resolve()
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!e.state.loaded) return
+      e.listeners.delete(check)
+      resolve()
+    }
+    e.listeners.add(check)
+  })
+}
+
+/**
+ * Opening a session (after a reload, say) while one of its runs is still
+ * going: ask the server for its events so far (`run_attach`). A run whose
+ * starting tab is gone becomes this tab's turn (Stop, the composer waits); a
+ * run another tab owns shows read-only. Both start with the reply so far.
+ */
+async function attach(transport: AiuiTransport, sid: string, stopped: () => boolean) {
+  if (!transport.attachRuns || !transport.watch) return
+  await whenLoaded(sid)
+  const e = entries.get(sid)
+  if (!e || stopped() || e.turn) return
+  e.attaching = true
+  let runs: AttachedRun[] = []
+  try {
+    runs = await transport.attachRuns(sid)
+  } catch {
+    runs = []
+  } finally {
+    e.attaching = false
+  }
+  if (stopped() || entries.get(sid) !== e || e.turn || !runs.length) return
+  const build = (run: AttachedRun, extra: Partial<AiuiMessage>) => {
+    let m: AiuiMessage = { ...newAssistant(run.runId), ...extra }
+    for (const ev of run.events) m = applyEvent(m, ev).message
+    return m
+  }
+  const own = runs.find((r) => r.adoptable)
+  const other = runs.find((r) => !r.adoptable)
+  if (own) {
+    const msg = build(own, {})
+    const turn: Turn = {
+      id: own.clientTurnId ?? genId('turn'), messageId: msg.id, userText: own.question,
+      transport, runId: own.runId, detached: true, lastSeq: own.lastSeq,
+    }
+    e.turn = turn
+    turn.unwatch = transport.watch(sid, (ev) => handleEvent(sid, turn, ev))
+    bindReconnect(transport)
+    e.remote = null
+    set(sid, (s) => ({
+      messages: [...s.messages.filter((m) => !m.custom?.remote), msg],
+      isRunning: true, activeRunId: own.runId, reconnecting: false,
+    }), true)
+    armWatchdog(sid, turn)
+    return
+  }
+  if (other && !e.remote) {
+    const msg = build(other, { custom: { remote: true } })
+    e.remote = { runId: other.runId, messageId: msg.id, lastSeq: other.lastSeq }
+    set(sid, (s) => ({ messages: [...s.messages, msg] }), true)
+  }
 }
 
 function bindReconnect(transport: AiuiTransport) {
@@ -495,10 +572,11 @@ async function refreshWithRemote(sid: string) {
 
 function handleRemoteEvent(sid: string, ev: WireEvent) {
   const e = entries.get(sid)
-  if (!e || ev.type === 'session') return
+  if (!e || ev.type === 'session' || e.attaching) return
   const runId = str(ev.run_id)
   const ctid = str(ev.client_turn_id)
   if (!runId || isLocalRun(e, runId, ctid)) return
+  if (e.remote?.runId === runId && inSnapshot(ev, e.remote.lastSeq)) return
   if (e.turn) e.remoteDuringTurn = true
   if (!e.remote || e.remote.runId !== runId) {
     if (TERMINAL.has(ev.type)) {
@@ -650,7 +728,13 @@ export const threadStore = {
    */
   observe(transport: AiuiTransport, sid: string): () => void {
     if (!transport.watch) return () => undefined
-    return transport.watch(sid, (ev) => handleRemoteEvent(sid, ev))
+    const stop = transport.watch(sid, (ev) => handleRemoteEvent(sid, ev))
+    let stopped = false
+    void attach(transport, sid, () => stopped)
+    return () => {
+      stopped = true
+      stop()
+    }
   },
 
   async send(transport: AiuiTransport, sid: string, text: string, opts: SendOptions = {}): Promise<void> {

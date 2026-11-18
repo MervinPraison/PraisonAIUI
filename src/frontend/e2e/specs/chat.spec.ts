@@ -281,6 +281,45 @@ test('WebSocket: a dropped connection reconnects (closed, then open) and the nex
   await waitForRunEnd(page)
 })
 
+test('a reload mid-reply takes the run back: the reply so far, Stop, no second send, and the saved order', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  const frames = recordSentFrames(page)
+  await openChat(page, 'ws')
+  await send(page, 'slow reload test')
+  await expect(assistant(page).last()).toContainText('w3 ')
+  await expect(page).toHaveURL(/[?&]session=/)
+
+  await page.reload()
+  await expect(page.locator('[data-connection="open"]')).toBeVisible()
+  const reply = assistant(page).last()
+  // The tokens streamed before the reload are back, and the reply goes on.
+  await expect(reply).toContainText('You said: slow reload test')
+  await expect(reply).toContainText('w1 ')
+  await expect(page.getByText('Replying in another tab or window')).toHaveCount(0)
+  // This tab owns the run again: Stop shows instead of Send.
+  await expect(stopButton(page)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Send' })).toHaveCount(0)
+  const before = (await reply.innerText()).length
+  await expect.poll(async () => (await reply.innerText()).length).toBeGreaterThan(before)
+
+  await stopButton(page).click()
+  await waitForRunEnd(page)
+  expect(frames.some((f) => f.type === 'chat_abort')).toBe(true)
+  const stoppedAt = await reply.innerText()
+  await page.waitForTimeout(1_000)
+  expect(await reply.innerText(), 'no tokens after Stop').toBe(stoppedAt)
+  expect(stoppedAt).not.toContain('w299')
+
+  // One question, then its (stopped) answer, in that order after a reload.
+  await page.reload()
+  await expect(page.locator('[data-role="user"]')).toHaveText(['slow reload test'])
+  await expect(assistant(page)).toHaveCount(1)
+  await expect(assistant(page).last()).toContainText('You said: slow reload test')
+  const roles = await page.locator('[data-role]').evaluateAll((els) => els.map((el) => el.getAttribute('data-role')))
+  expect(roles.filter((r) => r === 'user' || r === 'assistant')).toEqual(['user', 'assistant'])
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('two tabs on one session: each tab shows its own reply, and Stop stops only its own run', async ({ page, context }) => {
   await openChat(page, 'ws')
   await send(page, 'slow from tab one')

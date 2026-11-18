@@ -454,6 +454,9 @@ class ChatManager(ChatProtocol):
         # run_id → the WS client_id that started the run (None: started over
         # HTTP). Only that connection may stop or answer it while connected.
         self._run_owner: Dict[str, Optional[str]] = {}
+        # run_id → what a tab that reloads mid-run needs to show the reply so
+        # far (see ``record_run_event`` / ``run_snapshots``).
+        self._run_replay: Dict[str, Dict[str, Any]] = {}
         self._history: Dict[str, List[ChatMessage]] = {}
         self._ws_clients: Dict[str, WebSocket] = {}
         # Per-client session scoping (see ``broadcast``).
@@ -694,6 +697,81 @@ class ChatManager(ChatProtocol):
             and not self._active_runs[rid].done()
         ]
 
+    # ── replay for a tab that reloads mid-run ──────────────────────────
+
+    def start_run_replay(self, run_id: str, question: str, client_turn_id: Optional[str]) -> None:
+        self._run_replay[run_id] = {
+            "seq": 0,
+            "events": [],
+            "question": question,
+            "client_turn_id": client_turn_id,
+            "truncated": False,
+        }
+
+    def record_run_event(self, run_id: str, event: Dict[str, Any]) -> None:
+        """Number *event* (``seq``, per run) and keep a copy for replay.
+
+        Consecutive token-only ``run_content`` frames are kept as one, so a
+        long reply costs one buffered event, not one per token.
+        """
+        rec = self._run_replay.get(run_id)
+        if rec is None:
+            return
+        rec["seq"] += 1
+        event["seq"] = rec["seq"]
+        events: List[Dict[str, Any]] = rec["events"]
+        last = events[-1] if events else None
+        if (
+            last is not None
+            and event.get("type") == "run_content"
+            and last.get("type") == "run_content"
+            and set(event) <= _TOKEN_EVENT_KEYS
+            and set(last) <= _TOKEN_EVENT_KEYS
+            and "token" in event
+            and "token" in last
+        ):
+            last["token"] += event["token"]
+            last["seq"] = event["seq"]
+            return
+        if len(events) >= MAX_REPLAY_EVENTS:
+            rec["truncated"] = True
+            return
+        events.append(dict(event))
+
+    def end_run_replay(self, run_id: str) -> None:
+        self._run_replay.pop(run_id, None)
+
+    def run_snapshots(self, client_id: str, session_id: str) -> List[Dict[str, Any]]:
+        """The live runs of *session_id*, for a tab that (re)opened it.
+
+        ``adoptable``: the run's starting connection is gone (the tab that
+        sent it reloaded), so this connection takes it over: it becomes the
+        run's owner and may stop or answer it. A run another connected tab
+        owns, or one started over HTTP, is replayed read-only.
+        """
+        out: List[Dict[str, Any]] = []
+        for run_id in self.live_runs_in_session(session_id):
+            rec = self._run_replay.get(run_id)
+            if rec is None:
+                continue
+            owner = self._run_owner.get(run_id)
+            adoptable = owner is not None and (owner == client_id or owner not in self._ws_clients)
+            if adoptable:
+                self._run_owner[run_id] = client_id
+                self.note_client_session(client_id, session_id)
+            out.append(
+                {
+                    "run_id": run_id,
+                    "client_turn_id": rec["client_turn_id"],
+                    "question": rec["question"],
+                    "adoptable": adoptable,
+                    "last_seq": rec["seq"],
+                    "truncated": rec["truncated"],
+                    "events": [dict(e) for e in rec["events"]],
+                }
+            )
+        return out
+
     def _delivers_to(self, client_id: str, session_id: str) -> bool:
         if not session_id:
             # Session-less events (e.g. a global a2ui surface) cannot be
@@ -872,6 +950,11 @@ def _event_agent_name(event: Any) -> Optional[str]:
 
 
 _TERMINAL_RUN_EVENTS = frozenset({"run_completed", "run_error", "run_cancelled"})
+#: Events kept per live run for a tab that reloads mid-run (tokens merged).
+MAX_REPLAY_EVENTS = 2000
+_TOKEN_EVENT_KEYS = frozenset(
+    {"type", "session_id", "run_id", "token", "agent_name", "client_turn_id", "seq"}
+)
 
 
 async def _run_and_broadcast(
@@ -905,6 +988,7 @@ async def _run_and_broadcast(
 
     # Text and PDF files go before the message; image paths go to the model;
     # a @reply callback sees every file as ``message.attachments``.
+    question = content
     content, sdk_attachments, attachment_files = prepare_attachments(content, attachment_ids)
     attachments_token = current_attachments.set(tuple(attachment_files))
 
@@ -934,6 +1018,7 @@ async def _run_and_broadcast(
         mgr._active_runs[run_id] = self_task
     mgr._run_sessions[run_id] = session_id
     mgr._run_owner[run_id] = owner_client_id
+    mgr.start_run_replay(run_id, question, client_turn_id)
 
     first_event: Optional["asyncio.Future[Any]"] = None
     # Code the provider runs inherits the run id (tasks copy the context).
@@ -945,6 +1030,8 @@ async def _run_and_broadcast(
         # when it never saw that run's run_started.
         if client_turn_id:
             event["client_turn_id"] = client_turn_id
+        if event.get("run_id") == run_id:
+            mgr.record_run_event(run_id, event)
         await mgr.broadcast(session_id, event)
 
     try:
@@ -1253,6 +1340,7 @@ async def _run_and_broadcast(
         mgr._active_runs.pop(run_id, None)
         mgr._run_sessions.pop(run_id, None)
         mgr._run_owner.pop(run_id, None)
+        mgr.end_run_replay(run_id)
         _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
         current_attachments.reset(attachments_token)
@@ -1661,6 +1749,13 @@ async def _chat_ws(websocket: WebSocket) -> None:
       run's ``run_started``; ``regenerate: true`` answers the session's last
       question again (no second user message; the new reply replaces the old
       one in history)
+    * ``{type: "run_attach", session_id}`` → ``{type: "run_snapshot",
+      session_id, runs: [{run_id, client_turn_id, question, adoptable,
+      last_seq, truncated, events}]}``: the session's live runs and their
+      events so far (consecutive tokens merged), for a tab that reloaded
+      mid-run. ``adoptable`` runs (their starting connection is gone) now
+      belong to this connection. Run events carry ``seq`` so the client can
+      skip the ones the snapshot already holds.
     * ``{type: "run_status", run_id}`` → ``{type: "run_status", run_id,
       session_id, active}``
     * ``{type: "chat_abort", run_id}`` — allowed for a run this connection
@@ -1867,6 +1962,23 @@ async def _chat_ws(websocket: WebSocket) -> None:
                         "type": "ask_response_ack",
                         "session_id": session_id,
                         "status": "received" if delivered else "no_pending_ask",
+                    }
+                )
+
+            elif msg_type == "run_attach":
+                # A tab that (re)opened a session: the live runs there, with
+                # their events so far, and which one it now owns.
+                sid = data.get("session_id")
+                if not isinstance(sid, str) or not sid:
+                    await websocket.send_json(
+                        {"type": "protocol_error", "error": "run_attach needs a session_id"}
+                    )
+                    continue
+                await websocket.send_json(
+                    {
+                        "type": "run_snapshot",
+                        "session_id": sid,
+                        "runs": mgr.run_snapshots(client_id, sid),
                     }
                 )
 

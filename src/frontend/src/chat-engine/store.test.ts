@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { threadStore } from './store'
-import { TransportDisconnectedError, type AiuiTransport, type SendArgs } from './transports'
+import { TransportDisconnectedError, type AiuiTransport, type AttachedRun, type SendArgs } from './transports'
 import { APPROVAL_ERROR, APPROVAL_PENDING, type AiuiMessage, type ConnectionStatus, type WireEvent } from './protocol'
 
 /** A transport whose turns the test drives by hand. */
@@ -753,4 +753,147 @@ test('a fetch that never reached the server reads as a connection problem, not "
   await threadStore.send(f.t, 'S', 'hi')
   const m = assistant('S')
   assert.ok(m.status?.type === 'incomplete' && /Could not reach the server/.test(String(m.status.error)))
+})
+
+// ── after a reload: run_attach adopts the session's live run ──────────
+
+/** A WS-like transport with several watchers per session and a run_attach answer. */
+function attachTransport(runs: AttachedRun[], gate?: Promise<void>) {
+  const watchers = new Map<string, Set<(ev: WireEvent) => void>>()
+  const cancels: [string, string | undefined][] = []
+  const t: AiuiTransport = {
+    kind: 'ws',
+    status: 'open',
+    send: async () => undefined,
+    async cancel(sid, runId) {
+      cancels.push([sid, runId])
+    },
+    respondAsk: async () => undefined,
+    watch(sid, fn) {
+      let set = watchers.get(sid)
+      if (!set) watchers.set(sid, (set = new Set()))
+      set.add(fn)
+      return () => set!.delete(fn)
+    },
+    async attachRuns() {
+      await gate
+      return runs
+    },
+  }
+  return {
+    t,
+    cancels,
+    emit(sid: string, ev: WireEvent) {
+      for (const fn of [...(watchers.get(sid) ?? [])]) fn(ev)
+    },
+  }
+}
+
+const historyWith = (...messages: object[]) => {
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ messages, start: 0, has_more: false }), { status: 200 })) as typeof fetch
+}
+
+const run = (over: Partial<AttachedRun> = {}): AttachedRun => ({
+  runId: 'R1',
+  clientTurnId: 'turn-a',
+  question: 'slow question',
+  adoptable: true,
+  lastSeq: 3,
+  events: [
+    { type: 'run_started', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', seq: 1 },
+    { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok0 tok1 ', seq: 3 },
+  ],
+  ...over,
+})
+
+test('after a reload the tab adopts its live run: the reply so far, Stop, and no second send', async () => {
+  historyWith({ role: 'user', content: 'earlier' }, { role: 'assistant', content: 'earlier reply' }, { role: 'user', content: 'slow question' })
+  const f = attachTransport([run()])
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  for (let i = 0; i < 4; i++) await tick()
+  const s = threadStore.get('S')
+  assert.equal(s.isRunning, true, 'the composer waits for the run (Stop shows)')
+  assert.equal(s.activeRunId, 'R1')
+  assert.deepEqual(s.messages.map((m) => m.role), ['user', 'assistant', 'user', 'assistant'])
+  assert.equal(textOf(assistant('S')), 'tok0 tok1 ')
+  assert.equal(assistant('S').status?.type, 'running')
+
+  // A live event the snapshot already held is skipped; a newer one lands.
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok1 ', seq: 3 })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok2 ', seq: 4 })
+  threadStore.flush()
+  assert.equal(textOf(assistant('S')), 'tok0 tok1 tok2 ')
+  assert.equal(threadStore.get('S').messages.filter((m) => m.role === 'assistant').length, 2, 'no read-only copy')
+
+  // Sending is blocked until the run ends.
+  await threadStore.send(f.t, 'S', 'another')
+  assert.equal(threadStore.get('S').messages.filter((m) => m.role === 'user').length, 2)
+
+  // Stop stops the adopted run on the server.
+  await threadStore.cancel(f.t, 'S')
+  assert.deepEqual(f.cancels, [['S', 'R1']])
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(assistant('S').status?.type, 'incomplete')
+  stop()
+})
+
+test('an adopted run ends on its terminal event like any detached turn', async () => {
+  historyWith({ role: 'user', content: 'slow question' })
+  const f = attachTransport([run()])
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  for (let i = 0; i < 4; i++) await tick()
+  f.emit('S', { type: 'run_completed', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', content: 'tok0 tok1 done', seq: 9 })
+  threadStore.flush()
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(textOf(assistant('S')), 'tok0 tok1 done')
+  stop()
+})
+
+test('a run another tab owns is replayed read-only and the composer stays usable', async () => {
+  historyWith({ role: 'user', content: 'from tab one' })
+  const f = attachTransport([run({ adoptable: false })])
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  for (let i = 0; i < 4; i++) await tick()
+  const s = threadStore.get('S')
+  assert.equal(s.isRunning, false)
+  const live = assistant('S')
+  assert.equal(live.custom?.remote, true)
+  assert.equal(textOf(live), 'tok0 tok1 ')
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok1 ', seq: 2 })
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok2 ', seq: 4 })
+  threadStore.flush()
+  assert.equal(textOf(assistant('S')), 'tok0 tok1 tok2 ')
+  stop()
+})
+
+test('live events that arrive while run_attach is in flight do not start a second copy', async () => {
+  historyWith({ role: 'user', content: 'slow question' })
+  let open!: () => void
+  const f = attachTransport([run({ lastSeq: 4, events: [...run().events, { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok2 ', seq: 4 }] })], new Promise<void>((r) => (open = r)))
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  await tick()
+  f.emit('S', { type: 'run_content', session_id: 'S', run_id: 'R1', client_turn_id: 'turn-a', token: 'tok2 ', seq: 4 })
+  open()
+  for (let i = 0; i < 4; i++) await tick()
+  const assistants = threadStore.get('S').messages.filter((m) => m.role === 'assistant')
+  assert.equal(assistants.length, 1)
+  assert.equal(textOf(assistants[0]), 'tok0 tok1 tok2 ')
+  assert.equal(threadStore.get('S').isRunning, true)
+  stop()
+})
+
+test('no live run: attaching changes nothing', async () => {
+  historyWith({ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' })
+  const f = attachTransport([])
+  await threadStore.load('S')
+  const stop = threadStore.observe(f.t, 'S')
+  for (let i = 0; i < 4; i++) await tick()
+  assert.equal(threadStore.get('S').isRunning, false)
+  assert.equal(threadStore.get('S').messages.length, 2)
+  stop()
 })
