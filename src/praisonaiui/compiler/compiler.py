@@ -22,6 +22,7 @@ from praisonaiui.compiler.nav_builder import NavBuilder, external_url, manual_en
 from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.openapi_pages import api_catalog, build_api_reference, strip_excluded
+from praisonaiui.compiler.playground import TRY_DIR
 from praisonaiui.compiler.publish import (
     apply_indexing,
     content_signal,
@@ -702,7 +703,12 @@ class Compiler:
             for s, e in zip(specs.values(), index)])
         (output_dir / ".well-known").mkdir(exist_ok=True)
         self._write_json(output_dir / ".well-known/api-catalog", catalog, indent)
-        return [e["file"] for e in index] + ["openapi/index.json", ".well-known/api-catalog"]
+        tried = []  # each endpoint page's Try-it data (compiler/playground.py)
+        for page in [p for p in self._api.pages if p.playground] if self._api else []:
+            tried.append(f"{TRY_DIR}/{page.slug}.json")
+            (output_dir / tried[-1]).parent.mkdir(parents=True, exist_ok=True)
+            self._write_json(output_dir / tried[-1], page.playground, indent)
+        return [e["file"] for e in index] + ["openapi/index.json", ".well-known/api-catalog", *tried]
 
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""

@@ -106,3 +106,13 @@ test('the build knows the new tags', () => {
     for (const el of ['aiui-field', 'aiui-expandable', 'aiui-panel']) assert.ok(DOCS_ALLOWED_ELEMENTS[el], el)
     assert.deepEqual([...new Set(DOCS_ALLOWED_ELEMENTS['aiui-field'])].sort(), ['anchor', 'at', 'dep', 'dflt', 'field', 'hint', 'post', 'pre', 'req', 'type'])
 })
+
+test('ApiPlayground: the endpoint bar (method, path, copy); Try it only with src', () => {
+    const live = renderDocs('<ApiPlayground method="POST" path="/pets/{petId}" src="/openapi/try/api-reference/update-pet.json" />')
+    assert.match(live, /<div class="aiui-endpoint"><span class="aiui-endpoint-method" data-method="POST">POST<\/span><code class="aiui-endpoint-path">\/pets\/\{petId\}<\/code>/)
+    assert.match(live, /aria-label="Copy path"/)
+    assert.match(live, />Try it<\/button>/)
+    const simple = renderDocs('<ApiPlayground method="GET" path="/pets" />')
+    assert.match(simple, /data-method="GET">GET</)
+    assert.ok(!simple.includes('Try it'), simple)
+})

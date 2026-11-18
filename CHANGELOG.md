@@ -386,6 +386,11 @@
   `--base-path`. The examples dashboard that `aiui dev` used to open is now
   `aiui dev --examples <folder>` (plain `aiui dev` still opens it in a folder with only
   `examples/`). See [Hot Reload](docs/features/hot-reload.md).
+- **Try it on endpoint pages**: an endpoint bar (method, path, copy) and a Try it form: server
+  menu and variables, path / query / header / cookie inputs and a JSON body, prefilled from the
+  spec (`x-default` first; `api.examples.prefill`), the live curl command, and the response's
+  status, time, size, headers and body. Sent from the browser, no proxy. `api.playground.display:
+  interactive | simple | none`. Lazy chunk; data in `openapi/try/<page>.json`. See [OpenAPI](docs/features/openapi.md#try-it).
 
 ### Deprecated
 

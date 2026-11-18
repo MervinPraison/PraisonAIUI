@@ -1,0 +1,20 @@
+# Try it (e2e/specs/docs-try-it.spec.ts): one x-hidden endpoint page, so the sidebar and search stay as they are.
+openapi: 3.1.0
+info: {title: Try it fixture, version: "1"}
+servers:
+  - {url: "https://api.example.test/v1", description: Production}
+  - {url: "https://{region}.example.test/v1", description: Regional, variables: {region: {default: eu, enum: [eu, us]}}}
+paths:
+  /pets/{petId}:
+    post:
+      operationId: updatePet
+      summary: Update a pet
+      x-hidden: true
+      parameters:
+        - {name: petId, in: path, required: true, schema: {type: integer}, example: 7}
+        - {name: verbose, in: query, schema: {type: boolean}}
+        - {name: X-Trace, in: header, schema: {type: string, x-default: t-1}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, properties: {name: {type: string, example: Rex}}}}}
+      responses: {"200": {description: The updated pet.}}

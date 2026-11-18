@@ -40,6 +40,7 @@ _STR, _NUM, _BOOL, _DATE = "a string", "a number", "true or false", "a date (YYY
 FRONTMATTER_TYPES: dict[str, str] = {
     "title": _STR, "nav_title": _STR, "description": _STR, "icon": _STR, "layout": _STR,
     "sidebarTitle": _STR, "tag": _STR, "mode": _STR, "url": _STR, "canonical": _STR, "robots": _STR,
+    "playground": _STR,
     "order": _NUM, "boost": _NUM,
     "hidden": _BOOL, "noindex": _BOOL, "searchable": _BOOL,
     "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL,

@@ -47,7 +47,7 @@ section in `llms.txt` and an [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) 
 ## Endpoint pages
 
 Every operation and 3.1 webhook gets a docs page, generated at build time as Markdown with
-the [API field components](writing-docs.md#api-fields): method and path, server URL,
+the [API field components](writing-docs.md#api-fields): the endpoint bar with [Try it](#try-it), server URL,
 deprecation notice, path / query / header / cookie parameters, request body,
 each response ([schemas](#schemas) with `oneOf`/`anyOf` tabs, constraints and conditional
 requirements), [request examples](#request-examples) in several languages, [response examples](#response-examples), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
@@ -152,8 +152,45 @@ x-codeSamples:
 
 The agent `.md` export, `llms-full.txt` and the page source keep every sample as a fence.
 
-**(planned)**: an Authorization section, method and `kind: badge` pills in the sidebar, a Try-it playground (choice picker for `any` fields,
-`api.optional`, and showing image, audio and video responses inline).
+### Try it
+
+Under the title, every endpoint page has an endpoint bar (method, path, copy) and **Try it**: a
+request form with a server menu (operation, path, then spec `servers`) and an input per server
+variable, an input per path, query, header and cookie parameter (`enum` and boolean as menus,
+arrays comma-separated, empty `required` ones named before sending) and the body to edit
+(`multipart/form-data` as a JSON object of its fields). Inputs start with `x-default`, else the
+example (`example`, `examples`, `default`, `const`, first `enum` value); the body with its first
+example, else one made from the schema. Beside them: the curl command for exactly what will be
+sent, live, with copy, and after Send the status, time, size, headers and body (JSON
+pretty-printed). A relative or missing server URL means the site the docs are served from.
+
+```yaml
+api:
+  playground:
+    display: interactive   # simple: the bar without Try it; none: method and path as plain text
+  examples:
+    prefill: true          # false: inputs start empty, the example as placeholder
+```
+
+Webhooks have no Try it. Front matter `playground:` (same values) sets the display of an
+endpoint page written from a page's `openapi:` front matter **(planned)**.
+
+The request goes straight from the reader's browser to your API: no proxy, so it works on a
+static host and keys never pass through a third party, and the browser's CORS rules apply. The
+API must allow the docs site's origin (`Access-Control-Allow-Origin`; for custom headers or a
+JSON body, a preflight `OPTIONS` with `Access-Control-Allow-Headers`). A blocked request says it
+"did not reach the API" (the curl command still works in a terminal). Response headers other
+than the CORS-safelisted ones show only when listed in `Access-Control-Expose-Headers`; a cookie
+parameter goes only into the curl command (a browser sends just the cookies it holds).
+
+`aiui build` writes each page's form data to `openapi/try/<page>.json`; the form is a lazy chunk
+loaded on the first hover, focus or click of Try it. In the page source the bar is
+`<ApiPlayground method="GET" path="/pets" src="/openapi/try/....json" />` (without `src`, the bar
+alone, usable on a hand-written page); the agent `.md` keeps `` `GET` `/pets` ``.
+
+**(planned)**: an Authorization section and auth inputs in Try it (API key, bearer, basic,
+OAuth2), file uploads and streaming responses in Try it, method and `kind: badge` pills in the
+sidebar, a choice picker for `any` fields, `api.optional`, and showing image, audio and video responses inline.
 
 From Python, `praisonaiui.compiler.openapi.load_spec("openapi.yaml")` returns an `ApiSpec`
 (`ok`, `issues`, `document`, `operations`, `dereference(node)`).
