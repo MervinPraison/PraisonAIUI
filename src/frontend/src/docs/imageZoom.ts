@@ -4,12 +4,12 @@
 // delegated handler; nothing in the markdown chunk the chat shares.
 import { useEffect } from 'react'
 
-const ZOOMABLE = '#main-content article.aiui-doc img:not(.katex img, .aiui-card-img)'
+const ZOOMABLE = '#main-content article.aiui-doc img:not(.katex img, .aiui-card-img, .aiui-embed img)'
 const DIALOG_ID = 'aiui-image-zoom'
 
-/** Images worth zooming: not inside a link (a card or a linked badge), not tiny. */
+/** Images worth zooming: not inside a link (a card or a linked badge), not marked `noZoom`, not tiny. */
 function zoomable(img: HTMLImageElement): boolean {
-    return !img.closest('a') && (img.naturalWidth === 0 || img.naturalWidth > 160)
+    return !img.closest('a') && img.dataset.nozoom === undefined && (img.naturalWidth === 0 || img.naturalWidth > 160)
 }
 
 export function markZoomableImages(root: ParentNode = document): number {
@@ -32,8 +32,25 @@ function dialog(): HTMLDialogElement {
     d.id = DIALOG_ID
     d.className = 'aiui-zoom'
     const img = document.createElement('img')
-    d.appendChild(img)
-    // Any click closes it (on the image too: the reader zoomed to look, not to act).
+    // Copy and Download for every zoomed image: no per-image option to remember.
+    const bar = document.createElement('div')
+    bar.className = 'aiui-zoom-actions'
+    bar.setAttribute('aria-live', 'polite')
+    for (const [label, act] of [['Copy image', copyImage], ['Download', downloadImage]] as const) {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.textContent = label
+        b.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const ok = await act(img)
+            if (ok === undefined) return
+            b.textContent = ok ? 'Copied' : 'Could not copy: use Download'
+            setTimeout(() => (b.textContent = label), 2000)
+        })
+        bar.appendChild(b)
+    }
+    d.append(img, bar)
+    // Any other click closes it (on the image too: the reader zoomed to look, not to act).
     d.addEventListener('click', () => d!.close())
     d.addEventListener('close', () => {
         img.removeAttribute('src')
@@ -41,6 +58,31 @@ function dialog(): HTMLDialogElement {
     })
     document.body.appendChild(d)
     return d
+}
+
+/** The image as PNG on the clipboard (drawn on a canvas: the clipboard takes PNG only). False when it cannot be copied. */
+export async function copyImage(img: HTMLImageElement): Promise<boolean> {
+    try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        canvas.getContext('2d')!.drawImage(img, 0, 0)
+        const png = new Promise<Blob>((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error('no image'))), 'image/png'))
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+        return true
+    } catch {
+        return false // no clipboard (plain http), or an image from a site that does not allow it
+    }
+}
+
+/** Saves the image under its own file name (an image on another site opens in a new tab). */
+export function downloadImage(img: HTMLImageElement): void {
+    const a = document.createElement('a')
+    a.href = img.src
+    a.download = decodeURIComponent(new URL(img.src, location.href).pathname.split('/').pop() || 'image')
+    a.target = '_blank'
+    a.rel = 'noopener'
+    a.click()
 }
 
 export function openZoom(source: HTMLImageElement): void {

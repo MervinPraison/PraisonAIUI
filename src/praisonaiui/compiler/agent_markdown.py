@@ -23,6 +23,8 @@ _VISIBILITY = re.compile(r"<Visibility\s+for=[\"'{]*(humans|agents)[\"'}]*\s*>(.
 _ATTRS = r"(?:\s+[A-Za-z_$][\w:.$-]*(?:=(?:\"[^\"]*\"|'[^']*'|\{[^}]*\}|[^\s>\"'{]+))?)*"
 _TAG = re.compile(rf"<(/?)([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)({_ATTRS})\s*(/?)>")
 _ATTR = re.compile(r"([A-Za-z_$][\w:.$-]*)(?:=(\"[^\"]*\"|'[^']*'|\{[^}]*\}|[^\s>\"'{]+))?")
+# <iframe> / <video> (raw HTML): a link to the video, which an agent can follow.
+_MEDIA = re.compile(rf"<(iframe|video)\b({_ATTRS})\s*(?:/>|>(.*?)</\1\s*>)", re.S | re.I)
 _OPEN_TAG_START = re.compile(r"<[A-Z][A-Za-z0-9]*(?:\s[^<>]*)?$")
 _LINK = re.compile(r"(!?\[[^\]\n]*\]\()(<[^>\n]*>|[^)\s]+)")
 _REF_DEF = re.compile(r"^(\s*\[[^\]\n]+\]:\s*)(\S+)", re.M)
@@ -77,6 +79,14 @@ def _attrs(raw: str) -> dict[str, str]:
         value = value[1:-1].strip() if value[:1] == "{" else value
         values[name] = value[1:-1] if value[:1] in "\"'" and value[-1:] == value[:1] else (value or "true")
     return values
+
+
+def _media_link(m: re.Match[str]) -> str:
+    a = _attrs(m.group(2))
+    src = a.get("src") or _attrs(next(iter(re.findall(r"<source\b([^>]*)>", m.group(3) or "")), "")).get("src")
+    if not src:
+        return ""
+    return f"[{a.get('title') or ('Video' if m.group(1).lower() == 'video' else 'Embedded video')}]({src})"
 
 
 def _convert(lines: list[str]) -> list[str]:
@@ -288,7 +298,7 @@ def to_agent_markdown(
     file (relative links resolve there); ``site``: the site URL or base path links start with."""
     code = _Code()
     text = visibility(code.mask(strip_comments(_FRONTMATTER.sub("", source, count=1))), "agents", code)
-    body = "\n".join(_convert(text.split("\n")))
+    body = "\n".join(_convert(_MEDIA.sub(_media_link, text).split("\n")))
 
     def link(m: re.Match[str]) -> str:
         return m.group(1) + rewrite_target(m.group(2), page_dir, docs_base, site)

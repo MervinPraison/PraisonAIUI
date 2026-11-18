@@ -51,6 +51,11 @@ test('links and images are rewritten outside code only', () => {
         ].join('\n'),
     )
     assert.equal(prepareDocSource('---\nt: 1\n---\n[x](y.md)', page), '[x](/docs/a/y)')
+    // HTML images too (light/dark pairs, sized images), which the renderer would otherwise refuse.
+    assert.equal(
+        resolveDocUrls('<img className="dark:hidden" src="../img/l.png" width="300" /> <source srcset="d.png 1x, /abs.png 2x" media="x">', page),
+        '<img className="dark:hidden" src="/docs/img/l.png" width="300" /> <source srcset="/docs/a/d.png 1x, /abs.png 2x" media="x">',
+    )
 })
 
 const NAV: DocsNav = {
