@@ -50,7 +50,7 @@ Every operation and 3.1 webhook gets a docs page, generated at build time as Mar
 the [API field components](writing-docs.md#api-fields): method and path, server URL,
 deprecation notice, path / query / header / cookie parameters, request body,
 each response ([schemas](#schemas) with `oneOf`/`anyOf` tabs, constraints and conditional
-requirements), [response examples](#response-examples), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
+requirements), [request examples](#request-examples) in several languages, [response examples](#response-examples), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
 `llms-full.txt`, sitemap and site search (which also matches `METHOD /path`, the
 `operationId` and every parameter and body field name).
 
@@ -116,8 +116,43 @@ Per content type: the `examples` map (`value`, 3.2 `dataValue` / `serializedValu
 `externalValue` URL), else `example`, else for JSON an example built from the schema. JSON is
 pretty-printed (a JSON string too); XML, HTML, YAML and CSV are highlighted; other types are text.
 
-**(planned)**: an Authorization section, method and `kind: badge` pills in the sidebar, request
-examples (cURL and more languages), a Try-it playground (choice picker for `any` fields,
+### Request examples
+
+The side column shows the request as code, one tab per language: cURL, Python and
+JavaScript by default. A pick is remembered, so every endpoint page opens on the reader's
+language. Each sample is built at build time from the spec: the server URL (variables set to
+their defaults; a relative or missing server is joined to `https://api.example.com`), path
+parameters (their example, else a `{name}` placeholder), required query, header and cookie
+parameters and any with an example, the first security requirement as a placeholder
+(`Bearer <token>`, `Basic <encoded-value>`, an API key `<api-key>` in its header, query or
+cookie) and the body (its first example, else one made from the schema without `readOnly`
+fields). JSON, form-urlencoded and plain-text bodies work in every language; `multipart/form-data`
+in cURL, Python and JavaScript (a `format: binary` field is sent as a file).
+
+```yaml
+api:
+  openapi: openapi.yaml
+  examples:
+    languages: [curl, python, go]   # or all; [] shows only the spec's own samples
+```
+
+Languages: `curl`, `python`, `javascript`, `go`, `java`, `ruby`, `php`, `csharp`, `rust`,
+`swift` (also `shell`, `node`, `js`, `py`, `c#`, `dotnet`, ...). `aiui validate` names an
+unknown one.
+
+Your own samples, from an SDK say, go in the operation's `x-codeSamples` (or `x-code-samples`).
+They come first, in their order; one in a generated language replaces that sample, any other
+language adds a tab. `label` is the tab title (default: the language's name).
+
+```yaml
+x-codeSamples:
+  - {lang: python, label: Python SDK, source: "client.pets.list(limit=10)"}
+  - {lang: kotlin, source: "client.pets().list(10)"}
+```
+
+The agent `.md` export, `llms-full.txt` and the page source keep every sample as a fence.
+
+**(planned)**: an Authorization section, method and `kind: badge` pills in the sidebar, a Try-it playground (choice picker for `any` fields,
 `api.optional`, and showing image, audio and video responses inline).
 
 From Python, `praisonaiui.compiler.openapi.load_spec("openapi.yaml")` returns an `ApiSpec`
