@@ -42,6 +42,8 @@ const folder = (a: TagAttrs) => ({
 const shade = (v: string | undefined, mode: string) => new RegExp(`\\b${mode}\\s*:\\s*["']([^"']+)["']`).exec(v ?? '')?.[1]
 /** <ParamField path|query|body|header="name"> and <ResponseField name>: one field row (docs/ApiFields.tsx). */
 const FIELD_IN = ['path', 'query', 'body', 'header'] as const
+/** <video autoPlay muted loop playsInline controls>: JSX or HTML spelling. */
+const VIDEO_FLAGS = ['autoplay', 'muted', 'loop', 'controls', 'playsinline']
 const apiField = (response: boolean): DocsTag => ({
     el: 'aiui-field',
     attrs: ['field', 'at', 'type', 'req', 'dep', 'dflt', 'hint', 'pre', 'post', 'anchor'],
@@ -115,7 +117,16 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Panel: { el: 'aiui-panel', attrs: ['kind'], map: () => ({}) },
     // for="humans": only on the page; for="agents": only in the .md and llms files (compiler/agent_markdown.py).
     Visibility: { el: 'aiui-visibility', attrs: ['audience'], map: (a) => ({ audience: a.for === 'agents' ? 'agents' : 'humans' }) },
+    // Raw HTML <iframe> and <video> (docs/DocsMedia.tsx): still only aiui-* elements reach the sanitizer.
+    iframe: { el: 'aiui-embed', attrs: ['src', 'title', 'width', 'height', 'poster'] },
+    video: {
+        el: 'aiui-video', attrs: ['src', 'poster', 'title', 'width', 'height', 'flags'],
+        map: (a) => ({ ...a, flags: VIDEO_FLAGS.filter((f) => Object.keys(a).some((k) => k.toLowerCase() === f && on(a[k]))).join(' ') }),
+    },
 }
+
+/** Lower-case tags the table takes (raw HTML); every other lower-case tag stays HTML. */
+const HTML_TAGS = new Set(['iframe', 'video'])
 
 /** Tags converted elsewhere (code groups and examples: convertMkdocsBlocks; CodeBlock: into a fence, below). */
 const PASSTHROUGH = new Set(['CodeGroup', 'CodeBlock', 'RequestExample', 'ResponseExample'])
@@ -188,7 +199,7 @@ function openTag(spec: DocsTag, a: TagAttrs): string {
 const LIST_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s+/
 const LIST_MARKER = new RegExp(LIST_ITEM.source + '$')
 // A component name has a lower-case letter, so `<DIV>` and `<B>` stay HTML.
-const HEAD = /<(\/?)([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)/y
+const HEAD = /<(\/?)([A-Za-z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)/y
 const ATTR = /\s*([A-Za-z_$][\w:.$-]*)(?:=("[^"]*"|'[^']*'|\{|[^\s>"'{]+))?/y
 
 /** The index after the `{…}` at `p` (quotes and nesting respected), or -1 when the text ends first. */
@@ -209,7 +220,7 @@ type ParsedTag = { closing: boolean; name: string; attrs: TagAttrs; selfClosing:
 function parseTag(s: string, p: number): ParsedTag | null | 'more' {
     HEAD.lastIndex = p
     const m = HEAD.exec(s)
-    if (!m || !/[a-z]/.test(m[2])) return null
+    if (!m || !/[a-z]/.test(m[2]) || (/^[a-z]/.test(m[2]) && !HTML_TAGS.has(m[2]))) return null
     const [closing, name, attrs] = [m[1] === '/', m[2], {} as TagAttrs]
     for (let i = HEAD.lastIndex; ; ) {
         while (/\s/.test(s[i] ?? '')) i++
@@ -372,7 +383,7 @@ export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_
                     const start = i
                     i = tag.end
                     const spec = tags[tag.name]
-                    if (PASSTHROUGH.has(tag.name) || (!spec && codeLike)) {
+                    if (PASSTHROUGH.has(tag.name) || ((!spec || HTML_TAGS.has(tag.name)) && codeLike)) {
                         cur += s.slice(start, i)
                         continue
                     }

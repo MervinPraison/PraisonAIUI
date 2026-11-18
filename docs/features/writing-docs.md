@@ -867,8 +867,64 @@ A wide table scrolls inside its frame, never the page.
 
 Paths are relative to the page. Write the alt text as a sentence about what
 the image shows; it is also what search engines and assistants read. Click
-any image (or focus it and press Enter) to see it at full size; Escape or a
-click closes it.
+any image (or focus it and press Enter) to see it at full size, with **Copy
+image** and **Download** buttons; Escape or a click elsewhere closes it. An
+image inside a link opens the link instead, and `noZoom` turns zoom off for
+one image:
+
+```markdown
+[![Status badge](../images/badge.png)](status.md)
+
+<img src="../images/diagram.png" alt="The request flow" width="480" height="270" noZoom />
+```
+
+`width` and `height` on `<img>` set its size and reserve the space before it
+loads, so the page does not jump.
+
+### Light and dark images
+
+Show one image in light mode and another in dark mode. They follow the site's
+theme toggle, not only the system setting. Any of these forms works, so the
+same Markdown also reads well on GitHub:
+
+```markdown
+![Dashboard](../images/dash-light.png#gh-light-mode-only)
+![Dashboard](../images/dash-dark.png#gh-dark-mode-only)
+
+<img className="block dark:hidden" src="../images/dash-light.png" alt="Dashboard" />
+<img className="hidden dark:block" src="../images/dash-dark.png" alt="Dashboard" />
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../images/dash-dark.png" />
+  <img src="../images/dash-light.png" alt="Dashboard" />
+</picture>
+```
+
+## Videos
+
+Paste a YouTube, Vimeo or Loom URL (watch, share or embed form) in an
+`<iframe>`, or a video file in `<video>`:
+
+```markdown
+<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Product tour" width="560" height="315"></iframe>
+
+<video autoPlay muted loop playsInline src="../videos/loop.mp4"></video>
+
+<video controls poster="../images/clip.png">
+  <source src="../videos/clip.webm" type="video/webm" />
+</video>
+```
+
+- An embedded video shows a play button (with `poster`, if set) until the
+  reader presses it: nothing loads from the provider before that, so a page
+  of videos stays fast and sets no third-party cookies. YouTube plays from
+  `youtube-nocookie.com`, Vimeo with Do Not Track; the player runs in a
+  sandboxed frame. `width` and `height` set the shape (16:9 by default).
+- An `<iframe>` from any other site shows as a link to it, never as a frame.
+- `<video autoPlay>` always plays muted and inline, and readers who ask for
+  reduced motion get the controls instead. Without `autoPlay` it shows
+  controls.
+- In the page's `.md` copy for assistants, each video is a link.
 
 `<Frame>` sets an image on a mat, with an optional `caption` under it and a `hint` above
 it (both Markdown, links included):

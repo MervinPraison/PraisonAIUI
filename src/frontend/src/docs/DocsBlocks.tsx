@@ -13,6 +13,7 @@ import { isExternal } from './chrome'
 import { cardHref } from './cardHref'
 import { DocsHomeIcon } from './docsHomeIcons'
 import { DocsTabs } from './DocsTabs'
+import { Embed, Video } from './DocsMedia'
 import { Badge, ColorItem, ColorRow, Colors, Icon, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
 
 type BlockProps = { title?: string; children?: ReactNode }
@@ -160,4 +161,6 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-colors': Colors,
     'aiui-color-row': ColorRow,
     'aiui-color': ColorItem,
+    'aiui-embed': Embed,
+    'aiui-video': Video,
 }

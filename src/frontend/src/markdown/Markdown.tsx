@@ -70,7 +70,10 @@ type Schema = {
 // ── rehype pipelines ──
 const [sanitizePlugin, baseSchema] = defaultRehypePlugins.sanitize as unknown as [Pluggable, Schema]
 
-/** Docs: Streamdown's schema plus the <aiui-*> blocks emitted by convertMkdocsBlocks, and table column widths (`width` and `span` are global attributes). */
+/**
+ * Docs: Streamdown's schema plus the <aiui-*> blocks emitted by convertMkdocsBlocks, and table column widths (`width` and `span` are global attributes).
+ * Images keep `noZoom` and the light/dark utility classes, <video> sources their `src` (docs/DocsMedia.tsx).
+ */
 const docsSchema: Schema = {
     ...baseSchema,
     tagNames: [...(baseSchema.tagNames ?? []), 'aiui-admonition', 'aiui-tabs', 'aiui-tab', 'colgroup', 'col'],
@@ -78,6 +81,8 @@ const docsSchema: Schema = {
         ...(baseSchema.attributes ?? {}),
         'aiui-admonition': ['type', 'title', 'collapsible'],
         'aiui-tab': ['title'],
+        img: [...(baseSchema.attributes?.img ?? []), 'nozoom', ['className', 'block', 'hidden', 'dark:block', 'dark:hidden']],
+        source: [...(baseSchema.attributes?.source ?? []), 'src', 'type'],
     },
 }
 
