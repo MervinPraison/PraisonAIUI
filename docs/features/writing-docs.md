@@ -43,6 +43,28 @@ description: Every block a docs page can use.
 `nav_title` is the shorter label in the sidebar; without it the sidebar uses
 `title`. The front matter never shows on the page.
 
+| Key | Type | What it does |
+|---|---|---|
+| `title` | string | Page title: sidebar, browser tab, search, `llms.txt` (default: the first `#` heading) |
+| `nav_title` | string | Shorter sidebar label |
+| `description` | string | Meta description and search snippet (default: the first paragraph) |
+| `icon` | string | Sidebar icon (a lucide name) |
+| `order` | number | Position inside its folder (default: a number prefix such as `01-`) |
+| `hidden` | `true`/`false` | Routable but left out of the sidebar |
+| `noindex` | `true`/`false` | Tells search engines not to index the page |
+| `searchable` | `true`/`false` | `false` leaves the page out of the site's own search |
+| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown |
+| `boost` | number | Search ranking weight (`2` ranks the page higher) |
+| `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)) |
+
+`aiui validate` checks these types and reports the line of a wrong one
+(`hidden: "yes"` is a string, so the page would stay in the sidebar), front
+matter that is not valid YAML, images without alt text, two files that publish
+the same page, two sidebar entries with the same title in one folder, headings
+that skip a level, empty pages and a `theme.accent` with too little contrast.
+Each finding names `file:line` and how to fix it; `--strict` makes them errors
+for CI. See the [codes](../api/cli.md#aiui-validate).
+
 ## Headings and "On this page"
 
 `##` and `###` headings build the "On this page" list beside the article

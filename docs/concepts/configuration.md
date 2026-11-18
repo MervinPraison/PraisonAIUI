@@ -27,6 +27,59 @@ neither, the command stops with `Configuration file not found: aiui.yaml`.
 `--force`. `aiui dev` accepts either name in each example folder. `aiui.yml`
 is not looked up; pass it with `--config`.
 
+## Split the config with `$ref`
+
+Any mapping can live in its own file. `$ref` names a YAML (or JSON) file,
+relative to the file that holds the `$ref`:
+
+```yaml
+# aiui.yaml
+site:
+  title: My Docs
+navigation:
+  $ref: ./config/nav.yaml
+```
+
+```yaml
+# config/nav.yaml
+tabs:
+  - tab: Guides
+    groups:
+      - $ref: ./groups/guides.yaml
+```
+
+- Included files can include others; keys written next to `$ref` override the
+  included ones.
+- Paths stay inside the folder of `aiui.yaml`; a file that includes itself,
+  directly or through others, is an error (`$ref cycle: aiui.yaml ->
+  config/nav.yaml -> aiui.yaml`).
+- Errors name the file and line of the `$ref` (`aiui.yaml:6: $ref
+  './config/nav.yaml' not found`); a YAML error or an unknown key inside an
+  included file names that file.
+- `aiui validate`, `aiui build`, `aiui serve`, `aiui docs check-links` and a
+  server started with an `aiui.yaml` all read the config the same way.
+
+## Editor setup
+
+`aiui init` starts `aiui.yaml` with this line:
+
+```yaml
+# yaml-language-server: $schema=https://ui.praison.ai/aiui.schema.json
+```
+
+Editors that run the YAML language server (VS Code with the Red Hat YAML
+extension, JetBrains IDEs, Neovim, Zed) then complete keys, show each key's
+description on hover and underline wrong values as you type. Add the line to
+an existing `aiui.yaml` to get the same. The schema comes from the `Config`
+model, so it never drifts from what `aiui validate` checks. For the schema of
+the exact version you have installed (offline, or pinned), write it next to
+the config and point the line at it:
+
+```bash
+aiui schema -o aiui.schema.json
+# yaml-language-server: $schema=./aiui.schema.json
+```
+
 ## Overview
 
 | Key | What it sets | Page |

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
+from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
@@ -175,6 +176,16 @@ class Compiler:
 
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
+        return lint_pages((page.path for page in self._published_pages()), self.base_path)
+
+    def lint_content(self) -> list[ContentIssue]:
+        """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
+        theme = self.config.site.theme if self.config.site else None
+        issues = accent_contrast(theme.accent if theme else None)
+        return issues + check_pages(self._published_pages(), self.base_path)
+
+    def _published_pages(self) -> list:
+        """The docs pages the build publishes (``content.docs`` minus excludes)."""
         docs = self.config.content.docs if self.config.content else None
         if not docs or not (self.base_path / docs.dir).exists():
             return []
@@ -184,7 +195,7 @@ class Compiler:
             exclude=self._exclude_patterns(),
             index_files=docs.index_files,
         )
-        return lint_pages((page.path for page in scanner.scan()), self.base_path)
+        return scanner.scan()
 
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""

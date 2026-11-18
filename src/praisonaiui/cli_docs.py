@@ -42,21 +42,11 @@ def check_links_command(
     """
     from dataclasses import asdict
 
-    import yaml
-
-    from praisonaiui.cli import _resolve_config, console
+    from praisonaiui.cli import _load_site_config, _resolve_config, console
     from praisonaiui.compiler.links import check_site_links
-    from praisonaiui.schema.models import Config
 
     path = _resolve_config(config)
-    if not path.exists():
-        console.print(f"[red]Error:[/red] Configuration file not found: {path}")
-        raise typer.Exit(code=2)
-    try:
-        cfg = Config.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
-    except Exception as e:
-        console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
-        raise typer.Exit(code=1)
+    _data, cfg = _load_site_config(path)
     if not (cfg.content and cfg.content.docs):
         console.print("[yellow]No docs folder configured (content.docs.dir): nothing to check[/yellow]")
         return

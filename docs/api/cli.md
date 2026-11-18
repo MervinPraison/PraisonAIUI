@@ -74,17 +74,44 @@ existing `aiui.yaml` or `aiui.template.yaml` unless `--force` is given.
 | `--force, -f` | off | Overwrite existing files |
 | `--frontend` | off | Also scaffold a Vite + React + shadcn frontend project |
 
+The file's first line, `# yaml-language-server: $schema=https://ui.praison.ai/aiui.schema.json`,
+gives autocomplete and hover docs in editors ([Editor setup](../concepts/configuration.md#editor-setup)).
 `init` writes only the YAML file. Create the folder it points to (for the
 `docs` template, `./docs` with at least one `.md` file) before `aiui build`.
 
 ### `aiui validate`
 
-Check a docs-site configuration.
+Check a docs-site configuration and its pages.
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
-| `--strict` | off | Unknown keys and broken links become errors |
+| `--strict` | off | Unknown keys, broken links, nav entries without a page and content issues (7xxx) become errors (exit 1) |
+| `--format` | `text` | `json` prints `{valid, errors, warnings}`, each with `code`, `file`, `line`, `message`, `suggestion` |
+
+Each finding prints as `[category] code file:line: message` with a fix hint
+under it:
+
+```text
+  [content] 7005 docs/guide/setup.md:14: heading jumps from h2 to h4
+    💡 Use ### here; screen readers navigate by heading level
+```
+
+| Code | Finding |
+|------|---------|
+| 1003 | unknown key (ignored); in a `$ref` file the file is named |
+| 1004 | key accepted but has no effect; unknown component tag in a page |
+| 2101 | a nav entry names no docs page |
+| 5001, 51xx, 5201 | theme, layout and search settings that are ignored |
+| 6001, 6002 | broken link or missing image (`aiui docs check-links`); OpenAPI spec problems |
+| 7000 | page front matter is not valid YAML (the page loses its title) |
+| 7001 | front matter key has the wrong type ([keys](../features/writing-docs.md#front-matter)) |
+| 7002 | image without alt text (`![](x.png)`, `<img>` with no `alt`; `alt=""` marks a decorative image) |
+| 7003 | two files publish the same page URL (`intro.md` and `01-intro.md`) |
+| 7004 | two sidebar entries in one folder have the same title |
+| 7005 | heading skips a level (`##` then `####`) |
+| 7006 | page has nothing beyond its headings |
+| 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 
 Without `--config`, `validate`, `build` and `serve` read `./aiui.yaml`. The
 old name `aiui.template.yaml` still works: when it is the only one there it is
@@ -92,6 +119,13 @@ used, with a one-line hint on stderr to rename it, and the exit code is
 unchanged. When both files exist, `aiui.yaml` wins. An explicit `--config`
 always wins and prints no hint. See
 [Config file name](../concepts/configuration.md#config-file-name).
+
+### `aiui schema`
+
+Print the JSON Schema of `aiui.yaml`, generated from the `Config` model of the
+installed version; `--output, -o <file>` writes it to a file. The schema is
+also published at `https://ui.praison.ai/aiui.schema.json`; see
+[Editor setup](../concepts/configuration.md#editor-setup).
 
 ### `aiui build`
 
