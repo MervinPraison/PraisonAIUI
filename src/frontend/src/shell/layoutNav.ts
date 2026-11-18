@@ -85,9 +85,11 @@ export interface LayoutNavInput {
   /** The routed page id (the URL's first segment). */
   activeId: string
   go(pageId: string): void
+  /** Group names plugins declared (registerNavGroup, nav_groups()): their groups get `declared: true`. */
+  declared?: readonly string[]
 }
 
-export function buildLayoutNav({ pages, groups, spec, activeId, go }: LayoutNavInput): LayoutNav {
+export function buildLayoutNav({ pages, groups, spec, activeId, go, declared = [] }: LayoutNavInput): LayoutNav {
   const listed = navPagesForLayout(pages, spec.id)
   const byId = new Map(listed.map((p) => [p.id, p] as const))
   const primaryIds: string[] = []
@@ -104,6 +106,7 @@ export function buildLayoutNav({ pages, groups, spec, activeId, go }: LayoutNavI
     groups: groupPages(rest, groups).map((g) => ({
       name: g.name,
       folded: folded.includes(g.name),
+      ...(declared.includes(g.name) ? { declared: true } : {}),
       items: g.pages.map((p) => toItem(p, activeId)),
     })),
     footer: footerPages(rest).map((p) => toItem(p, activeId)),

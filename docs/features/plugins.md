@@ -187,10 +187,17 @@ the group collapsed until the viewer opens it. The app's own configuration
 wins: a plugin cannot move a group that `layout.groups` (or
 `set_dashboard(groups=...)`) names.
 
+Every frame lists a declared group. The classic frame shows all groups in its
+sidebar; the built-in layouts, which keep the app's own groups in More (⌘K),
+still show the groups plugins declared, in this order and folded as declared:
+under the primary pages in `chat`, `chat-canvas`, `workbench` and `mission`,
+in the rail in `command`, and under More tools in `guided`.
+
 **Settings.** A
 `SettingsSectionSpec(id, title, fields, description="", order=100)` becomes a section of the shell's settings dialog, which opens from
-the sliders button in the header (shown only while some plugin has a section)
-or from "Plugin settings" in the command palette. Each
+"Plugin settings" (the sliders button in the classic header, a "Plugin
+settings" row or rail button in every built-in layout, shown only while some
+plugin has a section) or from "Plugin settings" in the command palette. Each
 `SettingsField(key, label="", type="string", default=None, description="", options=None)`
 is drawn from its type:
 

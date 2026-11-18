@@ -304,6 +304,13 @@
   the counts in `ARCHITECTURE.md` drift. Removed unreachable code:
   `server.api_usage` and `server._usage_stats` (`/api/usage` is the usage
   feature) and the unused legacy view `plugins/views/explorer.js`.
+- Plugins: a plugin's nav group and its settings reach every layout, not only
+  the classic frame. The built-in layouts (including `chat`, what `aiui run`
+  opens) list the groups plugins declared (`nav_groups()`,
+  `registerNavGroup`) in their order and folded as declared, and show a
+  "Plugin settings" entry while a plugin has a settings section. Layout
+  authors get `nav.groups[].declared` and `chrome.openSettings()` (additive)
+  and the kit's `DeclaredNavGroups` and `PluginSettingsRow`.
 - Plugins: an `extensions.enabled` allowlist no longer switches off a plugin
   the app passed to `aiui.register_plugin(obj)`. The allowlist picks which
   installed entry points to trust, as the docs say; only `extensions.disabled`

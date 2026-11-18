@@ -109,3 +109,21 @@ test('a layout-owned page is never the fallback first page', () => {
   const pages = [page('welcome', { layouts: ['alpha'] }), ...PAGES.filter((p) => p.id !== 'welcome')]
   assert.equal(defaultPageId(manifest(pages)), 'home')
 })
+
+test('a group a plugin declared is marked declared, keeping its order and folded', () => {
+  const nav = buildLayoutNav({
+    pages: PAGES,
+    groups: { order: ['Ops', 'Main'], folded: ['Ops'] },
+    spec: { id: 'alpha' },
+    activeId: '',
+    go: () => {},
+    declared: ['Ops'],
+  })
+  assert.deepEqual(
+    nav.groups.map((g) => [g.name, g.folded, g.declared ?? false]),
+    [
+      ['Ops', true, true],
+      ['Main', false, false],
+    ],
+  )
+})

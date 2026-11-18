@@ -10,8 +10,8 @@ The smallest complete PraisonAIUI plugin. It adds, to the React app shell:
 | Tool renderer | `get_weather` tool calls in chat | `hello.js` calls `registerToolRenderer` |
 | Slot | A "Hello" button in the header (`header:actions`) | `hello.js` calls `registerSlot(..., { id, order })` |
 | Shell services | A toast and in-app navigation | `hello.js` calls `notify()` and `navigate()` |
-| Nav group | Both pages under a "Hello" sidebar group, placed between the app's second and third groups | `HelloPlugin.nav_groups()` |
-| Settings | A "Hello plugin" section in the shell's settings dialog (header button or the palette's "Plugin settings"); the blocks page greets with the saved word | `HelloPlugin.settings()`, `get_plugin_settings("hello", "greeting")` |
+| Nav group | Both pages under a "Hello" group: in the classic sidebar between the app's second and third groups, and in every built-in layout's nav | `HelloPlugin.nav_groups()` |
+| Settings | A "Hello plugin" section in the shell's settings dialog ("Plugin settings" in the frame's nav, the classic header's sliders button or the palette); the blocks page greets with the saved word | `HelloPlugin.settings()`, `get_plugin_settings("hello", "greeting")` |
 | Theme preset | "Sunrise theme" in the command palette | `HelloPlugin.themes()` (seed tokens) |
 | CLI | `aiui hello greet NAME` | `HelloPlugin.cli_commands()` |
 
@@ -23,13 +23,14 @@ aiui plugins list
 aiui plugins doctor
 aiui hello greet Ada
 
-# Plugin pages appear in the app shell (opt-in style)
-aiui run app.py --style app
+# Plugin pages appear in the app shell (what `aiui run` opens)
+aiui run app.py
 ```
 
-Open `http://127.0.0.1:8000/hello` and `http://127.0.0.1:8000/hello-blocks`.
-Open the settings dialog from the header (sliders icon), change the
-greeting, and press "Say hello" on `/hello-blocks`. The values are saved in
+Open `http://127.0.0.1:8000/hello` and `http://127.0.0.1:8000/hello-blocks`
+(both are in the "Hello" nav group). Open the settings dialog with "Plugin
+settings" in the sidebar (the sliders icon in the classic frame's header),
+change the greeting, and press "Say hello" on `/hello-blocks`. The values are saved in
 `$AIUI_DATA_DIR/plugin-settings/hello.json` (default `~/.praisonaiui`).
 
 When the server requires auth or is reached from another machine, plugin

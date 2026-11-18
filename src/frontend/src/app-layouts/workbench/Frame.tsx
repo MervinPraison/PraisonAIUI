@@ -28,9 +28,11 @@ import { cn } from '@/lib/utils'
 import {
   Brand,
   ConnectionStatus,
+  DeclaredNavGroups,
   NavList,
   navRowClass,
   PhoneSheet,
+  PluginSettingsRow,
   preloadPhoneSheet,
   SessionList,
   ShortcutHint,
@@ -95,6 +97,7 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
           {!touch && <ShortcutHint combo="mod+k" />}
         </button>
       </div>
+      <DeclaredNavGroups nav={nav} size={size} onNavigate={() => onNavigate?.()} />
       <SessionList
         title="Chats"
         search="toggle"
@@ -105,6 +108,7 @@ function SidebarBody({ nav, chrome, size, chatPage, onNavigate }: SidebarProps) 
         className="min-h-0 flex-1"
       />
       <NavList items={nav.footer} go={nav.go} onNavigate={onNavigate} size={size} />
+      <PluginSettingsRow chrome={chrome} size={size} onNavigate={onNavigate} className="shrink-0" />
       <div className="mt-auto flex shrink-0 items-center gap-1 border-t border-sidebar-border pt-2 pl-2">
         <ConnectionStatus className={cn('flex-1', touch && 'text-sm')} />
         <Button
