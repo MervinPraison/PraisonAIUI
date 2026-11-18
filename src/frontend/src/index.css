@@ -19,6 +19,7 @@
 @source not "./layouts/DashboardLayout.tsx";
 @source not "./layouts/FlexibleLayout.tsx";
 @source not "./layouts/widgets.tsx";
+@source not "./layouts/widgetRegistry.tsx";
 @source not "./agent-ui";
 
 @custom-variant dark (&:is(.dark *));
