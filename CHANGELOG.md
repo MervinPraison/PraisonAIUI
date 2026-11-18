@@ -225,6 +225,11 @@
   `<meta name="aiui-base">`), and the bundle's chunks and fonts now load
   relative to the file that names them. A build without a prefix is
   unchanged. See [GitHub Pages](docs/getting-started/github-pages.md).
+- Docs component tags work anywhere, as in MDX: one line, list items,
+  self-closing, multi-line attributes, indented bodies. An unknown tag keeps
+  its text and `aiui build` / `aiui validate` warn with file and line;
+  `{/* … */}` comments are hidden; `## Title {#id}` pins an anchor. One table
+  (`DOCS_TAGS`, `markdown/docsTags.ts`) defines every docs component.
 
 ### Deprecated
 

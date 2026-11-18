@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocsScanner
+from praisonaiui.compiler.docs_tags import lint_pages, strip_comments
 from praisonaiui.compiler.nav_builder import NavBuilder
 from praisonaiui.compiler.publish import (
     apply_indexing,
@@ -36,6 +37,8 @@ class CompileResult:
     error: str | None = None
     #: Docs paths left out of the output (content.docs.exclude, .aiuiignore); folders end in "/".
     excluded: list[str] = field(default_factory=list)
+    #: Problems that did not stop the build, e.g. ``docs/a.md:3: <Tree> is not a docs component …``.
+    warnings: list[str] = field(default_factory=list)
 
 
 class Compiler:
@@ -140,9 +143,11 @@ class Compiler:
         files.extend(self._write_api_specs(output_dir, validation.api_specs, indent))
 
         # Copy docs markdown files for content loading
+        warnings: list[str] = []
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             files.extend(copied)
+            warnings.extend(self.lint_docs())
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
@@ -156,7 +161,20 @@ class Compiler:
             files.extend(self._generate_search_index(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
 
-        return CompileResult(success=True, files=files, excluded=self._excluded)
+        return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings)
+
+    def lint_docs(self) -> list[str]:
+        """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
+        docs = self.config.content.docs if self.config.content else None
+        if not docs or not (self.base_path / docs.dir).exists():
+            return []
+        scanner = DocsScanner(
+            docs_dir=self.base_path / docs.dir,
+            include=docs.include,
+            exclude=self._exclude_patterns(),
+            index_files=docs.index_files,
+        )
+        return lint_pages((page.path for page in scanner.scan()), self.base_path)
 
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""
@@ -1138,7 +1156,7 @@ class Compiler:
             md_path = self._resolve_md_source(page["path"])
             if not md_path:
                 continue
-            body = self._strip_frontmatter(md_path.read_text(encoding="utf-8")).strip()
+            body = strip_comments(self._strip_frontmatter(md_path.read_text(encoding="utf-8"))).strip()
             if not body:
                 continue
             url = self._page_url(page["path"].rstrip("/") or "/")

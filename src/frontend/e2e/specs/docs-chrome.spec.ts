@@ -464,6 +464,24 @@ test('components: callout, steps, cards, accordion, frame and image zoom', async
   expect(errors.pageErrors).toEqual([])
 })
 
+test('component tags anywhere: one line, inside a list, unknown tags, comments, {#id}', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await page.goto('/docs/markdown#tags-anywhere')
+  const heading = page.getByRole('heading', { name: 'Tags anywhere', level: 2 })
+  await expect(heading).toHaveAttribute('id', 'tags-anywhere')
+  const article = page.locator('#main-content article')
+  await expect(article.locator('[data-type="tip"]')).toContainText('A one-line tip.')
+  // The callout stays inside the first list item; the list keeps both items.
+  const list = article.locator('ol').filter({ hasText: 'Install the package.' })
+  await expect(list.locator(':scope > li')).toHaveCount(2)
+  await expect(list.locator(':scope > li').first().locator('[data-type="warning"]')).toContainText('Inside the first step.')
+  await expect(article).toContainText('Text inside an unknown component.')
+  await expect(article.locator('pre', { hasText: 'Text inside an unknown component.' })).toHaveCount(0)
+  await expect(article).not.toContainText('MDX comment')
+  await expect(article).not.toContainText('{#')
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('phone: cards stack in one column and nothing scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/docs/markdown')

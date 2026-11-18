@@ -1,22 +1,15 @@
-// Docs components drawn from <div itemtype="aiui:…"> (mkdocsPreprocess turns
-// <Steps>, <Step>, <CardGroup>, <Card>, <Frame> and <AccordionGroup> into
-// them): the docs-only `div` override Content.tsx passes to <Markdown>. Any
-// other div renders as a plain div. Docs-only, so the markdown chunk the chat
-// shares is unchanged.
+// The docs components' React side: one component per `aiui-*` element the
+// tag table (markdown/docsTags.ts) turns <Steps>, <Step>, <CardGroup>,
+// <Card>, <Frame> and <AccordionGroup> into. Content.tsx passes the map to
+// the docs <Markdown>, so the markdown chunk the chat shares is unchanged.
+// A new component: an entry in DOCS_TAGS plus its renderer here.
+/* eslint-disable react-refresh/only-export-components -- the element → component map is this module's contract */
 import type { CSSProperties, ReactNode } from 'react'
 import { isExternal } from './chrome'
 import { cardHref } from './cardHref'
 import { DOCS_HOME_ICONS, DocsHomeIcon } from './docsHomeIcons'
 
-interface DocsDivProps {
-    itemType?: string
-    title?: string
-    label?: string
-    value?: string
-    children?: ReactNode
-    node?: unknown
-    [key: string]: unknown
-}
+type BlockProps = { title?: string; children?: ReactNode }
 
 function Card({ title, icon, href, children }: { title?: string; icon?: string; href?: string; children?: ReactNode }) {
     const glyph = icon && DOCS_HOME_ICONS[icon.toLowerCase()] ? (
@@ -43,34 +36,40 @@ function Card({ title, icon, href, children }: { title?: string; icon?: string; 
     )
 }
 
-export function DocsDiv({ itemType, title, label, value, children, node: _node, ...rest }: DocsDivProps) {
-    void _node
-    switch (itemType) {
-        case 'aiui:steps':
-            return <ol className="aiui-steps">{children}</ol>
-        case 'aiui:step':
-            return (
-                <li className="aiui-step">
-                    {title && <p className="aiui-step-title">{title}</p>}
-                    <div className="aiui-step-body">{children}</div>
-                </li>
-            )
-        case 'aiui:cards': {
-            const cols = Math.min(Math.max(Number(value) || 2, 1), 4)
-            return <div className="aiui-cards" style={{ '--aiui-cards-cols': cols } as CSSProperties}>{children}</div>
-        }
-        case 'aiui:card':
-            return <Card title={title} icon={label} href={value ? cardHref(value) : undefined}>{children}</Card>
-        case 'aiui:frame':
-            return (
-                <figure className="aiui-frame">
-                    {children}
-                    {title && <figcaption>{title}</figcaption>}
-                </figure>
-            )
-        case 'aiui:accordions':
-            return <div className="aiui-accordions">{children}</div>
-        default:
-            return <div {...(rest as Record<string, unknown>)} title={title}>{children}</div>
-    }
+const Steps = ({ children }: BlockProps) => <ol className="aiui-steps">{children}</ol>
+const Accordions = ({ children }: BlockProps) => <div className="aiui-accordions">{children}</div>
+
+function Step({ title, children }: BlockProps) {
+    return (
+        <li className="aiui-step">
+            {title && <p className="aiui-step-title">{title}</p>}
+            <div className="aiui-step-body">{children}</div>
+        </li>
+    )
+}
+
+function Cards({ cols, children }: BlockProps & { cols?: string | number }) {
+    const n = Math.min(Math.max(Number(cols) || 2, 1), 4)
+    return <div className="aiui-cards" style={{ '--aiui-cards-cols': n } as CSSProperties}>{children}</div>
+}
+
+const CardTag = ({ href, ...rest }: BlockProps & { icon?: string; href?: string }) => <Card {...rest} href={href ? cardHref(href) : undefined} />
+
+function Frame({ caption, children }: BlockProps & { caption?: string }) {
+    return (
+        <figure className="aiui-frame">
+            {children}
+            {caption && <figcaption>{caption}</figcaption>}
+        </figure>
+    )
+}
+
+/** Element → renderer, for the elements named in DOCS_TAGS (markdown/docsTags.ts). */
+export const DOCS_TAG_COMPONENTS = {
+    'aiui-steps': Steps,
+    'aiui-step': Step,
+    'aiui-cards': Cards,
+    'aiui-card': CardTag,
+    'aiui-frame': Frame,
+    'aiui-accordions': Accordions,
 }

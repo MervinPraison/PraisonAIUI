@@ -6,13 +6,16 @@ docs search dialog (``src/frontend/src/docs/searchIndex.ts``) loads the file
 the first time a reader opens search and ranks pages, sections and text.
 
 Anchors use the same rule as the renderer's heading ids
-(``src/frontend/src/markdown/slug.ts``), so a result opens at its section.
+(``src/frontend/src/markdown/slug.ts``, or the ``{#id}`` an author wrote), so
+a result opens at its section. Comments are not indexed.
 """
 
 from __future__ import annotations
 
 import re
 from typing import Any
+
+from praisonaiui.compiler.docs_tags import heading_id, strip_comments
 
 #: Characters of body text kept per section (enough for a snippet and for
 #: matching words a reader would search for; keeps the file small).
@@ -71,7 +74,7 @@ def _sections(body: str) -> list[dict[str, Any]]:
     """Split a page into sections: the intro, then one per ``##`` / ``###``."""
     sections: list[dict[str, Any]] = [{"heading": "", "anchor": "", "level": 1, "text": []}]
     fence: str | None = None
-    for raw in body.splitlines():
+    for raw in strip_comments(body).splitlines():
         m = _FENCE.match(raw)
         if fence:
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence):
@@ -83,10 +86,12 @@ def _sections(body: str) -> list[dict[str, Any]]:
         h = _HEADING.match(raw)
         if h:
             level = len(h.group(1))
-            title = inline_text(h.group(2))
+            raw_title, custom_id = heading_id(h.group(2))
+            title = inline_text(raw_title)
             if level == 1:
                 continue
-            sections.append({"heading": title, "anchor": slugify(title), "level": level, "text": []})
+            anchor = custom_id or slugify(title)
+            sections.append({"heading": title, "anchor": anchor, "level": level, "text": []})
             continue
         if _TABLE_RULE.match(raw):
             continue

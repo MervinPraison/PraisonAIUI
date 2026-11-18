@@ -96,6 +96,26 @@ const DOCS_REHYPE = [
     defaultRehypePlugins.harden,
 ] as StreamdownProps['rehypePlugins']
 
+export type AllowedElements = Readonly<Record<string, readonly string[]>>
+const allowedCache = new WeakMap<AllowedElements, StreamdownProps['rehypePlugins']>()
+
+/**
+ * The docs schema plus a page's own elements (the docs components table,
+ * markdown/docsTags.ts). Only `aiui-*` elements, and never event handlers or
+ * `style`; sanitize still checks every URL attribute.
+ */
+function docsRehypeWith(allow?: AllowedElements): StreamdownProps['rehypePlugins'] {
+    if (!allow) return DOCS_REHYPE
+    if (!allowedCache.has(allow)) {
+        const tags = Object.keys(allow).filter((t) => t.startsWith('aiui-'))
+        const attributes = { ...docsSchema.attributes }
+        for (const t of tags) attributes[t] = [...(attributes[t] ?? []), ...allow[t].filter((a) => !/^(on|style$)/i.test(a))]
+        const schema = { ...docsSchema, tagNames: [...(docsSchema.tagNames ?? []), ...tags], attributes }
+        allowedCache.set(allow, [defaultRehypePlugins.raw, [sanitizePlugin, schema], defaultRehypePlugins.harden] as StreamdownProps['rehypePlugins'])
+    }
+    return allowedCache.get(allow)
+}
+
 const CHAT_REHYPE = [
     defaultRehypePlugins.raw,
     [sanitizePlugin, chatSchema],
@@ -151,10 +171,12 @@ export interface MarkdownProps {
     /** Element overrides. Keep the object stable (module scope or useMemo). */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     components?: Record<string, ComponentType<any>>
+    /** docs: extra `aiui-*` elements the sanitizer keeps, element → attributes. Keep the object stable. */
+    allowElements?: AllowedElements
 }
 
 export const Markdown = memo(function Markdown({
-    children, variant = 'chat', streaming = false, className, components,
+    children, variant = 'chat', streaming = false, className, components, allowElements,
 }: MarkdownProps) {
     const isDocs = variant === 'docs'
     const source = typeof children === 'string' ? children : String(children ?? '')
@@ -172,8 +194,8 @@ export const Markdown = memo(function Markdown({
     const idPrefix = `user-content-${instanceId.replace(/[^\w-]/g, '')}-`
     const remarkRehypeOptions = useMemo(() => ({ clobberPrefix: idPrefix }), [idPrefix])
     const rehypePlugins = useMemo(
-        () => [...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
-        [isDocs, idPrefix],
+        () => [...(isDocs ? docsRehypeWith(allowElements) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
+        [isDocs, idPrefix, allowElements],
     )
 
     const math = useMathPlugin(text, variant)

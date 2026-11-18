@@ -15,7 +15,8 @@ import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { DocsPre } from './docs/DocsPre'
-import { DocsDiv } from './docs/DocsBlocks'
+import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
+import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
 import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
@@ -34,8 +35,8 @@ interface ContentProps {
     onSearch?: () => void
 }
 
-/** Docs-only element overrides (code titles and highlights; steps, cards, frames). Module scope: Markdown wants a stable object. */
-const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, div: DocsDiv }
+/** Docs-only element overrides (code titles and highlights; the docs components). Module scope: Markdown wants a stable object. */
+const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, ...DOCS_TAG_COMPONENTS }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'
@@ -204,7 +205,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             ref={articleRef}
                             className="aiui-doc prose max-w-none min-w-0"
                         >
-                            <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS}>{markdown}</Markdown>
+                            <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{markdown}</Markdown>
                         </article>
                     )}
                     {contentReady && !home && <PageFooter item={selectedItem} config={config.pageFooter} />}

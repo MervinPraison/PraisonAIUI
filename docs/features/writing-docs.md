@@ -52,12 +52,17 @@ heading (on a phone, look beside it) for its link icon: one click puts the
 section in the address bar and copies its URL. Keep one `#` title per page; the paragraph right under it is the
 lede and reads larger.
 
+To pin an anchor that survives a reworded title, end the heading with `{#id}`:
+`## Install the CLI {#install}` links as `#install`, the search index uses the
+same id, and the braces never show.
+
 ## Callouts
 
 Use a callout for what a reader must not miss. Each tag sets the colour and
 the icon: `<Note>` and `<Info>` (blue), `<Tip>` and `<Check>` (green),
-`<Warning>` (amber), `<Danger>` (red). A `title` is optional. Put each tag on a
-line of its own.
+`<Warning>` (amber), `<Danger>` (red). A `title` is optional. A tag can sit on
+lines of its own or share one with its text: `<Note>Saved.</Note>` works (see
+[Component tags](#component-tags)).
 
 ```markdown
 <Note title="Run the build first">
@@ -314,6 +319,29 @@ Icons: `message-square`, `panels-top-left`, `plug`, `book-open`,
 `layout-dashboard`, `shield-check`, `code`, `zap`, `rocket`, `terminal`,
 `bot`, `palette`, `arrow-right`. A list whose items start with bold text also
 becomes a grid of plain cards.
+
+## Component tags
+
+Tags work the way MDX reads them: on lines of their own, on one line with
+their text, inside a list item (indent the tag with the item's text), or
+self-closing (`<Card title="Docs" href="index.md" />`). Attributes take quotes
+or braces (`cols={3}`) and may run over several lines. A body indented under
+its tag is text, not code, as in MDX.
+
+```markdown
+1. Install the package.
+   <Warning>Use Python 3.10 or newer.</Warning>
+2. Run `aiui build`.
+```
+
+A tag the site does not know (say `<Tree>` from another docs tool) keeps its
+text as plain Markdown, and `aiui build` and `aiui validate` name it:
+`Warning: docs/guide.md:12: <Tree> is not a docs component; its content shows as plain Markdown`.
+
+## Comments
+
+`{/* … */}` and `<!-- … -->` never show on the page, in search or in
+`llms-full.txt`; inside a code block they stay as written.
 
 ## Tables
 

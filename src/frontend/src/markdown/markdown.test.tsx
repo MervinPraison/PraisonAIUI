@@ -13,6 +13,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import remend from 'remend'
 import { Markdown } from './Markdown'
 import { convertMkdocsBlocks, preprocessMkdocsMarkdown, replaceMkdocsIcons, stripMkdocsGridWrappers } from './mkdocsPreprocess'
+import { DOCS_TAGS, expandDocsTags } from './docsTags'
 import { createCuratedCodePlugin, resetShikiCaches, shikiStats } from './shikiPlugin'
 import { DOCS_MATH_RE, ensureMathPlugin, MATH_RE, needsMath, SHIKI_THEMES } from './pluginLoaders'
 import { normalizeTexDelimiters } from './texDelimiters'
@@ -756,7 +757,7 @@ test('a <CodeGroup> inside a fence is code, not a group', () => {
 })
 
 test('component tags become the blocks the docs renderer draws', () => {
-    const out = convertMkdocsBlocks([
+    const out = preprocessMkdocsMarkdown([
         '<Note title="A &quot;quote&quot;">', 'Body', '</Note>',
         '<Check>', 'Done', '</Check>',
         '<Steps>', '<Step title="One">', 'First', '</Step>', '</Steps>',
@@ -767,19 +768,115 @@ test('component tags become the blocks the docs renderer draws', () => {
     ].join('\n'))
     assert.match(out, /<aiui-admonition type="note" title="A &amp;quot;quote&amp;quot;">\n\nBody\n\n<\/aiui-admonition>/)
     assert.match(out, /<aiui-admonition type="check">/)
-    assert.match(out, /<div itemtype="aiui:steps">\n+<div itemtype="aiui:step" title="One">\n\nFirst\n+<\/div>/)
-    assert.match(out, /<div itemtype="aiui:cards" value="3">/)
+    assert.match(out, /<aiui-steps>\n\n<aiui-step title="One">\n\nFirst\n\n<\/aiui-step>\n\n<\/aiui-steps>/)
+    assert.match(out, /<aiui-cards cols="3">/)
     // A self-closing card opens and closes at once.
-    assert.match(out, /<div itemtype="aiui:card" title="Go" label="rocket" value="guide\/x.md">\n\n<\/div>/)
+    assert.match(out, /<aiui-card title="Go" icon="rocket" href="guide\/x.md">\n\n<\/aiui-card>/)
     assert.match(out, /<aiui-admonition type="accordion" title="More" collapsible="open">/)
     assert.match(out, /<aiui-tabs>[\s\S]*<aiui-tab title="A">[\s\S]*<\/aiui-tab>[\s\S]*<\/aiui-tabs>/)
-    assert.match(out, /<div itemtype="aiui:frame" title="Cap">\n\n!\[alt\]\(x.png\)/)
-    assert.doesNotMatch(out, /<(Note|Steps|Card|Frame)\b/)
+    assert.match(out, /<aiui-frame caption="Cap">\n\n!\[alt\]\(x.png\)/)
+    assert.doesNotMatch(out, /<\/?(Note|Steps|Card|Frame)\b/)
 })
 
-test('component tags inside code fences, or not alone on their line, stay as written', () => {
-    const fenced = '```markdown\n<Note>\nx\n</Note>\n```'
-    assert.equal(convertMkdocsBlocks(fenced), fenced)
-    const inline = 'Use <Note> for asides.'
-    assert.equal(convertMkdocsBlocks(inline), inline)
+test('component tags inside code fences or code spans stay as written', () => {
+    const fenced = '```markdown\n<Note>\n{/* x */}\n</Note>\n```'
+    assert.equal(expandDocsTags(fenced), fenced)
+    const span = 'Use `<Note>` for asides and `{/* x */}` for comments.'
+    assert.equal(expandDocsTags(span), span)
+})
+
+// ── docs component tags anywhere (docsTags.ts) ──
+test('a tag on one line with its text keeps the component', () => {
+    const html = docs('<Note>plain note</Note>')
+    assert.match(html, /aiui-admonition[^"]*"[^>]*data-type="note"[\s\S]*plain note/)
+    assert.ok(!html.includes('&lt;Note'), html)
+    assert.match(expandDocsTags('<Card title="A">a body</Card>'), /<aiui-card title="A">\n\na body\n\n<\/aiui-card>/)
+})
+
+test('a block tag after text on the same line starts a new block; text after it stays in the paragraph', () => {
+    const out = expandDocsTags('Before <Warning>careful</Warning> after')
+    assert.equal(out, 'Before\n\n<aiui-admonition type="warning">\n\ncareful\n\n</aiui-admonition>\n\nafter')
+})
+
+test('a tag nested in a list item stays in the list', () => {
+    const md = ['1. First', '   <Warning>', '   careful', '   </Warning>', '2. Second'].join('\n')
+    const html = docs(md)
+    assert.equal(tags(html, 'ol').length, 1, html)
+    assert.match(html, /<li[^>]*>[\s\S]*First[\s\S]*data-type="warning"[\s\S]*careful[\s\S]*<\/li>\s*<li[^>]*>[\s\S]*Second/)
+    // On the marker line itself.
+    const marker = docs('- <Note>in the item</Note>\n- next')
+    assert.equal(tags(marker, 'ul').length, 1, marker)
+    assert.match(marker, /<li[^>]*>[\s\S]*data-type="note"[\s\S]*in the item[\s\S]*<\/li>/)
+})
+
+test('self-closing tags, attributes over several lines and {expressions} parse', () => {
+    const out = expandDocsTags(['<CardGroup cols={2}>', '<Card', '  title="Multi line"', '  href="/x"', '/>', '<Card title={"Braced"} icon=\'bot\' />', '</CardGroup>'].join('\n'))
+    assert.match(out, /<aiui-cards cols="2">/)
+    assert.match(out, /<aiui-card title="Multi line" href="\/x">\n\n<\/aiui-card>/)
+    assert.match(out, /<aiui-card title="Braced" icon="bot">\n\n<\/aiui-card>/)
+    assert.equal(out.match(/<\/aiui-cards>/g)?.length, 1)
+    assert.match(expandDocsTags('<Accordion title="x" defaultOpen={false}>y</Accordion>'), /collapsible="closed"/)
+})
+
+test('indented component bodies are text, not code blocks (MDX has no indented code)', () => {
+    const md = ['<Steps>', '  <Step title="One">', '    Do this.', '', '    ```bash', '    run it', '    ```', '  </Step>', '</Steps>'].join('\n')
+    const out = expandDocsTags(md)
+    assert.match(out, /\nDo this\.\n/)
+    assert.match(out, /\n```bash\nrun it\n```\n/)
+    const html = docs(md)
+    assert.ok(!/<pre[^>]*>[\s\S]*Do this/.test(html), html)
+})
+
+test('inline tags stay inside their sentence', () => {
+    const table = { ...DOCS_TAGS, Badge: { el: 'aiui-badge', attrs: ['color'], inline: true } }
+    assert.equal(expandDocsTags('A <Badge color="green">new</Badge> thing and <Badge />.', table), 'A <aiui-badge color="green">new</aiui-badge> thing and <aiui-badge></aiui-badge>.')
+})
+
+test('an unknown component keeps its text; its tag is dropped', () => {
+    const md = ['<Tree>', '  <Tree.Folder name="app" defaultOpen>', '    Inside **folder**', '  </Tree.Folder>', '</Tree>', '', 'Say <Color hex="#fff">white</Color> and <GitHub repo="x/y" />.', '', '<Update label="v1" tags={["a", "b"]}>', 'Shipped.', '</Update>'].join('\n')
+    const out = expandDocsTags(md)
+    assert.doesNotMatch(out, /<\/?(Tree|Color|GitHub|Update)/)
+    const html = docs(md)
+    assert.match(html, /Inside <span[^>]*data-streamdown="strong">folder<\/span>/)
+    assert.match(html, /Say white and \./)
+    assert.match(html, /Shipped\./)
+    assert.ok(!html.includes('tags='), html)
+    // Upper-case HTML and generics in prose are not components.
+    assert.equal(expandDocsTags('<B>bold</B> and <DIV>x</DIV>'), '<B>bold</B> and <DIV>x</DIV>')
+    // An indented code block keeps its generics and comments.
+    const code = 'Text\n\n    List<String> xs = f({/* c */});\n\nAfter'
+    assert.equal(expandDocsTags(code), code)
+})
+
+test('MDX comments are removed, on their own line, inline and over several lines', () => {
+    assert.equal(expandDocsTags('a {/* hidden */} b'), 'a  b')
+    assert.equal(expandDocsTags('one\n\n{/* multi\nline */}\n\ntwo'), 'one\n\ntwo')
+    const html = docs('Keep {/* not this */} text\n\n<!-- nor this -->')
+    assert.ok(!html.includes('not this') && !html.includes('nor this'), html)
+    assert.match(html, /Keep\s+text/)
+})
+
+test('a heading {#id} sets its anchor and is not shown', () => {
+    const html = docs('## My section {#my-custom-anchor}\n\n### **Bold** title {#b}')
+    assert.match(html, /<h2[^>]*id="my-custom-anchor"[^>]*>My section<\/h2>/)
+    assert.match(html, /<h3[^>]*id="b"[^>]*><span[^>]*>Bold<\/span> title<\/h3>/)
+    assert.ok(!html.includes('{#'), html)
+})
+
+test('the sanitizer keeps only aiui-* elements a page allows, never handlers or style', () => {
+    const allow = { 'aiui-x': ['title', 'onclick', 'style'], script: ['src'] }
+    const html = renderToStaticMarkup(<Markdown variant="docs" allowElements={allow}>{'<aiui-x title="t" onclick="alert(1)" style="color:red">x</aiui-x>\n\n<script src="/a.js"></script>'}</Markdown>)
+    assert.match(html, /<aiui-x title="t">/)
+    assert.ok(!/onclick|style=|<script/.test(html), html)
+    // Without the page's list the element is dropped and its text kept.
+    assert.doesNotMatch(docs('<aiui-card title="t">kept</aiui-card>'), /<aiui-card/)
+})
+
+
+test('an unfinished tag or comment, or a tag inside a sentence, leaves the following lines as written', () => {
+    assert.equal(expandDocsTags('A List<String> in prose.\n\n    indented code'), 'A List in prose.\n\n    indented code')
+    assert.equal(expandDocsTags('a <Card title="x\nnext line\n\nmore'), 'a <Card title="x\nnext line\n\nmore')
+    assert.equal(expandDocsTags('a {/* open\nnext line'), 'a {/* open\nnext line')
+    // Text before a tag on a list item's line keeps the tag in the item.
+    assert.match(expandDocsTags('- Item <Note>n</Note>'), /^- Item\n\n {2}<aiui-admonition type="note">\n\n {2}n\n\n {2}<\/aiui-admonition>/)
 })

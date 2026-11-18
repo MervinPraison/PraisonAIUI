@@ -93,3 +93,19 @@ Hidden until opened.
 <Frame caption="A sample image.">
 ![A blue box with a diagonal line](images/sample.png)
 </Frame>
+
+## Tags anywhere {#tags-anywhere}
+
+<Tip>A one-line tip.</Tip>
+
+1. Install the package.
+   <Warning>
+   Inside the first step.
+   </Warning>
+2. Run it.
+
+<Tree>
+    Text inside an unknown component.
+</Tree>
+
+{/* An MDX comment the reader never sees. */}

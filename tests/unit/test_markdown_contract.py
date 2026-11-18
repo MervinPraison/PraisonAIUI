@@ -65,7 +65,10 @@ class TestDocsContent:
     def test_content_renders_docs_variant(self):
         source = _read(SRC / "Content.tsx")
         assert "from './markdown/LazyMarkdown'" in source
-        assert '<Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS}>' in source
+        assert (
+            '<Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>'
+            in source
+        )
         assert 'className="aiui-doc prose max-w-none min-w-0"' in source
         assert "prose-neutral" not in source  # prose is a marker only, no typography modifiers
 
@@ -100,7 +103,10 @@ class TestSecurity:
             assert "sanitizePlugin" in block
             assert "defaultRehypePlugins.harden" in block
         # Each variant's list, plus the per-instance footnote-label prefix step.
-        assert "[...(isDocs ? DOCS_REHYPE : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
+        assert "[...(isDocs ? docsRehypeWith(allowElements) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
+        # A docs page's own aiui-* elements extend the schema; the list keeps all three steps.
+        extended = source.split("function docsRehypeWith")[1].split("\n}\n")[0]
+        assert "[defaultRehypePlugins.raw, [sanitizePlugin, schema], defaultRehypePlugins.harden]" in extended
         assert "rehypePlugins={rehypePlugins}" in source
         assert "allowedTags" not in source.split("*/", 1)[1]  # only mentioned in the header comment
 
