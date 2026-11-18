@@ -379,5 +379,7 @@ export default [
   // (app-pages/api-reference).
   // 9,627,383 B (+15,422 B, exactly the overage): Try it on endpoint pages (the lazy
   // ApiPlayground chunk and its CSS, the endpoint bar in docs.css and ApiFields.tsx).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9627383 B', brotli: false },
+  // 9,632,798 B (+5,415 B, exactly the overage): changelog entries and their tag
+  // filter (docs/DocsUpdate.tsx, docs.css).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9632798 B', brotli: false },
 ]
