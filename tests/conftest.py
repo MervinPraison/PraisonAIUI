@@ -2,9 +2,34 @@
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
+import tempfile
 
 import pytest
+
+# Keep every test run out of the developer's real data folders. Without this,
+# features that persist state (schedules, channels, sessions, config.yaml,
+# traces) read and write ~/.praisonaiui, so a local run changes the developer's
+# own data and two runs at once (two worktrees, xdist workers) collide.
+# Each pytest process (each xdist worker too) gets its own temporary folder,
+# set before any praisonaiui module is imported. PRAISONAI_HOME outranks
+# AIUI_DATA_DIR (features/_paths.py), so a value from the shell is cleared.
+# AIUI_TESTS_REAL_DATA_DIR=1 opts out for debugging against real data.
+# Once per process: pytester's in-process runs import this conftest again, and
+# a second folder would swap AIUI_DATA_DIR under modules that already read it.
+# The mark carries the pid, so xdist workers (which inherit the controller's
+# environment) still each get their own folder.
+_DATA_DIR_MARK = "_AIUI_TESTS_DATA_DIR"
+if os.environ.get("AIUI_TESTS_REAL_DATA_DIR", "").lower() not in ("1", "true", "yes"):
+    _pid, _, _test_data_dir = os.environ.get(_DATA_DIR_MARK, "").partition(":")
+    if _pid != str(os.getpid()) or not os.path.isdir(_test_data_dir):
+        _test_data_dir = tempfile.mkdtemp(prefix="aiui-tests-")
+        os.environ[_DATA_DIR_MARK] = f"{os.getpid()}:{_test_data_dir}"
+        atexit.register(shutil.rmtree, _test_data_dir, ignore_errors=True)
+    os.environ["AIUI_DATA_DIR"] = _test_data_dir
+    os.environ.pop("PRAISONAI_HOME", None)
 
 pytest_plugins = ["pytester"]
 

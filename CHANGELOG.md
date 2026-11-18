@@ -512,3 +512,9 @@
   interleave. A run another open tab started shows read-only with its reply
   so far. New WebSocket frame `run_attach` (answered with `run_snapshot`);
   run events carry a per-run `seq`.
+- Test runs no longer touch your real data folder: `tests/conftest.py` gives
+  each pytest process its own temporary `AIUI_DATA_DIR` (and clears
+  `PRAISONAI_HOME`), so local runs stop reading and writing `~/.praisonaiui`
+  and parallel runs stop colliding on schedules, channels and sessions
+  (`AIUI_TESTS_REAL_DATA_DIR=1` opts out). The gateway's config store
+  (`integration.py`) now honours `AIUI_DATA_DIR` like the server does.

@@ -246,10 +246,10 @@ class AIUIGateway:
 
         # Initialize unified YAML config store for feature persistence
         try:
-            from praisonaiui.config_store import init_config_store
+            from praisonaiui.config_store import _get_default_config_dir, init_config_store
 
-            default_data_dir = Path.home() / ".praisonaiui"
-            init_config_store(default_data_dir / "config.yaml")
+            # AIUI_DATA_DIR, else ~/.praisonaiui (the same rule as the server).
+            init_config_store(_get_default_config_dir() / "config.yaml")
         except Exception:
             pass
 
