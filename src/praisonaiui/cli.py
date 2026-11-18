@@ -984,25 +984,56 @@ def serve(
 
 @app.command()
 def dev(
-    examples_dir: Path = typer.Option(
-        Path("examples"),
-        "--examples",
-        "-e",
-        help="Directory containing example projects",
-    ),
-    port: int = typer.Option(
-        9000,
-        "--port",
-        "-p",
-        help="Port for dev server",
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help=_CONFIG_HELP),
+    port: Optional[int] = typer.Option(
+        None, "--port", "-p", help="Port (next free port if taken; default 8000, 9000 with --examples)"
     ),
     host: str = typer.Option(
         "127.0.0.1",
         "--host",
         help="Host to bind to (default: this machine only)",
     ),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the preview in the browser"),
+    base_path: Optional[str] = typer.Option(
+        None, "--base-path", help="URL path to preview the site under (default: as `aiui build`)"
+    ),
+    examples_dir: Optional[Path] = typer.Option(
+        None,
+        "--examples",
+        "-e",
+        help="Run the examples dashboard for this folder of example projects instead",
+    ),
 ) -> None:
-    """Development dashboard - switch between examples live."""
+    """Preview the docs site: build, serve, and reload the browser on every save."""
+    from praisonaiui import dev_server
+
+    docs_only = config is None and _find_config(Path(".")) is None and Path("docs").is_dir()
+    has_site = config is not None or _find_config(Path(".")) is not None or docs_only
+    if examples_dir is not None or (not has_site and Path("examples").is_dir()):
+        _examples_dashboard(examples_dir or Path("examples"), port or 9000, host)
+        return
+    if not has_site:
+        console.print(
+            f"[red]Error:[/red] No {CONFIG_NAME} or docs/ folder here. "
+            "Run 'aiui init --template docs' to start a docs site.",
+            highlight=False,
+        )
+        raise typer.Exit(code=2)
+    if docs_only:
+        site_config = None
+    else:
+        site_config = _resolve_config(config)
+        if not site_config.is_file():
+            console.print(f"[red]Error:[/red] Configuration file not found: {site_config}")
+            raise typer.Exit(code=2)
+    project = site_config.parent if site_config else Path(".")
+    dev_server.run(
+        site_config, project, host=host, port=port or 8000, open_browser=open_browser, url_base=base_path
+    )
+
+
+def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
+    """``aiui dev --examples``: a dashboard that switches between examples live."""
     import http.server
     import json
     import socket

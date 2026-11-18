@@ -26,10 +26,11 @@ layout. See [UI Styles](../features/styles.md).
 
 ```bash
 aiui init --template docs            # writes aiui.yaml
+aiui dev                             # preview on :8000; saves reload the browser
 aiui validate --strict               # check the configuration
 aiui docs check-links                # broken links, anchors and images
 aiui build --output site --minify    # static site in ./site
-aiui serve --watch                   # build, serve on :8000, rebuild on change
+aiui serve                           # build and serve the production site
 ```
 
 See [Deploy to GitHub Pages](github-pages.md) to publish the build.

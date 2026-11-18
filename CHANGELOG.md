@@ -378,6 +378,14 @@
   code) and stay in the agent `.md` export. An operation's `x-codeSamples` / `x-code-samples`
   come first and replace the generated sample in their language. See
   [OpenAPI](docs/features/openapi.md#request-examples).
+- **`aiui dev` previews a docs site with live reload**: one command in the folder with
+  `aiui.yaml` (or just a `docs/` folder) builds, serves and opens the site, and every save
+  rebuilds it and reloads the open tab at the same scroll position. A failed build shows in the
+  terminal and over the page while the last good build stays up; `aiui build` output never
+  carries the reload script. Options: `--port`, `--host`, `--open/--no-open`, `--config`,
+  `--base-path`. The examples dashboard that `aiui dev` used to open is now
+  `aiui dev --examples <folder>` (plain `aiui dev` still opens it in a folder with only
+  `examples/`). See [Hot Reload](docs/features/hot-reload.md).
 
 ### Deprecated
 
