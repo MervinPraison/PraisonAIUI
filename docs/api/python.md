@@ -526,6 +526,8 @@ the text only. Otherwise the callback gets a `MessageContext` with:
 - `message.text` (alias `message.content`): the user's text
 - `message.session_id`: the session id
 - `message.agent_name`: the selected agent, if any
+- `message.attachments`: the files sent with the message,
+  `[{id, name, content_type, path}]` (see [Attachments](../features/attachments.md))
 
 How a reply ends:
 

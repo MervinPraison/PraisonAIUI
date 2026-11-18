@@ -483,3 +483,10 @@
   after 60 s of waiting). Waiting for an answer no longer counts against the
   reply's inactivity timeout, and `ask_response_ack` now says
   `no_pending_ask` when nothing was waiting.
+- Chat: attachments reach the reply on every path. `POST /run` (the chat's
+  fallback when the WebSocket cannot open) ignored `attachment_ids` while the
+  UI showed the file as sent, and an image never reached a `@reply` app. The
+  files are now on `message.attachments` (`[{id, name, content_type, path}]`).
+- Chat: two runs in one session (a reload mid-reply, a second tab) no longer
+  save history as Q1, Q2, A2, A1. Questions carry a `turn_id`, replies a
+  `reply_to`, and history lists each reply after its own question.

@@ -342,11 +342,43 @@ def visible_history(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     answer and the user message before it was replaced and is dropped.
     """
     out: List[Dict[str, Any]] = []
-    for m in messages:
+    for m in _replies_after_their_questions(messages):
         if isinstance(m, dict) and m.get("role") == "assistant" and m.get("regenerates"):
             while out and out[-1].get("role") == "assistant":
                 out.pop()
         out.append(m)
+    return out
+
+
+def _replies_after_their_questions(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Each answer right after its own question.
+
+    A reply is saved when its run ends, so two runs in one session (a second
+    tab, or a question sent after a reload while the first answer was still
+    running) saved Q1, Q2, A2, A1. A user message carries ``turn_id`` and its
+    answer ``reply_to``; an answer whose question is in the list moves to
+    just after it (answers to one question keep their order). Messages
+    without these fields (older history) stay where they are.
+    """
+    questions = {
+        m.get("turn_id")
+        for m in messages
+        if isinstance(m, dict) and m.get("role") == "user" and m.get("turn_id")
+    }
+    if not questions:
+        return list(messages)
+    answers: Dict[str, List[Dict[str, Any]]] = {}
+    rest: List[Dict[str, Any]] = []
+    for m in messages:
+        if isinstance(m, dict) and m.get("role") == "assistant" and m.get("reply_to") in questions:
+            answers.setdefault(m["reply_to"], []).append(m)
+        else:
+            rest.append(m)
+    out: List[Dict[str, Any]] = []
+    for m in rest:
+        out.append(m)
+        if isinstance(m, dict) and m.get("role") == "user" and m.get("turn_id") in answers:
+            out.extend(answers.pop(m["turn_id"]))
     return out
 
 
@@ -780,11 +812,12 @@ async def _chat_send(request: Request) -> JSONResponse:
     # Persist user message to datastore
     from praisonaiui.server import _datastore
 
+    turn_id = str(uuid.uuid4())
     try:
         existing = await _datastore.get_session(session_id)
         if existing is None:
             await _datastore.create_session(session_id)
-        user_msg: Dict[str, Any] = {"role": "user", "content": content}
+        user_msg: Dict[str, Any] = {"role": "user", "content": content, "turn_id": turn_id}
         refs = attachment_refs(attachment_ids)
         if refs:
             user_msg["attachments"] = refs
@@ -793,7 +826,11 @@ async def _chat_send(request: Request) -> JSONResponse:
         logger.warning("datastore persist failed for session %s", session_id, exc_info=True)
 
     # Also run the provider and stream results to WS clients
-    asyncio.create_task(_run_and_broadcast(content, session_id, agent_name, attachment_ids or None))
+    asyncio.create_task(
+        _run_and_broadcast(
+            content, session_id, agent_name, attachment_ids or None, reply_to=turn_id
+        )
+    )
 
     return JSONResponse(result)
 
@@ -846,8 +883,12 @@ async def _run_and_broadcast(
     client_turn_id: Optional[str] = None,
     regenerate: bool = False,
     owner_client_id: Optional[str] = None,
+    reply_to: Optional[str] = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients.
+
+    *reply_to* is the ``turn_id`` of the question this run answers; the saved
+    reply carries it so history shows it after that question.
 
     *owner_client_id* is the WS connection that started the run (None for
     HTTP): only it may stop or answer the run while it is connected.
@@ -858,64 +899,14 @@ async def _run_and_broadcast(
     marks the saved reply as replacing the previous one (see
     ``visible_history``).
     """
+    from praisonaiui.features.attachments import current_attachments, prepare_attachments
     from praisonaiui.provider import RunEventType
     from praisonaiui.server import _datastore, get_provider
 
-    # Load attachment content and prepare for provider
-    sdk_attachments = []  # Image file paths → passed to Agent.chat(attachments=[...])
-    if attachment_ids:
-        try:
-            from praisonaiui.features.attachments import get_attachment_manager
-
-            att_mgr = get_attachment_manager()
-            pdf_context_parts = []
-            for att_id in attachment_ids:
-                meta = att_mgr.get(att_id)
-                if not meta:
-                    continue
-                path = meta.get("path", "")
-                ct = meta.get("content_type", "")
-                fname = meta.get("filename", "file")
-
-                if ct.startswith("image/"):
-                    # Images → pass file path to SDK's native multimodal handling
-                    sdk_attachments.append(path)
-                elif ct == "application/pdf":
-                    # PDFs → extract text and prepend to message
-                    try:
-                        try:
-                            from pypdf import PdfReader
-                        except ImportError:
-                            from PyPDF2 import PdfReader
-                        reader = PdfReader(path)
-                        text = "\n".join(page.extract_text() or "" for page in reader.pages)
-                        pdf_context_parts.append(
-                            f"--- Attached PDF: {fname} ---\n{text}\n--- End of {fname} ---"
-                        )
-                    except ImportError:
-                        import os
-
-                        pdf_context_parts.append(
-                            f"[PDF file: {fname}, {os.path.getsize(path)} bytes "
-                            f"— install pypdf for text extraction]"
-                        )
-                    except Exception as e:
-                        pdf_context_parts.append(f"[Error reading {fname}: {e}]")
-                else:
-                    # Other text-based files → read and prepend
-                    try:
-                        with open(path, "r", errors="replace") as f:
-                            text = f.read()
-                        pdf_context_parts.append(
-                            f"--- Attached File: {fname} ---\n{text}\n--- End of {fname} ---"
-                        )
-                    except Exception as e:
-                        pdf_context_parts.append(f"[Error reading {fname}: {e}]")
-
-            if pdf_context_parts:
-                content = "\n\n".join(pdf_context_parts) + "\n\nUser message: " + content
-        except Exception as e:
-            logger.warning(f"Failed to load attachments: {e}")
+    # Text and PDF files go before the message; image paths go to the model;
+    # a @reply callback sees every file as ``message.attachments``.
+    content, sdk_attachments, attachment_files = prepare_attachments(content, attachment_ids)
+    attachments_token = current_attachments.set(tuple(attachment_files))
 
     mgr = get_chat_manager()
     provider = get_provider()
@@ -1264,6 +1255,7 @@ async def _run_and_broadcast(
         mgr._run_owner.pop(run_id, None)
         _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
+        current_attachments.reset(attachments_token)
         if _event_observers:
             status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")
             _notify_observers(
@@ -1313,6 +1305,8 @@ async def _run_and_broadcast(
                 msg_data["error"] = run_error
             if regenerate:
                 msg_data["regenerates"] = True
+            if reply_to:
+                msg_data["reply_to"] = reply_to
             await _datastore.add_message(session_id, msg_data)
         except Exception:
             logger.warning("datastore persist failed for session %s", session_id, exc_info=True)
@@ -1771,9 +1765,12 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             # A client that reloaded the thread may not know
                             # the files the question carried: reuse them.
                             att_ids = saved_attachment_ids(last_user)
+                    turn_id: Optional[str] = None
                     if regenerate:
                         await _rewind_provider(session_id, agent_name)
+                        turn_id = (last_user or {}).get("turn_id")
                     else:
+                        turn_id = str(uuid.uuid4())
                         # Store user message in ChatManager
                         await mgr.send_message(
                             content,
@@ -1786,7 +1783,11 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             existing = await _datastore.get_session(session_id)
                             if existing is None:
                                 await _datastore.create_session(session_id)
-                            user_msg: Dict[str, Any] = {"role": "user", "content": content}
+                            user_msg: Dict[str, Any] = {
+                                "role": "user",
+                                "content": content,
+                                "turn_id": turn_id,
+                            }
                             refs = attachment_refs(att_ids)
                             if refs:
                                 user_msg["attachments"] = refs
@@ -1807,6 +1808,7 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             client_turn_id=client_turn_id,
                             regenerate=regenerate,
                             owner_client_id=client_id,
+                            reply_to=turn_id,
                         )
                     )
 

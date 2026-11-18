@@ -140,7 +140,7 @@ export function createSseTransport(base = ''): AiuiTransport {
         method: 'POST',
         headers: jsonHeaders,
         credentials: 'same-origin',
-        // NOTE: /run ignores attachment_ids today (server.py run_agent); WS carries them.
+        // /run reads attachment_ids the same way the WebSocket chat does.
         body: JSON.stringify({ message: text, session_id: sessionId, agent: agentName, attachment_ids: attachmentIds }),
         signal,
       })
