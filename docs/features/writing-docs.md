@@ -605,6 +605,44 @@ in 1 to 4 columns; on phones the columns stack.
 </Column>
 </Columns>
 
+## More components
+
+```markdown
+<Callout icon="rocket" color="#0f766e">Any colour: a hex, rgb()/hsl()/oklch() or a theme token (`success`).</Callout>
+
+Status <Badge color="green" shape="pill">New</Badge>, see the <Tooltip tip="Software Development Kit" cta="Set up" href="sdk.md">SDK</Tooltip>.
+
+<Tree>
+- app/
+  - layout.tsx
+  - **page.tsx**
+- package.json
+</Tree>
+
+<Prompt description="Write **clear** docs." actions={["copy", "claude", "cursor"]}>
+You are a technical writer. Use the second person.
+</Prompt>
+
+<Columns cols={2}>
+<Tile href="quickstart.md" title="Quick **start**" description="Five minutes">![Preview](../images/x.png)</Tile>
+</Columns>
+
+<Color variant="table">
+<Color.Row title="Brand">
+<Color.Item name="accent" value={{ light: "#0f766e", dark: "#5eead4" }} />
+</Color.Row>
+</Color>
+```
+
+- `<Callout>`: `icon` (a [card icon](#cards) name), `color`, `title`.
+- `<Badge>` (inside a sentence): `color` (`gray`, `blue`, `green`, `yellow`, `orange`, `red`, `purple`, or a token), `size` (`xs` to `lg`), `shape="pill"`, `icon`, `stroke`, `disabled`.
+- `<Tooltip>`: `tip`, `headline`, `cta` + `href`. It opens on hover or keyboard focus; Escape closes it.
+- `<Tree>` (or `<FileTree>`) around a Markdown list, which reads on GitHub too: an item ending in `/` or with items under it is a folder (open), `**name**` is highlighted. The MDX form `<Tree.Folder name defaultOpen openable={false} highlight>` / `<Tree.File name highlight />` works as well; arrow keys move between rows, Right / Left open and close.
+- `<Prompt>`: `description` (Markdown), `icon`, `actions` from `copy`, `chatgpt`, `claude`, `cursor` (default: the first three). The prompt folds under "Show prompt"; Copy and the links carry it exactly as written.
+- `<Tile>`: `href`, `title` (Markdown), `description`; the body is the preview.
+- `<Color variant="compact|table">`: `<Color.Item name value>` (one colour or `{{ light, dark }}`; a click copies it), grouped by `<Color.Row title>` in a table.
+- Table column widths: `<colgroup><col width="30%"><col width="70%"></colgroup>` in an HTML `<table>`.
+
 ## API fields
 
 Document an endpoint's parameters and response with field rows. Each row
@@ -716,9 +754,9 @@ its tag is text, not code, as in MDX.
 2. Run `aiui build`.
 ```
 
-A tag the site does not know (say `<Tree>` from another docs tool) keeps its
+A tag the site does not know (say `<Gadget>`) keeps its
 text as plain Markdown, and `aiui build` and `aiui validate` name it:
-`Warning: docs/guide.md:12: <Tree> is not a docs component; its content shows as plain Markdown`.
+`Warning: docs/guide.md:12: <Gadget> is not a docs component; its content shows as plain Markdown`.
 
 `<Visibility for="humans">` / `for="agents"` shows its content only on the page /
 only to agents ([AI-ready docs](ai-ready-docs.md#content-for-people-or-for-agents-only)).
@@ -755,7 +793,8 @@ the image shows; it is also what search engines and assistants read. Click
 any image (or focus it and press Enter) to see it at full size; Escape or a
 click closes it.
 
-`<Frame>` sets an image on a mat, with an optional `caption` under it:
+`<Frame>` sets an image on a mat, with an optional `caption` under it and a `hint` above
+it (both Markdown, links included):
 
 ```markdown
 <Frame caption="A tool call, then an approval the agent waits on.">

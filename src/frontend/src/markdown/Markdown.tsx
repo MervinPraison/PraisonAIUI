@@ -70,10 +70,10 @@ type Schema = {
 // ── rehype pipelines ──
 const [sanitizePlugin, baseSchema] = defaultRehypePlugins.sanitize as unknown as [Pluggable, Schema]
 
-/** Docs: Streamdown's schema plus the <aiui-*> blocks emitted by convertMkdocsBlocks. */
+/** Docs: Streamdown's schema plus the <aiui-*> blocks emitted by convertMkdocsBlocks, and table column widths (`width` and `span` are global attributes). */
 const docsSchema: Schema = {
     ...baseSchema,
-    tagNames: [...(baseSchema.tagNames ?? []), 'aiui-admonition', 'aiui-tabs', 'aiui-tab'],
+    tagNames: [...(baseSchema.tagNames ?? []), 'aiui-admonition', 'aiui-tabs', 'aiui-tab', 'colgroup', 'col'],
     attributes: {
         ...(baseSchema.attributes ?? {}),
         'aiui-admonition': ['type', 'title', 'collapsible'],

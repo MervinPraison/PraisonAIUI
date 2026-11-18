@@ -8,14 +8,18 @@ export function assistantPrompt(markdownUrl: string, title: string): string {
     return `Read ${markdownUrl} (the "${title}" page of these docs) so I can ask questions about it.`
 }
 
-/** Links that open a new chat in ChatGPT or Claude with that prompt. */
-export function assistantLinks(markdownUrl: string, title: string): { chatgpt: string; claude: string } {
-    const q = encodeURIComponent(assistantPrompt(markdownUrl, title))
+/** Links that open a new chat in ChatGPT, Claude or Cursor with a prompt filled in. */
+export function promptLinks(prompt: string): { chatgpt: string; claude: string; cursor: string } {
+    const q = encodeURIComponent(prompt)
     return {
         chatgpt: `https://chatgpt.com/?hints=search&q=${q}`,
         claude: `https://claude.ai/new?q=${q}`,
+        cursor: `https://cursor.com/link/prompt?text=${q}`,
     }
 }
+
+/** Links that open a new chat in ChatGPT or Claude that reads this page. */
+export const assistantLinks = (markdownUrl: string, title: string) => promptLinks(assistantPrompt(markdownUrl, title))
 
 /** Copy text; false when the browser refuses (no clipboard permission, insecure origin). */
 export async function copyText(text: string): Promise<boolean> {

@@ -51,7 +51,7 @@ test('the docs page renders every table element through its component (sanitizer
     assert.match(html, /class="aiui-cards" style="--aiui-cards-cols:3"/)
     assert.match(html, /<a class="aiui-card"[^>]*href="\/docs\/guide\/x"/)
     assert.ok(!html.includes('javascript:'), html)
-    assert.match(html, /<figure class="aiui-frame">[\s\S]*<figcaption>Cap<\/figcaption><\/figure>/)
+    assert.match(html, /<figure class="aiui-frame">[\s\S]*<figcaption><div class="aiui-slot" data-slot="caption">\s*<p[^>]*>Cap<\/p>\s*<\/div><\/figcaption><\/figure>/)
     assert.match(html, /<div class="aiui-accordions">\s*<details/)
     assert.ok(!/<aiui-/.test(html), html)
 })

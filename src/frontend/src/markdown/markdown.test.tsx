@@ -774,7 +774,7 @@ test('component tags become the blocks the docs renderer draws', () => {
     assert.match(out, /<aiui-card title="Go" icon="rocket" href="guide\/x.md">\n\n<\/aiui-card>/)
     assert.match(out, /<aiui-admonition type="accordion" title="More" collapsible="open">/)
     assert.match(out, /<aiui-tabs>[\s\S]*<aiui-tab title="A">[\s\S]*<\/aiui-tab>[\s\S]*<\/aiui-tabs>/)
-    assert.match(out, /<aiui-frame caption="Cap">\n\n!\[alt\]\(x.png\)/)
+    assert.match(out, /<aiui-frame>\n\n<aiui-slot slot="caption">\n\nCap\n\n<\/aiui-slot>\n\n!\[alt\]\(x.png\)/) // a Markdown attribute
     assert.doesNotMatch(out, /<\/?(Note|Steps|Card|Frame)\b/)
 })
 
@@ -833,9 +833,9 @@ test('inline tags stay inside their sentence', () => {
 })
 
 test('an unknown component keeps its text; its tag is dropped', () => {
-    const md = ['<Tree>', '  <Tree.Folder name="app" defaultOpen>', '    Inside **folder**', '  </Tree.Folder>', '</Tree>', '', 'Say <Color hex="#fff">white</Color> and <GitHub repo="x/y" />.', '', '<Update label="v1" tags={["a", "b"]}>', 'Shipped.', '</Update>'].join('\n')
+    const md = ['<Widget>', '  <Widget.Part name="app" defaultOpen>', '    Inside **folder**', '  </Widget.Part>', '</Widget>', '', 'Say <Swatch hex="#fff">white</Swatch> and <GitHub repo="x/y" />.', '', '<Update label="v1" tags={["a", "b"]}>', 'Shipped.', '</Update>'].join('\n')
     const out = expandDocsTags(md)
-    assert.doesNotMatch(out, /<\/?(Tree|Color|GitHub|Update)/)
+    assert.doesNotMatch(out, /<\/?(Widget|Swatch|GitHub|Update)/)
     const html = docs(md)
     assert.match(html, /Inside <span[^>]*data-streamdown="strong">folder<\/span>/)
     assert.match(html, /Say white and \./)

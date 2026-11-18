@@ -21,7 +21,7 @@ _FRONTMATTER = re.compile(r"\A﻿?---[ \t]*\r?\n.*?\r?\n(?:---|\.\.\.)[ \t]*(?:\
 _SPAN = re.compile(r"(`+)[^\n]+?\1")
 _VISIBILITY = re.compile(r"<Visibility\s+for=[\"'{]*(humans|agents)[\"'}]*\s*>(.*?)</Visibility>", re.S)
 _ATTRS = r"(?:\s+[A-Za-z_$][\w:.$-]*(?:=(?:\"[^\"]*\"|'[^']*'|\{[^}]*\}|[^\s>\"'{]+))?)*"
-_TAG = re.compile(rf"<(/?)([A-Z][A-Za-z0-9]*)({_ATTRS})\s*(/?)>")
+_TAG = re.compile(rf"<(/?)([A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)({_ATTRS})\s*(/?)>")
 _ATTR = re.compile(r"([A-Za-z_$][\w:.$-]*)(?:=(\"[^\"]*\"|'[^']*'|\{[^}]*\}|[^\s>\"'{]+))?")
 _OPEN_TAG_START = re.compile(r"<[A-Z][A-Za-z0-9]*(?:\s[^<>]*)?$")
 _LINK = re.compile(r"(!?\[[^\]\n]*\]\()(<[^>\n]*>|[^)\s]+)")
@@ -195,6 +195,10 @@ def _convert(lines: list[str]) -> list[str]:
             elif name == "Expandable":  # its fields nest one level under the field it sits in
                 flush()
                 stack.append({**frame, "block": False})
+            elif name in ("Tree.Folder", "Tree.File"):  # a nested list, folders ending in /
+                flush()
+                emit(f"- {a.get('name', '')}{'/' if name == 'Tree.Folder' else ''}")
+                stack.append({**frame, "prefix": "  ", "block": False})
             elif name in ("RequestExample", "ResponseExample"):
                 titled(f"**{name[:-7]} example**")
                 stack.append(frame)

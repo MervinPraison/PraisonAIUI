@@ -11,9 +11,9 @@ def test_code_block_is_known_and_its_body_is_never_linted():
         "  <Widget title={x} />\n"
         "</CodeBlock>\n"
         '<CodeBlock language="tsx"><Panel /></CodeBlock>\n'
-        "<Tree>after</Tree>\n"
+        "<Gadget>after</Gadget>\n"
     )
-    assert unknown_tags(text) == [(5, "Tree")]
+    assert unknown_tags(text) == [(5, "Gadget")]
 
 
 def test_comments_inside_a_code_block_body_are_kept():

@@ -3,7 +3,7 @@
  * convertMkdocsBlocks. Flat: a tone hairline on the left and a faint fill, no
  * boxed card. Tokens only (semantic tones come from theme.css).
  */
-import { Children, isValidElement, useId, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
+import { Children, isValidElement, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 const TONE: Record<string, string> = {
@@ -15,10 +15,10 @@ const TONE: Record<string, string> = {
 }
 
 type BlockProps = { children?: ReactNode; title?: string; type?: string; collapsible?: string }
-/** Docs extras (docs/DocsBlocks.tsx passes them): an anchor id, an icon and a line under the title. */
-type AdmonitionProps = BlockProps & { id?: string; icon?: ReactNode; description?: string }
+/** Docs extras (docs/DocsBlocks.tsx passes them): an anchor id, an icon, a line under the title, an accent colour. */
+type AdmonitionProps = BlockProps & { id?: string; icon?: ReactNode; description?: string; style?: CSSProperties }
 
-export function Admonition({ children, title, type = 'note', collapsible, id, icon, description }: AdmonitionProps) {
+export function Admonition({ children, title, type = 'note', collapsible, id, icon, description, style }: AdmonitionProps) {
     const kind = type.toLowerCase()
     const heading = title || kind.charAt(0).toUpperCase() + kind.slice(1)
     const cls = cn(
@@ -26,9 +26,10 @@ export function Admonition({ children, title, type = 'note', collapsible, id, ic
         TONE[kind] ?? 'border-l-primary',
     )
     const body = '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0'
+    const bare = kind === 'callout' && !title // <Callout>: its icon beside the text, no heading
     if (collapsible) {
         return (
-            <details id={id} className={cn(cls, 'group')} data-type={kind} open={collapsible === 'open'}>
+            <details id={id} className={cn(cls, 'group')} data-type={kind} open={collapsible === 'open'} style={style}>
                 <summary className="cursor-pointer select-none font-semibold text-foreground marker:text-muted-foreground">
                     {icon}
                     {heading}
@@ -39,8 +40,8 @@ export function Admonition({ children, title, type = 'note', collapsible, id, ic
         )
     }
     return (
-        <div id={id} className={cls} data-type={kind} role="note" aria-label={heading}>
-            <p className="mb-1.5 font-semibold text-foreground">{heading}</p>
+        <div id={id} className={cls} data-type={kind} role="note" aria-label={heading} style={style} data-bare={bare ? '' : undefined}>
+            {bare ? icon : <p className="mb-1.5 font-semibold text-foreground">{icon}{heading}</p>}
             <div className={body}>{children}</div>
         </div>
     )

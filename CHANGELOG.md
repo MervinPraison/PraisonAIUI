@@ -316,6 +316,11 @@
   response example tab per status code, content type and named example (`examples` with
   `summary`). `api.params.expanded: all` opens nested properties. Enum options no longer
   show JSON quotes. See [OpenAPI](docs/features/openapi.md#schemas).
+- **More docs components**: `<Callout icon color>` (any hex or a theme token), inline `<Badge>`
+  and `<Tooltip>`, `<Frame hint caption>` in Markdown, `<Tree>` from a plain Markdown list (or
+  `<Tree.Folder>` / `<Tree.File>`, arrow keys, `highlight`), `<Prompt>` with Copy and Open in
+  ChatGPT / Claude / Cursor, `<Tile>`, `<Color>` swatches with light/dark values, and
+  `<colgroup><col width>` in HTML tables. See [Writing docs](docs/features/writing-docs.md#more-components).
 
 ### Deprecated
 
