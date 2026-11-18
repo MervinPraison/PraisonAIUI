@@ -39,7 +39,7 @@ const link = (href?: string) => {
     return url ? { href: url, ...(isExternal(url) ? { target: '_blank', rel: 'noopener noreferrer' } : {}) } : undefined
 }
 
-// Mintlify's badge colours → theme tokens.
+// Badge colour names → theme tokens.
 const BADGE_TONE: Record<string, string> = {
     gray: 'muted-foreground', white: 'muted-foreground', surface: 'muted-foreground',
     blue: 'info', green: 'success', yellow: 'warning', orange: 'warning', red: 'destructive', purple: 'primary',

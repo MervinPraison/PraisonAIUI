@@ -154,7 +154,8 @@ class TestCompetitorScrub:
         import pathlib
 
         root = pathlib.Path(_repo_root())
-        needle = "chainlit"
+        # Built from parts so this guard never matches itself.
+        needle = "chain" + "lit"
         suffixes = {".py", ".md", ".yaml", ".yml", ".ts", ".tsx"}
         search_dirs = ["src/praisonaiui", "docs", "examples", "tests"]
 

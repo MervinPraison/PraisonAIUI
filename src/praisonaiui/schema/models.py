@@ -330,7 +330,7 @@ class DependenciesConfig(BaseModel):
 
 
 # ──────────────────────────────────────────────────────────────
-# Mintlify-parity models (logo, nav tabs, navbar, footer, search)
+# Docs site models (logo, nav tabs, navbar, footer, search)
 # ──────────────────────────────────────────────────────────────
 
 
@@ -840,7 +840,7 @@ class Config(BaseModel):
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None
     dependencies: Optional[DependenciesConfig] = None
-    # Mintlify-parity fields
+    # Docs site fields
     logo: Optional[LogoConfig] = None
     navigation: Optional[NavigationConfig] = None
     navbar: Optional[NavbarConfig] = None

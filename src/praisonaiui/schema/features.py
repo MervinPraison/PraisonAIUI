@@ -46,7 +46,7 @@ class ConfigFeatureRegistry:
             "widgets": FeatureInfo("widgets", FeatureStatus.IMPLEMENTED, "0.3.0"),
             "dependencies": FeatureInfo("dependencies", FeatureStatus.IMPLEMENTED, "0.3.0"),
 
-            # Mintlify-parity features - implemented
+            # Docs site features - implemented
             "logo": FeatureInfo("logo", FeatureStatus.IMPLEMENTED, "0.4.0"),
             "navigation": FeatureInfo("navigation", FeatureStatus.IMPLEMENTED, "0.4.0"),
             "navbar": FeatureInfo("navbar", FeatureStatus.IMPLEMENTED, "0.4.0"),

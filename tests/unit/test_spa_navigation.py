@@ -129,7 +129,7 @@ class TestSpaNavigation:
         plugin = Path("src/praisonaiui/templates/frontend/plugins/mermaid.js").read_text(encoding="utf-8")
         assert "article.prose" in plugin
 
-    def test_mintlify_layout_shell_and_header(self):
+    def test_docs_layout_shell_and_header(self):
         app = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
         header = Path("src/frontend/src/Header.tsx").read_text(encoding="utf-8")
         content = Path("src/frontend/src/Content.tsx").read_text(encoding="utf-8")

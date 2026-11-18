@@ -1,7 +1,7 @@
 /**
  * AIUI Top Navigation Plugin
  *
- * Implements Mintlify-style tab navigation:
+ * Implements top tab bar navigation:
  *  – Renders a tab bar below the header
  *  – Clicking a tab filters the sidebar via CSS (no React DOM mutation)
  *  – Auto-detects the active tab from which sidebar group contains the current page

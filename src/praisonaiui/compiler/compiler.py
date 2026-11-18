@@ -353,7 +353,7 @@ class Compiler:
                 for w in self.config.widgets
             ]
 
-        # ── Mintlify-parity fields ──
+        # ── Docs site fields ──
 
         # Navigation with tabs (endpoint pages added where a spec is named)
         navigation = (self._api.config if self._api else self.config).navigation

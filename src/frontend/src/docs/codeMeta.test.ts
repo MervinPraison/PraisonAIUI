@@ -39,7 +39,7 @@ test('flags are options, never titles (M120)', () => {
     })
 })
 
-test('Mintlify highlight={…} and focus={…}, and icon (M121, M122, M124)', () => {
+test('highlight={…} and focus={…}, and icon', () => {
     assert.deepEqual(parseCodeMeta('highlight={1-2,5}'), { ...none, highlight: [1, 2, 5] })
     assert.deepEqual(parseCodeMeta('{1,2,5}'), { ...none, highlight: [1, 2, 5] })
     assert.deepEqual(parseCodeMeta('focus={2,4-5}'), { ...none, focus: [2, 4, 5] })

@@ -33,7 +33,7 @@ def test_snippet_tag_with_props_nested_and_indented(tmp_path):
     assert s.issues == []
 
 
-def test_mintlify_import_form_and_mkdocs_form(tmp_path):
+def test_snippet_import_form_and_mkdocs_form(tmp_path):
     page = "import Hi from '/snippets/hi.mdx'\n\n# P\n\n<Hi word=\"bananas\" />\n\n- Item\n    --8<-- \"note.md\"\n"
     text, _ = _expand(tmp_path, page, {"hi.mdx": "Keyword: {word}.\n", "note.md": "> Note.\n> More.\n"})
     assert text == "\n\n# P\n\nKeyword: bananas.\n\n- Item\n    > Note.\n    > More.\n"  # the import line stays blank

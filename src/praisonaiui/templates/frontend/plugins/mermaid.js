@@ -2,7 +2,7 @@
  * AIUI Mermaid Plugin
  *
  * Renders mermaid code blocks as beautiful SVG diagrams with
- * high-contrast, Mintlify-inspired styling and transparent backgrounds.
+ * high-contrast styling and transparent backgrounds.
  *
  * IMPORTANT: Hides the original code block via CSS and inserts
  * the SVG diagram as a sibling to avoid React reconciler crashes.
@@ -21,7 +21,7 @@ function ensureMermaidCSS() {
 }
 
 /**
- * High-contrast dark theme — Mintlify-inspired vibrant colors.
+ * High-contrast dark theme — vibrant colors.
  */
 const DARK_THEME = {
   theme: 'base',
@@ -30,7 +30,7 @@ const DARK_THEME = {
     background: 'transparent',
     mainBkg: '#0d9488',          // Vibrant teal for primary nodes
 
-    // Primary nodes — teal (like Mintlify green)
+    // Primary nodes — teal
     primaryColor: '#0d9488',
     primaryBorderColor: '#14b8a6',
     primaryTextColor: '#ffffff',
