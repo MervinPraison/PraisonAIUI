@@ -29,6 +29,22 @@ const callout = (type: string): DocsTag => ({ el: 'aiui-admonition', attrs: ['ty
 /** `id="…"` for deep links (`#id` opens a tab or accordion): word characters and dashes only. */
 const anchor = (a: TagAttrs) => (/^[\w-]+$/.test(a.id ?? '') ? a.id : undefined)
 const ICON = ['icon', 'anchor'] as const
+/** `pre={["a", "b"]}` or `pre="a, b"` → `a,b`: the labels shown before or after a field's name. */
+const labels = (v?: string) => v?.replace(/^\[|\]$/g, '').split(',').map((s) => s.trim().replace(/^(["'])(.*)\1$/, '$2')).filter(Boolean).join(',')
+/** <ParamField path|query|body|header="name"> and <ResponseField name>: one field row (docs/ApiFields.tsx). */
+const FIELD_IN = ['path', 'query', 'body', 'header'] as const
+const apiField = (response: boolean): DocsTag => ({
+    el: 'aiui-field',
+    attrs: ['field', 'at', 'type', 'req', 'dep', 'dflt', 'hint', 'pre', 'post', 'anchor'],
+    map: (a) => {
+        const at = response ? 'response' : FIELD_IN.find((k) => a[k] !== undefined)
+        return {
+            field: at && at !== 'response' ? a[at] : a.name, at: at ?? 'param', type: a.type,
+            req: on(a.required) ? 'true' : undefined, dep: on(a.deprecated) ? 'true' : undefined,
+            dflt: a.default, hint: a.placeholder, pre: labels(a.pre), post: labels(a.post), anchor: anchor(a),
+        }
+    },
+})
 
 export const DOCS_TAGS: Record<string, DocsTag> = {
     Note: callout('note'),
@@ -64,10 +80,15 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Column: { el: 'aiui-column' },
     Card: { el: 'aiui-card', attrs: ['title', 'icon', 'href', 'horizontal', 'img', 'cta', 'arrow', 'color'] },
     Frame: { el: 'aiui-frame', attrs: ['caption'] },
+    ParamField: apiField(false),
+    ResponseField: apiField(true),
+    Expandable: { el: 'aiui-expandable', attrs: ['title', 'opened'], map: (a) => ({ title: a.title, opened: on(a.defaultOpen) ? 'true' : undefined }) },
+    // The page's side column (docs/panels.ts); `kind` is set by <RequestExample> / <ResponseExample>.
+    Panel: { el: 'aiui-panel', attrs: ['kind'], map: () => ({}) },
 }
 
-/** Tags converted elsewhere (CodeGroup: convertMkdocsBlocks; CodeBlock: into a fence, below). */
-const PASSTHROUGH = new Set(['CodeGroup', 'CodeBlock'])
+/** Tags converted elsewhere (code groups and examples: convertMkdocsBlocks; CodeBlock: into a fence, below). */
+const PASSTHROUGH = new Set(['CodeGroup', 'CodeBlock', 'RequestExample', 'ResponseExample'])
 
 /** Every tag name a page may use (the Python build checks pages against the same list). */
 export const DOCS_TAG_NAMES: readonly string[] = [...Object.keys(DOCS_TAGS), ...PASSTHROUGH]

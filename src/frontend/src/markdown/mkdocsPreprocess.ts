@@ -82,8 +82,10 @@ export function stripMkdocsGridWrappers(text: string): string {
 }
 
 // Attributes are allowed: `<CodeGroup dropdown>` picks the file from a menu instead of tabs.
-const CODE_GROUP_OPEN = /^\s*<CodeGroup\b([^>]*)>\s*$/i
-const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
+// <RequestExample> / <ResponseExample> are code groups in the page's side column (docs/panels.ts).
+const CODE_GROUP_OPEN = /^\s*<(CodeGroup|RequestExample|ResponseExample)\b([^>]*)>\s*$/i
+const CODE_GROUP_CLOSE = /^\s*<\/(?:CodeGroup|RequestExample|ResponseExample)>\s*$/i
+const PANEL_KIND: Record<string, string> = { requestexample: 'request', responseexample: 'response' }
 
 /** A fence's tab label in a code group: its title (docs/codeMeta.ts), else its language. */
 function fenceLabel(info: string): string {
@@ -94,9 +96,10 @@ function fenceLabel(info: string): string {
 /**
  * `<CodeGroup>` … `</CodeGroup>` around fences → one set of tabs, one tab per
  * fence, labelled with its file name or language (the MkDocs tabs renderer).
+ * An example (`kind`) is a panel; with one fence, that fence without tabs.
  */
-function convertCodeGroup(lines: string[], start: number, dropdown = false): [string[], number] {
-    const tabs: string[] = []
+function convertCodeGroup(lines: string[], start: number, dropdown = false, kind?: string): [string[], number] {
+    const fences: { label: string; body: string[] }[] = []
     let i = start
     while (i < lines.length && !CODE_GROUP_CLOSE.test(lines[i])) {
         const f = lines[i].match(FENCE_RE)
@@ -114,9 +117,17 @@ function convertCodeGroup(lines: string[], start: number, dropdown = false): [st
             i++
             if (close && close[1][0] === marker[0] && close[1].length >= marker.length && lines[i - 1].trim() === close[1]) break
         }
-        tabs.push(`<aiui-tab title="${attr(label)}">`, '', ...body, '', '</aiui-tab>', '')
+        fences.push({ label, body })
     }
-    return [['', dropdown ? '<aiui-tabs variant="dropdown">' : '<aiui-tabs>', '', ...tabs, '</aiui-tabs>', ''], Math.min(i + 1, lines.length)]
+    const next = Math.min(i + 1, lines.length)
+    const tabs = kind && fences.length === 1
+        ? ['', ...fences[0].body, '']
+        : [
+            '', dropdown ? '<aiui-tabs variant="dropdown">' : '<aiui-tabs>', '',
+            ...fences.flatMap((t) => [`<aiui-tab title="${attr(t.label)}">`, '', ...t.body, '', '</aiui-tab>', '']),
+            '</aiui-tabs>', '',
+        ]
+    return [kind ? ['', `<aiui-panel kind="${kind}">`, ...tabs, '</aiui-panel>', ''] : tabs, next]
 }
 
 // Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
@@ -180,7 +191,8 @@ export function convertMkdocsBlocks(md: string): string {
 
         const group = CODE_GROUP_OPEN.exec(line)
         if (group) {
-            const [tabs, next] = convertCodeGroup(lines, i + 1, /(^|\s)dropdown(?![\w=])|dropdown=\{?true/.test(group[1]))
+            const dropdown = /(^|\s)dropdown(?![\w=])|dropdown=\{?true/.test(group[2])
+            const [tabs, next] = convertCodeGroup(lines, i + 1, dropdown, PANEL_KIND[group[1].toLowerCase()])
             out.push(...tabs)
             i = next
             continue

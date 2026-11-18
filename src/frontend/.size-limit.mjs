@@ -324,5 +324,8 @@ export default [
   // 9,160,731 B (measured, raised by exactly the overage, +9,490 B): docs layout
   // component options (DocsBlocks.tsx, DocsTabs.tsx, tabSync.ts, docs.css) and the
   // lazy TabsSelect chunk of dropdown code groups.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9160731 B', brotli: false },
+  // 9,167,917 B (measured, raised by exactly the overage, +7,186 B): docs API
+  // fields (ApiFields.tsx, panels.ts, docs.css: field rows, Expandable, the
+  // examples side column).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9167917 B', brotli: false },
 ]

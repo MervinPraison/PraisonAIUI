@@ -1,5 +1,5 @@
 // Content component — markdown rendering and landing page
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SHADCN_THEMES } from './themes'
@@ -16,6 +16,7 @@ import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { DocsPre } from './docs/DocsPre'
 import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
+import { splitPanels } from './docs/panels'
 import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
 import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
@@ -154,6 +155,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     }, [markdown])
 
     const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
+    // <RequestExample>, <ResponseExample> and <Panel>: a side column (docs/panels.ts).
+    const { main, side } = useMemo(() => splitPanels(markdown), [markdown])
 
     if (selectedItem) {
         const shownPath = docSourcePath(normalizeDocPath(currentPath), selectedItem.path)
@@ -200,13 +203,18 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         // legacy plugins (plugin-loader, syntax-highlight, code-copy, mermaid,
                         // toc) leave `#main-content article.prose` alone. Without it they
                         // re-highlight and wrap the React-rendered code blocks.
-                        <article
-                            key={currentPath}
-                            ref={articleRef}
-                            className="aiui-doc prose max-w-none min-w-0"
-                        >
-                            <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{markdown}</Markdown>
-                        </article>
+                        <div key={currentPath} className={side ? 'aiui-docs-split' : 'contents'}>
+                            <article ref={articleRef} className="aiui-doc prose max-w-none min-w-0">
+                                <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{main}</Markdown>
+                            </article>
+                            {side && (
+                                <aside className="aiui-docs-panel" aria-label="Side panel">
+                                    <article className="aiui-doc prose max-w-none min-w-0">
+                                        <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{side}</Markdown>
+                                    </article>
+                                </aside>
+                            )}
+                        </div>
                     )}
                     {contentReady && !home && <PageFooter item={selectedItem} config={config.pageFooter} />}
                     {contentReady && nav && onNavigate && (

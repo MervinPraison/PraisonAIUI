@@ -551,6 +551,103 @@ in 1 to 4 columns; on phones the columns stack.
 </Column>
 </Columns>
 
+## API fields
+
+Document an endpoint's parameters and response with field rows. Each row
+shows the name, its type, where it goes, `required` and `deprecated`, and
+its default, then the description (any Markdown).
+
+`<ParamField>` names the parameter by where it goes: `path`, `query`,
+`body` or `header`. `<ResponseField name>` is a field of the response.
+Both take `type` (any text: `string`, `string[]`, `object`, `User | null`),
+`required`, `deprecated`, `default`, and `pre` / `post`: labels shown before
+or after the name (`pre={["beta"]}`, or `pre="beta, internal"`).
+`placeholder` is accepted for API playgrounds and not shown.
+
+Every row has its own link: `#param-user_id`, `#response-next_cursor`, and
+for a nested field the path from its parent (`#response-user-address`). The
+name is that link, and opening it opens the `<Expandable>` around the field.
+`id="…"` sets the link yourself.
+
+```markdown
+<ParamField path="user_id" type="string" required>
+The user to fetch.
+</ParamField>
+
+<ParamField query="tags" type="string[]" default="all" pre={["beta"]}>
+Only users with these tags.
+</ParamField>
+
+<ResponseField name="user" type="object" required>
+  The user.
+  <Expandable title="user properties">
+    <ResponseField name="name" type="string">Display name.</ResponseField>
+    <ResponseField name="email" type="string" deprecated>Use `emails`.</ResponseField>
+  </Expandable>
+</ResponseField>
+```
+
+<ParamField path="user_id" type="string" required>
+The user to fetch.
+</ParamField>
+
+<ParamField query="tags" type="string[]" default="all" pre={["beta"]}>
+Only users with these tags.
+</ParamField>
+
+<ResponseField name="user" type="object" required>
+  The user.
+  <Expandable title="user properties">
+    <ResponseField name="name" type="string">Display name.</ResponseField>
+    <ResponseField name="email" type="string" deprecated>Use `emails`.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+`<Expandable title="…">` folds nested properties behind "Show …" (default
+"Show properties"); `defaultOpen` starts it open. Nest them as deep as the
+object goes.
+
+### Request and response examples
+
+`<RequestExample>` and `<ResponseExample>` hold code fences, labelled like a
+[code group](#code-groups) (several fences become tabs; `dropdown` picks one
+from a menu instead). They leave the article: on wide screens they stay in
+view in a column on the right, in place of "On this page"; on phones they
+follow the article. `<Panel>` puts anything else in that column.
+
+`````markdown
+<RequestExample>
+
+```bash cURL
+curl https://api.example.com/v1/users/42
+```
+
+```python Python
+client.users.get("42")
+```
+
+</RequestExample>
+
+<ResponseExample dropdown>
+
+```json 200
+{ "user": { "name": "Ada" } }
+```
+
+```json 404
+{ "error": "not_found" }
+```
+
+</ResponseExample>
+
+<Panel>
+Rate limit: 10 requests a second per key.
+</Panel>
+`````
+
+Put each on lines of its own, outside list items (a `<Panel>` inside a list
+item stays where it is). This page has none, so it keeps its "On this page".
+
 ## Component tags
 
 Tags work the way MDX reads them: on lines of their own, on one line with

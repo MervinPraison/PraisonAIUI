@@ -208,6 +208,12 @@ A tag whose body is code is not a table entry: `<CodeBlock>` is listed in
 so it renders through the same code frame (`docs/DocsPre.tsx`) as a fence.
 A new code option goes in `parseCodeMeta` and `DocsPre`.
 
+Content for the page's right-hand column is an `aiui-panel` block
+(`<Panel>`, and `<RequestExample>` / `<ResponseExample>`, which
+`convertMkdocsBlocks` turns into a panel around a code group): `splitPanels`
+(`docs/panels.ts`) moves every top-level one out of the article, and
+`Content.tsx` draws them in a sticky column in place of "On this page".
+
 ## 4. Add a client-only page
 
 **Goal**: A page rendered entirely in the browser — no server round-trip on navigation.
