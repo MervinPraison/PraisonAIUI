@@ -326,22 +326,12 @@ def __getattr__(name: str):
         from praisonaiui.features import lifecycle
 
         return getattr(lifecycle, name)
-    if name in _window_message_attrs or name in _audio_attrs:
-        # Deprecated (R7 shim): no built-in mounts these features' routes and
-        # no browser code sends to them, so the hooks never fire.
-        import warnings
+    if name in _window_message_attrs:
+        # Deprecated (R7 shim): the hooks warn when used, see the module.
+        from praisonaiui.features import window_message
 
-        warnings.warn(
-            f"aiui.{name} is deprecated and does nothing: no route delivers "
-            "window messages or microphone audio to it. It will be removed in "
-            "a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if name in _window_message_attrs:
-            from praisonaiui.features import window_message
-
-            return getattr(window_message, name)
+        return getattr(window_message, name)
+    if name in _audio_attrs:
         from praisonaiui.features import audio
 
         return getattr(audio, name)

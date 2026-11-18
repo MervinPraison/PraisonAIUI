@@ -192,8 +192,10 @@
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
   `send_to_parent`, `on_audio_start`, `on_audio_chunk`, `on_audio_end`,
   `on_mic_start`, `on_mic_data` and `on_mic_stop` now raise a
-  `DeprecationWarning`. They never fired: no built-in mounts their routes and
-  no browser code sends to them. They still import and will be removed later.
+  `DeprecationWarning` when used (importing them, including
+  `from praisonaiui import *`, stays quiet). They never fired: no built-in
+  mounts their routes and no browser code sends to them. They still work and
+  will be removed later.
 
 ### Fixed
 

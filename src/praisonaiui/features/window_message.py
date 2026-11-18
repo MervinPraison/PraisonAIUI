@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, warn_unwired_hook
 
 _log = logging.getLogger(__name__)
 
@@ -299,6 +299,7 @@ async def send_window_message(data: Dict[str, Any], target: str = "parent") -> N
         data: Data to send to the parent window
         target: Target window ("parent" or specific origin)
     """
+    warn_unwired_hook("send_window_message")
     # Validate target for security
     if target not in ["parent", "*"] and not target.startswith("http"):
         _log.warning(f"Invalid target for window message: {target}")
@@ -351,6 +352,7 @@ def on_window_message(source: Optional[str] = None) -> Callable:
                 aiui.current_session().user = aiui.User(identifier=data["email"])
                 await aiui.send_window_message({"type": "user_set", "ok": True})
     """
+    warn_unwired_hook("on_window_message")
 
     def decorator(func: Callable) -> Callable:
         return register_window_message_hook(source, func)

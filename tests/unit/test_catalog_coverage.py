@@ -99,24 +99,38 @@ def test_every_feature_class_is_owned_by_a_catalog_record():
 
 
 @pytest.mark.parametrize(
-    "name",
+    "name, canonical",
     [
-        "on_window_message",
-        "send_window_message",
-        "on_parent_message",
-        "send_to_parent",
-        "on_audio_start",
-        "on_audio_chunk",
-        "on_audio_end",
-        "on_mic_start",
-        "on_mic_data",
-        "on_mic_stop",
+        ("on_window_message", "on_window_message"),
+        ("on_parent_message", "on_window_message"),
+        ("on_audio_start", "on_audio_start"),
+        ("on_audio_chunk", "on_audio_chunk"),
+        ("on_audio_end", "on_audio_end"),
+        ("on_mic_start", "on_audio_start"),
+        ("on_mic_data", "on_audio_chunk"),
+        ("on_mic_stop", "on_audio_end"),
     ],
 )
-def test_unwired_hooks_warn_but_still_import(name):
-    with pytest.warns(DeprecationWarning, match=f"aiui.{name} is deprecated"):
-        hook = getattr(aiui, name)
-    assert callable(hook)
+def test_unwired_hooks_warn_when_used(name, canonical):
+    hook = getattr(aiui, name)  # importing stays quiet; using it warns
+    with pytest.warns(DeprecationWarning, match=f"aiui.{canonical} is deprecated"):
+        if canonical == "on_window_message":
+            hook()(lambda data: None)
+        else:
+            hook(lambda *a: None)
+
+
+def test_send_window_message_warns_when_used():
+    import asyncio
+
+    with pytest.warns(DeprecationWarning, match="aiui.send_window_message is deprecated"):
+        asyncio.run(aiui.send_to_parent({"x": 1}))
+
+
+def test_star_import_does_not_warn():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        exec("from praisonaiui import *", {})
 
 
 def test_live_lifecycle_hooks_do_not_warn():
