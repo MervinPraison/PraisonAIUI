@@ -105,6 +105,9 @@ jobs:
         if: github.event_name == 'pull_request'
         # The built-file list is shared with `npm run sync` and check:bundle
         # (scripts/lib/bundle-files.mjs; cases in scripts/gates.test.mjs).
+        # `shell: bash` adds pipefail: a failed git diff fails the step instead
+        # of reading as "frontend=false" and skipping check:bundle.
+        shell: bash
         run: git diff --name-only HEAD^1 HEAD | node src/frontend/scripts/touches-frontend.mjs >> "$GITHUB_OUTPUT"
 
       - name: Committed bundle matches the build
