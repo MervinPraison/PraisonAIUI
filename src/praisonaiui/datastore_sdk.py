@@ -26,7 +26,7 @@ import logging
 import os
 from typing import Any, Optional
 
-from praisonaiui.datastore import BaseDataStore
+from praisonaiui.datastore import BaseDataStore, SummaryCache
 
 logger = logging.getLogger(__name__)
 
@@ -64,36 +64,32 @@ class SDKFileDataStore(BaseDataStore):
         sessions = await asyncio.to_thread(self._list_sessions_from_disk)
         return sessions
 
-    def _list_sessions_from_disk(self) -> list[dict[str, Any]]:
-        """Read session files directly to extract title from metadata."""
-        sessions = []
+    def _summarize(self, fp: Any) -> Optional[dict[str, Any]]:
         try:
-            for fn in os.listdir(self._session_dir):
-                if not fn.endswith(".json"):
-                    continue
-                fp = os.path.join(self._session_dir, fn)
-                try:
-                    with open(fp, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    title = self._extract_title_from_data(data)
-                    entry = {
-                        "id": data.get("session_id", fn[:-5]),
-                        "title": title,
-                        "created_at": data.get("created_at"),
-                        "updated_at": data.get("updated_at"),
-                        "message_count": self._count_real_messages(data),
-                    }
-                    # Include platform metadata for channel sessions
-                    meta = self._extract_meta_from_data(data)
-                    if meta.get("platform"):
-                        entry["platform"] = meta["platform"]
-                    if meta.get("icon"):
-                        entry["icon"] = meta["icon"]
-                    sessions.append(entry)
-                except (json.JSONDecodeError, IOError):
-                    continue
-        except (IOError, OSError):
-            pass
+            with open(fp, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        entry = {
+            "id": data.get("session_id", os.path.basename(fp)[:-5]),
+            "title": self._extract_title_from_data(data),
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+            "message_count": self._count_real_messages(data),
+        }
+        # Include platform metadata for channel sessions
+        meta = self._extract_meta_from_data(data)
+        if meta.get("platform"):
+            entry["platform"] = meta["platform"]
+        if meta.get("icon"):
+            entry["icon"] = meta["icon"]
+        return entry
+
+    def _list_sessions_from_disk(self) -> list[dict[str, Any]]:
+        """Session rows from the files (title from metadata); unchanged files are not re-read."""
+        sessions = [dict(row) for _, row in SummaryCache.of(self).rows(self._session_dir, self._summarize)]
         # Safe sort — treat None as empty string
         sessions.sort(key=lambda x: x.get("updated_at") or "", reverse=True)
         return sessions

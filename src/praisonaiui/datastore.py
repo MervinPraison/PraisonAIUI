@@ -53,6 +53,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -146,6 +147,82 @@ def _get_orm_models():
 # ---------------------------------------------------------------------------
 
 
+class SummaryCache:
+    """Session-list rows of a folder of session files, parsed once per file.
+
+    ``list_sessions`` runs after every chat turn and on every sidebar load;
+    parsing every file each time made it grow with the whole chat history.
+    A row is rebuilt only when its file's (mtime, size) changes.
+    """
+
+    def __init__(self) -> None:
+        self._rows: dict[str, tuple[int, int, Optional[dict[str, Any]]]] = {}
+        self._lock = threading.Lock()
+
+    @classmethod
+    def of(cls, store: Any) -> "SummaryCache":
+        """The cache of *store*, created on first use (works for subclasses
+        and stores built without ``__init__``)."""
+        cache = store.__dict__.get("_session_summaries")
+        if cache is None:
+            cache = store.__dict__.setdefault("_session_summaries", cls())
+        return cache
+
+    def rows(self, folder: Path | str, summarize) -> list[tuple[float, dict[str, Any]]]:
+        """``(mtime, row)`` for each ``*.json`` file; ``summarize(path)`` builds a row."""
+        out: list[tuple[float, dict[str, Any]]] = []
+        seen: set[str] = set()
+        try:
+            entries = list(os.scandir(folder))
+        except OSError:
+            return out
+        for entry in entries:
+            if not entry.name.endswith(".json") or not entry.is_file():
+                continue
+            try:
+                st = entry.stat()
+            except OSError:
+                continue
+            seen.add(entry.name)
+            with self._lock:
+                hit = self._rows.get(entry.name)
+            if hit is not None and hit[:2] == (st.st_mtime_ns, st.st_size):
+                row = hit[2]
+            else:
+                row = summarize(Path(entry.path))
+                with self._lock:
+                    self._rows[entry.name] = (st.st_mtime_ns, st.st_size, row)
+            if row is not None:
+                out.append((st.st_mtime, row))
+        with self._lock:
+            for gone in set(self._rows) - seen:
+                del self._rows[gone]
+        return out
+
+
+def page_params(query: Any) -> tuple[Optional[int], int]:
+    """``(limit, offset)`` from ``?limit=&offset=``; missing or invalid: all, 0."""
+
+    def _int(name: str) -> Optional[int]:
+        try:
+            value = int(query.get(name, ""))
+        except (TypeError, ValueError):
+            return None
+        return value if value >= 0 else None
+
+    return _int("limit"), _int("offset") or 0
+
+
+async def list_sessions_page(
+    store: Any, limit: Optional[int] = None, offset: int = 0
+) -> tuple[list[dict[str, Any]], int]:
+    """One page of ``store.list_sessions()`` (newest first) and the total."""
+    sessions = await store.list_sessions()
+    total = len(sessions)
+    end = None if limit is None else offset + limit
+    return sessions[offset:end], total
+
+
 class BaseDataStore(ABC):
     """Database-agnostic storage interface for sessions and messages.
 
@@ -186,6 +263,10 @@ class BaseDataStore(ABC):
     async def update_session(self, session_id: str, **kwargs: Any) -> None:
         """Update session metadata (optional override). Commonly used for 'title'."""
         pass
+
+    async def count_sessions(self) -> int:
+        """Number of sessions. A store that can count without listing overrides it."""
+        return len(await self.list_sessions())
 
     async def close(self) -> None:
         """Clean up resources (connections, file handles). Called on shutdown."""
@@ -392,33 +473,29 @@ class JSONFileDataStore(BaseDataStore):
     def _write_session(self, path: Path, data: dict[str, Any]) -> None:
         path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
 
+    def _summarize(self, path: Path) -> Optional[dict[str, Any]]:
+        data = self._read_session(path)
+        if not (data and isinstance(data, dict) and "id" in data):
+            return None
+        entry = {
+            "id": data.get("id", path.stem),
+            "title": data.get("title", "New conversation"),
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+            "message_count": len(data.get("messages", [])),
+        }
+        # Include platform metadata for channel sessions
+        if data.get("platform"):
+            entry["platform"] = data["platform"]
+        if data.get("icon"):
+            entry["icon"] = data["icon"]
+        return entry
+
     def _list_sessions_sync(self) -> list[dict[str, Any]]:
-        """Sync helper — reads all session files from disk."""
-        sessions = []
-        for path in sorted(
-            self._data_dir.glob("*.json"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        ):
-            # Skip feedback directory
-            if path.parent != self._data_dir:
-                continue
-            data = self._read_session(path)
-            if data and isinstance(data, dict) and "id" in data:
-                entry = {
-                    "id": data.get("id", path.stem),
-                    "title": data.get("title", "New conversation"),
-                    "created_at": data.get("created_at"),
-                    "updated_at": data.get("updated_at"),
-                    "message_count": len(data.get("messages", [])),
-                }
-                # Include platform metadata for channel sessions
-                if data.get("platform"):
-                    entry["platform"] = data["platform"]
-                if data.get("icon"):
-                    entry["icon"] = data["icon"]
-                sessions.append(entry)
-        return sessions
+        """Sync helper — session rows, newest file first (unchanged files are not re-read)."""
+        rows = SummaryCache.of(self).rows(self._data_dir, self._summarize)
+        rows.sort(key=lambda r: r[0], reverse=True)
+        return [dict(row) for _, row in rows]
 
     async def list_sessions(self) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._list_sessions_sync)

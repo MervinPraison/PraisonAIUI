@@ -372,6 +372,20 @@ Get memory context for prompt injection.
 
 ## Extended Sessions
 
+### GET /api/sessions
+Sessions, newest first. Optional paging: `?limit=20&offset=40`. Without
+`limit` every session is returned (as before). `count` is the number in this
+response, `total` the number of sessions. `GET /sessions` takes the same
+parameters and also reports `total`.
+
+```json
+{"sessions": [{"id": "...", "title": "...", "message_count": 4, "updated_at": "..."}], "count": 20, "total": 312}
+```
+
+The file stores (`JSONFileDataStore`, `SDKFileDataStore`) keep each session's
+row until its file changes, so a list re-reads only the sessions written
+since the last one.
+
 ### GET /api/sessions/{session_id}/state
 Get session state.
 
