@@ -307,7 +307,7 @@ def prefers_markdown(accept: str) -> bool:
     q: dict[str, float] = {}
     for part in accept.lower().split(","):
         kind, _, params = (p.strip() for p in part.partition(";"))
-        weight = re.search(r"\bq=([0-9.]+)", params)
+        weight = re.search(r"\bq=(\d+(?:\.\d*)?|\.\d+)(?![\d.])", params)
         q[kind] = max(q.get(kind, 0.0), float(weight.group(1)) if weight else 1.0)
     return q.get("text/markdown", 0.0) > 0 and q["text/markdown"] >= q.get("text/html", 0.0)
 

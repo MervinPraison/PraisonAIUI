@@ -170,6 +170,8 @@ def test_accept_markdown_on_aiui_serve(tmp_path: Path) -> None:
         assert prefers_markdown(accept)
     for accept in ("text/markdown;q=0.5, text/html", "", "text/markdown;q=0", "*/*"):
         assert not prefers_markdown(accept)
+    for accept in ("text/markdown;q=.", "text/markdown;q=1.0.0"):  # malformed q: no 500
+        assert isinstance(prefers_markdown(accept), bool)
 
 
 def test_api_fields_and_examples_become_plain_markdown() -> None:
