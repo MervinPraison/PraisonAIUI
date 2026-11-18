@@ -208,6 +208,15 @@ if collected_tool_calls:
 await _datastore.add_message(session_id, msg_data)
 ```
 
+#### Reloading during a reply
+
+The React chat asks for `run_attach` when it opens a session. A run whose tab
+was reloaded comes back as the tab's own turn: the reply so far (the server
+keeps each live run's events, consecutive tokens merged, up to 2,000 events),
+the Stop button, and the composer waiting until the run ends. A run that
+another open tab started shows read-only, also with the reply so far; both tabs
+can keep sending.
+
 #### Turn order
 
 A reply is saved when its run ends, so two runs in one session (a second tab,
@@ -346,6 +355,14 @@ see [Deployment](deployment.md).
 // status "received", "no_pending_ask" (nothing was waiting: the ask timed out or
 // the run ended) or "forbidden" (another connection's run)
 {"type": "ask_response", "session_id": "abc-123", "run_id": "run-1", "response": "5.1"}
+
+// A tab that (re)opened a session: its live runs and their events so far,
+// answered with {"type": "run_snapshot", "session_id": ..., "runs": [{"run_id",
+// "client_turn_id", "question", "adoptable", "last_seq", "truncated", "events"}]}.
+// "adoptable": the run's starting tab is gone, so this connection now owns it
+// (it may stop or answer it). Every run event carries a per-run "seq"; skip
+// the ones up to "last_seq", which the snapshot already holds.
+{"type": "run_attach", "session_id": "abc-123"}
 
 // Is a run still active?
 {"type": "run_status", "run_id": "run-1"}

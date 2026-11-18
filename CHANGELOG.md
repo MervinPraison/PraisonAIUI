@@ -506,3 +506,9 @@
   `set_layout` / `set_extensions`, the same blocks as in `aiui.yaml`), and any
   other key `aiui run` does not use prints a warning naming it. They used to
   be dropped without a word.
+- Chat: reloading the page during a reply takes the run back. The reply so
+  far is shown (it used to start mid-sentence), Stop is there, and the
+  composer waits until the run ends instead of letting a second question
+  interleave. A run another open tab started shows read-only with its reply
+  so far. New WebSocket frame `run_attach` (answered with `run_snapshot`);
+  run events carry a per-run `seq`.

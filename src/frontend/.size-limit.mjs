@@ -60,7 +60,9 @@ const LAYOUT_BUDGETS = {
   // 12.348 kB (measured, raised by exactly the overage, +848 B): the groups
   // plugins declare and the Plugin settings row in every layout (R2; kit
   // DeclaredNavGroups, PluginSettingsRow, NavSection now in this closure).
-  'layout-chat-canvas': '12.348 kB',
+  // 12.35 kB (measured, raised by exactly the overage, +2 B): the chat
+  // engine's run_attach code moved a chunk boundary (reload adoption).
+  'layout-chat-canvas': '12.35 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -200,7 +202,9 @@ export default [
   // with the legacy React App now, so Rollup re-split the chunks around them.
   // 141,274 B (measured, raised by exactly the overage, +96 B): the
   // @aiui.welcome greeting on the empty thread (its fetch is a lazy chunk).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141274 B', gzip: true },
+  // 141,882 B (measured, raised by exactly the overage, +608 B): a tab
+  // reloaded mid-reply takes its run back (run_attach, replay, seq).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141882 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -229,7 +233,8 @@ export default [
   // 253,419 B (measured, raised by exactly the overage, +80 B): the same greeting.
   // 253,464 B (measured, raised by exactly the overage, +45 B): LayoutHost
   // passes the declared nav groups and chrome.openSettings to the frame.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253464 B', gzip: true },
+  // 254,080 B (measured, raised by exactly the overage, +616 B): the same.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254080 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -278,5 +283,7 @@ export default [
   // @aiui.welcome greeting (chat engine, its lazy chunk and the chat style).
   // 9,138,410 B (measured, raised by exactly the overage, +1,739 B): plugin
   // nav groups and the Plugin settings entry in every layout frame.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9138410 B', brotli: false },
+  // 9,140,565 B (measured, raised by exactly the overage, +2,155 B): a tab
+  // reloaded mid-reply takes its run back.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9140565 B', brotli: false },
 ]

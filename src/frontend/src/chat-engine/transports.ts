@@ -33,6 +33,9 @@
  *    single-use ticket (`POST /api/auth/ws-ticket`) sent as `?ticket=`, so the
  *    long-lived key never appears in a URL or an access log. Servers without
  *    that endpoint get `?token=` as before.
+ *  - `{type:'run_attach', session_id}` asks for the session's live runs and
+ *    their events so far (`run_snapshot`): a tab that reloaded mid-run adopts
+ *    its run. Run events carry a per-run `seq`.
  *  - `{type:'run_status', run_id}` asks whether a run is still alive (after a
  *    reconnect); older servers do not answer, which reads as "unknown".
  */
@@ -81,10 +84,47 @@ export interface AiuiTransport {
   reconnect?(): void
   /** Is this run still alive on the server? `undefined` when the server cannot say. */
   runStatus?(runId: string): Promise<boolean | undefined>
+  /**
+   * The session's live runs with their events so far (WS `run_attach`), for a
+   * tab that (re)opened it mid-run. `[]` when there are none or it cannot ask.
+   */
+  attachRuns?(sessionId: string): Promise<AttachedRun[]>
   /** Whether `regenerate` replaces the last answer server-side (WS); otherwise it is a plain resend. */
   canRegenerate?(sessionId: string): boolean
   /** Turns still work over HTTP (SSE) when the live socket is closed (the auto transport). */
   readonly httpFallback?: boolean
+}
+
+/** A live run reported by `run_attach` (see AiuiTransport.attachRuns). */
+export interface AttachedRun {
+  runId: string
+  clientTurnId?: string
+  question: string
+  /** Its starting tab is gone: this tab now owns it (Stop, answers). */
+  adoptable: boolean
+  /** The `seq` of the last event in `events`; later events have a higher one. */
+  lastSeq: number
+  events: WireEvent[]
+}
+
+/** The `runs` of a `run_snapshot` frame, checked. */
+export function parseRunSnapshot(runs: unknown): AttachedRun[] {
+  if (!Array.isArray(runs)) return []
+  const out: AttachedRun[] = []
+  for (const r of runs) {
+    if (!r || typeof r !== 'object') continue
+    const o = r as Record<string, unknown>
+    if (typeof o.run_id !== 'string' || !o.run_id) continue
+    out.push({
+      runId: o.run_id,
+      clientTurnId: typeof o.client_turn_id === 'string' && o.client_turn_id ? o.client_turn_id : undefined,
+      question: typeof o.question === 'string' ? o.question : '',
+      adoptable: o.adoptable === true,
+      lastSeq: typeof o.last_seq === 'number' ? o.last_seq : 0,
+      events: Array.isArray(o.events) ? (o.events.filter((e) => e && typeof e === 'object') as WireEvent[]) : [],
+    })
+  }
+  return out
 }
 
 export class TransportDisconnectedError extends Error {
@@ -314,6 +354,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
   /** Run ids seen per session (bounded), to tell runs that started before a turn. */
   const sessionRuns = new Map<string, Set<string>>()
   const statusWaiters: StatusWaiter[] = []
+  const attachWaiters: { sessionId: string; done: (runs: AttachedRun[]) => void }[] = []
   const pendingAborts = new Set<string>()
   const ignoredRuns = new Set<string>()
   const acks: Ack[] = []
@@ -329,7 +370,7 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
 
   const wanted = () =>
     retainCount > 0 || turns.size > 0 || watchers.size > 0 || pendingCancel.size > 0 || pendingAborts.size > 0 || acks.length > 0 ||
-    statusWaiters.length > 0
+    statusWaiters.length > 0 || attachWaiters.length > 0
 
   const noteRun = (sid: string, runId: string) => {
     let set = sessionRuns.get(sid)
@@ -606,6 +647,11 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
     const runId = typeof ev.run_id === 'string' && ev.run_id ? ev.run_id : undefined
     if (type === 'pong' || type === 'subscribed') return
     if (type === 'ask_response_ack') return resolveAck('ask', sid)
+    if (type === 'run_snapshot') {
+      const runs = parseRunSnapshot(ev.runs)
+      for (const w of attachWaiters.filter((x) => x.sessionId === sid)) w.done(runs)
+      return
+    }
     if (type === 'run_status' && runId) {
       const active = typeof ev.active === 'boolean' ? ev.active : undefined
       for (const w of statusWaiters.filter((x) => x.runId === runId)) w.done(active)
@@ -792,6 +838,28 @@ export function createWsTransport(options: WsTransportOptions = {}): WsTransport
         if (!rawSend({ type: 'run_status', run_id: runId })) waiter.done(undefined)
       })
     },
+    async attachRuns(sessionId) {
+      try {
+        await connect(5_000)
+      } catch {
+        return []
+      }
+      return new Promise<AttachedRun[]>((resolve) => {
+        const timer = setTimeout(() => waiter.done([]), ackTimeout)
+        const waiter = {
+          sessionId,
+          done: (runs: AttachedRun[]) => {
+            clearTimeout(timer)
+            const i = attachWaiters.indexOf(waiter)
+            if (i >= 0) attachWaiters.splice(i, 1)
+            resolve(runs)
+            scheduleIdleCheck()
+          },
+        }
+        attachWaiters.push(waiter)
+        if (!rawSend({ type: 'run_attach', session_id: sessionId })) waiter.done([])
+      })
+    },
     onStatus(fn) {
       statusFns.add(fn)
       return () => {
@@ -910,6 +978,7 @@ export function createAutoTransport(options: AutoTransportOptions = {}): AiuiTra
     canAnswerAsk: (sessionId) => routes.get(sessionId) !== 'sse',
     canRegenerate: (sessionId) => routes.get(sessionId) !== 'sse' && ws.status === 'open',
     runStatus: (runId) => ws.runStatus!(runId),
+    attachRuns: (sessionId) => ws.attachRuns!(sessionId),
     onStatus: (fn) => ws.onStatus!(fn),
     onReconnect: (fn) => ws.onReconnect!(fn),
     watch: (sessionId, fn) => ws.watch!(sessionId, fn),

@@ -10,6 +10,7 @@ import {
   createAutoTransport,
   createSseTransport,
   createWsTransport,
+  parseRunSnapshot,
   defaultWsUrl,
   isDisconnectError,
   SSE_DROPPED,
@@ -614,4 +615,36 @@ test('SSE: a stream that drops mid-reply says so instead of the reader\'s bare "
   } finally {
     g.fetch = prev
   }
+})
+
+test('attachRuns sends run_attach and resolves with the checked run_snapshot; no answer reads as no runs', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
+  const t = makeWs({ ackTimeoutMs: 1000 })
+  t.retain!()
+  await flush()
+  const p = t.attachRuns!('S1')
+  await flush()
+  assert.deepEqual(last().ofType('run_attach'), [{ type: 'run_attach', session_id: 'S1' }])
+  last().emit({
+    type: 'run_snapshot',
+    session_id: 'S1',
+    runs: [
+      { run_id: 'R1', client_turn_id: 'c1', question: 'q', adoptable: true, last_seq: 4, events: [{ type: 'run_started', run_id: 'R1' }, null] },
+      { run_id: '', adoptable: true },
+      'junk',
+    ],
+  })
+  assert.deepEqual(await p, [
+    { runId: 'R1', clientTurnId: 'c1', question: 'q', adoptable: true, lastSeq: 4, events: [{ type: 'run_started', run_id: 'R1' }] },
+  ])
+  const q = t.attachRuns!('S2')
+  await flush()
+  mock.timers.tick(1000)
+  assert.deepEqual(await q, [])
+  t.close()
+})
+
+test('parseRunSnapshot keeps only well-formed runs and defaults the rest', () => {
+  assert.deepEqual(parseRunSnapshot(undefined), [])
+  assert.deepEqual(parseRunSnapshot([{ run_id: 'R' }]), [{ runId: 'R', clientTurnId: undefined, question: '', adoptable: false, lastSeq: 0, events: [] }])
 })
