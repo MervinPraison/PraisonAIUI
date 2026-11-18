@@ -35,6 +35,7 @@ jobs:
       - name: Build docs with AIUI
         run: |
           aiui build --output site --minify
+          aiui schema --output site/aiui.schema.json  # the $schema URL that `aiui init` writes
           cp CNAME site/CNAME
 
       # A deploy replaces every file. Readers with the previous page still open
