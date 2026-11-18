@@ -303,8 +303,12 @@ call sites pass `variant`/`size`, not chrome classes; light and dark, 390 px
 width, focus ring, `aria-label` on icon-only controls; no bare "Loading…".
 *Check:* DESIGN.md "Checklist for a UI change"; `test_light_mode_contrast.py`.
 
-**R15. PRs stay small and pass the pipeline.** Auto-merge (`.github/scripts/merge-gate.js`)
-requires: CI green on HEAD (checks matching `ci`, `python`, `test`, `lint`, `ruff`),
+**R15. PRs stay small and pass the pipeline.** Auto-merge
+(`.github/workflows/claude-merge-gate.yml`, which runs `merge-gate.js` from the
+pinned automation hub, `MervinPraison/github-automation-template`, with this
+repo's settings in `.github/scripts/gate-config.js`; the local
+`.github/scripts/merge-gate.js` is not what runs) is dispatched when `CI` or
+`Claude Assistant` completes on a PR, and every 10 minutes. It requires: CI green on HEAD (checks matching `ci`, `python`, `test`, `lint`, `ruff`),
 a completed FINAL Claude review on HEAD, no `CHANGES_REQUESTED`, at most
 **800 added lines** and **30 files**, no sensitive path (`.github/workflows/`,
 `pyproject.toml`, `credentials.json`), no secret pattern in the diff, a test
