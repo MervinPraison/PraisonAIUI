@@ -76,8 +76,8 @@ def test_manual_nav_follows_the_yaml_groups(tmp_path: Path) -> None:
     assert layouts["title"] == "Layouts"
     assert [c["title"] for c in layouts["children"]] == ["Layouts", "Chat layout"]
     assert decision == {"title": "Decision", "path": "/docs/adr/decision"}
-    # Unlisted: still a page (routable, searchable), outside every section.
-    assert items[2:] == [{"title": "Internal notes", "path": "/docs/notes"}]
+    # Unlisted: still a routable page, but hidden (no sidebar) and not indexed (seo.indexing: navigable).
+    assert items[2:] == [{"title": "Internal notes", "path": "/docs/notes", "noindex": True, "hidden": True}]
 
 
 def test_manual_nav_pages_get_routes_and_flat_tab_pages(tmp_path: Path) -> None:
@@ -92,7 +92,8 @@ def test_manual_nav_pages_get_routes_and_flat_tab_pages(tmp_path: Path) -> None:
 
 def test_auto_nav_is_unchanged(tmp_path: Path) -> None:
     items = _nav(tmp_path, "auto")["items"]
-    assert all("path" in item for item in items)
+    # A page has a path; a folder section (no index page of its own) has only children.
+    assert all("path" in item or item.get("children") for item in items)
     assert {"title": "Home", "path": "/docs/index"} in items
 
 

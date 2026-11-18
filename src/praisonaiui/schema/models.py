@@ -220,6 +220,17 @@ class A11yConfig(BaseModel):
     aria_labels: dict[str, str] = Field(default_factory=dict, alias="ariaLabels")
 
 
+class ContentSignalsConfig(BaseModel):
+    """robots.txt ``Content-Signal`` (contentsignals.org): how crawlers may use the pages.
+    Unset keys are left out of the line."""
+
+    search: Optional[bool] = None
+    ai_input: Optional[bool] = Field(default=None, alias="aiInput")
+    ai_train: Optional[bool] = Field(default=None, alias="aiTrain")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class SEOConfig(BaseModel):
     """SEO configuration."""
 
@@ -228,6 +239,15 @@ class SEOConfig(BaseModel):
     twitter: Optional[dict[str, str]] = None
     site_url: Optional[str] = Field(default=None, alias="siteUrl")
     robots: Optional[dict[str, bool]] = None
+    indexing: Literal["navigable", "all"] = Field(
+        default="navigable",
+        description="navigable: hidden pages stay out of the sitemap, llms.txt and search; "
+        "all: every page that is not noindex is indexed",
+    )
+    trailing_slash: bool = Field(default=False, alias="trailingSlash")
+    content_signals: Optional[ContentSignalsConfig] = Field(default=None, alias="contentSignals")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DependenciesConfig(BaseModel):
@@ -263,6 +283,7 @@ class NavGroupConfig(BaseModel):
     group: str
     icon: Optional[str] = None
     prefix: Optional[str] = None
+    hidden: bool = False  # pages stay routable but leave the sidebar (and indexing, see seo.indexing)
     pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
 
     def page_slugs(self) -> list[str]:
@@ -281,6 +302,7 @@ class NavTabConfig(BaseModel):
 
     tab: str
     url: Optional[str] = None
+    hidden: bool = False  # the tab and its groups' pages leave the header and sidebar
     groups: list[NavGroupConfig] = Field(default_factory=list)
 
 

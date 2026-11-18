@@ -203,6 +203,15 @@
 - The Pro type is self-hosted: Geist and Geist Mono (SIL OFL 1.1, latin
   woff2, about 53 kB) ship in the wheel and load only on Pro pages (the
   layouts and the docs site). No font CDN.
+- Publishing controls for `aiui build`, all zero-config: frontmatter
+  `hidden: true` (and `hidden: true` on a nav group or tab) keeps a page
+  built and reachable by URL but out of the sidebar, pager, search, sitemap
+  and `llms*.txt`; `seo.indexing: all` indexes hidden pages too. An optional
+  `.aiuiignore` next to `aiui.yaml` adds to `content.docs.exclude`.
+  `seo.trailingSlash: true` ends canonicals, `og:url`, sitemap and llms
+  links in `/`. `seo.contentSignals` adds a robots.txt `Content-Signal`
+  line. A `robots.txt` or `sitemap.xml` next to `aiui.yaml` is published as
+  is. See `docs/features/seo.md`.
 
 ### Deprecated
 
@@ -518,3 +527,16 @@
   and parallel runs stop colliding on schedules, channels and sessions
   (`AIUI_TESTS_REAL_DATA_DIR=1` opts out). The gateway's config store
   (`integration.py`) now honours `AIUI_DATA_DIR` like the server does.
+- `aiui build` no longer publishes files `content.docs.exclude` names: they
+  were left out of the nav but still copied to `docs/` and fetchable. The
+  build now lists what it left out.
+- Each built page has exactly one `<meta name="robots">` (it had two), and a
+  `noindex` page says `noindex` without forcing `nofollow`. `noindex` pages
+  also leave site search, as they leave the sitemap and `llms*.txt`. With
+  `seo.robots.index: false` no sitemap or `llms*.txt` is written (a stale one
+  is removed), and the React app no longer resets that page to `index` at
+  runtime. `seo.robots.follow: false` no longer writes `Disallow: /docs/`.
+  `404.html` is `noindex`.
+- A docs folder without an index page is a sidebar section only: no empty
+  `/docs/<folder>` route or sitemap entry. In `nav.mode: manual`, pages no
+  group lists are hidden (routable, not indexed), as Mintlify does.
