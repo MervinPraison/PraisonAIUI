@@ -9,8 +9,8 @@ import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/La
 import { MobileToc } from './Toc'
 import { docPathToSource, normalizeDocPath } from './pathUtils'
 import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
-import { docSourcePath, hasSectionHeadings, prepareDocSource } from './docs/docSource'
-import { docNeighbours, docSection } from './docs/docNav'
+import { canonicalDocPath, docSourcePath, hasSectionHeadings, prepareDocSource } from './docs/docSource'
+import { docNeighbours, docTrail } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
@@ -22,7 +22,7 @@ import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
-import { stripBase } from './lib/url'
+import { stripBase, withBase } from './lib/url'
 
 interface ContentProps {
     config: UIConfig
@@ -162,7 +162,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const shownPath = docSourcePath(normalizeDocPath(currentPath), selectedItem.path)
         // The docs home page with frontmatter `layout: home`: hero and features above its markdown.
         const home = config.docsHome && shownPath === DOCS_HOME_PATH ? config.docsHome : null
-        const section = nav && !home ? docSection(nav, currentPath) : null
+        // The eyebrow: the page's group, or with `styling.eyebrows: breadcrumbs` every group above it.
+        const trail = nav && !home ? docTrail(nav, currentPath) : []
+        const crumbs = config.styling?.eyebrows === 'breadcrumbs' ? trail : trail.slice(-1)
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
@@ -175,11 +177,20 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                     />
                     {!home && (
                         <div className="aiui-docs-pagehead">
-                            {section ? (
+                            {crumbs.length ? (
                                 // Section › Page: the page part shows on phones, where the sidebar is folded away.
+                                // A group with a page of its own links there.
                                 <nav className="aiui-docs-eyebrow aiui-docs-crumbs" aria-label="Breadcrumb">
                                     <ol>
-                                        <li>{section}</li>
+                                        {crumbs.map((crumb) => (
+                                            <li key={crumb.title + (crumb.path ?? '')}>
+                                                {crumb.path ? <a href={withBase(canonicalDocPath(crumb.path))} onClick={(event) => {
+                                                    if (!onNavigate || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+                                                    event.preventDefault()
+                                                    onNavigate(crumb)
+                                                }}>{crumb.title}</a> : crumb.title}
+                                            </li>
+                                        ))}
                                         <li className="aiui-docs-crumb-page" aria-current="page">{selectedItem.title}</li>
                                     </ol>
                                 </nav>

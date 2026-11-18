@@ -21,10 +21,45 @@ class NavItem:
     searchable: bool = True  # frontmatter `searchable: false`: not in the site's own search
     page_title: str = ""  # the page's own title when the sidebar shows a shorter `nav_title`
     icon: str = ""  # a lucide icon name for the sidebar (group `icon:` in the YAML, page frontmatter `icon:`)
+    expanded: bool | None = None  # a group's `expanded:` (false: starts folded)
+    tag: str = ""  # a group's badge
+    directory: str = ""  # card | accordion: the build lists the children on the group's page
     children: list["NavItem"] = field(default_factory=list)
 
 
 _ICON_NAME = re.compile(r"[a-z0-9-]{1,40}")
+
+
+def _slug(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "group"
+
+
+def manual_entries(config) -> list | None:
+    """The sidebar entries a config lists: ``navigation.pages`` and ``groups``,
+    then (with ``content.docs.nav.mode: manual``) the tab groups; None for the
+    generated sidebar."""
+    nav = config.navigation
+    docs = config.content.docs if config.content else None
+    entries: list = [*nav.pages, *nav.groups] if nav else []
+    if nav and docs and docs.nav and docs.nav.mode == "manual":
+        entries += [g.model_copy(update={"hidden": True}) if t.hidden else g for t in nav.tabs for g in t.groups]
+    return entries or None
+
+
+def nav_trails(nav: dict) -> dict[str, list[dict]]:
+    """Each page path's ancestor groups, outermost first (``[{"title", "path"?}]``)."""
+    trails: dict[str, list[dict]] = {}
+
+    def walk(items: list[dict], trail: list[dict]) -> None:
+        for item in items:
+            if item.get("path"):
+                trails.setdefault(item["path"], trail)
+            if item.get("children"):
+                crumb = {"title": item.get("title", ""), **({"path": item["path"]} if item.get("path") else {})}
+                walk(item["children"], [*trail, crumb])
+
+    walk(nav.get("items", []), [])
+    return trails
 
 
 def icon_name(value: object) -> str:
@@ -36,9 +71,11 @@ def icon_name(value: object) -> str:
 class NavBuilder:
     """Builds navigation tree from discovered docs pages."""
 
-    def __init__(self, pages: list[DocPage], base_path: str = "/docs"):
+    def __init__(self, pages: list[DocPage], base_path: str = "/docs", directory: str | None = None):
         self.pages = pages
         self.base_path = base_path.rstrip("/")
+        self.directory = directory or ""  # content.docs.nav.directory (auto mode)
+        self.unresolved: list[str] = []  # names a manual nav lists that match no page
 
     def build(self) -> list[NavItem]:
         """
@@ -80,10 +117,11 @@ class NavBuilder:
                     tree[parent_slug].children.append(item)
                 else:
                     # A folder section. It has no path: a folder without an
-                    # index page is not a page (no route, sitemap or llms entry).
+                    # index page is not a page (no route, sitemap or llms entry),
+                    # unless nav.directory asks for a generated listing page.
                     parent_item = NavItem(
                         title=parts[-2].replace("-", " ").title(),
-                        path="",
+                        path=f"{self.base_path}/{parent_slug}" if self.directory else "",
                         children=[item],
                     )
                     tree[parent_slug] = parent_item
@@ -91,6 +129,9 @@ class NavBuilder:
 
                 tree[page.slug] = item
 
+        for item in root_items:
+            if item.children:
+                item.directory = self.directory
         return root_items
 
     def to_dict(self) -> dict:
@@ -98,7 +139,7 @@ class NavBuilder:
         items = self.build()
         return {"items": [self._item_to_dict(item) for item in items]}
 
-    def to_dict_grouped(self, groups: list, docs_dir: Path | None = None) -> dict:
+    def to_dict_grouped(self, entries: list, docs_dir: Path | None = None) -> dict:
         """Navigation from the YAML tab groups (``content.docs.nav.mode: manual``).
 
         Each group becomes a section holding its pages (and nested groups) in
@@ -106,7 +147,8 @@ class NavBuilder:
         file path without ``.md`` (``adr/0001-x``) or ``index``. Pages no group
         lists, and pages of a ``hidden`` group, stay routable as ``hidden``
         items (no sidebar, pager or indexing; see publish.apply_indexing).
-        A page listed twice appears once (the first).
+        A page listed twice appears once (the first). Entries may also be
+        pages (``navigation.pages``); a group's ``root`` page is its own path.
         """
         by_name: dict[str, DocPage] = {}
         for page in self.pages:
@@ -141,22 +183,41 @@ class NavBuilder:
                 key = key[len(base) + 1 :]
             return by_name.get(key)
 
-        def section(group, hidden: bool = False) -> NavItem:
-            hidden = hidden or bool(getattr(group, "hidden", False))
-            children: list[NavItem] = []
-            for entry in group.pages:
-                if isinstance(entry, str):
-                    page = lookup(entry)
-                    if page is not None and page.slug not in used:
-                        used.add(page.slug)
-                        children.append(page_item(page, hidden))
-                else:
-                    sub = section(entry, hidden)
-                    if sub.children:
-                        children.append(sub)
-            return NavItem(title=group.group, path="", children=children, icon=icon_name(group.icon))
+        def take(name: str, hidden: bool, report: bool = True) -> NavItem | None:
+            page = lookup(name)
+            if page is None:
+                if report:
+                    self.unresolved.append(name)
+                return None
+            if page.slug in used:
+                return None
+            used.add(page.slug)
+            return page_item(page, hidden)
 
-        items = [s for s in (section(g) for g in groups) if s.children]
+        def section(group, hidden: bool, trail: tuple[str, ...]) -> NavItem:
+            hidden = hidden or bool(getattr(group, "hidden", False))
+            trail = (*trail, _slug(group.group))
+            root = take(group.root, hidden) if group.root else None
+            if root is None and group.directory:  # a listing page at /docs/<group-slug>, or the page there
+                root = take("/".join(trail), hidden, report=False)
+            children = [c for c in (entry(e, hidden, trail) for e in group.pages) if c and (c.path or c.children)]
+            item = root or NavItem(title=group.group, path="")
+            if root is None and group.directory and children:
+                item.path = f"{self.base_path}/{'/'.join(trail)}"
+                item.hidden = hidden
+            if root is not None:
+                item.page_title = item.page_title or (item.title if item.title != group.group else "")
+            item.title = group.group
+            item.icon = icon_name(group.icon) or item.icon
+            item.expanded, item.tag = group.expanded, (group.tag or "").strip()
+            item.directory = group.directory or ""
+            item.children = children
+            return item
+
+        def entry(e, hidden: bool, trail: tuple[str, ...]) -> NavItem | None:
+            return take(e, hidden) if isinstance(e, str) else section(e, hidden, trail)
+
+        items = [i for i in (entry(e, False, ()) for e in entries) if i and (i.path or i.children)]
         items += [page_item(p, hidden=True) for p in self.pages if p.slug not in used]
         return {"items": [self._item_to_dict(item) for item in items]}
 
@@ -178,5 +239,11 @@ class NavBuilder:
         if item.icon:
             result["icon"] = item.icon
         if item.children:
+            if item.expanded is not None:
+                result["expanded"] = item.expanded
+            if item.tag:
+                result["tag"] = item.tag
+            if item.directory and item.path:
+                result["directory"] = item.directory
             result["children"] = [self._item_to_dict(child) for child in item.children]
         return result

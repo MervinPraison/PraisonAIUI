@@ -101,9 +101,12 @@ class NavConfig(BaseModel):
     """Navigation configuration for content sources."""
 
     mode: Literal["auto", "manual"] = "auto"
-    sort: Literal["filesystem", "alpha", "date"] = "filesystem"
-    collapsible: bool = True
-    max_depth: int = Field(default=4, alias="maxDepth", ge=1, le=10)
+    sort: Literal["filesystem", "alpha", "date"] = "filesystem"  # in a folder: name, title, `date` (newest first)
+    collapsible: bool = True  # sidebar groups fold open and shut (false: always open)
+    max_depth: int = Field(default=4, alias="maxDepth", ge=1, le=10)  # not read; validate warns
+    directory: Optional[Literal["card", "accordion"]] = None  # list each folder's pages (navigation.md)
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class EditLinkConfig(BaseModel):
@@ -317,6 +320,10 @@ class NavGroupConfig(BaseModel):
     group: str
     icon: Optional[str] = None
     prefix: Optional[str] = None
+    root: Optional[str] = None  # the group's own page: its sidebar label links there
+    expanded: Optional[bool] = None  # false: starts folded (the active page's group always opens)
+    tag: Optional[str] = Field(default=None, max_length=24)  # a small badge after the label ("New")
+    directory: Optional[Literal["card", "accordion"]] = None  # list its pages on its (or a generated) page
     hidden: bool = False  # pages stay routable but leave the sidebar (and indexing, see seo.indexing)
     # Search ranking multiplier for the group's pages (a page's own `boost` wins).
     boost: Optional[float] = Field(default=None, ge=0.1, le=10)
@@ -324,8 +331,8 @@ class NavGroupConfig(BaseModel):
     openapi: Optional[OpenApiRef] = None
 
     def page_slugs(self) -> list[str]:
-        """Every page entry, nested groups flattened, in order."""
-        out: list[str] = []
+        """Every page entry (the root first), nested groups flattened, in order."""
+        out: list[str] = [self.root] if self.root else []
         for entry in self.pages:
             out.extend([entry] if isinstance(entry, str) else entry.page_slugs())
         return out
@@ -345,9 +352,23 @@ class NavTabConfig(BaseModel):
 
 
 class NavigationConfig(BaseModel):
-    """Top-level navigation with tabs."""
+    """Top-level navigation: header tabs, or a sidebar listed at the root."""
 
     tabs: list[NavTabConfig] = Field(default_factory=list)
+    pages: list[Union[str, NavGroupConfig]] = Field(default_factory=list)
+    groups: list[NavGroupConfig] = Field(default_factory=list)
+
+
+class InteractionConfig(BaseModel):
+    """``interaction:`` — how the docs sidebar responds."""
+
+    drilldown: bool = False  # clicking a group's label opens its first page
+
+
+class StylingConfig(BaseModel):
+    """``styling:`` — page chrome."""
+
+    eyebrows: Literal["section", "breadcrumbs"] = "section"  # above a docs page title: its group, or all
 
 
 class NavbarLinkConfig(BaseModel):
@@ -754,6 +775,8 @@ class Config(BaseModel):
     footer: Optional[FooterConfig] = None
     search: Optional[SearchConfig] = None
     api: Optional[ApiConfig] = None
+    interaction: Optional[InteractionConfig] = None
+    styling: Optional[StylingConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

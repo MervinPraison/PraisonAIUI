@@ -1,6 +1,7 @@
 // Docs sidebar: the nav tree, as a sticky column on desktop and a sheet on phones.
 // Styles: docs/docs.css (.aiui-docs-sidebar, .aiui-docs-nav*), Pro tokens.
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import {
     Sheet,
     SheetContent,
@@ -12,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { canonicalDocPath } from './docs/docSource'
 import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
-import { navItemShown } from './docs/docNav'
+import { docPages, navItemHolds, navItemShown, rememberedOpen, rememberOpen } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
 import { withBase } from './lib/url'
 import { DOCS_HOME_ICONS, DocsHomeIcon } from './docs/docsHomeIcons'
@@ -33,21 +34,89 @@ function NavIcon({ name }: { name?: string }) {
     )
 }
 
+/** A plain click (no modifier, main button): the app navigates in place. */
+const plainClick = (event: React.MouseEvent) => !(event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
+
+interface NavGroupProps extends Omit<NavTreeProps, 'nav'> {
+    item: NavItem
+    groupKey: string // its titles from the top, joined by "/": where its open state is remembered
+    collapsible: boolean
+    drilldown: boolean
+    children: React.ReactNode
+}
+
+/** A sidebar group: a label (a link to its own `root` page, or with drilldown to its first page) that folds its pages. */
+function NavGroup({ item, groupKey, activeItem, collapsible, drilldown, onItemClick, children }: NavGroupProps) {
+    const holdsActive = navItemHolds(item, activeItem)
+    const [open, setOpen] = useState(() => holdsActive || (rememberedOpen(groupKey) ?? item.expanded !== false))
+    // Moving to a page inside the group opens it (state adjusted while rendering, not in an effect).
+    const [heldActive, setHeldActive] = useState(holdsActive)
+    if (heldActive !== holdsActive) {
+        setHeldActive(holdsActive)
+        if (holdsActive) setOpen(true)
+    }
+    const itemsId = useId()
+    const shown = !collapsible || open
+    const toggle = (next: boolean) => (setOpen(next), rememberOpen(groupKey, next))
+    const target = item.path ? item : drilldown ? docPages({ items: item.children ?? [] })[0] : undefined
+    const label = (
+        <>
+            <NavIcon name={item.icon} />
+            <span className="aiui-docs-group-title">{item.title}</span>
+            {item.tag && <span className="aiui-docs-navtag">{item.tag}</span>}
+        </>
+    )
+    const chevron = <ChevronRight className="aiui-docs-group-chevron" aria-hidden="true" />
+    return (
+        <div className="aiui-docs-group" data-open={shown ? '' : undefined}>
+            <div className="aiui-docs-group-label">
+                {target ? (
+                    <a href={withBase(canonicalDocPath(target.path || '/'))} data-nav-path={target.path || ''}
+                        aria-current={item.path && item.path === activeItem ? 'page' : undefined}
+                        onClick={(event) => {
+                            if (!plainClick(event)) return
+                            event.preventDefault()
+                            if (collapsible) toggle(true)
+                            onItemClick(target)
+                        }}
+                    >
+                        {label}
+                    </a>
+                ) : collapsible ? (
+                    <button type="button" aria-expanded={open} aria-controls={itemsId} onClick={() => toggle(!open)}>
+                        {label}
+                        {chevron}
+                    </button>
+                ) : (
+                    label
+                )}
+                {target && collapsible && (
+                    <button type="button" className="aiui-docs-group-chevbtn" aria-expanded={open} aria-controls={itemsId}
+                        aria-label={`${open ? 'Collapse' : 'Expand'} ${item.title}`} onClick={() => toggle(!open)}>
+                        {chevron}
+                    </button>
+                )}
+            </div>
+            <div id={itemsId} className="aiui-docs-group-items" hidden={!shown}>
+                {children}
+            </div>
+        </div>
+    )
+}
+
 export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
-    const renderItem = (item: NavItem, depth = 0) => {
+    const collapsible = nav.collapsible !== false
+    const drilldown = nav.drilldown === true
+    const renderItem = (item: NavItem, depth = 0, trail = ''): React.ReactNode => {
         const key = item.title + (item.path || '')
         if (!navItemShown(item)) return null
         if (item.children && item.children.length > 0) {
+            const groupKey = trail ? `${trail}/${item.title}` : item.title
             return (
-                <div key={key} className="aiui-docs-group">
-                    <div className="aiui-docs-group-label">
-                        <NavIcon name={item.icon} />
-                        {item.title}
-                    </div>
-                    <div className="aiui-docs-group-items">
-                        {item.children.map((child) => renderItem(child, depth + 1))}
-                    </div>
-                </div>
+                <NavGroup key={key} item={item} groupKey={groupKey} activeItem={activeItem}
+                    collapsible={collapsible} drilldown={drilldown} onItemClick={onItemClick}>
+                    {item.children.map((child) => renderItem(child, depth + 1, groupKey))}
+                </NavGroup>
             )
         }
 
@@ -62,7 +131,7 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
                 className="aiui-docs-navitem"
                 style={{ '--depth': Math.max(0, depth - 1) } as React.CSSProperties}
                 onClick={(event) => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+                    if (!plainClick(event)) return
                     event.preventDefault()
                     onItemClick(item)
                 }}

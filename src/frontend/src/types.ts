@@ -18,6 +18,12 @@ export interface NavItem {
     editUrl?: string
     /** Sidebar icon (a lucide name from docs/docsHomeIcons.ts): group `icon:` in the nav YAML, page frontmatter `icon:`. */
     icon?: string
+    /** A group's `expanded:` in the nav YAML: false starts it folded (the active page's group always opens). */
+    expanded?: boolean
+    /** A group's badge (`tag:` in the nav YAML). */
+    tag?: string
+    /** `card` | `accordion`: the build lists the group's pages on its page. */
+    directory?: string
     children?: NavItem[]
 }
 
@@ -168,6 +174,8 @@ export interface UIConfig {
     docsHome?: DocsHomeConfig
     /** Page footer settings (`content.docs.editLink.text`, `content.docs.feedback.issues`). */
     pageFooter?: { editText?: string; feedbackIssues?: string }
+    /** `styling.eyebrows`: the line above a docs page title (default `section`). */
+    styling?: { eyebrows?: 'section' | 'breadcrumbs' }
     footer?: {
         socials?: Record<string, string>
         links?: { header: string; items: NavbarLinkConfig[] }[]
@@ -204,6 +212,10 @@ export interface DocsHomeConfig {
 
 export interface DocsNav {
     items?: NavItem[]
+    /** `content.docs.nav.collapsible: false`: groups never fold. */
+    collapsible?: boolean
+    /** `interaction.drilldown`: a group label with no page of its own opens the group's first page. */
+    drilldown?: boolean
 }
 
 export interface RouteManifest {

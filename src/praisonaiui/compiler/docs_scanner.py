@@ -31,11 +31,13 @@ class DocsScanner:
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         index_files: list[str] | None = None,
+        sort: str = "filesystem",
     ):
         self.docs_dir = docs_dir
         self.include = include or ["**/*.md", "**/*.mdx"]
         self.exclude = exclude or []
         self.index_files = index_files or ["index.md", "README.md"]
+        self.sort = sort  # content.docs.nav.sort: filesystem | alpha | date
 
     def scan(self) -> list[DocPage]:
         """
@@ -56,8 +58,16 @@ class DocsScanner:
                     page = self._parse_page(file_path)
                     pages.append(page)
 
-        # Sort by path for consistent ordering
-        pages.sort(key=lambda p: (p.path.parent, p.order, p.path.name))
+        # Inside a folder: frontmatter `order` first, then nav.sort (file name,
+        # title, or frontmatter `date` newest first; undated pages last).
+        if self.sort == "alpha":
+            pages.sort(key=lambda p: (p.path.parent, p.order, str(p.title).lower(), p.path.name))
+        elif self.sort == "date":
+            pages.sort(key=lambda p: p.path.name)
+            pages.sort(key=lambda p: str(p.frontmatter.get("date") or ""), reverse=True)
+            pages.sort(key=lambda p: (p.path.parent, p.order))
+        else:
+            pages.sort(key=lambda p: (p.path.parent, p.order, p.path.name))
 
         return pages
 
@@ -144,8 +154,8 @@ class DocsScanner:
         if slug_parts:
             slug_parts[-1] = rel_path.stem
 
-        # Handle index files
-        if slug_parts and slug_parts[-1].lower() in ["index", "readme"]:
+        # Index files (content.docs.indexFiles) name their folder
+        if slug_parts and slug_parts[-1].lower() in self.index_stems():
             slug_parts = slug_parts[:-1]
 
         # Join and normalize
@@ -156,6 +166,10 @@ class DocsScanner:
         slug = re.sub(r"(^|/)\d+-", r"\1", slug).strip("/")
 
         return slug or "index"
+
+    def index_stems(self) -> set[str]:
+        """``index_files`` without extensions, lowercased (``{"index", "readme"}``)."""
+        return {Path(name).stem.lower() for name in self.index_files}
 
     def _extract_frontmatter(self, content: str) -> dict:
         """Extract YAML frontmatter from content."""

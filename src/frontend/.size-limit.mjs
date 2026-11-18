@@ -335,5 +335,7 @@ export default [
   // 9,168,243 B (+326 B, exactly the overage): <Visibility> and docPathToSource (agent-ready .md).
   // 9,172,759 B (measured, raised by exactly the overage, +4,516 B): docs
   // full-text search (searchIndex.ts BM25, searchRank.ts, tab chips in DocsSearch).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9172759 B', brotli: false },
+  // 9,176,036 B (measured, raised by exactly the overage, +3,277 B): docs
+  // sidebar groups that fold, group pages, drilldown and breadcrumbs.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9176036 B', brotli: false },
 ]
