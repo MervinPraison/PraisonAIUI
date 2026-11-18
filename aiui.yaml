@@ -101,6 +101,7 @@ navigation:
             - features/writing-docs
             - features/content-sources
             - features/navigation
+            - features/openapi
             - concepts/templates
             - concepts/slots
             - features/widget-zones

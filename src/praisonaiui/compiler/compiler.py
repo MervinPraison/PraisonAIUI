@@ -117,6 +117,9 @@ class Compiler:
         )
         files.append("assets/theme.css")
 
+        # OpenAPI specs (loaded and checked once, by validate_config)
+        files.extend(self._write_api_specs(output_dir, validation.api_specs, indent))
+
         # Copy docs markdown files for content loading
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
@@ -518,6 +521,22 @@ class Compiler:
             routes.append(route_entry)
 
         return {"routes": routes}
+
+    def _write_api_specs(self, output_dir: Path, specs: dict, indent: int | None) -> list[str]:
+        """Each spec bundled into ``openapi/<slug>.json``, listed in ``openapi/index.json``
+        (for a "Download spec" link). Endpoint pages from ``spec.operations`` go here (planned)."""
+        if not specs:
+            return []
+        (output_dir / "openapi").mkdir(parents=True, exist_ok=True)
+        index = [{
+            "source": s.source, "file": f"openapi/{s.slug}.json", "title": s.title,
+            "openapi": s.openapi, "version": (s.document.get("info") or {}).get("version"),
+            "operations": sum(1 for op in s.operations if not op.excluded),
+        } for s in specs.values()]
+        for spec, entry in zip(specs.values(), index):
+            self._write_json(output_dir / entry["file"], spec.bundled, indent)
+        self._write_json(output_dir / "openapi/index.json", {"specs": index}, indent)
+        return [e["file"] for e in index] + ["openapi/index.json"]
 
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""

@@ -212,6 +212,10 @@
   links in `/`. `seo.contentSignals` adds a robots.txt `Content-Signal`
   line. A `robots.txt` or `sitemap.xml` next to `aiui.yaml` is published as
   is. See `docs/features/seo.md`.
+- OpenAPI specs: `api: {openapi: openapi.yaml}` or `openapi:` on a navigation tab or group
+  (path, URL, list or `{source, directory}`; JSON/YAML; 3.0, 3.1, 3.2). Other-file `$ref`s are
+  bundled, 3.0 is normalised to 3.1, `aiui validate`/`build` report errors as file:line, and
+  `aiui build` writes `openapi/<slug>.json` + `openapi/index.json` ([OpenAPI](docs/features/openapi.md)).
 
 ### Deprecated
 
