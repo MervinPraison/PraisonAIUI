@@ -275,6 +275,7 @@ line count does not rise without a stated reason.
 | Auth, routes, WebSocket | `test_http_guard.py`-style test for every auth mode |
 | Wire protocol | `test_chat_ws_protocol.py` and `chat-engine/protocol.test.ts` |
 | Build scripts and gates | `scripts/gates.test.mjs` (`npm run test:scripts`) |
+| Release and merge pipeline (`.github/scripts/*.js`, `pypi-release.yml`) | the script's `*-selftest.js` (CI step "Pipeline script self-tests"); release order in `tests/unit/test_release_workflow.py` |
 
 `tests/conftest.py` sets `AIUI_DISABLE_PLUGIN_AUTOLOAD=1` and clears `AUTH_ENFORCE`
 and `AIUI_SHELL`; tests that start a server use a `tmp_path` `AIUI_DATA_DIR`.

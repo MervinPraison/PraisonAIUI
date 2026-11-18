@@ -206,6 +206,14 @@
   APIs they poked are covered by `tests/integration/test_feature_apis.py` and
   the unit suites. `tests/unit/test_test_layout.py` keeps new test files out
   of the top level.
+- Release: `pypi-release.yml` builds the commit the release gate checked
+  (`trigger_sha`), not whatever `main` became while the run waited, and
+  refuses unless that commit is still `origin/main` with a green CI run.
+  It pushes the "Release vX.Y.Z" commit and tag before `uv publish`, never
+  rebasing onto unchecked commits, so a rejected push publishes nothing. A
+  dry run of the release no longer counts as "already released today", and
+  the release gate fails (instead of skipping every night) when the next
+  version is already on PyPI but `pyproject.toml` on `main` is behind.
 - Docs: the plugin guide no longer tells you to pass `--style app` because a
   reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
   says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export

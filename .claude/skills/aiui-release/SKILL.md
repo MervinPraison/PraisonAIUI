@@ -6,9 +6,14 @@ description: Release the aiui package to PyPI through the GitHub pipeline and ve
 # Release aiui
 
 Releases run only in `.github/workflows/pypi-release.yml` on `main`. The
-workflow bumps `pyproject.toml` and `src/praisonaiui/__version__.py`, runs
-`uv build` and `uv publish`, commits "Release vX.Y.Z" to `main`, tags it and
-creates the GitHub release. Never bump, tag or publish by hand.
+workflow checks out the release commit (`trigger_sha` from the gate, or
+`main` for a manual run) and refuses unless it is still `origin/main` with a
+green CI run (`release-gate.js verify-sha`). It then bumps `pyproject.toml`
+and `src/praisonaiui/__version__.py`, runs `uv lock && uv build`, pushes the
+"Release vX.Y.Z" commit and its tag to `main` (fast-forward only, never a
+rebase), and only then runs `uv publish` and creates the GitHub release.
+Never bump, tag or publish by hand. `tests/unit/test_release_workflow.py` and
+`.github/scripts/release-gate-selftest.js` pin this order.
 
 ## 1. Preconditions
 
@@ -33,6 +38,15 @@ gh workflow run pypi-release.yml --ref main -f bump=patch                   # or
 ```
 
 `major` and `-f version=X.Y.Z` exist; use them only when the owner asks.
+A dry run is titled `PyPI Release [dry run] <bump>`; the release gate ignores
+those runs, so a preview does not block that day's automatic release. The
+dry run still runs the commit check, so it fails when CI on `main` is not
+green.
+
+If a run fails after "Commit and tag the release on main" (for example in
+`uv publish`), `main` and the tag already say X.Y.Z but PyPI does not have
+it. Once CI is green on that release commit, re-dispatch with
+`-f version=X.Y.Z` (owner's approval): it commits nothing and publishes X.Y.Z.
 
 ## 3. Approve the `pypi` environment
 
@@ -89,6 +103,11 @@ only when all hold:
 - the next patch version is not on PyPI;
 - `src/praisonaiui`, `src/frontend` or `pyproject.toml` changed since the last `v*` tag;
 - CI is green on the evaluated SHA (and, for a CI trigger, it is still `origin/main`).
+
+Dry runs of `pypi-release.yml` do not count as a release. When the next
+patch version is already on PyPI but `pyproject.toml` on `main` is behind (a
+release published without landing its bump), the gate run **fails** with
+that reason instead of skipping: bump both version files on `main` by PR.
 
 The run summary prints the skip reason. A dry run:
 `gh workflow run nightly-release-gate.yml --ref main -f dry_run=true`.
