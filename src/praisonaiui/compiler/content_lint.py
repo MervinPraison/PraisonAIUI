@@ -109,8 +109,8 @@ def _type_hint(key: str, kind: str, value: Any) -> str:
     return f"Write {key}: [install, setup] (words only)"
 
 
-def check_body(text: str, shown: str, frontmatter: dict) -> list[ContentIssue]:
-    """7002 (alt text), 7005 (heading levels) and 7006 (empty page) for one page."""
+def check_body(text: str, shown: str, frontmatter: dict, listed: bool = False) -> list[ContentIssue]:
+    """7002 (alt text), 7005 (heading levels) and 7006 (empty page, unless the build ``listed`` its group on it)."""
     _, first = _split_frontmatter(text)
     lines = strip_comments(text).splitlines()[first - 1:]
     out: list[ContentIssue] = []
@@ -138,14 +138,14 @@ def check_body(text: str, shown: str, frontmatter: dict) -> list[ContentIssue]:
                 out.append(ContentIssue(7002, shown, n, "<img> has no alt attribute",
                                         'Add alt="what it shows" (alt="" marks a decorative image)'))
     home = any(k in frontmatter for k in ("hero", "features", "layout"))
-    if not has_text and not home:
+    if not has_text and not home and not listed:
         out.append(ContentIssue(7006, shown, first, "page has no content beyond its headings",
                                 "Write the page, or add it to content.docs.exclude until it is ready"))
     return out
 
 
-def check_pages(pages: list[DocPage], root: Path) -> list[ContentIssue]:
-    """Every content check for the scanned docs pages, in page order."""
+def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset()) -> list[ContentIssue]:
+    """Every content check for the scanned docs pages, in page order; ``listed``: slugs given a directory listing."""
 
     def shown(page: DocPage) -> str:
         try:
@@ -157,7 +157,8 @@ def check_pages(pages: list[DocPage], root: Path) -> list[ContentIssue]:
     for page in pages:
         text = page.path.read_text(encoding="utf-8")
         out += check_frontmatter(text, shown(page))
-        out += check_body(text, shown(page), page.frontmatter if isinstance(page.frontmatter, dict) else {})
+        fm = page.frontmatter if isinstance(page.frontmatter, dict) else {}
+        out += check_body(text, shown(page), fm, page.slug in listed)
 
     by_slug: dict[str, list[DocPage]] = defaultdict(list)
     by_title: dict[tuple, list[DocPage]] = defaultdict(list)

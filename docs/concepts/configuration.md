@@ -55,9 +55,8 @@ tabs:
   config/nav.yaml -> aiui.yaml`).
 - Errors name the file and line of the `$ref` (`aiui.yaml:6: $ref
   './config/nav.yaml' not found`); a YAML error or an unknown key inside an
-  included file names that file.
-- `aiui validate`, `aiui build`, `aiui serve`, `aiui docs check-links` and a
-  server started with an `aiui.yaml` all read the config the same way.
+  included file names that file. `validate`, `build`, `serve`, `docs
+  check-links` and the server all read includes.
 
 ## Editor setup
 
@@ -69,16 +68,11 @@ tabs:
 
 Editors that run the YAML language server (VS Code with the Red Hat YAML
 extension, JetBrains IDEs, Neovim, Zed) then complete keys, show each key's
-description on hover and underline wrong values as you type. Add the line to
-an existing `aiui.yaml` to get the same. The schema comes from the `Config`
-model, so it never drifts from what `aiui validate` checks. For the schema of
-the exact version you have installed (offline, or pinned), write it next to
-the config and point the line at it:
-
-```bash
-aiui schema -o aiui.schema.json
-# yaml-language-server: $schema=./aiui.schema.json
-```
+description on hover and underline wrong values as you type; add the line to
+an existing `aiui.yaml` for the same. The schema is generated from the
+`Config` model, so it never drifts from `aiui validate`. For the exact
+installed version (offline, or pinned), run `aiui schema -o aiui.schema.json`
+and use `$schema=./aiui.schema.json`.
 
 ## Overview
 

@@ -15,6 +15,7 @@ from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import NavBuilder, manual_entries, nav_trails
+from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.openapi_pages import api_catalog, build_api_reference, strip_excluded
 from praisonaiui.compiler.publish import (
@@ -181,8 +182,12 @@ class Compiler:
     def lint_content(self) -> list[ContentIssue]:
         """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
         theme = self.config.site.theme if self.config.site else None
-        issues = accent_contrast(theme.accent if theme else None)
-        return issues + check_pages(self._published_pages(), self.base_path)
+        issues, pages = accent_contrast(theme.accent if theme else None), self._published_pages()
+        # A group page the build appends a directory listing to is not empty (nav_directory.py).
+        base = self.config.site.route_base_docs.rstrip("/") + "/"
+        items = walk_nav(self._generate_docs_nav().get("items", [])) if pages else ()
+        listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
+        return issues + check_pages(pages, self.base_path, listed)
 
     def _published_pages(self) -> list:
         """The docs pages the build publishes (``content.docs`` minus excludes)."""

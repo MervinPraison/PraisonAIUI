@@ -105,3 +105,10 @@ def test_string_order_no_longer_breaks_the_scan(tmp_path):
     result = CliRunner().invoke(cli_app, ["validate", "-c", str(cfg)])
     assert result.exit_code == 0, result.output
     assert "7001" in result.output and "'order' should be a number" in result.output
+
+
+def test_group_page_with_a_directory_listing_is_not_empty(tmp_path):
+    cfg = _site(tmp_path, {"guide/index.md": "---\ntitle: Guide\n---\n", "guide/a.md": "# A\n\nText.\n"})
+    cfg.write_text(cfg.read_text() + "    nav:\n      directory: card\n", encoding="utf-8")
+    result = CliRunner().invoke(cli_app, ["validate", "-c", str(cfg), "--strict"])
+    assert result.exit_code == 0, result.output
