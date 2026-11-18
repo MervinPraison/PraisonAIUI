@@ -948,6 +948,9 @@ def dev(
                         build_config,
                         "-o",
                         str(temp_path / "site"),
+                        # Served at the root below, whatever seo.siteUrl says.
+                        "--base-path",
+                        "/",
                     ],
                     cwd=example_path,
                     capture_output=True,
