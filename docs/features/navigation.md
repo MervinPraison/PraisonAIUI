@@ -9,10 +9,9 @@ Each folder becomes a section and each Markdown file an entry:
 
 - Inside a folder, pages sort by frontmatter `order`, then by file name (see
   [Content Sources](content-sources.md#frontmatter)).
-- A folder's section takes the title of its `index.md` when that page sorts
-  first in the folder. Otherwise the section is the folder name, title-cased,
-  and the index page shows as a separate entry. Give the index page
-  `order: -1` to be sure.
+- A folder's section takes the title of its `index.md` (or another
+  `indexFiles` name) and links to it; a folder without one is titled with
+  its name, title-cased. Link a folder's index page by the folder (`notes/`).
 - An entry's title is the frontmatter `title`, else the first `#` heading.
 
 The generated tree looks like this:
@@ -107,7 +106,7 @@ styling:
 ## Checks
 
 `aiui validate` and `aiui build` warn about a listed page name that matches no
-page (code 2101, with the closest name; `--strict` fails) and about keys that
+page (code 2101, with the closest name; `aiui validate --strict` fails) and about keys that
 do nothing yet (1004: `nav.maxDepth`, `i18n.fallbackLocale`, `translationsDir`).
 
 ## A Sidebar You List (`mode: manual`)

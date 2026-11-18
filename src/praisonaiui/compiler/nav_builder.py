@@ -102,6 +102,13 @@ class NavBuilder:
                 icon=icon_name(page.frontmatter.get("icon")),
             )
 
+            placeholder = tree.get(page.slug)
+            if placeholder is not None and placeholder.children:  # its folder section came first
+                item.children = placeholder.children
+                placeholder.__dict__.update(item.__dict__)
+                tree[page.slug] = placeholder
+                continue
+
             # Determine parent path
             parts = page.slug.split("/")
 
@@ -202,7 +209,7 @@ class NavBuilder:
                 root = take("/".join(trail), hidden, report=False)
             children = [c for c in (entry(e, hidden, trail) for e in group.pages) if c and (c.path or c.children)]
             item = root or NavItem(title=group.group, path="")
-            if root is None and group.directory and children:
+            if root is None and group.directory and any(c.path for c in children):
                 item.path = f"{self.base_path}/{'/'.join(trail)}"
                 item.hidden = hidden
             if root is not None:

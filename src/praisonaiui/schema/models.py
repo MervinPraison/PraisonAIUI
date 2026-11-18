@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
@@ -330,11 +331,12 @@ class NavGroupConfig(BaseModel):
     pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
     openapi: Optional[OpenApiRef] = None
 
-    def page_slugs(self) -> list[str]:
-        """Every page entry (the root first), nested groups flattened, in order."""
-        out: list[str] = [self.root] if self.root else []
+    def page_slugs(self, trail: str = "") -> list[str]:
+        """Every page entry (the root, or a generated listing page, first), nested groups flattened, in order."""
+        trail = f"{trail}/{re.sub(r'[^a-z0-9]+', '-', self.group.lower()).strip('-') or 'group'}".lstrip("/")
+        out: list[str] = [self.root] if self.root else [trail] if self.directory else []
         for entry in self.pages:
-            out.extend([entry] if isinstance(entry, str) else entry.page_slugs())
+            out.extend([entry] if isinstance(entry, str) else entry.page_slugs(trail))
         return out
 
 

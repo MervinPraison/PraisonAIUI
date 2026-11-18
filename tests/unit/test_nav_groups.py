@@ -125,3 +125,32 @@ def test_sort_alpha_orders_by_title(tmp_path: Path) -> None:
     guide = next(i for i in _json(out, "docs-nav.json")["items"] if i["title"] == "Guide")
     assert [c["title"] for c in guide["children"]] == ["Alpha guide", "Zeta guide"]
     assert "collapsible" not in _json(out, "docs-nav.json")
+
+
+def test_review_fixes_index_merge_escaping_nested_listing_and_tab_membership(tmp_path: Path) -> None:
+    (tmp_path / "docs/guide").mkdir(parents=True)
+    (tmp_path / "docs/guide/index.md").write_text("# Guide home\n")  # sorts after its pages by title
+    extra = """
+content: {docs: {dir: docs, nav: {sort: alpha, directory: card}}}
+i18n: {translationsDir: ./t}
+navigation:
+  groups:
+    - {group: "Auth & keys", directory: card, pages: [api/auth]}
+    - {group: Deep, directory: card, pages: [{group: Inner, pages: [api/errors]}]}
+"""
+    out, compiler = _build(tmp_path, extra)
+    items = _json(out, "docs-nav.json")["items"]
+    # A group with only pathless nested groups gets no generated page.
+    assert "path" not in next(i for i in items if i["title"] == "Deep")
+    # Titles reach the card once-escaped; quotes cannot end the attribute.
+    assert '<Card title="Auth' in (out / "docs/auth-keys.source.md").read_text()
+    assert "&amp;" not in (out / "docs/auth-keys.source.md").read_text()
+    # i18n keys that do nothing are reported by the build too.
+    assert any("i18n.translationsDir" in w for w in compiler.result.warnings)
+    # The generated listing page belongs to its tab.
+    cfg = Config.model_validate(yaml.safe_load("site: {title: T}\nnavigation:\n  tabs:\n    - {tab: B, groups: [{group: Guides, directory: card, pages: [x]}]}\n"))
+    assert cfg.navigation.tabs[0].groups[0].page_slugs() == ["guides", "x"]
+    # Auto nav: a folder index scanned after its pages still becomes the section's own page.
+    auto, _ = _build(tmp_path, "content: {docs: {dir: docs, nav: {sort: alpha}}}\n")
+    guide = [i for i in _json(auto, "docs-nav.json")["items"] if i.get("path") == "/docs/guide"]
+    assert len(guide) == 1 and guide[0]["title"] == "Guide home" and len(guide[0]["children"]) == 2
