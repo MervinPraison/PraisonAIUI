@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,14 @@ from typer.testing import CliRunner
 from praisonaiui.cli import app
 
 runner = CliRunner()
+
+# Rich colours --help when it detects CI (GitHub Actions),
+# which splits "--host" into "-\x1b[..m-host". Compare the plain text.
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(text: str) -> str:
+    return _ANSI.sub("", text)
 
 
 @pytest.fixture
@@ -174,10 +183,11 @@ class TestServeCommand:
         """Serve --help should describe all options."""
         result = runner.invoke(app, ["serve", "--help"])
         assert result.exit_code == 0
-        assert "--host" in result.stdout
-        assert "--cors-origins" in result.stdout
-        assert "--watch" in result.stdout
-        assert "--no-build" in result.stdout
+        out = _plain(result.stdout)
+        assert "--host" in out
+        assert "--cors-origins" in out
+        assert "--watch" in out
+        assert "--no-build" in out
 
 
 class TestInitCommand:
@@ -186,7 +196,8 @@ class TestInitCommand:
     def test_init_help(self):
         result = runner.invoke(app, ["init", "--help"])
         assert result.exit_code == 0
-        assert "init" in result.stdout.lower() or "Initialize" in result.stdout
+        out = _plain(result.stdout)
+        assert "init" in out.lower() or "Initialize" in out
 
 
 class TestFullPipeline:
