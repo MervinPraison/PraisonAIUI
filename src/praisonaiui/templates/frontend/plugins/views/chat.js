@@ -298,7 +298,7 @@ function renderMarkdown(text) {
   return html;
 }
 
-/** Load highlight.js from CDN (once) */
+/** Load highlight.js from CDN (once), when the first code block appears */
 let _hljsLoaded = false;
 function loadHighlightJs() {
   if (_hljsLoaded) return;
@@ -318,10 +318,18 @@ function loadHighlightJs() {
   document.head.appendChild(script);
 }
 
-/** Apply highlight.js to all unhighlighted code blocks within a root element */
+/**
+ * Apply highlight.js to all unhighlighted code blocks within a root element.
+ * The library loads on the first code block (its onload highlights the
+ * document), so a chat with no code never contacts the CDN.
+ */
 function highlightCodeBlocks(root) {
-  if (typeof hljs === 'undefined') return;
   const blocks = (root || document).querySelectorAll('pre.chat-code-block code:not(.hljs)');
+  if (!blocks.length) return;
+  if (typeof hljs === 'undefined') {
+    loadHighlightJs();
+    return;
+  }
   blocks.forEach(function(block) {
     hljs.highlightElement(block);
   });
@@ -340,7 +348,6 @@ function timeAgo(ts) {
 // ── Inject CSS ──────────────────────────────────────────────────
 function injectStyles() {
   if (document.getElementById('chat-view-styles')) return;
-  loadHighlightJs();
   const style = document.createElement('style');
   style.id = 'chat-view-styles';
   style.textContent = `
@@ -1720,6 +1727,7 @@ function _appendChannelMsg(role, data) {
   const contentEl = document.createElement('div');
   contentEl.className = 'chat-msg-content';
   contentEl.innerHTML = renderMarkdown(data.content || '');
+  highlightCodeBlocks(contentEl);
   bodyEl.appendChild(contentEl);
 
   msgEl.appendChild(avatarEl);

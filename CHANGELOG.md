@@ -311,6 +311,12 @@
   downloaded it again (32.7 KB for Chat). It now uses the build stamp, as the
   app shell already did: a repeat visit to `/chat` transfers 32.6 KB instead
   of 65.4 KB, and a new release still changes the URL.
+- The default dashboard makes fewer requests on load. `/ui-config.json` was
+  fetched 5 times and `/api/pages` twice; `dashboard.js` now asks once for
+  each (the Chat view still reads the config once for its own mode). The Chat
+  view loads highlight.js from the CDN only when a code block appears, not on
+  every visit. A first visit to `/chat` drops from 35 requests and 202.7 KB to
+  29 requests and 157.5 KB, with no third-party connection on an empty chat.
 - Docs: a page no longer jumps as its code blocks first draw (Quick Start
   moved 0.037 CLS). Streamdown laid each code block out at a 200px placeholder
   (`content-visibility: auto`) for one frame before its real height; docs

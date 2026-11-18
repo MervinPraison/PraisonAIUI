@@ -1025,6 +1025,26 @@ const DASHBOARD_LIGHT_STYLE = `
 let activePageId = null;
 let pagesData = [];
 
+// One GET per URL while the dashboard boots: init(), buildDashboard(), the
+// sidebar and the header slot all read /ui-config.json, and the layout and
+// the sidebar footer both read /api/pages. Each caller gets its own parsed
+// copy. A failed or non-OK answer is not kept, so the next caller (after
+// onboarding has stored a token, say) asks the server again.
+const _bootJSON = Object.create(null);
+function bootJSON(url) {
+  let body = _bootJSON[url];
+  if (!body) {
+    const forget = () => { if (_bootJSON[url] === body) delete _bootJSON[url]; };
+    body = fetch(url).then((r) => {
+      if (!r.ok) forget();
+      return r.json();
+    });
+    body.catch(forget);
+    _bootJSON[url] = body;
+  }
+  return body.then((v) => JSON.parse(JSON.stringify(v)));
+}
+
 // Host mode (style `app`): set only by initHostRuntime(), see the end of this
 // file. While they keep these defaults the legacy dashboard is unchanged.
 let _hostMode = false;
@@ -1939,8 +1959,7 @@ async function init() {
 
   // Apply theme from config BEFORE building dashboard
   try {
-    const cfgRes = await fetch('/ui-config.json');
-    const cfg = await cfgRes.json();
+    const cfg = await bootJSON('/ui-config.json');
     await applyThemeFromConfig(cfg);
   } catch (e) {
     console.warn('[AIUI] Failed to load theme config:', e);
@@ -1985,14 +2004,12 @@ async function buildDashboard() {
   // Fetch config and pages in parallel
   let dashboardConfig = {};
   try {
-    const [pagesRes, configRes] = await Promise.all([
-      fetch('/api/pages'),
-      fetch('/ui-config.json'),
+    const [pagesJson, uiConfig] = await Promise.all([
+      bootJSON('/api/pages'),
+      bootJSON('/ui-config.json'),
       loadViewIndex(),
     ]);
-    const pagesJson = await pagesRes.json();
     pagesData = pagesJson.pages || [];
-    const uiConfig = await configRes.json();
     dashboardConfig = uiConfig.dashboard || {};
     window.__aiuiDashboardModules = dashboardConfig.modules || [];
     await loadDashboardPlugins();
@@ -2146,7 +2163,7 @@ function buildSidebar(pages) {
   }
   
   // Update branding from config asynchronously
-  fetch('/ui-config.json').then(r => r.json()).then(cfg => {
+  bootJSON('/ui-config.json').then(cfg => {
     const title = cfg.site?.title || 'PraisonAI';
     header.replaceChildren(brandTitleEl(title), brandLogoEl(cfg.site?.logo));
     
@@ -2192,7 +2209,7 @@ function buildSidebar(pages) {
   }
 
   // Footer pages — render any page with position='footer' at the sidebar bottom
-  fetch('/api/pages').then(r => r.json()).then(d => {
+  bootJSON('/api/pages').then(d => {
     const footerPages = (d.pages || []).filter(p => p.position === 'footer');
     if (!footerPages.length) return;
 
@@ -3813,7 +3830,7 @@ window.aiui.registerSlot('shell:header', () => {
   const el = document.createElement('div');
   el.className = 'db-shell-header-brand';
   el.style.cssText = 'font-size:12px;color:var(--db-text-dim);padding:4px 0';
-  fetch('/ui-config.json').then((r) => r.json()).then((cfg) => {
+  bootJSON('/ui-config.json').then((cfg) => {
     const t = cfg?.site?.title;
     if (t) el.textContent = t;
   }).catch(() => {});

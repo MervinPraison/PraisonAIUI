@@ -201,3 +201,31 @@ test.describe('loading', () => {
     }
   })
 })
+
+test.describe('boot requests', () => {
+  test('the dashboard asks for its config and pages once, and loads highlight.js only for code', async ({ page }) => {
+    const paths: string[] = []
+    page.on('request', (r) => paths.push(new URL(r.url()).host + new URL(r.url()).pathname))
+    const count = (p: string) => paths.filter((x) => x.endsWith(p)).length
+    const cdn = () => paths.filter((x) => x.startsWith('cdnjs.cloudflare.com'))
+    // A stand-in for the CDN, so the test runs offline.
+    await page.route('https://cdnjs.cloudflare.com/**', (route) =>
+      route.fulfill(
+        route.request().url().endsWith('.js')
+          ? { contentType: 'text/javascript', body: 'window.hljs={highlightElement:function(el){el.classList.add("hljs")}}' }
+          : { contentType: 'text/css', body: '' },
+      ),
+    )
+    await openChat(page)
+    await page.waitForLoadState('networkidle')
+    // dashboard.js once; the chat view reads it once more for its own mode.
+    expect(count('/ui-config.json')).toBeLessThanOrEqual(2)
+    expect(count('/api/pages')).toBe(1)
+    expect(cdn()).toEqual([])
+
+    await send(page, 'markdown please')
+    const code = page.locator('.chat-msg-assistant pre.chat-code-block code.language-python')
+    await expect(code).toHaveClass(/hljs/)
+    expect(cdn().length).toBe(2)
+  })
+})
