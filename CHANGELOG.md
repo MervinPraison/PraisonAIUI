@@ -405,6 +405,11 @@
   spec (`x-default` first; `api.examples.prefill`), the live curl command, and the response's
   status, time, size, headers and body. Sent from the browser, no proxy. `api.playground.display:
   interactive | simple | none`. Lazy chunk; data in `openapi/try/<page>.json`. See [OpenAPI](docs/features/openapi.md#try-it).
+- **Changelog pages**: `<Update label="2026-11-18" description="v1.2" tags={["API"]}>` entries,
+  each an anchored section (in "On this page", search and the page's `.md`) with its label in a
+  sticky left column; a tag filter kept in `?tags=`; and with front matter `rss: true` an RSS
+  feed at `<page>/rss.xml`, linked from the page's head. See
+  [Writing docs → Changelog](docs/features/writing-docs.md#changelog).
 - **Endpoints on your own pages and in the sidebar.** Front matter `openapi: "GET /users"` (or
   `"spec.yaml POST /users"`, `"webhook new-user"`) joins that operation to a hand-written page:
   the endpoint bar and Try it under its title, your Markdown, then the generated fields and
