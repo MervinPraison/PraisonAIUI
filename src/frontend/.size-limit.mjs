@@ -222,10 +222,10 @@ export default [
   // 141,898 B (+6 B, exactly the overage): the <Visibility> entry in DOCS_TAGS.
   // 141,899 B (+1 B, exactly the overage): one more lazy page chunk name in the
   // shared preload map (builtin.connect).
-  // 141,910 B (measured, raised by exactly the overage, +11 B): the docs
+  // 141,909 B (measured, raised by exactly the overage, +10 B): the docs
   // sanitizer schema keeps <img noZoom> and the light/dark image classes and
   // <source src> (markdown/Markdown.tsx), which the chat shares.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141910 B', gzip: true },
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141909 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -270,7 +270,7 @@ export default [
   // 254,292 B (+120 B, exactly the overage): builtin.connect's lazy page
   // registration in the boot chunk (the page itself is a lazy chunk).
   // 254,331 B (measured, raised by exactly the overage, +39 B): the chat
-  // route's +11 B above and new hashed docs chunk names in the entry's preload map.
+  // route's +10 B above and new hashed docs chunk names in the entry's preload map.
   { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254331 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
@@ -355,8 +355,8 @@ export default [
   // one of their icons (scripts/lib/lucide-icons.mjs; ~1,670 drawings, 377 kB).
   // 9,588,481 B (measured, raised by exactly the overage, +14,515 B): the
   // Connect page chunk (app-pages/connect).
-  // 9,596,684 B (measured, raised by exactly the overage, +8,203 B): docs
+  // 9,596,640 B (measured, raised by exactly the overage, +8,159 B): docs
   // videos and embeds, light/dark images, copy/download in the zoom view
   // (docs/DocsMedia.tsx, docs/embeds.ts, docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9596684 B', brotli: false },
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9596640 B', brotli: false },
 ]
