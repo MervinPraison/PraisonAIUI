@@ -422,8 +422,9 @@ gap; if you touch one, leave it smaller.**
 Other known issues on `main` (not regressions to block on, but do not copy):
 
 - The browser `builtin.approvals` activates whatever the record's status (R2).
-- The legacy-parity screenshot comparison is not enforced in CI until Linux
-  baselines exist (the DOM checks are).
+- The legacy-parity and page-types screenshot comparisons are not enforced
+  in CI until Linux baselines exist (the DOM checks are); both report those
+  tests as skipped on Linux, not passed.
 
 ## 6. PR review checklist
 
