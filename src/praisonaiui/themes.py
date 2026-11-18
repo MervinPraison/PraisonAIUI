@@ -356,6 +356,9 @@ def inject_theme_css(
     preset: str = "zinc",
     dark_mode: bool = True,
     radius: str = "0.5rem",
+    accent: Optional[str] = None,
+    accent_dark: Optional[str] = None,
+    background_image: Optional[str] = None,
 ) -> None:
     """
     Write the build-time theme stylesheet (``assets/theme.css``).
@@ -374,13 +377,20 @@ def inject_theme_css(
         preset: Theme name
         dark_mode: Unused (kept for backward compatibility)
         radius: Border radius (a CSS length or a radius preset name)
+        accent: ``site.theme.accent`` (any CSS colour), see :func:`pro_accent`
+        accent_dark: ``site.theme.accentDark``, the dark-mode accent
+        background_image: URL of ``site.theme.background``'s image, as
+            ``--aiui-bg-image`` (docs/docs.css paints it)
     """
-    css = get_seed_theme_css(preset, radius)
-    pro = get_pro_seed_css(preset)
+    css = get_seed_theme_css(preset, radius, accent, accent_dark=accent_dark)
+    pro = get_pro_seed_css(preset, accent, accent_dark)
     if pro:
         css = f"{css}\n{pro}\n" if css else f"{pro}\n"
     if (preset or "").strip().lower() == PAPER_LOOK:
         css = f"{css}{get_paper_first_paint_css()}\n"
+    if background_image:
+        safe = re.sub(r'["\\\x00-\x1f]', "", background_image)
+        css = f'{css}:root {{ --aiui-bg-image: url("{safe}"); }}\n'
 
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"
@@ -515,6 +525,7 @@ def get_seed_theme_css(
     radius: Optional[str] = None,
     accent: Optional[str] = None,
     density: Optional[str] = None,
+    accent_dark: Optional[str] = None,
 ) -> str:
     """Return the L0 seed CSS for a theme (ADR-0001 §7).
 
@@ -536,6 +547,8 @@ def get_seed_theme_css(
             600 shade (colour presets) or stays monochrome (neutral presets).
         density: ``compact``, ``comfortable`` or ``spacious``. Emitted as
             ``html:not([data-density])`` so a runtime ``data-density`` wins.
+        accent_dark: Any CSS colour: with a custom ``accent``, the accent in
+            dark mode (``accent`` stays the light one).
 
     Invalid values are logged and skipped, so the output is always safe to
     inline in a ``<style>`` tag.
@@ -570,8 +583,13 @@ def get_seed_theme_css(
     else:
         lines.append(f"  --seed-tint: {COLOR_PRESET_TINTS.get(name, NEUTRAL_TINTS['zinc'])};")
 
-    if custom_accent:
+    dark = _custom_accent(name, accent_dark) if custom_accent else None
+    if dark:
+        lines.append(f"  --seed-accent-light: {custom_accent};")
+        lines.append(f"  --seed-accent-dark: {dark};")
+    elif custom_accent:
         lines.append(f"  --seed-accent: {custom_accent};")
+    if custom_accent:
         lines.append(f"  --accent-mix: {COLOR_PRESET_ACCENT_MIX};")
         rgb = _hex_to_rgb_triple(custom_accent) if custom_accent.startswith("#") else None
         accent_rgb = rgb or PRESET_COLORS[name]["accentRgb"]
@@ -885,15 +903,21 @@ def pro_accent(
     return PRO_ACCENTS[PRO_DEFAULT_ACCENT]
 
 
-def get_pro_seed_css(preset: Optional[str] = None, accent: Optional[str] = None) -> str:
+def get_pro_seed_css(
+    preset: Optional[str] = None, accent: Optional[str] = None, accent_dark: Optional[str] = None
+) -> str:
     """Pro accent seeds (``--seed-pro-<role>-light|dark``) for the app shell.
 
     Same inputs as :func:`get_seed_theme_css`. Returns ``""`` for the Pro
     default, so a default app's server theme tag is unchanged. Outside the
     Pro scope (styles/pro.css) these custom properties are never read, so the
-    classic frame renders as before.
+    classic frame renders as before. ``accent_dark`` replaces the dark-mode
+    roles with ones derived from it (contrast kept as for ``accent``).
     """
     resolved = pro_accent(preset, accent)
+    dark = _custom_accent((preset or "zinc").strip().lower(), accent_dark)
+    if dark:
+        resolved = {"light": resolved["light"], "dark": _derive_pro_accent(dark, "dark")}
     if resolved is PRO_ACCENTS[PRO_DEFAULT_ACCENT]:
         return ""
     decls = [

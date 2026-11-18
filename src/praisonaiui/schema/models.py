@@ -49,9 +49,23 @@ class ThemeConfig(BaseModel):
     accent: Optional[str] = Field(
         default=None,
         description=(
-            "Accent colour (any CSS colour) that overrides the preset's accent. "
-            "Used by the React app shell (style 'app')."
+            "Accent colour (any CSS colour) that overrides the preset's accent "
+            "(docs site and the React app shell). Links and focus rings are "
+            "derived from it with AA contrast."
         ),
+    )
+    accent_dark: Optional[str] = Field(
+        default=None,
+        alias="accentDark",
+        description="Accent colour in dark mode (docs site; default: derived from accent).",
+    )
+    strict: bool = Field(
+        default=False,
+        description="Docs site: keep the configured mode and hide the light/dark toggle.",
+    )
+    background: Optional[str] = Field(
+        default=None,
+        description="Docs site page background: 'gradient', 'grid', or an image path or URL.",
     )
     density: Optional[Literal["compact", "comfortable", "spacious"]] = Field(
         default=None,
@@ -340,6 +354,13 @@ class LogoConfig(BaseModel):
     light: Optional[str] = None
     dark: Optional[str] = None
     href: str = "/"
+
+
+class FaviconConfig(BaseModel):
+    """Favicon per browser colour scheme."""
+
+    light: Optional[str] = None
+    dark: Optional[str] = None
 
 
 class OpenApiSourceConfig(BaseModel):
@@ -842,6 +863,7 @@ class Config(BaseModel):
     dependencies: Optional[DependenciesConfig] = None
     # Docs site fields
     logo: Optional[LogoConfig] = None
+    favicon: Optional[FaviconConfig] = None
     navigation: Optional[NavigationConfig] = None
     navbar: Optional[NavbarConfig] = None
     footer: Optional[FooterConfig] = None
@@ -855,6 +877,12 @@ class Config(BaseModel):
     )
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("logo", "favicon", mode="before")
+    @classmethod
+    def _one_image(cls, value: Any) -> Any:
+        """``logo: logo.svg`` / ``favicon: icon.svg``: one image for both modes."""
+        return {"light": value} if isinstance(value, str) else value
 
 
 # ── Ask* message family models (issue #16) ──────────────────────────

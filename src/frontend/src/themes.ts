@@ -258,11 +258,12 @@ export function defaultThemeMode(theme?: { mode?: unknown; darkMode?: unknown } 
 /**
  * Apply the viewer's stored choice, else the app's default mode
  * (see defaultThemeMode). Same storage key and values as next-themes.
+ * `strict` (site.theme.strict) ignores the stored choice.
  */
-export function applyStoredThemePreference(defaultMode: ThemePreference): void {
+export function applyStoredThemePreference(defaultMode: ThemePreference, strict?: boolean): void {
     let stored: string | null = null
     try {
-        stored = localStorage.getItem(THEME_STORAGE_KEY)
+        if (!strict) stored = localStorage.getItem(THEME_STORAGE_KEY)
     } catch {
         // storage blocked: the app default applies
     }

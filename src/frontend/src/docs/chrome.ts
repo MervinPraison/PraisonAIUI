@@ -20,17 +20,24 @@ export function headerProps(config: UIConfig, templateKey = 'docs') {
 export function docsChromeModel(config: UIConfig, templateKey = 'docs') {
     const header = headerProps(config, templateKey)
     const logoConfig = config.logo
-    const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-    const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? (logoConfig.dark || logoConfig.light) : (logoConfig.light || logoConfig.dark)) : null)
+    // Both variants render and CSS shows the one for the current mode, so a theme switch swaps them with no re-render.
+    const logoSrc = header?.logoImage || logoConfig?.light || logoConfig?.dark
+    const logoDark = !header?.logoImage && logoConfig?.dark !== logoSrc ? logoConfig?.dark : null
     const navbar = config.navbar
     const primary = navbar?.primary ?? (header?.cta ? { type: 'button' as const, label: header.cta.label, href: header.cta.href } : undefined)
     return {
         logoSrc: logoSrc && withBase(logoSrc),
+        logoDarkSrc: logoDark && withBase(logoDark),
         logoHref: logoConfig?.href || '/',
         logoText: header?.logoText || config.site?.title || 'PraisonAIUI',
         links: (navbar?.links ?? header?.links ?? []).map((link) => ({ ...link, href: withBase(link.href) })),
         primary: primary && { ...primary, href: withBase(primary.href) },
     }
+}
+
+/** A path in this app (`/x`, not `//host` or `https://`): the header navigates to it in place. */
+export function isAppPath(href: string) {
+    return /^\/(?!\/)/.test(href)
 }
 
 /** An absolute http(s) URL: opens in a new tab. */

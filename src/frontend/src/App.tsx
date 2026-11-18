@@ -312,7 +312,7 @@ export default function App() {
           mode === 'dark',
           theme?.radius || 'md'
         )
-        applyStoredThemePreference(mode)
+        applyStoredThemePreference(mode, theme?.strict)
 
         // Handle initial URL path for SPA routing
         const initialPath = canonicalDocPath(appPathname())

@@ -347,6 +347,15 @@
   gets heavier; `aiui validate` warns (7009) about a name that is not an icon and suggests the
   nearest. The build ships the name list as `templates/frontend/aiui-icons.json`. See
   [Writing docs](docs/features/writing-docs.md#icons).
+- **Docs site branding in a few lines**: `logo` and `favicon` take one image or
+  `{light, dark}` (a file beside `aiui.yaml` is published for you; the logo swaps live with
+  the theme toggle, the favicon follows the browser's scheme), `site.theme.accent` now
+  colours a docs site and `accentDark` sets the dark-mode accent (contrast kept),
+  `site.theme.background` adds a `gradient`, `grid` or image behind the page, and
+  `site.theme.strict` keeps the configured mode with no toggle. A logo `href` on another
+  site now works, an image in `site.logo` is the logo, and `aiui validate` warns (7102)
+  about a brand image that is not in the project. See
+  [Theming](docs/features/theming.md#branding-a-docs-site).
 
 ### Deprecated
 
