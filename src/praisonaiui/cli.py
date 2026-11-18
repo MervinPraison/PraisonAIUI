@@ -437,10 +437,10 @@ def validate(
     strict: bool = typer.Option(
         False,
         "--strict",
-        help="Enable strict validation (unknown keys become errors)",
+        help="Enable strict validation (unknown keys and broken links become errors)",
     ),
 ) -> None:
-    """Validate configuration file."""
+    """Validate configuration file and docs links."""
     import warnings
 
     import yaml
@@ -471,9 +471,12 @@ def validate(
         result = validate_config(cfg, config.parent, strict=strict)
 
     # Loading ignores keys no field takes, so a misspelling (stlye:, themee:)
-    # silently does nothing. Report them; --strict makes them errors.
-    for loc in find_unknown_keys(Config, data):
-        issue = ValidationError(
+    # silently does nothing. Report them, and broken docs links (aiui docs
+    # check-links); --strict makes them errors.
+    from praisonaiui.compiler.links import check_site_links, format_broken
+
+    issues = [
+        ValidationError(
             code=1003,
             category="config",
             message=f"Unknown key '{_format_loc(loc)}' (ignored)",
@@ -482,6 +485,13 @@ def validate(
                 "https://ui.praison.ai/concepts/configuration for the supported keys."
             ),
         )
+        for loc in find_unknown_keys(Config, data)
+    ]
+    issues += [
+        ValidationError(code=6001, category="links", message=format_broken(link))
+        for link in check_site_links(cfg, config).broken
+    ]
+    for issue in issues:
         if strict:
             result.errors.append(issue)
             result.valid = False
@@ -549,6 +559,7 @@ def build(
         "GitHub Pages project site, '/' for the root. Default: site.basePath, else "
         "the path of seo.siteUrl",
     ),
+    strict: bool = typer.Option(False, "--strict", help="Fail (exit 1) on broken links in the docs"),
 ) -> None:
     """Build manifests from configuration."""
     import yaml
@@ -568,6 +579,17 @@ def build(
     except Exception as e:
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
+
+    from praisonaiui.cli_docs import print_broken_links
+    from praisonaiui.compiler.links import check_site_links
+
+    links = check_site_links(cfg, config)
+    if not links.ok:
+        print_broken_links(links, console, style="red" if strict else "yellow")
+        if strict:
+            console.print(f"[red]Error:[/red] {len(links.broken)} broken link(s); build stopped (--strict)")
+            raise typer.Exit(code=1)
+        console.print(f"[yellow]Warning:[/yellow] {len(links.broken)} broken link(s) (--strict fails the build)")
 
     compiler = Compiler(cfg, base_path=config.parent, url_base=base_path)
     result = compiler.compile(output_dir=output, minify=minify)
@@ -4324,6 +4346,10 @@ def plugins_doctor(
 from praisonaiui.test_runner import test_app
 
 app.add_typer(test_app, name="test")
+
+from praisonaiui.cli_docs import docs_app  # noqa: E402  (aiui docs check-links)
+
+app.add_typer(docs_app, name="docs")
 
 
 if __name__ == "__main__":

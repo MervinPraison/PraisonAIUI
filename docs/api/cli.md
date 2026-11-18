@@ -84,7 +84,7 @@ Check a docs-site configuration.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
-| `--strict` | off | Unknown keys become errors |
+| `--strict` | off | Unknown keys and broken links become errors |
 
 Without `--config`, `validate`, `build` and `serve` read `./aiui.yaml`. The
 old name `aiui.template.yaml` still works: when it is the only one there it is
@@ -102,6 +102,7 @@ Build a static docs site from the configuration.
 | `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
 | `--output, -o` | `aiui` | Output folder |
 | `--minify` | off | Minify the JSON manifests |
+| `--strict` | off | Stop with exit code 1 on a broken link (without it, broken links are warnings) |
 
 The output holds `index.html`, `404.html`, the UI bundle (`assets/`,
 `aiui-manifest.json`), the manifests (`ui-config.json`, `docs-nav.json`,
@@ -109,6 +110,20 @@ The output holds `index.html`, `404.html`, the UI bundle (`assets/`,
 `robots.txt` and `.nojekyll`. `sitemap.xml`, `llms.txt` and `llms-full.txt`
 are added when the site URL is known (`seo.siteUrl`, or a `CNAME` file next to
 the configuration or in `docs/`).
+
+### `aiui docs check-links`
+
+Find broken page links, `#anchor`s, images, component `href`s and nav entries
+before you deploy. Prints `file:line: target: reason (did you mean X?)` and
+exits `1` when a link is broken. See
+[Writing docs pages → Check links](../features/writing-docs.md#check-links).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--config, -c` | `aiui.yaml` | Configuration file |
+| `--external` | off | Also request every `http(s)` URL (HEAD, then GET; 16 at a time) |
+| `--timeout` | `10` | Seconds to wait for each external URL |
+| `--json` | off | Print `{"checked", "pages", "broken": [{file, line, target, reason, suggestion}]}` |
 
 ### `aiui serve`
 
