@@ -740,6 +740,56 @@ Rate limit: 10 requests a second per key.
 Put each on lines of its own, outside list items (a `<Panel>` inside a list
 item stays where it is). This page has none, so it keeps its "On this page".
 
+## Reusable snippets and variables
+
+Write a block once and use it on many pages. Put it in `docs/snippets/` (that
+folder is never published as pages) and include it where it should appear:
+
+````markdown
+<Snippet file="install.md" pkg="aiui" />
+````
+
+`docs/snippets/install.md`, where `{pkg}` takes the value passed in:
+
+````markdown
+```bash
+pip install {pkg}
+```
+````
+
+Site-wide values go in one key of `aiui.yaml`, and `{{name}}` in any page or
+snippet becomes the value, in text, code and front matter (`title`,
+`description`):
+
+```yaml
+variables:
+  productName: Acme
+  version: 2.1.0
+```
+
+```markdown
+---
+title: "{{productName}} quickstart"
+---
+Install {{productName}} {{version}} with `pip install acme=={{version}}`.
+```
+
+- Snippets nest, and take any number of props. A path is looked up next to
+  the page, then in `docs/snippets/`, then the docs folder; `/x.md` starts at
+  the docs folder. Indent the tag inside a list item and the snippet follows
+  the indent.
+- Coming from Mintlify: `import Install from '/snippets/install.mdx'` then
+  `<Install pkg="aiui" />` works as is. From MkDocs: `--8<-- "install.md"` on
+  a line of its own.
+- Write `\\{{name}}` for a literal `{{name}}`. A snippet tag in a code block
+  stays as written.
+- It all happens in `aiui build`, so the page, its `.md` copy, `llms-full.txt`
+  and search all hold the expanded text. A missing snippet, a path outside the
+  project folder, or a snippet that includes itself fails the build (7008), and
+  `aiui validate` names each `{{name}}` that has no value (7007).
+- To publish a docs folder that is really called `snippets`, add
+  `"!snippets"` to `content.docs.exclude`.
+
 ## Component tags
 
 Tags work the way MDX reads them: on lines of their own, on one line with

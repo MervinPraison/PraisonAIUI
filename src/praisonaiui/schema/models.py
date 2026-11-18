@@ -799,6 +799,10 @@ class Config(BaseModel):
     api: Optional[ApiConfig] = None
     interaction: Optional[InteractionConfig] = None
     styling: Optional[StylingConfig] = None
+    variables: dict[str, Union[str, int, float, bool]] = Field(
+        default_factory=dict,
+        description="Values for {{name}} in docs pages (docs/features/writing-docs.md#reusable-snippets-and-variables)",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

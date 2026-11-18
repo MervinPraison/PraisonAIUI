@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
-from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
+from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import NavBuilder, external_url, manual_entries, nav_trails
@@ -27,6 +28,7 @@ from praisonaiui.compiler.publish import (
     set_robots_meta,
     with_slash,
 )
+from praisonaiui.compiler.snippets import Snippets
 from praisonaiui.schema.models import NavConfig
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
@@ -157,6 +159,8 @@ class Compiler:
         warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
+            if self._snippets.errors():  # a missing snippet, or one that includes itself
+                return CompileResult(success=False, files=files, error="; ".join(self._snippets.errors()))
             files.extend(copied)
             warnings.extend(self.lint_docs())
 
@@ -177,7 +181,7 @@ class Compiler:
 
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
-        return lint_pages((page.path for page in self._published_pages()), self.base_path)
+        return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text)
 
     def lint_content(self) -> list[ContentIssue]:
         """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
@@ -187,7 +191,7 @@ class Compiler:
         base = self.config.site.route_base_docs.rstrip("/") + "/"
         items = walk_nav(self._generate_docs_nav().get("items", [])) if pages else ()
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
-        return issues + check_pages(pages, self.base_path, listed)
+        return issues + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues
 
     def _published_pages(self) -> list:
         """The docs pages the build publishes (``content.docs`` minus excludes)."""
@@ -199,8 +203,18 @@ class Compiler:
             include=docs.include,
             exclude=self._exclude_patterns(),
             index_files=docs.index_files,
+            read=self._page_text,
         )
         return scanner.scan()
+
+    @cached_property
+    def _snippets(self) -> Snippets:
+        docs = self.config.content.docs if self.config.content else None
+        return Snippets(self.base_path, self.base_path / docs.dir if docs else None, self.config.variables)
+
+    def _page_text(self, path: Path) -> str:
+        """A docs page's source with snippets and ``{{variables}}`` expanded (compiler/snippets.py)."""
+        return self._snippets.read(path)
 
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""
@@ -506,7 +520,7 @@ class Compiler:
             index = docs_dir / name
             if index.is_file():
                 scanner = DocsScanner(docs_dir=docs_dir)
-                text = index.read_text(encoding="utf-8")
+                text = self._page_text(index)
                 return docs_home_from_frontmatter(scanner._extract_frontmatter(text))
         return None
 
@@ -538,6 +552,7 @@ class Compiler:
             exclude=self._exclude_patterns(),
             index_files=docs_config.index_files,
             sort=nav_config.sort,
+            read=self._page_text,
         )
         pages = scanner.scan()
 
@@ -564,7 +579,7 @@ class Compiler:
     def _exclude_patterns(self) -> list[str]:
         """``content.docs.exclude`` plus the lines of ``.aiuiignore`` next to the config."""
         docs = self.config.content.docs if self.config.content else None
-        return [*(docs.exclude if docs else []), *read_ignore_file(self.base_path)]
+        return [SNIPPETS_EXCLUDE, *(docs.exclude if docs else []), *read_ignore_file(self.base_path)]
 
     def _site_noindex(self) -> bool:
         """``seo.robots.index: false``: nothing on the site is indexed."""
@@ -1079,7 +1094,7 @@ class Compiler:
             folder = "."
         markdown = self.config.markdown
         return am.to_agent_markdown(
-            src.read_text(encoding="utf-8"), title=title, description=description,
+            self._page_text(src), title=title, description=description,
             page_dir=f"{base}/{folder}".removesuffix("/.") or "/", docs_base=base or "/",
             site=self._site_url() or self.url_base,
             instructions=markdown.instructions if markdown and instructions else None,
@@ -1204,7 +1219,7 @@ class Compiler:
             if page["noindex"] or not page["searchable"]:
                 continue
             md_path = self._resolve_md_source(page["path"])
-            text = md_path.read_text(encoding="utf-8") if md_path else ""
+            text = self._page_text(md_path) if md_path else ""
             meta = scanner._extract_frontmatter(text)
             body = am.visibility(self._strip_frontmatter(text), "humans")
             pages.append(page_entry(page["path"], page["title"], page["description"], body, meta))
@@ -1563,6 +1578,7 @@ class Compiler:
             include=docs_config.include,
             exclude=patterns,
             index_files=docs_config.index_files,
+            read=self._page_text,
         )
         # The browser renders the source (`<route>.source.md`); `<route>.md`,
         # and the copy of the page's own file, are the agent-ready Markdown.
@@ -1572,7 +1588,7 @@ class Compiler:
                 continue
             md = route_dir / am.page_md_path(f"/{page.slug}", "/").lstrip("/")
             md.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(page.path, md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX))
+            md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX).write_text(self._page_text(page.path), encoding="utf-8")
             text = self._agent_markdown(page.path, page.title, page.description)
             own = docs_output / page.path.relative_to(docs_dir)
             for target in {md, own} if own.exists() else {md}:

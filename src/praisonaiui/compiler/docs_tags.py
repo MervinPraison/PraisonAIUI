@@ -10,7 +10,7 @@ comments removed from what the build publishes, and ``## Title {#id}``.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 #: Mirrors ``DOCS_TAG_NAMES`` in ``src/frontend/src/markdown/docsTags.ts``.
@@ -89,11 +89,13 @@ def unknown_tags(text: str) -> list[tuple[int, str]]:
     return sorted(((line, name) for name, line in seen.items()))
 
 
-def lint_pages(paths: Iterable[Path], root: Path) -> list[str]:
-    """One warning per unknown tag per page: ``docs/a.md:12: <Gadget> is not a docs component …``."""
+def lint_pages(paths: Iterable[Path], root: Path, read: Callable[[Path], str] | None = None) -> list[str]:
+    """One warning per unknown tag per page: ``docs/a.md:12: <Gadget> is not a docs component …``.
+
+    ``read``: the page text (``Compiler._page_text``: snippets expanded)."""
     warnings: list[str] = []
     for path in paths:
-        text = path.read_text(encoding="utf-8")
+        text = read(path) if read else path.read_text(encoding="utf-8")
         try:
             shown = path.relative_to(root)
         except ValueError:
