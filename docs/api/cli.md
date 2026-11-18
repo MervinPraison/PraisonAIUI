@@ -42,6 +42,15 @@ canvas) unless `AIUI_LAYOUT`, `aiui.set_layout()` or YAML `layout:` picks
 another. See [UI Styles](../features/styles.md) and
 [Layouts](../features/layouts.md).
 
+A chat YAML's top-level keys: `name`, `instructions`, `model`, `welcome`,
+`goodbye`, `starters`, `profiles`, `tools`, `features`, `datastore`, `style`,
+`theme`, `branding`, `dashboard`, `pages`, `layout` and `extensions`.
+`layout:` takes a layout id (`layout: command`) or the same block as
+`aiui.yaml` (`default`, `available`, `user_choice`, `primary`, `options`);
+`extensions:` takes `enabled:` / `disabled:` lists, as in `aiui.yaml`. Any
+other key prints a warning naming it, since it would otherwise be ignored
+without a word.
+
 `aiui run` loads `~/.praisonai/.env` and then `./.env` before starting,
 without overriding variables that are already set.
 
