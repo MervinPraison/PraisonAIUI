@@ -64,7 +64,11 @@ const LAYOUT_BUDGETS = {
   // engine's run_attach code moved a chunk boundary (reload adoption).
   // 12.354 kB (measured, raised by exactly the overage, +4 B): the
   // @aiui.welcome greeting in the new-chat hero moved a chunk boundary.
-  'layout-chat-canvas': '12.354 kB',
+  // 12.36 kB (measured, raised by exactly the overage, +6 B): base-path hosting
+  // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
+  // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
+  // import.meta.url; src/lib/url.ts joins the legacy App chunk.
+  'layout-chat-canvas': '12.36 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -208,7 +212,11 @@ export default [
   // reloaded mid-reply takes its run back (run_attach, replay, seq).
   // 141,891 B (measured, raised by exactly the overage, +9 B): the
   // @aiui.welcome greeting in the layouts' new-chat hero.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141891 B', gzip: true },
+  // 141,892 B (measured, raised by exactly the overage, +1 B): base-path hosting
+  // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
+  // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
+  // import.meta.url; src/lib/url.ts joins the legacy App chunk.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141892 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -243,7 +251,11 @@ export default [
   // no chat code changed.
   // 254,090 B (measured, raised by exactly the overage, +8 B): the
   // @aiui.welcome greeting in the layouts' new-chat hero.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254090 B', gzip: true },
+  // 254,157 B (measured, raised by exactly the overage, +67 B): base-path hosting
+  // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
+  // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
+  // import.meta.url; src/lib/url.ts joins the legacy App chunk.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254157 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -298,5 +310,9 @@ export default [
   // pages (sidebar, pager, search) and the docs seoMeta helper.
   // 9,141,034 B (measured, raised by exactly the overage, +115 B): the
   // @aiui.welcome greeting in the layouts' new-chat hero.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9141034 B', brotli: false },
+  // 9,141,792 B (measured, raised by exactly the overage, +758 B): base-path hosting
+  // (aiui build --base-path): chunks, preloads and CSS url()s resolve relative
+  // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
+  // import.meta.url; src/lib/url.ts joins the legacy App chunk.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9141792 B', brotli: false },
 ]
