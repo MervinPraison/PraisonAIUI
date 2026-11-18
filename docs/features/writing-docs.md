@@ -43,26 +43,38 @@ tag: NEW
 ---
 ```
 
-| Key | What it does |
-|---|---|
-| `title` | The page title: the `#` heading when the body has none, the browser tab, search. Default: the first `#` heading, else the file name. |
-| `description` | Shown under the title (unless the first paragraph already says it), and the meta description, `llms.txt` and search text. Default: the first paragraph, for those but not shown again. |
-| `sidebarTitle` (or `nav_title`) | A shorter label in the sidebar. |
-| `icon` | Before the sidebar label: a lucide name (`rocket`, `terminal`, `book-open`, …), an emoji, or an image URL (`https://…` or `/icons/x.svg`). |
-| `tag` | A badge after the sidebar label, such as `NEW` or `BETA`. |
-| `deprecated: true` | A `Deprecated` badge, the label struck through, and a notice above the page. |
-| `mode` | `wide`: no "On this page", a wider column. `center`: no sidebar either. `custom`: only the article, full width (no breadcrumb, footer or pager). `frame`: `custom` with the sidebar. |
-| `url` | An `https://` URL makes the page a sidebar link that opens that site in a new tab. The page itself is not published (no route, sitemap, `llms.txt` or search entry). |
-| `hideFooterPagination: true` | No previous / next links under the page. |
-| `noAnchor: true` | No copy-link icon on the page's headings. |
-| `hidden: true` | Routable, but not in the sidebar, pager or indexes ([Navigation](navigation.md)). |
-| `noindex: true` / `searchable: false` | Out of the sitemap and search engines / out of the site's own search. |
-| `timestamp: false` / `true` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
-| `lastUpdatedDate: 2026-05-01` | The "Last updated" date, instead of the last commit's. |
-| `order` | Position in its folder in the generated sidebar. |
-| any other key | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). Strings, numbers and booleans only. |
+| Key | Type | What it does |
+|---|---|---|
+| `title` | string | The page title: the `#` heading when the body has none, the browser tab, search, `llms.txt`. Default: the first `#` heading, else the file name. |
+| `description` | string | Shown under the title (unless the first paragraph already says it), and the meta description, `llms.txt` and search snippet. Default: the first paragraph, for those but not shown again. |
+| `sidebarTitle` (or `nav_title`) | string | A shorter label in the sidebar. |
+| `icon` | string | Before the sidebar label: a lucide name (`rocket`, `terminal`, `book-open`, …), an emoji, or an image URL (`https://…` or `/icons/x.svg`). |
+| `tag` | string | A badge after the sidebar label, such as `NEW` or `BETA`. |
+| `deprecated` | `true`/`false` | `true`: a `Deprecated` badge, the label struck through, and a notice above the page. |
+| `mode` | string | `wide`: no "On this page", a wider column. `center`: no sidebar either. `custom`: only the article, full width (no breadcrumb, footer or pager). `frame`: `custom` with the sidebar. |
+| `url` | string | An `https://` URL makes the page a sidebar link that opens that site in a new tab. The page itself is not published (no route, sitemap, `llms.txt` or search entry). |
+| `hideFooterPagination` | `true`/`false` | `true`: no previous / next links under the page. |
+| `noAnchor` | `true`/`false` | `true`: no copy-link icon on the page's headings. |
+| `order` | number | Position inside its folder (default: a number prefix such as `01-`). |
+| `hidden` | `true`/`false` | Routable, but not in the sidebar, pager or indexes ([Navigation](navigation.md)). |
+| `noindex` | `true`/`false` | Tells search engines not to index the page (and leaves it out of the sitemap). |
+| `searchable` | `true`/`false` | `false` leaves the page out of the site's own search. |
+| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown. |
+| `boost` | number | Search ranking weight (`2` ranks the page higher). |
+| `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
+| `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
+| `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
+| any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
 
 The front matter never shows on the page as text.
+
+`aiui validate` checks these types and reports the line of a wrong one
+(`hidden: "yes"` is a string, so the page would stay in the sidebar), front
+matter that is not valid YAML, images without alt text, two files that publish
+the same page, two sidebar entries with the same title in one folder, headings
+that skip a level, empty pages and a `theme.accent` with too little contrast.
+Each finding names `file:line` and how to fix it; `--strict` makes them errors
+for CI. See the [codes](../api/cli.md#aiui-validate).
 
 ```js
 // custom JS (aiui.set_custom_js): read a page's custom keys
@@ -83,28 +95,6 @@ navigation:
             - guides/install
             - { label: GitHub, href: "https://github.com/acme/site", icon: code }
 ```
-
-| Key | Type | What it does |
-|---|---|---|
-| `title` | string | Page title: sidebar, browser tab, search, `llms.txt` (default: the first `#` heading) |
-| `nav_title` | string | Shorter sidebar label |
-| `description` | string | Meta description and search snippet (default: the first paragraph) |
-| `icon` | string | Sidebar icon (a lucide name) |
-| `order` | number | Position inside its folder (default: a number prefix such as `01-`) |
-| `hidden` | `true`/`false` | Routable but left out of the sidebar |
-| `noindex` | `true`/`false` | Tells search engines not to index the page |
-| `searchable` | `true`/`false` | `false` leaves the page out of the site's own search |
-| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown |
-| `boost` | number | Search ranking weight (`2` ranks the page higher) |
-| `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)) |
-
-`aiui validate` checks these types and reports the line of a wrong one
-(`hidden: "yes"` is a string, so the page would stay in the sidebar), front
-matter that is not valid YAML, images without alt text, two files that publish
-the same page, two sidebar entries with the same title in one folder, headings
-that skip a level, empty pages and a `theme.accent` with too little contrast.
-Each finding names `file:line` and how to fix it; `--strict` makes them errors
-for CI. See the [codes](../api/cli.md#aiui-validate).
 
 ## Headings and "On this page"
 

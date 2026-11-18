@@ -143,3 +143,14 @@ def test_page_dates_from_frontmatter(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setitem(globals(), "PAGES", {**PAGES, "guide/old.md": "---\ntitle: O\ntimestamp: true\n---\n# O\n"})
     items = _items(_build(tmp_path / "b"))
     assert items["O"]["lastUpdated"] == "2026-01-01" and "lastUpdated" not in items["Home"]
+
+
+def test_validate_knows_the_new_keys() -> None:
+    from praisonaiui.compiler.content_lint import check_body, check_frontmatter
+
+    good = "---\nsidebarTitle: S\ndeprecated: true\nlastUpdatedDate: 2026-05-01\ntimestamp: false\n---\n# X\n\nBody.\n"
+    assert check_frontmatter(good, "a.md") == []
+    bad = check_frontmatter("---\ndeprecated: \"yes\"\nlastUpdatedDate: May 1\n---\n# X\n", "a.md")
+    assert [(i.code, i.line) for i in bad] == [(7001, 2), (7001, 3)]
+    assert bad[1].hint == "Write lastUpdatedDate: 2026-05-01"
+    assert check_body("---\nurl: https://x.dev\n---\n", "a.md", {"url": "https://x.dev"}) == []  # a link, not empty
