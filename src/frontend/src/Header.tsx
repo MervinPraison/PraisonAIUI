@@ -6,7 +6,7 @@ import { LocaleSwitcher } from './i18n'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { BrandMark } from './docs/BrandMark'
-import { docsChromeModel, isExternal } from './docs/chrome'
+import { docsChromeModel, isAppPath, isExternal } from './docs/chrome'
 import { withBase } from './lib/url'
 
 interface HeaderProps {
@@ -29,13 +29,15 @@ export function Header({
     onTabChange,
     onSearchClick,
 }: HeaderProps) {
-    const { logoSrc, logoHref, logoText, links, primary } = docsChromeModel(config, templateKey)
+    const { logoSrc, logoDarkSrc, logoHref, logoText, links, primary } = docsChromeModel(config, templateKey)
+    // An app path navigates in place; any other href (another site) is a plain link.
+    const inApp = isAppPath(logoHref)
     const tabs = navTabs ?? config.navigation?.tabs ?? []
     const hasTabs = tabs.length > 0
     const searchEnabled = Boolean(onSearchClick)
 
     const onLogoClick = (event: React.MouseEvent) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+        if (!inApp || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
         window.history.pushState({}, '', withBase(logoHref))
         window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: logoHref } }))
@@ -59,8 +61,8 @@ export function Header({
                     </Button>
                 )}
 
-                <a href={withBase(logoHref)} className="aiui-docs-brand" onClick={onLogoClick}>
-                    <BrandMark name={logoText} src={logoSrc} />
+                <a href={inApp ? withBase(logoHref) : logoHref} className="aiui-docs-brand" onClick={onLogoClick}>
+                    <BrandMark name={logoText} src={logoSrc} darkSrc={logoDarkSrc} />
                     <span>{logoText}</span>
                 </a>
 
@@ -143,7 +145,7 @@ export function Header({
                         </Button>
                     )}
 
-                    <ThemeToggle />
+                    {!config.site?.theme?.strict && <ThemeToggle />}
                     <LocaleSwitcher />
                 </div>
             </div>

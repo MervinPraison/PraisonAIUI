@@ -3,7 +3,7 @@
  *
  * - YAML frontmatter is page metadata (the nav builder reads it): it never
  *   shows as text.
- * - Relative link and image targets resolve against the page's own folder,
+ * - Relative link and image targets (also `<img src>` / `<source srcset>` in HTML) resolve against the page's own folder,
  *   the way MkDocs and GitHub read them. A page at /docs/a/b links
  *   `c.md` → /docs/a/c and `../img/x.png` → /docs/img/x.png; without this the
  *   renderer resolved them against the site root (broken images) or refused
@@ -99,12 +99,19 @@ const INLINE_TARGET = /(!?\[(?:[^\]\\]|\\.)*\]\()(\s*)(<[^>]*>|[^)\s]+)/g
 // [id]: target  (reference definitions)
 const REFERENCE = /^(\s{0,3}\[[^\]]+\]:\s*)(<[^>]*>|\S+)/
 
+// <img src> / <source srcset> written as HTML (light/dark pairs, sized images).
+const HTML_IMAGE = /<(?:img|source)\b[^>]*>/gi
+const HTML_SRC = /(\s(?:src|srcset)=)(["'])([^"']*)\2/gi
+
 function resolveLine(line: string, docPath: string): string {
     const ref = line.match(REFERENCE)
     if (ref) {
         return line.replace(REFERENCE, (_m, head: string, t: string) => head + wrap(t, docPath))
     }
-    return line.replace(INLINE_TARGET, (_m, head: string, gap: string, t: string) => head + gap + wrap(t, docPath))
+    return line
+        .replace(INLINE_TARGET, (_m, head: string, gap: string, t: string) => head + gap + wrap(t, docPath))
+        .replace(HTML_IMAGE, (tag) => tag.replace(HTML_SRC, (_m, attr: string, q: string, v: string) =>
+            attr + q + v.split(',').map((c) => c.replace(/^\s*\S+/, (u) => u.replace(/\S+/, (t) => resolveDocTarget(t, docPath)))).join(',') + q))
 }
 
 function wrap(token: string, docPath: string): string {
@@ -124,7 +131,7 @@ export function resolveDocUrls(md: string, docPath: string): string {
                 else if (f[1][0] === fence[0] && f[1].length >= fence.length && line.trim() === f[1]) fence = null
                 return line
             }
-            if (fence || (!line.includes('](') && !line.includes(']:'))) return line
+            if (fence || (!line.includes('](') && !line.includes(']:') && !/<(img|source)\b/i.test(line))) return line
             // Leave inline code spans alone.
             return line
                 .split(/(`+[^`]*`+)/)
