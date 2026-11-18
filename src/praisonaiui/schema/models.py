@@ -296,7 +296,7 @@ class OpenApiSourceConfig(BaseModel):
     """``{source, directory}`` form of an ``openapi`` entry."""
 
     source: str  # spec file (relative to the config) or http(s) URL
-    directory: Optional[str] = None  # folder its endpoint pages go under (planned)
+    directory: Optional[str] = None  # folder its endpoint pages go under (default api-reference)
 
 
 # `openapi:` takes a path or URL, a {source, directory} object, or a list of either.

@@ -10,11 +10,12 @@ from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
-from praisonaiui.compiler.docs_scanner import DocsScanner
+from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import NavBuilder, manual_entries, nav_trails
 from praisonaiui.compiler.nav_directory import write_directory_pages
+from praisonaiui.compiler.openapi_pages import api_catalog, build_api_reference, strip_excluded
 from praisonaiui.compiler.publish import (
     apply_indexing,
     content_signal,
@@ -59,6 +60,9 @@ class Compiler:
         self.url_base = ""
         self._inferred_site_url: str | None = None
         self._excluded: list[str] = []
+        self._api = None  # openapi_pages.ApiReference: endpoint pages (compile() sets it)
+        self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
+        self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
         """
@@ -91,6 +95,7 @@ class Compiler:
         if not validation.valid:
             errors = "; ".join(e.message for e in validation.errors)
             return CompileResult(success=False, files=[], error=f"Validation failed: {errors}")
+        self._api, self._api_sources = self._api_reference(validation.api_specs), {}
 
         # Install component dependencies if specified
         if self.config.dependencies and self.config.dependencies.shadcn:
@@ -320,8 +325,9 @@ class Compiler:
 
         # ── Mintlify-parity fields ──
 
-        # Navigation with tabs
-        if self.config.navigation and self.config.navigation.tabs:
+        # Navigation with tabs (endpoint pages added where a spec is named)
+        navigation = (self._api.config if self._api else self.config).navigation
+        if navigation and navigation.tabs:
             result["navigation"] = {
                 "tabs": [
                     {
@@ -338,7 +344,7 @@ class Compiler:
                             for g in t.groups
                         ],
                     }
-                    for t in self.config.navigation.tabs
+                    for t in navigation.tabs
                     if not t.hidden
                 ],
             }
@@ -519,9 +525,18 @@ class Compiler:
         )
         pages = scanner.scan()
 
-        builder = NavBuilder(pages, base_path=self.config.site.route_base_docs, directory=nav_config.directory)
-        entries = manual_entries(self.config)
-        nav = builder.to_dict_grouped(entries, docs_dir=docs_dir) if entries else builder.to_dict()
+        base, api = self.config.site.route_base_docs, self._api
+        api_pages = [DocPage(path=Path(f"{p.slug}.md"), slug=p.slug, title=p.title, description=p.description,
+                             hidden=p.hidden) for p in (api.pages if api else [])]
+        extra = api.sidebar_extra(nav_config.mode == "manual") if api else []
+        entries = manual_entries(api.config if api else self.config)
+        if entries:
+            builder = NavBuilder(pages + api_pages, base_path=base, directory=nav_config.directory)
+            nav = builder.to_dict_grouped(entries + extra, docs_dir=docs_dir)
+        else:
+            nav = NavBuilder(pages, base_path=base, directory=nav_config.directory).to_dict()
+            if api_pages:  # endpoint pages: where their spec is named, after the folders
+                nav["items"] += NavBuilder(api_pages, base_path=base).to_dict_grouped(extra)["items"]
         apply_indexing(nav, self.config.seo.indexing if self.config.seo else "navigable")
         # Sidebar behaviour (docs/features/navigation.md): only what differs from the default.
         if not nav_config.collapsible:
@@ -572,9 +587,20 @@ class Compiler:
 
         return {"routes": routes}
 
+    def _api_reference(self, specs: dict):
+        """Endpoint pages for the specs the config names (compiler/openapi_pages.py), or None."""
+        docs = self.config.content.docs if self.config.content else None
+        if not specs or not docs:
+            return None
+        scanner = DocsScanner(docs_dir=self.base_path / docs.dir, include=docs.include,
+                              exclude=self._exclude_patterns(), index_files=docs.index_files)
+        return build_api_reference(self.config, specs, {p.slug for p in scanner.scan()})
+
     def _write_api_specs(self, output_dir: Path, specs: dict, indent: int | None) -> list[str]:
-        """Each spec bundled into ``openapi/<slug>.json``, listed in ``openapi/index.json``
-        (for a "Download spec" link). Endpoint pages from ``spec.operations`` go here (planned)."""
+        """Each spec bundled into ``openapi/<slug>.json`` (``x-excluded`` operations
+        removed), listed in ``openapi/index.json``, ``llms.txt`` and the RFC 9727
+        ``/.well-known/api-catalog``."""
+        self._spec_files = []
         if not specs:
             return []
         (output_dir / "openapi").mkdir(parents=True, exist_ok=True)
@@ -584,9 +610,19 @@ class Compiler:
             "operations": sum(1 for op in s.operations if not op.excluded),
         } for s in specs.values()]
         for spec, entry in zip(specs.values(), index):
-            self._write_json(output_dir / entry["file"], spec.bundled, indent)
+            self._write_json(output_dir / entry["file"], strip_excluded(spec.bundled), indent)
         self._write_json(output_dir / "openapi/index.json", {"specs": index}, indent)
-        return [e["file"] for e in index] + ["openapi/index.json"]
+        self._spec_files = [(e["title"], e["file"]) for e in index]
+        docs = {s.spec.source: next((p.slug for p in s.pages if not p.hidden), None)
+                for s in self._api.sections} if self._api else {}
+        base = self.config.site.route_base_docs.rstrip("/")
+        catalog = api_catalog(self._absolute_url("/.well-known/api-catalog"), [
+            (s, self._absolute_url(f"/{e['file']}"),
+             self._page_url(f"{base}/{docs[s.source]}") if docs.get(s.source) else None)
+            for s, e in zip(specs.values(), index)])
+        (output_dir / ".well-known").mkdir(exist_ok=True)
+        self._write_json(output_dir / ".well-known/api-catalog", catalog, indent)
+        return [e["file"] for e in index] + ["openapi/index.json", ".well-known/api-catalog"]
 
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""
@@ -1021,7 +1057,10 @@ class Compiler:
     def _agent_markdown(self, src: Path, title: str, description: str, instructions: bool = True) -> str:
         """``src`` (a file in the docs folder) as agent-ready Markdown (compiler/agent_markdown.py)."""
         base = self.config.site.route_base_docs.rstrip("/")
-        folder = src.parent.relative_to(self.base_path / self.config.content.docs.dir).as_posix()
+        try:
+            folder = src.parent.relative_to(self.base_path / self.config.content.docs.dir).as_posix()
+        except ValueError:  # an endpoint page (openapi_pages.py): its links are absolute
+            folder = "."
         markdown = self.config.markdown
         return am.to_agent_markdown(
             src.read_text(encoding="utf-8"), title=title, description=description,
@@ -1094,6 +1133,8 @@ class Compiler:
         if not route_path.startswith(base):
             return None
 
+        if route_path.rstrip("/") in self._api_sources:
+            return self._api_sources[route_path.rstrip("/")]
         rel = route_path[len(base) :].lstrip("/")
         docs_dir = self.base_path / self.config.content.docs.dir
         index_files = ["index.md", "index.mdx", "README.md", *self.config.content.docs.index_files]
@@ -1517,6 +1558,15 @@ class Compiler:
             own = docs_output / page.path.relative_to(docs_dir)
             for target in {md, own} if own.exists() else {md}:
                 target.write_text(text, encoding="utf-8")
+        # Endpoint pages generated from OpenAPI specs: published the same way.
+        base = self.config.site.route_base_docs.rstrip("/")
+        for api_page in self._api.pages if self._api else []:
+            md = route_dir / am.page_md_path(f"/{api_page.slug}", "/").lstrip("/")
+            src = md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX)
+            md.parent.mkdir(parents=True, exist_ok=True)
+            src.write_text(api_page.text, encoding="utf-8")
+            md.write_text(self._agent_markdown(src, api_page.title, api_page.description), encoding="utf-8")
+            self._api_sources[f"{base}/{api_page.slug}"] = src
 
         # Return list of copied files (simplified)
         return ["docs/"]

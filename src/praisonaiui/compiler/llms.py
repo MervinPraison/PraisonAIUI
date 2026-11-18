@@ -38,6 +38,9 @@ def _index(c: Compiler, items: list[dict], full: bool) -> str:
         for page in pages:
             entry = f"- [{page['title']}]({c._md_url(page['path'])})"
             lines.append(f"{entry}: {page['description']}" if page["description"] else entry)
+    if c._spec_files:  # OpenAPI specs, as published (openapi/<slug>.json)
+        lines += ["", "## OpenAPI specs", ""]
+        lines += [f"- [{title}]({c._absolute_url('/' + file)})" for title, file in c._spec_files]
     if full:
         url = c._absolute_url("/llms-full.txt")
         lines += ["", "## Optional", "", f"- [Complete documentation]({url}): All pages in one file"]

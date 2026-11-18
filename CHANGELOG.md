@@ -286,6 +286,13 @@
   `collapsible`, `directory` and `indexFiles` take effect; validate warns about
   unknown nav pages and keys that do nothing. See
   [Navigation](docs/features/navigation.md).
+- **API reference pages from OpenAPI.** `aiui build` writes one docs page per
+  operation and webhook (parameters, body, responses, callbacks) in the
+  sidebar where the spec is named, grouped by tag
+  (`x-group`, `x-displayName`, 3.2 `parent`), with `x-hidden` / `x-excluded`;
+  they reach `llms.txt`, the agent `.md` export and site search. Specs are
+  listed in `llms.txt` and `/.well-known/api-catalog` (RFC 9727). See
+  [OpenAPI](docs/features/openapi.md#endpoint-pages).
 
 ### Deprecated
 
