@@ -67,6 +67,7 @@ tag: NEW
 | `playground` | string | `interactive`, `simple` or `none`: the Try-it display of an endpoint page written from this page's `openapi:` front matter **(planned)**; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
+| `rss` | `true`/`false` | `true` on a changelog page: the build writes its `<Update>` entries as an RSS feed at `<page>/rss.xml` and links it ([Changelog](#changelog)). |
 | `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
 | any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
 
@@ -817,6 +818,45 @@ Install {{productName}} {{version}} with `pip install acme=={{version}}`.
   `aiui validate` names each `{{name}}` that has no value (7007).
 - To publish a docs folder that is really called `snippets`, add
   `"!snippets"` to `content.docs.exclude`.
+
+## Changelog
+
+A changelog page is a list of `<Update>` entries, newest first. Add
+`rss: true` and readers can subscribe:
+
+```markdown
+---
+title: Changelog
+rss: true
+---
+
+<Update label="2026-11-18" description="v1.2" tags={["API", "Fix"]}>
+Builds are twice as fast. See [the guide](guide.md).
+</Update>
+
+<Update label="2026-11-02" description="v1.1" tags={["Docs"]}>
+New quickstart.
+</Update>
+```
+
+- `label` (a date or version) is the entry's section heading: it gets an
+  anchor (`#2026-11-18`, or `id="…"`), a copy-link icon, a line in "On this
+  page" and its own result in site search. From 768px wide it sits in a left
+  column that stays in view while the entry scrolls.
+- `description` shows under the label, `tags` (`{["A", "B"]}` or `"A, B"`) as
+  chips.
+- A page with tagged entries gets a tag filter above the first entry. Choosing
+  tags shows the entries with any of them and keeps the choice in the address
+  (`?tags=API,Fix`), so a filtered view is a link you can share.
+- `rss: true`: `aiui build` writes `<page>/rss.xml` (RSS 2.0, one item per
+  entry: the label and description as its title, the entry's anchor as its
+  link, its tags as categories and its body as HTML; a label that is a date,
+  such as `2026-11-18` or `November 18, 2026`, becomes its date). The page's
+  head gets `<link rel="alternate" type="application/rss+xml">`, so browsers
+  and feed readers find it, and the filter row shows an "RSS feed" link. Links
+  are absolute when the site URL is known (`seo.siteUrl` or a `CNAME` file),
+  base path included.
+- The entries are `## label` sections in the page's `.md` and `llms-full.txt`.
 
 ## Component tags
 

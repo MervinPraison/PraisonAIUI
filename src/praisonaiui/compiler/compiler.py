@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import branding
+from praisonaiui.compiler import branding, changelog
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
@@ -72,6 +72,7 @@ class Compiler:
         self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
+        self._feeds: dict[str, str] = {}  # page path -> its RSS feed URL (changelog.py)
         # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
         self.git_dates: dict[Path, str | None] | None = None
 
@@ -185,6 +186,7 @@ class Compiler:
         if self.config.content and self.config.content.docs:
             base, site = self.config.site.route_base_docs, self._site_url() or self.url_base
             files.extend(write_directory_pages(nav, output_dir, base, site))
+            files.extend(self._write_feeds(output_dir, nav))
             route_files = self._generate_route_pages(output_dir, nav)
             files.extend(route_files)
             files.extend(self._generate_sitemap(output_dir, nav))
@@ -1061,6 +1063,8 @@ class Compiler:
 
             # Inject SEO tags (and, on the docs home, the hero preload) before </head>
             head_extra = f"\n{hero_preload}" if hero_preload and path.rstrip("/") == home_path else ""
+            if path in self._feeds:
+                head_extra += "\n" + changelog.head_link(page_title, self._feeds[path])
             html = html.replace(
                 "</head>",
                 f"{seo_tags}\n{self._markdown_link(path)}\n{json_ld}{head_extra}\n</head>",
@@ -1159,20 +1163,48 @@ class Compiler:
         """The URL of a page's agent-ready Markdown (``https://site/docs/guide.md``)."""
         return (self._site_url() or self.url_base) + am.page_md_path(path, self.config.site.route_base_docs)
 
-    def _agent_markdown(self, src: Path, title: str, description: str, instructions: bool = True) -> str:
-        """``src`` (a file in the docs folder) as agent-ready Markdown (compiler/agent_markdown.py)."""
+    def _link_base(self, src: Path) -> dict[str, str]:
+        """How links in ``src`` (a file in the docs folder) resolve: ``page_dir``, ``docs_base``, ``site``."""
         base = self.config.site.route_base_docs.rstrip("/")
         try:
             folder = src.parent.relative_to(self.base_path / self.config.content.docs.dir).as_posix()
         except ValueError:  # an endpoint page (openapi_pages.py): its links are absolute
             folder = "."
+        return {"page_dir": f"{base}/{folder}".removesuffix("/.") or "/", "docs_base": base or "/",
+                "site": self._site_url() or self.url_base}
+
+    def _agent_markdown(self, src: Path, title: str, description: str, instructions: bool = True) -> str:
+        """``src`` (a file in the docs folder) as agent-ready Markdown (compiler/agent_markdown.py)."""
         markdown = self.config.markdown
         return am.to_agent_markdown(
-            self._page_text(src), title=title, description=description,
-            page_dir=f"{base}/{folder}".removesuffix("/.") or "/", docs_base=base or "/",
-            site=self._site_url() or self.url_base,
+            self._page_text(src), title=title, description=description, **self._link_base(src),
             instructions=markdown.instructions if markdown and instructions else None,
         )
+
+    def _write_feeds(self, output_dir: Path, nav: dict) -> list[str]:
+        """``<page>/rss.xml`` for each page with front matter ``rss: true``: its ``<Update>``
+        entries (compiler/changelog.py). The page's head links it (_generate_route_pages)."""
+        files: list[str] = []
+        self._feeds = {}  # `aiui dev` builds again with the same compiler
+        scanner = DocsScanner(docs_dir=self.base_path)
+        site_title = self.config.site.title
+        for page in self._collect_nav_pages(nav):
+            src = self._resolve_md_source(page["path"])
+            text = self._page_text(src) if src else ""
+            if not src or scanner._extract_frontmatter(text).get("rss") is not True:
+                continue
+            rel = f"{self._public_path(page['path']).strip('/')}/{changelog.FEED}".lstrip("/")
+            url = f"{self._absolute_url(page['path']).rstrip('/')}/{changelog.FEED}"
+            xml = changelog.feed(
+                title=f"{page['title']} | {site_title}", description=page["description"],
+                page_url=self._page_url(page["path"]), feed_url=url,
+                entries=changelog.updates(self._strip_frontmatter(text), **self._link_base(src)),
+            )
+            (output_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+            (output_dir / rel).write_text(xml, encoding="utf-8")
+            self._feeds[page["path"]] = url
+            files.append(rel)
+        return files
 
     def _generate_sitemap(self, output_dir: Path, nav: dict) -> list[str]:
         """sitemap.xml: every indexable page. A ``sitemap.xml`` next to the config
