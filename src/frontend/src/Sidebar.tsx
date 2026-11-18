@@ -49,10 +49,10 @@ interface NavGroupProps extends Omit<NavTreeProps, 'nav'> {
 function NavGroup({ item, groupKey, activeItem, collapsible, drilldown, onItemClick, children }: NavGroupProps) {
     const holdsActive = navItemHolds(item, activeItem)
     const [open, setOpen] = useState(() => holdsActive || (rememberedOpen(groupKey) ?? item.expanded !== false))
-    // Moving to a page inside the group opens it (state adjusted while rendering, not in an effect).
-    const [heldActive, setHeldActive] = useState(holdsActive)
-    if (heldActive !== holdsActive) {
-        setHeldActive(holdsActive)
+    // Each move to a page inside the group opens it (state adjusted while rendering, not in an effect).
+    const [seenActive, setSeenActive] = useState(activeItem)
+    if (seenActive !== activeItem) {
+        setSeenActive(activeItem)
         if (holdsActive) setOpen(true)
     }
     const itemsId = useId()

@@ -147,12 +147,11 @@ class Compiler:
         files.extend(self._write_api_specs(output_dir, validation.api_specs, indent))
 
         # Copy docs markdown files for content loading
-        warnings: list[str] = []
+        warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             files.extend(copied)
             warnings.extend(self.lint_docs())
-            warnings.extend(w.message for w in validation.warnings if w.category == "navigation")
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
@@ -1100,7 +1099,7 @@ class Compiler:
         index_files = ["index.md", "index.mdx", "README.md", *self.config.content.docs.index_files]
         candidates = [docs_dir / f"{rel}.md", docs_dir / f"{rel}.mdx", *(docs_dir / rel / n for n in index_files)]
         if rel in ("", "index"):
-            candidates[:0] = [docs_dir / "index.md", docs_dir / "index.mdx"]
+            candidates[:0] = [docs_dir / "index.md", docs_dir / "index.mdx", *(docs_dir / n for n in index_files)]
 
         for candidate in candidates:
             if candidate.is_file():

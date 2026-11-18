@@ -38,7 +38,11 @@ test('a group folds and stays folded after a reload; the active page opens its g
   await page.reload()
   await expect(sidebar(page).getByRole('button', { name: 'Deep' })).toHaveAttribute('aria-expanded', 'false')
   await expect(sidebar(page).getByRole('link', { name: 'First page' })).toBeHidden()
-  // Opening a page inside a folded group opens it.
+  // Opening a page inside a folded group opens it, and so does each next page in it.
+  await page.goto('/docs/guide/first')
+  await sidebar(page).getByRole('button', { name: 'Deep' }).click()
+  await page.getByRole('link', { name: /Next/ }).click()
+  await expect(sidebar(page).getByRole('link', { name: 'Second page' })).toHaveAttribute('aria-current', 'page')
   await page.goto('/docs/search')
   await expect(sidebar(page).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
   expect(errors.pageErrors).toEqual([])

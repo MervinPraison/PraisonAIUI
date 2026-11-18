@@ -6,7 +6,6 @@ renders it; the agent-ready ``.md`` gets a link list."""
 
 from __future__ import annotations
 
-import html
 from pathlib import Path
 
 from praisonaiui.compiler import agent_markdown as am
@@ -20,7 +19,7 @@ def _walk(items: list[dict]):
 
 def listing(kind: str, pages: list[dict]) -> str:
     """The human listing of ``pages`` (nav items with a path) as docs components."""
-    esc = lambda text: html.escape(str(text), quote=True)  # noqa: E731
+    esc = lambda text: str(text).replace('"', "'").replace("<", "&lt;")  # noqa: E731 (one tag, read once)
     if kind == "accordion":
         rows = [f'<Accordion title="{esc(p["title"])}">\n{esc(p.get("description", ""))}\n\n'
                 f'[Open {esc(p["title"])}]({p["path"]})\n</Accordion>' for p in pages]
