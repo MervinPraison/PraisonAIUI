@@ -214,7 +214,8 @@ export default [
   // hash, and index.js, which names that chunk, gzips 4 B larger.
   // 253,145 B (measured, raised by exactly the overage, +17 B): the manifest
   // keeps a plugin layout's cssIntegrity and the loader sets it on the <link>.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253145 B', gzip: true },
+  // 253,161 B (+16 B, exactly the overage): LayoutHost clears a server-set look.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253161 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -256,5 +257,6 @@ export default [
   // try/catch that could not catch render errors.
   // 9,134,657 B (measured, raised by exactly the overage, +32 B): plugin
   // layout css SRI (cssIntegrity) in the manifest normalizer and loader.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134657 B', brotli: false },
+  // 9,134,666 B (+9 B, exactly the overage): the same LayoutHost change.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9134666 B', brotli: false },
 ]
