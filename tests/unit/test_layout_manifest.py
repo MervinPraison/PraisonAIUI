@@ -31,7 +31,7 @@ SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
 LAYOUT_PAGES = {"artifacts": ("builtin.artifacts", ["chat-canvas"])}
 #: Shell-only pages for every layout (no ``layouts``): listed whenever the app
 #: shell offers a layout, like the layout records' own pages.
-ANY_LAYOUT_PAGES = {"connect"}
+ANY_LAYOUT_PAGES = {"connect", "api-reference"}
 
 
 @pytest.fixture(autouse=True)

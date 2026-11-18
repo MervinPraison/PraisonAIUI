@@ -1,12 +1,12 @@
 ---
-title: The server's OpenAPI document
-description: The running server describes its own HTTP API at /api/openapi.json, built from its live route table.
+title: API Reference page and OpenAPI document
+description: The running server describes its own HTTP API at /api/openapi.json and lets you try every route from the app.
 ---
 
-# The server's OpenAPI document
+# API Reference page and OpenAPI document
 
-Every aiui server publishes an OpenAPI 3.1 document of its own HTTP API. Nothing to
-configure: it is on by default.
+Every aiui server publishes an OpenAPI 3.1 document of its own HTTP API, and the app
+shell has a page to read it and send requests. Nothing to configure: both are on by default.
 
 ```bash
 curl http://localhost:8000/api/openapi.json           # no auth configured
@@ -30,7 +30,7 @@ switch off (`extensions: {disabled: [builtin.training]}`) leaves it.
 
 The route needs the same credentials as every other `/api` route in each auth mode. A
 plugin the caller may not use (an entry-point plugin that is off by default on a remote or
-sign-in server) is left out. Switch the document off with
+sign-in server) is left out. Switch the document and the page off with
 `extensions: {disabled: [builtin.api-reference]}`.
 
 Use it anywhere an OpenAPI file goes: client generators, API tools, or the API reference
@@ -60,3 +60,19 @@ class NotesFeature(BaseFeatureProtocol):
 
 The OpenAI-compatible routes (`/v1/chat/completions`, `/v1/responses`, `/v1/embeddings`…)
 carry their request bodies this way.
+
+## The page
+
+In the app shell (`style: app`), **API Reference** in the Control group (`/api-reference`)
+shows the routes by feature with a search box (method, path or text). Pick a route to read
+it and try it against this same server:
+
+- fill in the path parameters, a query string and a JSON body (prefilled from the
+  document's example);
+- **Send request** shows the status, time and the response, pretty-printed;
+- **Copy cURL** gives the same request for a terminal, with `$AIUI_TOKEN` in place of a token;
+- **OpenAPI JSON** downloads the document;
+- `?op=<operationId>` opens one route (`/api-reference?op=get_api_sessions`).
+
+Requests go to the same origin with your session, so no proxy, CORS setup or pasted key is
+needed. The default `dashboard` style is unchanged; its Inspector and API pages stay.

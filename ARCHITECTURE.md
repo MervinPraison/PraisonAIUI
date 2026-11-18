@@ -34,7 +34,7 @@ Markdown. Pages and features extend through one plugin model: Python records
 |---|---|---|
 | **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), plugin contributions: settings sections, nav groups, theme presets (`sdk/contributions.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`) |
 | **Core, Python** | `server.py` (`create_app`, `_build_html`, `_build_shell_manifest`, externals shims), `plugin_registry.py` (`PluginRegistry`, `ExtensionPolicy`, `SDK_API_VERSION = 1`), `features/__init__.py` (feature registry), `http_guard.py`, `auth.py` | HTTP host, auth, manifest, plugin discovery and policy |
-| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`, `builtin.layouts` with the six layout descriptors in `builtin/layouts/`, and `builtin.overview` / `builtin.sessions` / `builtin.agents` / `builtin.knowledge` / `builtin.logs` / `builtin.config` / `builtin.cron`, whose React pages in `src/frontend/src/app-pages/` render inside a layout frame while the classic frame keeps the legacy view, and `builtin.connect`, a React-only shell page in every frame); `src/praisonaiui/builtin/catalog.py` (57 `BuiltinPlugin` records, 38 pages plus 4 shell-only pages, 48 feature refs) | Every page and feature that ships with aiui |
+| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`, `builtin.layouts` with the six layout descriptors in `builtin/layouts/`, and `builtin.overview` / `builtin.sessions` / `builtin.agents` / `builtin.knowledge` / `builtin.logs` / `builtin.config` / `builtin.cron`, whose React pages in `src/frontend/src/app-pages/` render inside a layout frame while the classic frame keeps the legacy view, and `builtin.connect` and `builtin.api-reference`, React-only shell pages in every frame); `src/praisonaiui/builtin/catalog.py` (57 `BuiltinPlugin` records, 38 pages plus 5 shell-only pages, 48 feature refs) | Every page and feature that ships with aiui |
 | **Engines** (libraries the plugins use) | `chat-engine/` (protocol reducer, store, transports, `useAiuiRuntime`, Thread), `markdown/` (`<Markdown>` on Streamdown), `blocks/` (BlockPage, core blocks), `legacy/` (`LegacyViewHost`, `runtime.ts`, `bridge.css`) | Reusable rendering and protocol code; never imported by the core |
 | **Layouts** (ADR 0003) | `src/frontend/src/app-layouts/<id>/` (one frame per layout, chunk `layout-<id>`), `app-layouts/kit/` (shared frame pieces, chunk `layout-kit`), `src/frontend/src/layout-features/<name>/` (layout-specific features, chunk `lf-<name>`: `run-inspector`, `command-bar`, `step-tracker`, `mission-board`, `artifacts`); the host is `shell/LayoutHost.tsx`, `shell/ClassicFrame.tsx` the core's own frame | The frame around the routed page; loaded only when that layout is on screen (R17) |
 | **Design system** | `components/ui/` (shadcn on `radix-ui`), `styles/theme.css`, `index.css`, `themes.ts`, `lib/utils.ts`; Python `themes.py` `get_seed_theme_css()` | Tokens and primitives ([DESIGN.md](src/frontend/DESIGN.md)) |
@@ -228,7 +228,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
 | Chat route (added by `/chat`) | 141,909 B |
-| `/chat` first-screen JS (boot + chat route) | 254,333 B |
+| `/chat` first-screen JS (boot + chat route) | 254,374 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
@@ -241,7 +241,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 9,616,484 B |
+| Wheel: all of `dist/assets` (uncompressed) | 9,627,383 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).

@@ -657,7 +657,22 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     ),
     BuiltinPlugin(
         "api-reference",
-        "This server's own API: its OpenAPI document, read from the live route table",
+        "This server's own API: its OpenAPI document and a page to try each route",
+        (
+            # React page in the app shell (builtin.api-reference in
+            # src/frontend/src/builtin); shell-only, so the dashboard is unchanged (R6).
+            page(
+                "api-reference",
+                "API Reference",
+                "📖",
+                "Control",
+                "Every route this server answers, with a form to send a request",
+                51,
+                kind="native",
+                nav_icon="book-open",
+                shell_only=True,
+            ),
+        ),
         feature_refs=(feature(".openapi", "ApiReferenceFeature"),),
     ),
     BuiltinPlugin(
