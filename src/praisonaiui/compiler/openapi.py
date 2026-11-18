@@ -471,7 +471,7 @@ def spec_sources(config: "Config") -> list[SpecSource]:
             group(g, f"navigation.tabs[{i}].groups[{j}]")
     for key in ("groups", "pages"):
         for j, g in enumerate(getattr(nav, key) if nav else []):
-            if not isinstance(g, str):
+            if hasattr(g, "group"):
                 group(g, f"navigation.{key}[{j}]")
     return out
 
