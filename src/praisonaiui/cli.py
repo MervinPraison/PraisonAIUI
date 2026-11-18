@@ -492,7 +492,7 @@ def validate(
     issues += [
         ValidationError(code=i.code, category="content", message=i.message, file=i.file,
                         line=i.line or None, suggestion=i.hint)
-        for i in compiler.lint_content(config.name)
+        for i in compiler.lint_content(config.name, result.api_specs)
     ]
     for issue in issues:
         if strict:

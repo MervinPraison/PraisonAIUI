@@ -444,7 +444,9 @@ def nav_warnings(config: Any, base: Path) -> list[ValidationError]:
     builder = NavBuilder(scanner.scan(), base_path=config.site.route_base_docs)
     builder.to_dict_grouped(entries, docs_dir=docs_dir)
     slugs = [p.slug for p in builder.pages]
-    for name in dict.fromkeys(builder.unresolved):
+    from praisonaiui.compiler.openapi import endpoint_ref
+
+    for name in (n for n in dict.fromkeys(builder.unresolved) if not endpoint_ref(n)):  # endpoints: 7012
         close = difflib.get_close_matches(name.strip("/").removesuffix(".md"), slugs, n=1)
         out.append(ValidationError(
             2101, "navigation", f"navigation lists '{name}', but no docs page has that name (left out of the sidebar)",

@@ -9,6 +9,7 @@ with its example and the body's example. Made at build time, so the browser neve
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from praisonaiui.compiler.code_samples import _IGNORED, _explicit, _text, build_request
@@ -73,4 +74,56 @@ def playground_data(spec: ApiSpec, op: Operation, prefill: bool = True) -> dict:
                        "example": json.dumps(body, indent=2, ensure_ascii=False)
                        if request.kind in ("json", "multipart") else str(body),
                        **({"required": True} if (op.request_body or {}).get("required") else {})}
+    return out
+
+
+_AUTH = {"bearer": ("Authorization", "Bearer <token>"), "basic": ("Authorization", "Basic <encoded-value>"),
+         "key": ("X-API-Key", "<api-key>")}
+
+
+def _typed(kind: str, value: str) -> Any:
+    """A ``<ParamField body>`` example in the JSON body: numbers, booleans and JSON as themselves."""
+    if kind.split("|")[0].strip() in ("integer", "number", "boolean", "object") or kind.endswith("[]"):
+        try:
+            return json.loads(value)
+        except ValueError:
+            pass
+    return value
+
+
+def manual_data(method: str, path: str, text: str, api: Any = None, prefill: bool = True) -> dict:
+    """Try-it data for an ``api: "POST /v1/users"`` page: the page's ``<ParamField>``s (their
+    ``placeholder``, else ``default``, as the example), each ``{param}`` in the path,
+    ``api.server`` and an ``api.auth`` header."""
+    from praisonaiui.compiler.agent_markdown import _TAG, FIELD_IN, _attrs
+    from praisonaiui.compiler.docs_tags import _prose_segments
+    params: list[dict] = []
+    body: dict[str, Any] = {}
+    prose = "".join(chunk for code, chunk in _prose_segments(text) if not code)
+    for m in _TAG.finditer(prose):
+        a = _attrs(m.group(3))
+        where = next((k for k in FIELD_IN if k in a), None)
+        if m.group(1) or m.group(2) != "ParamField" or not where or not a[where]:
+            continue
+        example, kind = a.get("placeholder") or a.get("default") or "", a.get("type") or "string"
+        if where == "body":
+            body.setdefault(a[where], _typed(kind, example) if example else "")
+            continue
+        params.append({"name": a[where], "in": where, "type": kind, **({"required": True} if a.get(
+            "required", "false") != "false" or where == "path" else {}), **({"example": example} if example else {}),
+                       **({"enum": ["true", "false"]} if kind == "boolean" else {})})
+    for name in re.findall(r"\{([^{}/]+)\}", path):
+        if not any(p["in"] == "path" and p["name"] == name for p in params):
+            params.append({"name": name, "in": "path", "type": "string", "required": True})
+    auth = getattr(api, "auth", None)
+    if auth and auth.method in _AUTH:
+        header, value = _AUTH[auth.method]
+        params.append({"name": auth.name if auth.method == "key" and auth.name else header, "in": "header", "type": "string", "required": True,
+                       "example": value})
+    servers = getattr(api, "server", None) or []
+    out: dict[str, Any] = {"method": method, "path": path, "prefill": prefill,
+                           "servers": [{"url": u} for u in ([servers] if isinstance(servers, str) else servers)],
+                           "params": params}
+    if body:
+        out["body"] = {"type": "application/json", "example": json.dumps(body, indent=2, ensure_ascii=False)}
     return out

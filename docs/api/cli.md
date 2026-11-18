@@ -116,6 +116,7 @@ under it:
 | 7009 | `icon` (front matter, navigation, a component's `icon="…"`) that is not a [lucide](https://lucide.dev/icons) name, an emoji or an image URL, with the nearest name |
 | 7010 | a redirect loops, or ends at a docs path with no page ([redirects](../features/redirects.md#checks)) |
 | 7011 | a page is published at a redirect's source, so the redirect never runs |
+| 7012 | front matter `openapi:` / `api:` or a navigation `METHOD /path` entry that names no operation in the loaded specs ([OpenAPI](../features/openapi.md#endpoints-on-your-own-pages)) |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 | 7102 | `logo`, `favicon` or `site.theme.background` image that is not a file in the project folder ([branding](../features/theming.md#branding-a-docs-site)) |
 

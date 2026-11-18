@@ -453,16 +453,45 @@ def _entries(value: Any, where: str) -> list[SpecSource]:
     return [SpecSource(value.source, value.directory, where)] if value is not None else []
 
 
+#: One operation named in navigation or front matter: ``GET /users``, ``spec.yaml POST /users``, ``webhook new-pet``.
+_ENDPOINT = re.compile(rf"^\s*(?:(\S+)\s+)?({'|'.join(METHODS)}|webhook)\s+(\S+)\s*$", re.I)
+
+
+def endpoint_ref(text: Any) -> tuple[str | None, str, str] | None:
+    """``(spec file or None, METHOD or "webhook", path or webhook name)``, or None for a page name."""
+    m = _ENDPOINT.match(text) if isinstance(text, str) else None
+    if not m or (m[2].lower() != "webhook" and not m[3].startswith("/")):
+        return None
+    return m[1], "webhook" if m[2].lower() == "webhook" else m[2].upper(), m[3]
+
+
+def same_source(source: str, name: str) -> bool:
+    """Whether ``name`` (as written in a reference) names the spec loaded from ``source``."""
+    def norm(x: str) -> str:
+        return urlparse(x).path.removeprefix("./") if "://" in x else Path(x).as_posix().removeprefix("./")
+    return source == name or norm(source) == norm(name) or Path(norm(source)).name == Path(norm(name)).name
+
+
+def find_operation(spec: "ApiSpec", method: str, path: str) -> "Operation | None":
+    """The spec's operation for ``endpoint_ref``'s method and path (a webhook by its name)."""
+    return next((op for op in spec.operations if (op.webhook and method == "webhook" and op.path == path)
+                 or (not op.webhook and op.method == method and op.path == path)), None)
+
+
 def spec_sources(config: "Config") -> list[SpecSource]:
     """Every spec reference: ``api.openapi``, then tabs and their (nested) groups,
-    then the root ``navigation.groups`` and ``navigation.pages`` groups."""
+    then the root ``navigation.groups`` and ``navigation.pages`` groups. A spec file
+    named only in a group's ``spec.yaml GET /path`` entry counts as that group's."""
     out = _entries(config.api.openapi, "api.openapi") if config.api else []
+    named: list[SpecSource] = []
 
     def group(g: Any, where: str) -> None:
         out.extend(_entries(g.openapi, f"{where}.openapi"))
         for k, page in enumerate(g.pages):
             if hasattr(page, "group"):  # a nested group (not a page name or a link)
                 group(page, f"{where}.pages[{k}]")
+            elif (ref := endpoint_ref(page)) and ref[0]:
+                named.append(SpecSource(ref[0], None, f"{where}.openapi"))
 
     nav = config.navigation
     for i, tab in enumerate(nav.tabs if nav else []):
@@ -473,6 +502,9 @@ def spec_sources(config: "Config") -> list[SpecSource]:
         for j, g in enumerate(getattr(nav, key) if nav else []):
             if hasattr(g, "group"):
                 group(g, f"navigation.{key}[{j}]")
+    for ref in named:
+        if not any(same_source(o.source, ref.source) for o in out):
+            out.append(ref)
     return out
 
 
@@ -481,9 +513,16 @@ def load_config_specs(config: "Config", base_path: Path | str | None = None, *,
     """``{source: ApiSpec}``, each spec loaded once, with a unique ``slug``."""
     specs: dict[str, ApiSpec] = {}
     for ref in spec_sources(config):
-        if ref.source not in specs:
-            stem = re.sub(r"[^a-z0-9]+", "-", Path(urlparse(ref.source).path).stem.lower())
-            slug = _unique(stem.strip("-") or "openapi", {"index", *(s.slug for s in specs.values())}, "-")
-            specs[ref.source] = load_spec(ref.source, base_path, fetch=fetch)
-            specs[ref.source].slug = slug
+        add_spec(specs, ref.source, base_path, fetch=fetch)
     return specs
+
+
+def add_spec(specs: dict[str, ApiSpec], source: str, base_path: Path | str | None = None, *,
+             fetch: Fetch | None = None) -> ApiSpec:
+    """Load ``source`` into ``specs`` once, with a ``slug`` no other spec there has."""
+    if source not in specs:
+        stem = re.sub(r"[^a-z0-9]+", "-", Path(urlparse(source).path).stem.lower())
+        slug = _unique(stem.strip("-") or "openapi", {"index", *(s.slug for s in specs.values())}, "-")
+        specs[source] = load_spec(source, base_path, fetch=fetch)
+        specs[source].slug = slug
+    return specs[source]

@@ -3,7 +3,7 @@
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
 variables and snippets (7007, 7008) ``snippets.py``'s; redirects (7010, 7011)
-``redirects.py``'s.
+``redirects.py``'s; endpoint references (7012) ``openapi_pages.py``'s.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ _STR, _NUM, _BOOL, _DATE = "a string", "a number", "true or false", "a date (YYY
 FRONTMATTER_TYPES: dict[str, str] = {
     "title": _STR, "nav_title": _STR, "description": _STR, "icon": _STR, "layout": _STR,
     "sidebarTitle": _STR, "tag": _STR, "mode": _STR, "url": _STR, "canonical": _STR, "robots": _STR,
-    "playground": _STR,
+    "playground": _STR, "openapi": _STR, "api": _STR,
     "order": _NUM, "boost": _NUM,
     "hidden": _BOOL, "noindex": _BOOL, "searchable": _BOOL,
     "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL, "rss": _BOOL,

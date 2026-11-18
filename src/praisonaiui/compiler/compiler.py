@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -21,8 +22,14 @@ from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import NavBuilder, external_url, manual_entries, nav_trails
 from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
-from praisonaiui.compiler.openapi_pages import api_catalog, build_api_reference, strip_excluded
-from praisonaiui.compiler.playground import TRY_DIR
+from praisonaiui.compiler.openapi import add_spec, endpoint_ref, same_source
+from praisonaiui.compiler.openapi_pages import (
+    api_catalog,
+    build_api_reference,
+    embed_markdown,
+    strip_excluded,
+)
+from praisonaiui.compiler.playground import TRY_DIR, manual_data
 from praisonaiui.compiler.publish import (
     apply_indexing,
     content_signal,
@@ -171,6 +178,7 @@ class Compiler:
 
         # OpenAPI specs (loaded and checked once, by validate_config)
         files.extend(self._write_api_specs(output_dir, validation.api_specs, indent))
+        files.extend(self._write_try_data(output_dir, indent))
 
         # Copy docs markdown files for content loading
         warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
@@ -203,10 +211,19 @@ class Compiler:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
         return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text)
 
-    def lint_content(self, config_file: str = "aiui.yaml") -> list[ContentIssue]:
-        """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
+    def lint_content(self, config_file: str = "aiui.yaml", specs: dict | None = None) -> list[ContentIssue]:
+        """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …
+        ``specs``: the loaded OpenAPI specs (``validate_config``'s), for endpoint references (7012)."""
         theme = self.config.site.theme if self.config.site else None
         issues = accent_contrast(theme.accent, theme.accent_dark) if theme else []
+        if self._api is None:
+            self._api = self._api_reference(dict(specs or {}))
+        for page, key, message in self._api.issues if self._api else []:
+            text = self._snippets.read(page) if page else ""
+            line = next((i + 1 for i, s in enumerate(text.splitlines()) if s.startswith(f"{key}:")), 0)
+            shown = Path(os.path.relpath(page, self.base_path)).as_posix() if page else config_file
+            issues.append(ContentIssue(7012, shown, line, message, "Write it as the spec has it: an HTTP "
+                                       "method and the path, or webhook and its name (file name first for another spec)"))
         pages = self._published_pages()
         # A group page the build appends a directory listing to is not empty (nav_directory.py).
         base = self.config.site.route_base_docs.rstrip("/") + "/"
@@ -245,8 +262,18 @@ class Compiler:
         return Snippets(self.base_path, self.base_path / docs.dir if docs else None, self.config.variables)
 
     def _page_text(self, path: Path) -> str:
-        """A docs page's source with snippets and ``{{variables}}`` expanded (compiler/snippets.py)."""
-        return self._snippets.read(path)
+        """A docs page's source with snippets and ``{{variables}}`` expanded (compiler/snippets.py),
+        and the endpoint its ``openapi:`` / ``api:`` front matter names (openapi_pages.embed_markdown)."""
+        text = self._snippets.read(path)
+        embed = self._api.embeds.get(path.resolve()) if self._api else None
+        if embed is None:
+            return text
+        api = self.config.api
+        examples = api.examples if api else None
+        server = api.server if api else None
+        return embed_markdown(text, embed, expand=bool(api and api.params and api.params.expanded == "all"),
+                              languages=examples.languages if examples else None,
+                              servers=[server] if isinstance(server, str) else server)
 
     def _apply_composition_resolver(self) -> None:
         """Apply composition resolver to auto-wire components to zones."""
@@ -609,7 +636,7 @@ class Compiler:
 
         base, api = self.config.site.route_base_docs, self._api
         api_pages = [DocPage(path=Path(f"{p.slug}.md"), slug=p.slug, title=p.title, description=p.description,
-                             hidden=p.hidden) for p in (api.pages if api else [])]
+                             hidden=p.hidden, frontmatter=p.frontmatter) for p in (api.pages if api else [])]
         extra = api.sidebar_extra(nav_config.mode == "manual") if api else []
         entries = manual_entries(api.config if api else self.config)
         if entries:
@@ -671,13 +698,21 @@ class Compiler:
         return {"routes": routes}
 
     def _api_reference(self, specs: dict):
-        """Endpoint pages for the specs the config names (compiler/openapi_pages.py), or None."""
+        """Endpoint pages for the specs the config names and pages with ``openapi:`` / ``api:``
+        front matter (compiler/openapi_pages.py), or None. A spec file named only in a page's
+        front matter is loaded (relative to the config) and published too."""
         docs = self.config.content.docs if self.config.content else None
-        if not specs or not docs:
+        if not docs or not (self.base_path / docs.dir).is_dir():
             return None
         scanner = DocsScanner(docs_dir=self.base_path / docs.dir, include=docs.include,
                               exclude=self._exclude_patterns(), index_files=docs.index_files)
-        return build_api_reference(self.config, specs, {p.slug for p in scanner.scan()})
+        pages = scanner.scan()
+        written = [p for p in pages if "openapi" in p.frontmatter or "api" in p.frontmatter]
+        for page in written:
+            ref = endpoint_ref(page.frontmatter.get("openapi"))
+            if ref and ref[0] and not any(same_source(s, ref[0]) for s in specs):
+                add_spec(specs, ref[0], self.base_path)
+        return build_api_reference(self.config, specs, {p.slug for p in pages}, written)
 
     def _write_api_specs(self, output_dir: Path, specs: dict, indent: int | None) -> list[str]:
         """Each spec bundled into ``openapi/<slug>.json`` (``x-excluded`` operations
@@ -705,12 +740,22 @@ class Compiler:
             for s, e in zip(specs.values(), index)])
         (output_dir / ".well-known").mkdir(exist_ok=True)
         self._write_json(output_dir / ".well-known/api-catalog", catalog, indent)
-        tried = []  # each endpoint page's Try-it data (compiler/playground.py)
-        for page in [p for p in self._api.pages if p.playground] if self._api else []:
-            tried.append(f"{TRY_DIR}/{page.slug}.json")
+        return [e["file"] for e in index] + ["openapi/index.json", ".well-known/api-catalog"]
+
+    def _write_try_data(self, output_dir: Path, indent: int | None) -> list[str]:
+        """Each endpoint page's Try-it data, ``openapi/try/<slug>.json`` (compiler/playground.py)."""
+        api, tried = self._api, []
+        prefill = not (self.config.api and self.config.api.examples) or self.config.api.examples.prefill
+        data = [(p.slug, p.playground) for p in api.pages if p.playground] if api else []
+        for path, e in (api.embeds.items() if api else []):
+            if e.mode == "interactive" and e.method != "webhook":
+                data.append((e.slug, e.playground or manual_data(e.method, e.path, self._page_text(path),
+                                                                 self.config.api, prefill)))
+        for slug, value in data:
+            tried.append(f"{TRY_DIR}/{slug}.json")
             (output_dir / tried[-1]).parent.mkdir(parents=True, exist_ok=True)
-            self._write_json(output_dir / tried[-1], page.playground, indent)
-        return [e["file"] for e in index] + ["openapi/index.json", ".well-known/api-catalog", *tried]
+            self._write_json(output_dir / tried[-1], value, indent)
+        return tried
 
     def _write_json(self, path: Path, data: dict, indent: int | None) -> None:
         """Write JSON data to file."""
