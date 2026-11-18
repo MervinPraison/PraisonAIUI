@@ -164,6 +164,11 @@ class ContentSourceConfig(BaseModel):
     edit_link: Optional[EditLinkConfig] = Field(default=None, alias="editLink")
     last_updated: bool = Field(default=False, alias="lastUpdated")
     feedback: Optional[FeedbackConfig] = None
+    mcp: bool = Field(
+        default=True,
+        description="Serve a read-only MCP server at /mcp from aiui serve and aiui dev "
+        "(docs/features/ai-ready-docs.md#mcp-server)",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -419,6 +419,13 @@
   operation's `x-aiui` sets its page's front matter (`metadata`), Markdown above the generated
   part (`content`) and URL (`href`). `aiui validate` names an operation no spec has (7012). See
   [OpenAPI](docs/features/openapi.md#endpoints-on-your-own-pages).
+- **Docs MCP server.** `aiui serve` and `aiui dev` answer the Model Context Protocol at `/mcp`
+  (Streamable HTTP, read-only, no extra dependency): `search_docs` (ranked like the search
+  dialog), `read_page` (a page's agent-ready Markdown) and `list_pages`. Agents find it through
+  `/.well-known/mcp` (a server card) and a section in `llms.txt`; the page menu gains **Copy MCP
+  server URL**, **Connect to Cursor** and **Connect to VS Code**. Host and Origin are checked
+  (DNS rebinding). On by default; `content.docs.mcp: false` turns it off. A static host serves
+  none of it. See [AI-ready docs](docs/features/ai-ready-docs.md#mcp-server).
 
 ### Deprecated
 
