@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
+from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
@@ -166,7 +167,6 @@ class Compiler:
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
-            nav = self._generate_docs_nav()
             base, site = self.config.site.route_base_docs, self._site_url() or self.url_base
             files.extend(write_directory_pages(nav, output_dir, base, site))
             route_files = self._generate_route_pages(output_dir, nav)
@@ -456,6 +456,7 @@ class Compiler:
                 ),
                 "robots": self.config.seo.robots,
                 "trailingSlash": self.config.seo.trailing_slash,
+                **({"metatags": head.clean(self.config.seo.metatags)} if self.config.seo.metatags else {}),
             }
 
         # A11y configuration - basic implementation for frontend
@@ -569,6 +570,7 @@ class Compiler:
             if api_pages:  # endpoint pages: where their spec is named, after the folders
                 nav["items"] += NavBuilder(api_pages, base_path=base).to_dict_grouped(extra)["items"]
         apply_indexing(nav, self.config.seo.indexing if self.config.seo else "navigable")
+        head.apply_page_seo(nav, self.config.seo, base)
         # Sidebar behaviour (docs/features/navigation.md): only what differs from the default.
         if not nav_config.collapsible:
             nav["collapsible"] = False
@@ -959,8 +961,6 @@ class Compiler:
             # Build page-specific HTML
             page_title = f"{title} | {site_title}"
             page_desc = page.get("description") or f"{title} - {site_desc}"
-            page_noindex = bool(page.get("noindex"))
-
             html = template_html
 
             # Replace <title>
@@ -976,9 +976,10 @@ class Compiler:
             )
 
             # Add canonical URL, OG tags, and noscript content before </head>
-            html = set_robots_meta(html, self._robots_meta(page_noindex))
-            seo_tags = self._build_seo_tags(path, page_title, page_desc)
-            json_ld = self._build_json_ld(path, title, page_desc, trails.get(path, []))
+            tags = self._page_tags(path, page_title, page_desc, page)
+            html = set_robots_meta(head.strip_meta(html, tags), tags["robots"])
+            seo_tags = head.render(tags)
+            json_ld = self._build_json_ld(path, title, page_desc, trails.get(path, []), tags, page)
 
             # Try to load markdown content for noscript pre-rendering
             noscript_content = self._get_noscript_content(output_dir, path)
@@ -1031,6 +1032,8 @@ class Compiler:
                             "noindex": bool(item.get("noindex")),
                             "hidden": bool(item.get("hidden")),
                             "searchable": item.get("searchable") is not False,
+                            "seo": item.get("seo") or {},
+                            "lastUpdated": item.get("lastUpdated"),
                         }
                     )
                 if item.get("children"):
@@ -1251,7 +1254,9 @@ class Compiler:
         site_title = self.config.site.title
         site_desc = self.config.site.description or f"Documentation for {site_title}"
         page_title = f"{site_title}"
-        seo_tags = self._build_seo_tags(docs_home, page_title, site_desc)
+        page = next((p for p in self._collect_nav_pages(nav) if p["path"].rstrip("/") == docs_home), {})
+        tags = self._page_tags(docs_home, page_title, site_desc, page)
+        json_ld = self._build_json_ld(docs_home, page_title, site_desc, (), tags, page)
         crawl_nav = self._build_crawl_nav_html(nav)
 
         html = index_path.read_text(encoding="utf-8")
@@ -1264,11 +1269,10 @@ class Compiler:
             f'content="{self._escape_html(site_desc)}"',
         )
         if "</head>" in html and 'rel="canonical"' not in html:
-            html = html.replace("</head>", f"{seo_tags}\n{self._markdown_link(docs_home)}\n</head>", 1)
-        home_noindex = any(
-            p["noindex"] and p["path"].rstrip("/") == docs_home for p in self._collect_nav_pages(nav)
-        )
-        html = set_robots_meta(html, self._robots_meta(home_noindex))
+            html = head.strip_meta(html, tags).replace(
+                "</head>", f"{head.render(tags)}\n{self._markdown_link(docs_home)}\n{json_ld}\n</head>", 1
+            )
+        html = set_robots_meta(html, tags["robots"])
         preload = self._hero_preload(nav)
         if preload and 'rel="preload" as="image"' not in html:
             html = html.replace("</head>", f"{preload}\n</head>", 1)
@@ -1314,91 +1318,88 @@ class Compiler:
             "</nav>"
         )
 
-    def _build_seo_tags(self, path: str, title: str, description: str) -> str:
-        """Build canonical, OG, and Twitter meta tags (the robots meta: publish.set_robots_meta)."""
-        d = self._escape_html(description)
-        canonical = self._escape_html(self._page_url(path))
-        og_url = canonical
-
-        # Extract original page title by removing the site title suffix if present
+    def _page_tags(self, path: str, title: str, description: str, page: dict | None = None) -> dict[str, str]:
+        """The page's head tags (compiler/seo.py): the defaults below, then
+        ``seo.metatags``, then the page's ``seo`` map (``seo.paths`` + frontmatter)."""
+        page = page or {}
+        seo = self.config.seo
         site_title = self.config.site.title
-        page_title = title
-        suffix = f" | {site_title}"
-        if page_title.endswith(suffix):
-            page_title = page_title[:-len(suffix)]
-
-        # Use configured title template if available
-        if self.config.seo and self.config.seo.title_template:
-            template = self.config.seo.title_template
-            if "%s" in template:
-                parts = template.split("%s")
-                if len(parts) >= 3:
-                    t = self._escape_html(f"{parts[0]}{page_title}{parts[1]}{site_title}{''.join(parts[2:])}")
-                else:
-                    t = self._escape_html(template.replace("%s", page_title, 1))
+        # The page's own title, without the " | Site" suffix
+        page_title = title.removesuffix(f" | {site_title}")
+        template = seo.title_template if seo and seo.title_template else ""
+        if "%s" in template:
+            parts = template.split("%s")
+            if len(parts) >= 3:
+                t = f"{parts[0]}{page_title}{parts[1]}{site_title}{''.join(parts[2:])}"
             else:
-                t = self._escape_html(template)
+                t = template.replace("%s", page_title, 1)
         else:
-            t = self._escape_html(title)
+            t = template or title
 
-        tags = [
-            f'  <link rel="canonical" href="{canonical}" />',
-            f'  <meta property="og:title" content="{t}" />',
-            f'  <meta property="og:description" content="{d}" />',
-            f'  <meta property="og:url" content="{og_url}" />',
-            '  <meta property="og:type" content="article" />',
-        ]
+        tags = {
+            "canonical": self._page_url(path),
+            "og:title": t,
+            "og:description": description,
+            "og:type": "article",
+            "og:site_name": site_title,
+            "twitter:title": t,
+            "twitter:description": description,
+            "robots": self._robots_meta(bool(page.get("noindex"))),
+        }
+        image = self._og_image(path, page)
+        if image:
+            tags["og:image"] = image
+        if seo and seo.twitter and "handle" in seo.twitter:
+            tags["twitter:site"] = seo.twitter["handle"]
+        overrides = {**head.clean(seo.metatags if seo else None), **page.get("seo", {})}
+        return head.merge(tags, overrides, self._absolute_url)
 
-        # Add default OG image if configured
-        if self.config.seo and self.config.seo.default_image:
-            image = self.config.seo.default_image
-            if not image.startswith(("http://", "https://")):
-                image = self._absolute_url(image)
-            og_image = self._escape_html(image)
-            tags.append(f'  <meta property="og:image" content="{og_image}" />')
-
-        # Add Twitter card tags
-        tags.append('  <meta name="twitter:card" content="summary" />')
-        tags.append(f'  <meta name="twitter:title" content="{t}" />')
-        tags.append(f'  <meta name="twitter:description" content="{d}" />')
-
-        # Add Twitter handle if configured
-        if self.config.seo and self.config.seo.twitter and "handle" in self.config.seo.twitter:
-            handle = self._escape_html(self.config.seo.twitter["handle"])
-            tags.append(f'  <meta name="twitter:site" content="{handle}" />')
-
-        return "\n".join(tags)
+    def _og_image(self, path: str, page: dict) -> str | None:
+        """The page's ``og:image`` before overrides: ``seo.defaultImage`` (absolute).
+        The hook for generated per-page cards."""
+        image = self.config.seo.default_image if self.config.seo else None
+        if image and not image.startswith(("http://", "https://")):
+            image = self._absolute_url(image)
+        return image
 
     def _markdown_link(self, path: str) -> str:
         """``<link rel="alternate" type="text/markdown">``: where an agent finds the page as Markdown."""
         href = self._escape_html(self._md_url(path))
         return f'  <link rel="alternate" type="text/markdown" href="{href}" />'
 
-    def _build_json_ld(self, path: str, title: str, description: str, trail: list[dict] | tuple = ()) -> str:
-        url = self._page_url(path)
-        site_url = self._site_url()
-        payload: dict = {
-            "@context": "https://schema.org",
-            "@type": "TechArticle",
-            "headline": title,
-            "description": description,
-            "url": url,
+    def _build_json_ld(
+        self, path: str, title: str, description: str, trail: list[dict] | tuple = (),
+        tags: dict[str, str] | None = None, page: dict | None = None,
+    ) -> str:
+        """One JSON-LD ``@graph`` script (compiler/seo.py json_ld); the docs app keeps it
+        while ``data-page`` is the page it shows."""
+        tags = tags or {}
+        url = tags.get("canonical") or self._page_url(path)
+        org = self.config.seo.organization if self.config.seo else None
+        logo = (org and org.logo) or (self.config.logo and self.config.logo.light) or self.config.site.logo
+        if logo and not logo.startswith(("http://", "https://", "/")):
+            logo = None  # an emoji or a relative name, not an image URL
+        search = self.config.search
+        site = {
+            "url": self._site_url() or self.url_base,
+            "name": self.config.site.title,
+            "search": not (search and search.enabled is False),
+            "organization": {
+                "name": org and org.name,
+                "url": org and org.url,
+                "logo": self._absolute_url(logo) if logo and logo.startswith("/") else logo,
+                "sameAs": org.same_as if org else [],
+            },
         }
-        if site_url:
-            payload["isPartOf"] = {
-                "@type": "WebSite",
-                "name": self.config.site.title,
-                "url": f"{site_url}/",
-            }
-        script = f'  <script type="application/ld+json">{json_for_html(payload, separators=None)}</script>'
-        # BreadcrumbList: the page's groups that have a page of their own, then the page.
-        crumbs = [(c["title"], self._page_url(c["path"])) for c in trail if c.get("path")]
-        if crumbs:
-            items = [{"@type": "ListItem", "position": i, "name": name, "item": item}
-                     for i, (name, item) in enumerate([*crumbs, (title, url)], 1)]
-            crumbs_ld = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": items}
-            script += f'\n  <script type="application/ld+json">{json_for_html(crumbs_ld, separators=None)}</script>'
-        return script
+        ld = head.json_ld({
+            "url": url, "title": title, "description": description,
+            "crumbs": [(c["title"], self._page_url(c["path"])) for c in trail if c.get("path")],
+            "dateModified": (page or {}).get("lastUpdated"),
+            "keywords": tags.get("keywords"),
+            "image": tags.get("og:image"),
+        }, site)
+        return (f'  <script type="application/ld+json" id="aiui-jsonld" data-page="{self._escape_html(url)}">'
+                f"{json_for_html(ld, separators=None)}</script>")
 
     # The JSON script docs/docLoader.ts adoptInlinedDoc() reads.
     INITIAL_DOC_ID = "aiui-initial-doc"

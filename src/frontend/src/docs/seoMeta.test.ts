@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pageUrl, robotsContent } from './seoMeta'
+import { mergeTags, pageUrl, robotsContent } from './seoMeta'
 import { docNeighbours, docSearchGroups, navItemShown } from './docNav'
 import type { DocsNav } from '../types'
 
@@ -31,4 +31,17 @@ test('hidden pages leave the sidebar and pager; noindex pages leave search', () 
     assert.deepEqual((nav.items ?? []).map(navItemShown), [true, false, true, false, false])
     assert.equal(docNeighbours(nav, '/docs/a').next?.title, 'Old')
     assert.deepEqual(docSearchGroups(nav)[0].pages.map((p) => p.title), ['A', 'All'])
+})
+
+test('page tags: overrides win, og:url follows the canonical, a large card with an image, noindex stays', () => {
+    const abs = (p: string) => `https://ex.com${p}`
+    const defaults = { canonical: 'https://ex.com/docs/a', robots: 'index, follow', 'og:title': 'A' }
+    assert.deepEqual(mergeTags(defaults, {}, abs), { ...defaults, 'og:url': 'https://ex.com/docs/a', 'twitter:card': 'summary' })
+    const tags = mergeTags(defaults, { canonical: '/docs/b', 'og:image': '/x.png', robots: 'noindex' }, abs)
+    assert.equal(tags['og:url'], 'https://ex.com/docs/b')
+    assert.equal(tags['twitter:image'], 'https://ex.com/x.png')
+    assert.equal(tags['twitter:card'], 'summary_large_image')
+    assert.equal(tags.robots, 'noindex')
+    assert.equal(mergeTags({ ...defaults, robots: 'noindex' }, { robots: 'index, follow' }, abs).robots, 'noindex')
+    assert.equal(mergeTags(defaults, { 'og:image': '/x.png', 'twitter:card': 'summary' }, abs)['twitter:card'], 'summary')
 })

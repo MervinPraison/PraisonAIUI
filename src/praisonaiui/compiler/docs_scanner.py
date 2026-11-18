@@ -27,6 +27,11 @@ class DocPage:
     frontmatter: dict = field(default_factory=dict)
 
 
+#: Inline component / HTML tags and comments, left out of a fallback description.
+_TAG = re.compile(r"</?[A-Za-z][^>]*>")
+_COMMENT = re.compile(r"<!--.*?-->")
+
+
 class DocsScanner:
     """Scans a docs directory and discovers pages."""
 
@@ -130,7 +135,7 @@ class DocsScanner:
             if end_idx != -1:
                 content = content[end_idx + 3 :]
 
-        in_code = False
+        in_code = in_tag = False
         for line in content.splitlines():
             stripped = line.strip()
             if stripped.startswith("```"):
@@ -138,12 +143,17 @@ class DocsScanner:
                 continue
             if in_code or not stripped:
                 continue
-            if stripped.startswith("#"):
+            # A component or HTML tag over several lines (<img\n  src=...\n/>): skip its attributes.
+            if in_tag:
+                in_tag = ">" not in stripped
                 continue
-            if stripped.startswith(("-", "*", "+", "|", ">", "!", "---")):
+            if stripped.startswith("<") and ">" not in stripped:
+                in_tag = True
+                continue
+            if stripped.startswith(("#", "-", "*", "+", "|", ">", "!", "---", "import ", "export ", "{")):
                 continue
 
-            text = stripped
+            text = _TAG.sub(" ", _COMMENT.sub(" ", stripped))
             text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
             text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
             text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)

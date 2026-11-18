@@ -329,6 +329,17 @@
   and search all see the text; `snippets/` is not published as pages. `aiui validate`
   reports unknown variables (7007) and missing or looping snippets (7008, which fail
   the build). See [Writing docs](docs/features/writing-docs.md#reusable-snippets-and-variables).
+- **SEO overrides, site-wide tags and structured data.** Frontmatter sets any
+  `og:*`, `twitter:*` or `article:*` tag, `canonical`, `robots` and
+  `keywords` for a page, in the built HTML and after client navigation alike.
+  `seo.metatags` adds tags to every page (`google-site-verification`, ...)
+  and `seo.paths` to the pages under a folder (a `robots: noindex` folder
+  also leaves the sitemap, `llms.txt` and search). `twitter:card` is
+  `summary_large_image` when there is an image, `og:site_name` is set, and
+  the template's `og:type` is replaced instead of repeated. Each page has one
+  JSON-LD `@graph`: Organization (`seo.organization`), WebSite with a
+  SearchAction, TechArticle and BreadcrumbList. A fallback description no
+  longer starts with component or HTML tags. See [SEO](docs/features/seo.md#page-level-overrides).
 
 ### Deprecated
 

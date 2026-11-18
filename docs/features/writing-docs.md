@@ -59,7 +59,10 @@ tag: NEW
 | `hidden` | `true`/`false` | Routable, but not in the sidebar, pager or indexes ([Navigation](navigation.md)). |
 | `noindex` | `true`/`false` | Tells search engines not to index the page (and leaves it out of the sitemap). |
 | `searchable` | `true`/`false` | `false` leaves the page out of the site's own search. |
-| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown. |
+| `keywords` | list of words, or one comma-separated string | Extra search terms, matched but never shown; also the `keywords` meta tag and JSON-LD. |
+| `canonical` | string | The page's canonical URL (and `og:url`), for a page whose original lives elsewhere. |
+| `robots` | string | The robots meta, such as `noindex, nofollow`; a value with `noindex` also leaves the page out of the sitemap, `llms.txt` and search. |
+| `og:*`, `twitter:*`, `article:*` | string | That head tag for this page (quote the key: `'og:image': /images/card.png`); see [SEO](seo.md#page-level-overrides). |
 | `boost` | number | Search ranking weight (`2` ranks the page higher). |
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |

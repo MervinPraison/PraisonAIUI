@@ -89,7 +89,7 @@ def _build_docs(tmp_path: Path) -> str:
     "script_re",
     [
         r'<script type="application/json" id="aiui-initial-doc">(.*?)</script>',
-        r'<script type="application/ld\+json">(.*?)</script>',
+        r'<script type="application/ld\+json"[^>]*>(.*?)</script>',
     ],
     ids=["inline-doc", "json-ld"],
 )
