@@ -244,9 +244,85 @@ async def on_message(message: str):
     await aiui.say(f"You said: {message}")
 ```
 
-`app.py {3-4}` (the name without `title=`), `hl_lines="3 4"` and
-`highlight="3-4"` work too, so fences written for MkDocs or Mintlify carry
-over.
+Without `title=`, every word after the language up to the first option is
+the title: `python Reply handler {3-4}` shows "Reply handler".
+`highlight={3-4}`, `hl_lines="3 4"` and `highlight="3-4"` work too, so fences
+written for MkDocs or Mintlify carry over.
+
+### Code block options
+
+Options go after the language, in any order, alone or together:
+
+| Option | What it does |
+|---|---|
+| `lines` | Line numbers in a gutter (the copy button copies the code only). |
+| `wrap` | Long lines wrap instead of scrolling sideways. |
+| `expandable` | A block over 12 lines shows 12 and a "Show all N lines" button. |
+| `nocopy` | No copy button. |
+| `icon="terminal"` | An icon before the title (`terminal`, `code`, `rocket`, …; other names show the code icon). |
+| `highlight={1-2,5}` | Highlighted lines; `{1-2,5}` alone does the same. |
+| `focus={2,4-5}` | These lines stay sharp, the rest dim until the reader points at the block. |
+
+A flag is never taken for a title, and `twoslash` is accepted and ignored.
+
+````markdown
+```python Reply handler lines wrap icon="code" focus={3-4}
+import praisonaiui as aiui
+
+@aiui.reply
+async def on_message(message: str):
+    await aiui.say(f"You said: {message}, and this line is long enough to wrap on a phone")
+```
+````
+
+```python Reply handler lines wrap icon="code" focus={3-4}
+import praisonaiui as aiui
+
+@aiui.reply
+async def on_message(message: str):
+    await aiui.say(f"You said: {message}, and this line is long enough to wrap on a phone")
+```
+
+### Diffs and notation comments
+
+End a line with a `[!code …]` comment in the language's own comment syntax
+(`//`, `#`, `--`, `<!-- -->`) to mark it: `++` added, `--` removed,
+`highlight` and `focus`. `:N` marks that line and the next N-1; a comment on a
+line of its own marks the lines after it. The comments never show, and the
+copy button copies the code without them.
+
+````markdown
+```python
+port = 3000  # [!code --]
+port = 8080  # [!code ++]
+serve(port)  # [!code highlight]
+```
+````
+
+```python
+port = 3000  # [!code --]
+port = 8080  # [!code ++]
+serve(port)  # [!code highlight]
+```
+
+### The CodeBlock component
+
+`<CodeBlock>` takes the same options as attributes (`language`, `filename`,
+`icon`, `lines`, `wrap`, `expandable`, `nocopy`, `highlight="[1,3]"`,
+`focus="[2]"`) and renders exactly like the fence. The code goes between the
+tags, as written or as a `` {`…`} `` template literal.
+
+```markdown
+<CodeBlock language="bash" filename="install.sh" icon="terminal" lines highlight="[2]">
+  pip install aiui
+  aiui run app.py
+</CodeBlock>
+```
+
+<CodeBlock language="bash" filename="install.sh" icon="terminal" lines highlight="[2]">
+  pip install aiui
+  aiui run app.py
+</CodeBlock>
 
 ### Code groups
 

@@ -670,10 +670,15 @@ img.aiui-docs-mark {
   --shiki-dark: var(--ui-text-3) !important;
 }
 
-/* A fence with a file name or highlighted lines (docs/DocsPre.tsx). */
+/* A fence with options (docs/DocsPre.tsx, docs/codeMeta.ts): title and icon,
+   marked lines, line numbers, wrap, a collapsed long block, no copy button. */
 .aiui-docs article.aiui-doc .aiui-code-frame {
   --aiui-code-hl: color-mix(in oklab, var(--primary) 11%, transparent);
   --aiui-code-hl-edge: var(--primary);
+  --aiui-code-add: color-mix(in oklab, var(--success) 13%, transparent);
+  --aiui-code-remove: color-mix(in oklab, var(--destructive) 12%, transparent);
+  --aiui-code-dim: 0.45;
+  --aiui-code-blur: blur(0.5px);
   position: relative;
   margin-block: 1.25rem;
 }
@@ -685,6 +690,7 @@ img.aiui-docs-mark {
   top: 1px;
   left: 1px;
   display: flex;
+  gap: 0.375rem;
   align-items: center;
   height: 2.25rem;
   max-width: calc(100% - 5rem);
@@ -698,11 +704,60 @@ img.aiui-docs-mark {
   white-space: nowrap;
   pointer-events: none;
 }
+.aiui-docs article.aiui-doc .aiui-code-title > svg { flex: none; width: 0.875rem; height: 0.875rem; color: var(--ui-text-3); }
 .aiui-docs article.aiui-doc .aiui-code-frame[data-titled] [data-streamdown='code-block-header'] > span { visibility: hidden; }
-/* Highlighted lines run to both edges of the code panel. */
-.aiui-docs article.aiui-doc .aiui-code-frame[data-highlighted] code > span {
+/* Marked lines (highlight, diff, focus) run to both edges of the code panel. */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-marked] code > span {
+  position: relative;
   margin-inline: -1rem;
   padding-inline: 1rem;
+  background: var(--aiui-line-bg, transparent);
+  box-shadow: inset 2px 0 var(--aiui-line-edge, transparent);
+}
+/* Diff lines carry a + or - in the left padding, so colour is not the only cue. */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-diff] code > span::after {
+  content: var(--aiui-line-sign, '');
+  position: absolute;
+  top: 0;
+  left: 0.3rem;
+  color: var(--aiui-line-edge);
+  user-select: none;
+}
+.aiui-docs article.aiui-doc .aiui-code-frame[data-focus] code > span { transition: opacity 0.2s, filter 0.2s; }
+@media (prefers-reduced-motion: reduce) {
+  .aiui-docs article.aiui-doc .aiui-code-frame[data-focus] code > span { transition: none; }
+}
+/* `lines`: a number gutter (not copied: the copy button copies the code). */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-lines] code { counter-reset: aiui-line; }
+.aiui-docs article.aiui-doc .aiui-code-frame[data-lines] code > span { counter-increment: aiui-line; }
+.aiui-docs article.aiui-doc .aiui-code-frame[data-lines] code > span::before {
+  content: counter(aiui-line);
+  display: inline-block;
+  width: var(--aiui-ln-w, 2ch);
+  margin-right: 1rem;
+  color: var(--ui-text-3);
+  text-align: right;
+  user-select: none;
+}
+/* `wrap`: long lines wrap; with numbers, the wrapped part stays clear of the gutter. */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-wrap] [data-streamdown='code-block-body'] pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.aiui-docs article.aiui-doc .aiui-code-frame[data-wrap][data-lines] code > span {
+  padding-left: calc(var(--aiui-ln-w, 2ch) + 1rem);
+  text-indent: calc(-1 * (var(--aiui-ln-w, 2ch) + 1rem));
+}
+.aiui-docs article.aiui-doc .aiui-code-frame[data-wrap][data-lines][data-marked] code > span {
+  padding-left: calc(var(--aiui-ln-w, 2ch) + 2rem);
+}
+.aiui-docs article.aiui-doc .aiui-code-frame[data-nocopy] [data-streamdown='code-block-copy-button'] { display: none; }
+/* `expandable`: 12 lines, the last ones fading above the "Show all" pill. */
+.aiui-docs article.aiui-doc .aiui-code-frame[data-long] [data-streamdown='code-block-body'] { padding-bottom: 2.75rem; }
+.aiui-docs article.aiui-doc .aiui-code-frame[data-collapsed] [data-streamdown='code-block-body'] {
+  max-height: calc(12 * 1.7 * 0.8125rem + 3.625rem);
+  overflow-y: hidden;
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - 5rem), transparent calc(100% - 2.75rem));
 }
 
 /* Code groups (<CodeGroup>, or tabs that each hold one code block): the tab

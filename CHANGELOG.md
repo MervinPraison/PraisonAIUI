@@ -230,6 +230,13 @@
   its text and `aiui build` / `aiui validate` warn with file and line;
   `{/* … */}` comments are hidden; `## Title {#id}` pins an anchor. One table
   (`DOCS_TAGS`, `markdown/docsTags.ts`) defines every docs component.
+- Docs code blocks take Mintlify's options: multi-word titles, `lines`,
+  `wrap`, `expandable`, `nocopy`, `icon=`, `highlight={1-2,5}`, `focus=`,
+  and `// [!code ++]` / `[!code --]` / `[!code highlight]` / `[!code focus]`
+  comments (with `:N` ranges), which never reach the page or the clipboard.
+  `<CodeBlock>` takes the same options as attributes. Flags were shown as
+  file names before. Chat code blocks are unchanged. See
+  [Writing docs pages](docs/features/writing-docs.md#code-block-options).
 
 ### Deprecated
 
