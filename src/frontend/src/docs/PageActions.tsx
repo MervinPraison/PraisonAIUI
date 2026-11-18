@@ -13,6 +13,7 @@ import {
 import { loadDoc, peekDoc } from './docLoader'
 import { assistantLinks, copyText } from './pageActionLinks'
 import { docPathToMarkdown } from '../pathUtils'
+import { withBase } from '../lib/url'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
@@ -22,7 +23,8 @@ export function PageActions({ path, title }: { path: string; title: string }) {
     useEffect(() => () => window.clearTimeout(timer.current), [])
 
     const mdPath = docPathToMarkdown(path) // the URL Content.tsx loaded, so peekDoc hits
-    const mdUrl = typeof window === 'undefined' ? mdPath : new URL(mdPath, window.location.origin).href
+    const mdHref = withBase(mdPath)
+    const mdUrl = typeof window === 'undefined' ? mdHref : new URL(mdHref, window.location.origin).href
     const links = assistantLinks(mdUrl, title)
 
     const copyPage = async () => {
@@ -59,7 +61,7 @@ export function PageActions({ path, title }: { path: string; title: string }) {
                         <span><strong>Copy page</strong><small>As Markdown, for an assistant</small></span>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <a href={mdPath} target="_blank" rel="noopener">
+                        <a href={mdHref} target="_blank" rel="noopener">
                             <FileCode2 aria-hidden="true" />
                             <span><strong>View as Markdown</strong><small>The page source, as plain text</small></span>
                         </a>

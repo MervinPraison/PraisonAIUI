@@ -66,6 +66,12 @@ class SiteConfig(BaseModel):
     title: str
     description: Optional[str] = None
     route_base_docs: str = Field(default="/docs", alias="routeBaseDocs")
+    base_path: Optional[str] = Field(
+        default=None,
+        alias="basePath",
+        description="URL path a static build is published under (/docs, /my-repo), "
+        "or 'auto' for a GitHub Pages project site. Default: the path of seo.siteUrl, else the root",
+    )
     ui: Literal["shadcn", "mui", "chakra"] = "shadcn"
     theme: Optional[ThemeConfig] = None
     logo: Optional[str] = Field(

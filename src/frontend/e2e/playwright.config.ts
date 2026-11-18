@@ -14,6 +14,8 @@
  *   docs               `aiui build` output on `aiui serve`      markdown, docs-*
  *   docs-auth          the same site on create_app(static_dir)  docs-auth
  *                      behind AUTH_ENFORCE (fixtures/docs-auth)
+ *   docs-subpath       the same site built with --base-path     docs-subpath
+ *                      /sub, on `aiui serve` under /sub
  *   page-reload-*      the dashboard and app-shell servers      page-reload
  *   layouts-host       app shell + the layout-plugin fixture    layouts-host, layout-<id>, app-<page>
  *                      (fixtures/layout-plugin/serve.py)
@@ -22,7 +24,7 @@
  *   legacy-baseline    the v0.3.153 tree (opt-in, see below)    legacy-parity
  *
  * Environment:
- *   AIUI_E2E_PORT          first of eleven consecutive ports (default 8720)
+ *   AIUI_E2E_PORT          first of twelve consecutive ports (default 8720)
  *   AIUI_E2E_PYTHON        Python interpreter (default python3, then python)
  *   AIUI_E2E_REUSE=1       reuse servers that are already listening
  *   AIUI_E2E_BASELINE_SRC  a checkout of v0.3.153 (git worktree of 6bdf6f0);
@@ -56,6 +58,7 @@ const PORTS = {
   chatSystem: BASE_PORT + 8,
   appPages: BASE_PORT + 9,
   docsAuth: BASE_PORT + 10,
+  docsSub: BASE_PORT + 11,
 }
 const url = (port: number) => `http://127.0.0.1:${port}`
 
@@ -129,6 +132,7 @@ export default defineConfig({
     server(PORTS.chatSystem, '-- --style chat'),
     server(PORTS.docs, '--docs'),
     server(PORTS.docsAuth, '--docs-auth'),
+    server(PORTS.docsSub, '--docs --base-path /sub'),
     // The layout host suite: its own server, with a third-party layout plugin.
     layoutServer(PORTS.layouts),
     // The page-template baselines: the same server, fresh, so the chats the
@@ -157,13 +161,18 @@ export default defineConfig({
     },
     {
       name: 'docs',
-      testMatch: /[\\/](markdown|docs-(?!auth)[\w-]+)\.spec\.ts$/,
+      testMatch: /[\\/](markdown|docs-(?!auth|subpath)[\w-]+)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.docs) },
     },
     {
       name: 'docs-auth',
       testMatch: /[\\/]docs-auth\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.docsAuth) },
+    },
+    {
+      name: 'docs-subpath',
+      testMatch: /[\\/]docs-subpath\.spec\.ts$/,
+      use: { ...chromium, baseURL: url(PORTS.docsSub) },
     },
     // One spec against both page styles (the servers above, no new ones).
     {

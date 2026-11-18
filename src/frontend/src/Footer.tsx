@@ -3,6 +3,7 @@
 import type { UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
 import { isExternal } from './docs/chrome'
+import { withBase } from './lib/url'
 
 const SOCIAL_LABELS: Record<string, string> = {
     github: 'GitHub',
@@ -16,7 +17,7 @@ const SOCIAL_LABELS: Record<string, string> = {
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
     const external = isExternal(href)
     return (
-        <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+        <a href={withBase(href)} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
             {children}
         </a>
     )

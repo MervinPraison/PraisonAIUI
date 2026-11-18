@@ -90,7 +90,8 @@ class TestSeoBuild:
 
     def test_nav_intercept_handles_main_doc_links(self):
         source = Path("src/praisonaiui/templates/frontend/plugins/nav-intercept.js").read_text(encoding="utf-8")
-        assert 'main a[href^="/docs"]' in source
+        # Under a base path (aiui build --base-path) BASE is the prefix; '' at the root.
+        assert 'main a[href^="${BASE}/docs"]' in source
 
     def test_app_uses_absolute_site_url_for_canonical(self):
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")

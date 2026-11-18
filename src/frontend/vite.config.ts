@@ -152,6 +152,13 @@ function noEntryImports(): Plugin {
 
 export default defineConfig({
   plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames()],
+  // Chunks, their preloads and CSS url()s resolve relative to the file that
+  // names them (import.meta.url), so one bundle works at the site root and
+  // under a base path (`aiui build --base-path /repo`, src/lib/url.ts).
+  // index.html keeps /assets/... (the compiler prefixes it).
+  experimental: {
+    renderBuiltUrl: (_file, { hostType }) => (hostType === 'html' ? undefined : { relative: true }),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

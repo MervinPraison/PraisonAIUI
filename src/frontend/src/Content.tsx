@@ -20,6 +20,7 @@ import { PageFooter } from './docs/PageFooter'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { stripBase } from './lib/url'
 
 interface ContentProps {
     config: UIConfig
@@ -42,10 +43,11 @@ const DOCS_HOME_PATH = '/docs/index'
 /** Longest wait for the renderer chunks before a fetched page paints. */
 const PAINT_WAIT_MS = 1000
 
-/** SPA navigation to an internal href (the same event the sidebar sends). */
+/** SPA navigation to an internal href, a browser URL (the same event the sidebar sends, with the app path). */
 function navigateTo(href: string) {
-    window.history.pushState({ path: href }, '', href)
-    window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: href.split(/[?#]/)[0] } }))
+    const path = stripBase(href.split(/[?#]/)[0])
+    window.history.pushState({ path }, '', href)
+    window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
 }
 
 export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate, onSearch }: ContentProps) {

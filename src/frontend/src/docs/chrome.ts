@@ -1,6 +1,7 @@
 // Header model the docs header and the phone drawer share: brand, links,
 // call to action (from the YAML navbar, logo and header component).
 import type { UIConfig } from '../types'
+import { withBase } from '../lib/url'
 
 /** Header props from the template's header slot (or the `header` component). */
 export function headerProps(config: UIConfig, templateKey = 'docs') {
@@ -15,19 +16,20 @@ export function headerProps(config: UIConfig, templateKey = 'docs') {
     } | undefined
 }
 
-/** Brand, links and call to action the header and the phone drawer share. */
+/** Brand, links and call to action the header and the phone drawer share. URLs carry the base path, except logoHref (an app path the header navigates to). */
 export function docsChromeModel(config: UIConfig, templateKey = 'docs') {
     const header = headerProps(config, templateKey)
     const logoConfig = config.logo
     const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
     const logoSrc = header?.logoImage || (logoConfig ? (isDarkMode ? (logoConfig.dark || logoConfig.light) : (logoConfig.light || logoConfig.dark)) : null)
     const navbar = config.navbar
+    const primary = navbar?.primary ?? (header?.cta ? { type: 'button' as const, label: header.cta.label, href: header.cta.href } : undefined)
     return {
-        logoSrc,
+        logoSrc: logoSrc && withBase(logoSrc),
         logoHref: logoConfig?.href || '/',
         logoText: header?.logoText || config.site?.title || 'PraisonAIUI',
-        links: navbar?.links ?? header?.links ?? [],
-        primary: navbar?.primary ?? (header?.cta ? { type: 'button' as const, label: header.cta.label, href: header.cta.href } : undefined),
+        links: (navbar?.links ?? header?.links ?? []).map((link) => ({ ...link, href: withBase(link.href) })),
+        primary: primary && { ...primary, href: withBase(primary.href) },
     }
 }
 

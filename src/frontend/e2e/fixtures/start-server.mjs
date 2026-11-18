@@ -2,13 +2,14 @@
 /**
  * Start one server for the Playwright suites (playwright.config.ts webServer).
  *
- *   node start-server.mjs --port 8721 [--shell app] [--docs | --docs-auth] [--src <repo>] [-- <mock_server.py args>]
+ *   node start-server.mjs --port 8721 [--shell app] [--docs | --docs-auth] [--base-path /x] [--src <repo>] [-- <mock_server.py args>]
  *
  *   --port <n>     port to listen on (required)
  *   --shell <v>    value for AIUI_SHELL (app | legacy); unset by default
  *   --docs         build e2e/fixtures/docs-site with `aiui build` and serve it with `aiui serve`
  *   --docs-auth    build the same site and serve it as `aiui run --config` does
  *                  (create_app(static_dir=...)) behind AUTH_ENFORCE (fixtures/docs-auth/serve.py)
+ *   --base-path /x build the docs site with `aiui build --base-path /x` (served under /x)
  *   --src <repo>   run another checkout's Python package and its committed bundle
  *                  (used to capture the legacy baseline from the v0.3.153 tree)
  *
@@ -41,7 +42,7 @@ function fail(msg) {
 }
 
 function parseArgs(argv) {
-  const opts = { port: 0, shell: '', docs: false, docsAuth: false, src: '', rest: [] }
+  const opts = { port: 0, shell: '', docs: false, docsAuth: false, basePath: '', src: '', rest: [] }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--') {
@@ -53,6 +54,7 @@ function parseArgs(argv) {
     else if (a === '--src') opts.src = path.resolve(argv[++i] ?? '')
     else if (a === '--docs') opts.docs = true
     else if (a === '--docs-auth') opts.docsAuth = true
+    else if (a === '--base-path') opts.basePath = argv[++i] ?? ''
     else fail(`unknown argument: ${a}`)
   }
   if (!Number.isInteger(opts.port) || opts.port <= 0) fail('--port <n> is required')
@@ -126,7 +128,8 @@ let command
 if (opts.docs || opts.docsAuth) {
   const site = path.join(work, 'site')
   const config = path.join(HERE, 'docs-site', 'aiui.yaml')
-  const build = spawnSync(python, ['-m', 'praisonaiui.cli', 'build', '--config', config, '--output', site], {
+  const baseArgs = opts.basePath ? ['--base-path', opts.basePath] : []
+  const build = spawnSync(python, ['-m', 'praisonaiui.cli', 'build', '--config', config, '--output', site, ...baseArgs], {
     env,
     cwd: work,
     stdio: ['ignore', 'ignore', 'inherit'],

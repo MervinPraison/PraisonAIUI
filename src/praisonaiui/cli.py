@@ -535,6 +535,13 @@ def build(
         "--minify",
         help="Minify JSON output",
     ),
+    base_path: Optional[str] = typer.Option(
+        None,
+        "--base-path",
+        help="URL path the site is published under (/docs, /my-repo), 'auto' for a "
+        "GitHub Pages project site, '/' for the root. Default: site.basePath, else "
+        "the path of seo.siteUrl",
+    ),
 ) -> None:
     """Build manifests from configuration."""
     import yaml
@@ -555,11 +562,13 @@ def build(
         console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
         raise typer.Exit(code=1)
 
-    compiler = Compiler(cfg, base_path=config.parent)
+    compiler = Compiler(cfg, base_path=config.parent, url_base=base_path)
     result = compiler.compile(output_dir=output, minify=minify)
 
     if result.success:
         msg = f"[green]✓[/green] Built {len(result.files)} files to {output}/"
+        if compiler.url_base:
+            msg += f"\n  for {compiler.url_base}/ (base path; '--base-path /' builds for the root)"
         console.print(Panel(msg, title="Success"))
         for file in result.files:
             console.print(f"  • {file}")
@@ -583,6 +592,39 @@ def _is_safe_path(requested: Path, root: Path) -> bool:
         return False
 
 
+_BASE_META_RE = re.compile(r'<meta name="aiui-base" content="(/[^"]*)"')
+
+
+def _built_base_path(output: Path) -> str:
+    """The base path a build was made for (its ``<meta name="aiui-base">``), or ``""``."""
+    try:
+        match = _BASE_META_RE.search((output / "index.html").read_text(encoding="utf-8"))
+    except OSError:
+        return ""
+    return match.group(1).rstrip("/") if match else ""
+
+
+def _under_base(app, base: str):
+    """Serve ``app`` under ``base`` the way the host will: ``/`` redirects to
+    ``<base>/``, anything else outside it is a 404."""
+    from starlette.responses import PlainTextResponse, RedirectResponse
+
+    async def mounted(scope, receive, send):
+        path = scope.get("path", "/")
+        if scope["type"] != "http" or path == base or path.startswith(base + "/"):
+            if scope["type"] == "http":
+                scope = dict(scope, path=path[len(base) :] or "/")
+                scope.pop("raw_path", None)
+            await app(scope, receive, send)
+            return
+        response = (
+            RedirectResponse(base + "/") if path == "/" else PlainTextResponse("Not Found", 404)
+        )
+        await response(scope, receive, send)
+
+    return mounted
+
+
 def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     """The ASGI app ``aiui serve`` runs for a built site.
 
@@ -595,6 +637,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
       ``<path>.html`` when it exists (the canonical URL, so no 307 to
       ``<path>/``), and falls back to ``index.html`` (client-side routes);
       any other missing file is a 404.
+    * A build made with ``--base-path /x`` is served under ``/x`` (``/``
+      redirects there), so the preview matches the host.
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
@@ -666,7 +710,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
         middleware.append(
             Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
         )
-    return Starlette(routes=routes, middleware=middleware)
+    app = Starlette(routes=routes, middleware=middleware)
+    base = _built_base_path(root)
+    return _under_base(app, base) if base else app
 
 
 @app.command()
@@ -720,6 +766,13 @@ def serve(
         "--ssl-keyfile",
         help="Path to SSL private key file for HTTPS",
     ),
+    base_path: Optional[str] = typer.Option(
+        None,
+        "--base-path",
+        help="URL path the site is published under (/docs, /my-repo), 'auto' for a "
+        "GitHub Pages project site, '/' for the root. Default: site.basePath, else "
+        "the path of seo.siteUrl",
+    ),
 ) -> None:
     """Serve the site locally with a production-ready HTTP server."""
     if not no_build or watch:
@@ -727,7 +780,7 @@ def serve(
     # Build first unless --no-build
     if not no_build:
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building manifests...")
-        build(config=config, output=output, minify=False)
+        build(config=config, output=output, minify=False, base_path=base_path)
 
     # Check if output directory exists
     if not output.exists():
@@ -749,7 +802,8 @@ def serve(
     starlette_app = _static_site_app(output, origins)
 
     protocol = "https" if ssl_certfile else "http"
-    console.print(f"\n[green]🚀[/green] Serving at [link]{protocol}://{host}:{actual_port}[/link]")
+    site_url = f"{protocol}://{host}:{actual_port}{_built_base_path(output)}"
+    console.print(f"\n[green]🚀[/green] Serving at [link]{site_url}[/link]")
     if ssl_certfile:
         console.print(f"[green]🔒[/green] TLS enabled with {ssl_certfile}")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
@@ -757,7 +811,7 @@ def serve(
     # Open browser
     import webbrowser
 
-    webbrowser.open(f"{protocol}://{host}:{actual_port}")
+    webbrowser.open(site_url)
 
     # Start file watcher in background thread if --watch
     if watch and config is not None and config.exists():
@@ -770,7 +824,7 @@ def serve(
                 for _changes in wf_watch(config.parent):
                     console.print("[blue]↻[/blue] Detected changes, rebuilding...")
                     try:
-                        build(config=config, output=output, minify=False)
+                        build(config=config, output=output, minify=False, base_path=base_path)
                         console.print("[green]✓[/green] Rebuild complete")
                     except Exception as e:
                         console.print(f"[red]✗[/red] Rebuild failed: {e}")
@@ -894,6 +948,9 @@ def dev(
                         build_config,
                         "-o",
                         str(temp_path / "site"),
+                        # Served at the root below, whatever seo.siteUrl says.
+                        "--base-path",
+                        "/",
                     ],
                     cwd=example_path,
                     capture_output=True,
@@ -1991,7 +2048,8 @@ def run(
     # Build static files only if --config was explicitly provided
     if config is not None and config.exists():
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Building static files...")
-        build(config=config, output=output, minify=False)
+        # The server serves the build at its root (no base path).
+        build(config=config, output=output, minify=False, base_path="/")
 
     # Chat mode needs nothing on disk: the server serves the bundle from the
     # package and ui-config.json / route-manifest.json / docs-nav.json from

@@ -14,6 +14,7 @@ import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
 import { navItemShown } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
+import { withBase } from './lib/url'
 import { DOCS_HOME_ICONS, DocsHomeIcon } from './docs/docsHomeIcons'
 
 interface NavTreeProps {
@@ -51,7 +52,7 @@ export function NavTree({ nav, activeItem, onItemClick }: NavTreeProps) {
         }
 
         const isActive = (item.path || item.title) === activeItem
-        const href = canonicalDocPath(item.path || '/')
+        const href = withBase(canonicalDocPath(item.path || '/'))
         return (
             <a
                 key={key}

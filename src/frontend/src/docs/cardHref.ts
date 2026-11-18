@@ -1,6 +1,7 @@
 // Card links for docs components (DocsBlocks.tsx).
 import { isExternal } from './chrome'
 import { resolveDocTarget } from './docSource'
+import { appPathname } from '../lib/url'
 
 // The div's `value` bypasses the sanitizer's href check, so a card link gets
 // the same allowlist as block links: relative, http(s) and mailto only.
@@ -14,6 +15,6 @@ export function cardHref(target: string): string | undefined {
         return undefined
     }
     if (isExternal(target) || target.startsWith('#') || /^mailto:/i.test(target)) return target
-    const here = typeof window === 'undefined' ? '/docs/index' : window.location.pathname
+    const here = typeof window === 'undefined' ? '/docs/index' : appPathname()
     return resolveDocTarget(target, here === '/' ? '/docs/index' : here)
 }

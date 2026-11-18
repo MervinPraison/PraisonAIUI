@@ -20,6 +20,7 @@ import { useImageZoom } from './docs/imageZoom'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
+import { appPathname, withBase } from './lib/url'
 import './docs/docs.css'
 
 // The chat, agents and playground styles and the copilot widget load only for
@@ -94,7 +95,7 @@ export default function App() {
   const [manifestAttempt, setManifestAttempt] = useState(0)
   const [selectedItem, setSelectedItem] = useState<NavItem | null>(null)
   const [activeItemPath, setActiveItemPath] = useState<string>('')
-  const [currentPath, setCurrentPath] = useState(() => canonicalDocPath(window.location.pathname))
+  const [currentPath, setCurrentPath] = useState(() => canonicalDocPath(appPathname()))
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -167,7 +168,9 @@ export default function App() {
     return null
   }
 
-  const seoOrigin = (cfg: UIConfig) => (cfg.seo?.siteUrl || window.location.origin).replace(/\/+$/, '')
+  // The public URL of an app path. The build writes seo.siteUrl with the base path in it.
+  const seoUrl = (cfg: UIConfig, path: string) =>
+    cfg.seo?.siteUrl ? `${cfg.seo.siteUrl.replace(/\/+$/, '')}${path}` : `${window.location.origin}${withBase(path)}`
 
   const formatSeoTitle = (title: string, cfg: UIConfig) => {
     const titleTemplate = cfg.seo?.titleTemplate || '%s | %s'
@@ -194,7 +197,7 @@ export default function App() {
     // The home page (the site root) is titled by the site name alone, as the built index.html is.
     const formattedTitle = canonicalPath === '/' && cfg.site?.title ? cfg.site.title : formatSeoTitle(title, cfg)
     const metaDescription = description || `${title} - ${cfg.site?.description || ''}`
-    const absoluteUrl = pageUrl(seoOrigin(cfg), canonicalPath, cfg.seo)
+    const absoluteUrl = pageUrl('', seoUrl(cfg, canonicalPath), cfg.seo)
 
     document.title = formattedTitle
 
@@ -282,7 +285,7 @@ export default function App() {
     if (cfg.seo?.defaultImage) {
       const image = cfg.seo.defaultImage.startsWith('http')
         ? cfg.seo.defaultImage
-        : `${seoOrigin(cfg)}${cfg.seo.defaultImage}`
+        : seoUrl(cfg, cfg.seo.defaultImage)
       ensureMeta('meta[property="og:image"]', () => {
         const el = document.createElement('meta')
         el.setAttribute('property', 'og:image')
@@ -311,7 +314,7 @@ export default function App() {
       isPartOf: {
         '@type': 'WebSite',
         name: cfg.site?.title || 'Documentation',
-        url: `${seoOrigin(cfg)}/`,
+        url: seoUrl(cfg, '/'),
       },
     })
   }
@@ -327,7 +330,7 @@ export default function App() {
   useEffect(() => {
     const onPluginNavigate = (event: Event) => {
       const detail = (event as CustomEvent<{ path?: string }>).detail
-      const path = canonicalDocPath(detail?.path ?? window.location.pathname)
+      const path = canonicalDocPath(detail?.path ?? appPathname())
       setCurrentPath(path)
       setMobileNavOpen(false)
 
@@ -381,10 +384,10 @@ export default function App() {
         applyStoredThemePreference(mode)
 
         // Handle initial URL path for SPA routing
-        const initialPath = canonicalDocPath(window.location.pathname)
+        const initialPath = canonicalDocPath(appPathname())
         setCurrentPath(initialPath)
-        if (initialPath !== window.location.pathname) {
-          window.history.replaceState(null, '', initialPath + window.location.search + window.location.hash)
+        if (initialPath !== appPathname()) {
+          window.history.replaceState(null, '', withBase(initialPath) + window.location.search + window.location.hash)
         }
         if (initialPath !== '/') {
           const found = findNavItemByPath(navData, initialPath)
@@ -393,7 +396,7 @@ export default function App() {
             const foundPath = canonicalDocPath(found.path || initialPath)
             if (foundPath !== initialPath) {
               setCurrentPath(foundPath)
-              window.history.replaceState(null, '', foundPath + window.location.search + window.location.hash)
+              window.history.replaceState(null, '', withBase(foundPath) + window.location.search + window.location.hash)
             }
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
@@ -420,7 +423,7 @@ export default function App() {
   // Handle browser back/forward navigation in a separate effect
   useEffect(() => {
     const handlePopState = () => {
-      const path = canonicalDocPath(window.location.pathname)
+      const path = canonicalDocPath(appPathname())
       setCurrentPath(path)
       const found = findNavItemByPath(nav, path)
       
@@ -444,7 +447,7 @@ export default function App() {
 
   const handleItemClick = (item: NavItem) => {
     const path = canonicalDocPath(item.path || `/${item.title.toLowerCase().replace(/\s+/g, '-')}`)
-    window.history.pushState({ path }, item.title, path)
+    window.history.pushState({ path }, item.title, withBase(path))
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
   }
 
@@ -455,13 +458,13 @@ export default function App() {
   const openSearchResult = (item: NavItem, anchor?: string) => {
     const path = canonicalDocPath(item.path || '/')
     const samePage = path === currentPath
-    window.history.pushState({ path }, item.title, path)
+    window.history.pushState({ path }, item.title, withBase(path))
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
     if (!anchor) {
       window.scrollTo({ top: 0 })
       return
     }
-    window.history.replaceState({ path }, item.title, `${path}#${encodeURIComponent(anchor)}`)
+    window.history.replaceState({ path }, item.title, `${withBase(path)}#${encodeURIComponent(anchor)}`)
     if (samePage) scrollToHash()
   }
 
@@ -503,7 +506,7 @@ export default function App() {
       />
       {searchMounted && (
         <Suspense fallback={null}>
-          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} />
+          <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')} />
         </Suspense>
       )}
     </>

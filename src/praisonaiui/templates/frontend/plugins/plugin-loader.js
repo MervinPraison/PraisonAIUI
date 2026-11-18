@@ -9,8 +9,17 @@ console.debug('[AIUI Loader] Starting...');
 (function () {
   'use strict';
 
-  const PLUGINS_CONFIG = '/plugins/plugins.json';
-  const PLUGINS_BASE = '/plugins/';
+  // This script's own folder, so a site under a base path (aiui build
+  // --base-path /repo) loads /repo/plugins/... Path only: no ?v= or origin.
+  const PLUGINS_BASE = (function () {
+    try {
+      const src = document.currentScript && document.currentScript.src;
+      return src ? new URL('./', src).pathname : '/plugins/';
+    } catch (_) {
+      return '/plugins/';
+    }
+  })();
+  const PLUGINS_CONFIG = `${PLUGINS_BASE}plugins.json`;
   const ROOT_SELECTOR = '#root';
 
   // Plugin modules are imported with this script's own ?v= (the server's
