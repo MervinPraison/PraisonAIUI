@@ -3158,6 +3158,24 @@
       "assets/page-BzQ_277O.css"
     ]
   },
+  "src/docs/ApiPlayground.tsx": {
+    "file": "assets/ApiPlayground-g8iXlpX5.js",
+    "name": "ApiPlayground",
+    "src": "src/docs/ApiPlayground.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-SCdx8Lck.js",
+      "_TokenGate-CEQz-4Pc.js",
+      "_spinner-DrtwAcuZ.js",
+      "_x-CdGk7QXP.js",
+      "_check-Bivg28yt.js",
+      "_clipboard-copy-CATYgmM5.js",
+      "_preload-helper-PPVm8Dsz.js"
+    ],
+    "css": [
+      "assets/ApiPlayground-BpURsa4u.css"
+    ]
+  },
   "src/docs/DocsSearch.tsx": {
     "file": "assets/DocsSearch-Chf6Z5Ye.js",
     "name": "DocsSearch",
@@ -3475,7 +3493,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-DhPY4VQM.js",
+    "file": "assets/legacy-app-entry-DTTsWGqo.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3489,9 +3507,9 @@
       "_card-BOm87-PD.js",
       "_chevron-up-CF5bD79v.js",
       "_chevron-left-yccUO5rS.js",
-      "_play-zdPDn07r.js",
       "_check-Bivg28yt.js",
       "_clipboard-copy-CATYgmM5.js",
+      "_play-zdPDn07r.js",
       "_chevron-down-DK95vGT2.js",
       "_external-link-Du31DRNL.js",
       "_pluginLoaders-5vuZn1CC.js",
@@ -3507,6 +3525,7 @@
     "dynamicImports": [
       "aiui-icons",
       "src/docs/redirects.ts",
+      "src/docs/ApiPlayground.tsx",
       "src/docs/TabsSelect.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
@@ -3515,7 +3534,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-CNgAMCVq.css"
+      "assets/legacy-app-entry-BUkldzsS.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
