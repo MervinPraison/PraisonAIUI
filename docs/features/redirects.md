@@ -55,8 +55,8 @@ page (7010), or when a page is still published at its source (7011).
 
 A URL with no page shows "Page not found", a link home, the search, and up
 to three pages from the sidebar whose names are close to the URL (a typo
-such as `/docs/instalation` offers Installation). Set the heading and text
-under `errors:`:
+such as `/docs/instalation` offers Installation), unless a `redirects:` rule
+matches first. Set the heading and text under `errors:`:
 
 ```yaml
 errors:
@@ -73,6 +73,3 @@ errors:
 | `title` | `Page not found` | The heading and the browser tab title |
 | `description` | A line naming the missing path | Markdown under the heading |
 | `redirect` | `false` | `true` sends readers to the home page instead of showing the page |
-
-A matching `redirects:` rule runs before any of this: the reader goes to the
-new page, not the not-found page.

@@ -91,12 +91,6 @@ def test_serve_answers_301_and_302(tmp_path):
     assert client.get("/repo/docs/guide/start").status_code == 200  # the page wins
 
 
-def test_no_redirects_no_files(tmp_path):
-    _, out = _build(tmp_path, rules=[])
-    assert not (out / "_redirects").exists()
-    assert "redirects" not in json.loads((out / "ui-config.json").read_text(encoding="utf-8"))
-
-
 def test_validate_flags_loops_dead_ends_and_hidden_rules(tmp_path):
     compiler, _ = _build(tmp_path)
     compiler.config.redirects += [
@@ -122,9 +116,10 @@ def test_link_check_accepts_wildcard_sources(tmp_path):
     assert check_links(docs, redirects=["/docs/beta/:slug*"]).ok
 
 
-def test_errors_404_reaches_the_app(tmp_path):
+def test_errors_404_reaches_the_app_and_no_redirects_writes_nothing(tmp_path):
     errors = {404: {"title": "Lost?", "description": "Try **search**.", "redirect": False}}
-    _, out = _build(tmp_path, errors=errors)
+    _, out = _build(tmp_path, rules=[], errors=errors)
     ui = json.loads((out / "ui-config.json").read_text(encoding="utf-8"))
+    assert "redirects" not in ui and not (out / "_redirects").exists()
     assert ui["errors"] == {"notFound": {"title": "Lost?", "description": "Try **search**.", "redirect": False}}
     assert Config.model_validate({"site": {"title": "x"}, "errors": {"notFound": {"redirect": True}}}).errors.not_found.redirect
