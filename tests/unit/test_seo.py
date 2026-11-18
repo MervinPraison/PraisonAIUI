@@ -95,6 +95,7 @@ class TestSeoBuild:
 
     def test_app_uses_absolute_site_url_for_canonical(self):
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
+        source += Path("src/frontend/src/docs/seoMeta.ts").read_text(encoding="utf-8")
         assert "siteUrl" in source
         assert "og:description" in source
         assert "twitter:description" in source

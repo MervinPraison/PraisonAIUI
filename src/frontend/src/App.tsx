@@ -13,7 +13,7 @@ import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
 import { docSearchGroups } from './docs/docNav'
-import { pageUrl, robotsContent } from './docs/seoMeta'
+import { applyHeadTags, mergeTags, pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
 import { scrollToHash, useHashScroll } from './docs/hashScroll'
 import { useHeadingAnchors } from './docs/headingAnchors'
@@ -199,114 +199,38 @@ export default function App() {
     path: string,
     description?: string,
     configOverride?: UIConfig,
-    noindex?: boolean,
+    page?: Pick<NavItem, 'noindex' | 'seo'>,
   ) => {
     const cfg = configOverride ?? config
     const canonicalPath = canonicalDocPath(path)
     // The home page (the site root) is titled by the site name alone, as the built index.html is.
     const formattedTitle = canonicalPath === '/' && cfg.site?.title ? cfg.site.title : formatSeoTitle(title, cfg)
     const metaDescription = description || `${title} - ${cfg.site?.description || ''}`
-    const absoluteUrl = pageUrl('', seoUrl(cfg, canonicalPath), cfg.seo)
-
+    const siteName = cfg.site?.title || 'Documentation'
+    const image = cfg.seo?.defaultImage
     document.title = formattedTitle
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement
-    if (!canonical) {
-      canonical = document.createElement('link')
-      canonical.rel = 'canonical'
-      document.head.appendChild(canonical)
-    }
-    canonical.href = absoluteUrl
+    // The same tags, in the same order of precedence, as compiler/seo.py writes into the built page.
+    const tags = mergeTags(
+      {
+        canonical: pageUrl('', seoUrl(cfg, canonicalPath), cfg.seo),
+        description: metaDescription,
+        robots: robotsContent(page?.noindex, cfg.seo?.robots),
+        'og:title': formattedTitle,
+        'og:description': metaDescription,
+        'og:type': 'article',
+        'og:site_name': siteName,
+        'twitter:title': formattedTitle,
+        'twitter:description': metaDescription,
+        ...(image ? { 'og:image': image.startsWith('http') ? image : seoUrl(cfg, image) } : {}),
+        ...(cfg.seo?.twitter?.handle ? { 'twitter:site': cfg.seo.twitter.handle } : {}),
+      },
+      { ...cfg.seo?.metatags, ...page?.seo },
+      (p) => seoUrl(cfg, p),
+    )
+    applyHeadTags(document, tags)
 
-    let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta')
-      metaDesc.name = 'description'
-      document.head.appendChild(metaDesc)
-    }
-    metaDesc.content = metaDescription
-
-    const ensureMeta = (selector: string, create: () => HTMLMetaElement) => {
-      let el = document.querySelector(selector) as HTMLMetaElement | null
-      if (!el) {
-        el = create()
-        document.head.appendChild(el)
-      }
-      return el
-    }
-
-    ensureMeta('meta[name="robots"]', () => {
-      const el = document.createElement('meta')
-      el.name = 'robots'
-      return el
-    }).content = robotsContent(noindex, cfg.seo?.robots)
-
-    ensureMeta('meta[property="og:title"]', () => {
-      const el = document.createElement('meta')
-      el.setAttribute('property', 'og:title')
-      return el
-    }).content = formattedTitle
-
-    ensureMeta('meta[property="og:description"]', () => {
-      const el = document.createElement('meta')
-      el.setAttribute('property', 'og:description')
-      return el
-    }).content = metaDescription
-
-    ensureMeta('meta[property="og:url"]', () => {
-      const el = document.createElement('meta')
-      el.setAttribute('property', 'og:url')
-      return el
-    }).content = absoluteUrl
-
-    ensureMeta('meta[property="og:type"]', () => {
-      const el = document.createElement('meta')
-      el.setAttribute('property', 'og:type')
-      return el
-    }).content = 'article'
-
-    ensureMeta('meta[name="twitter:card"]', () => {
-      const el = document.createElement('meta')
-      el.name = 'twitter:card'
-      return el
-    }).content = 'summary'
-
-    ensureMeta('meta[name="twitter:title"]', () => {
-      const el = document.createElement('meta')
-      el.name = 'twitter:title'
-      return el
-    }).content = formattedTitle
-
-    ensureMeta('meta[name="twitter:description"]', () => {
-      const el = document.createElement('meta')
-      el.name = 'twitter:description'
-      return el
-    }).content = metaDescription
-
-    if (cfg.seo?.twitter?.handle) {
-      ensureMeta('meta[name="twitter:site"]', () => {
-        const el = document.createElement('meta')
-        el.name = 'twitter:site'
-        return el
-      }).content = cfg.seo.twitter.handle
-    }
-
-    if (cfg.seo?.defaultImage) {
-      const image = cfg.seo.defaultImage.startsWith('http')
-        ? cfg.seo.defaultImage
-        : seoUrl(cfg, cfg.seo.defaultImage)
-      ensureMeta('meta[property="og:image"]', () => {
-        const el = document.createElement('meta')
-        el.setAttribute('property', 'og:image')
-        return el
-      }).content = image
-      ensureMeta('meta[name="twitter:image"]', () => {
-        const el = document.createElement('meta')
-        el.name = 'twitter:image'
-        return el
-      }).content = image
-    }
-
+    // The built page's JSON-LD graph (Organization, breadcrumbs, ...) stays while it is the page shown.
     let jsonLd = document.querySelector('script#aiui-jsonld') as HTMLScriptElement | null
     if (!jsonLd) {
       jsonLd = document.createElement('script')
@@ -314,17 +238,15 @@ export default function App() {
       jsonLd.id = 'aiui-jsonld'
       document.head.appendChild(jsonLd)
     }
+    if (jsonLd.dataset.page === tags.canonical) return
+    jsonLd.dataset.page = tags.canonical
     jsonLd.textContent = JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'TechArticle',
       headline: title,
       description: metaDescription,
-      url: absoluteUrl,
-      isPartOf: {
-        '@type': 'WebSite',
-        name: cfg.site?.title || 'Documentation',
-        url: seoUrl(cfg, '/'),
-      },
+      url: tags.canonical,
+      isPartOf: { '@type': 'WebSite', name: siteName, url: seoUrl(cfg, '/') },
     })
   }
 
@@ -332,7 +254,7 @@ export default function App() {
     const path = canonicalDocPath(item.path || '/')
     setSelectedItem(item)
     setActiveItemPath(item.path || item.title)
-    updateSEO(item.pageTitle ?? item.title, path, item.description, undefined, item.noindex)
+    updateSEO(item.pageTitle ?? item.title, path, item.description, undefined, item)
   }
 
   // Keep React nav state in sync when plugins perform SPA navigation
@@ -409,14 +331,14 @@ export default function App() {
             }
             setSelectedItem(found)
             setActiveItemPath(found.path || found.title)
-            updateSEO(found.pageTitle ?? found.title, foundPath, found.description, configData, found.noindex)
+            updateSEO(found.pageTitle ?? found.title, foundPath, found.description, configData, found)
           }
         } else {
           const docsHome = findNavItemByPath(navData, '/docs/index')
           if (docsHome) {
             setSelectedItem(docsHome)
             setActiveItemPath(docsHome.path || docsHome.title)
-            updateSEO(docsHome.pageTitle ?? docsHome.title, canonicalDocPath(docsHome.path || '/docs/index'), docsHome.description, configData, docsHome.noindex)
+            updateSEO(docsHome.pageTitle ?? docsHome.title, canonicalDocPath(docsHome.path || '/docs/index'), docsHome.description, configData, docsHome)
           }
         }
       } catch (err) {

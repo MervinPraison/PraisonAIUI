@@ -35,6 +35,8 @@ export interface NavItem {
     noAnchor?: boolean
     /** The page's other frontmatter keys (scalars): `data-fm-*` on the article, `meta` in `aiui:content-loaded`. */
     meta?: Record<string, string | number | boolean>
+    /** Head tags this page sets (`seo.paths` and frontmatter `canonical`, `robots`, `og:*`, `twitter:*`, ...). */
+    seo?: Record<string, string>
     /** `card` | `accordion`: the build lists the group's pages on its page. */
     directory?: string
     children?: NavItem[]
@@ -63,6 +65,8 @@ export interface SEOConfig {
     robots?: { index?: boolean; follow?: boolean }
     /** Canonical and og:url end in `/` (`seo.trailingSlash`). */
     trailingSlash?: boolean
+    /** `seo.metatags`: head tags on every page. */
+    metatags?: Record<string, string>
 }
 
 export interface I18nConfig {

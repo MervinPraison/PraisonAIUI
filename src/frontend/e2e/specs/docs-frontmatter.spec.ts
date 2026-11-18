@@ -47,3 +47,21 @@ test('mode and hideFooterPagination drop the TOC, the sidebar and the pager', as
   await expect(page.locator('article.aiui-doc h2').first()).toBeVisible()
   await expect(page.locator('.aiui-docs-sidebar')).toBeHidden()
 })
+
+test('head tags: the page seo map wins, and the next page drops what it does not set', async ({ page }) => {
+  await withNav(page, { seo: { canonical: 'https://other.test/first', 'og:image': '/card.png', 'og:locale': 'de_DE' } })
+  await page.goto('/docs/guide/first')
+  const head = (selector: string) => page.locator(`head ${selector}`)
+  await expect(head('link[rel="canonical"]')).toHaveAttribute('href', 'https://other.test/first')
+  await expect(head('meta[property="og:url"]')).toHaveAttribute('content', 'https://other.test/first')
+  await expect(head('meta[property="og:image"]')).toHaveAttribute('content', /\/card\.png$/)
+  await expect(head('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image')
+  await expect(head('meta[property="og:type"]')).toHaveCount(1)
+  await expect(head('script[type="application/ld+json"]')).toHaveCount(1)
+
+  await page.locator('.aiui-docs-sidebar').getByRole('link', { name: /Second page/ }).click()
+  await expect(head('link[rel="canonical"]')).toHaveAttribute('href', /\/docs\/guide\/second$/)
+  await expect(head('meta[property="og:locale"]')).toHaveCount(0)
+  await expect(head('meta[property="og:type"]')).toHaveCount(1)
+  await expect(head('script[type="application/ld+json"]')).toHaveCount(1)
+})

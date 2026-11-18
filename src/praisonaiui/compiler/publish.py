@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from fnmatch import fnmatch
+from html import escape
 from pathlib import Path
 
 #: Gitignore-style file next to ``aiui.yaml``; its patterns join ``content.docs.exclude``.
@@ -88,8 +89,8 @@ def robots_content(noindex: bool, robots: dict | None) -> str:
 
 
 def set_robots_meta(html: str, content: str) -> str:
-    """``html`` with exactly one robots meta tag carrying ``content``."""
-    tag = f'<meta name="robots" content="{content}" />'
+    """``html`` with exactly one robots meta tag carrying ``content`` (escaped: it may come from frontmatter)."""
+    tag = f'<meta name="robots" content="{escape(content)}" />'
     if _ROBOTS_META.search(html):
         first = True
 

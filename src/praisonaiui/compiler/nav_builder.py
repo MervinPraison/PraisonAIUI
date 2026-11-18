@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from praisonaiui.compiler.docs_scanner import DocPage
+from praisonaiui.compiler.seo import frontmatter_tags
 
 
 @dataclass
@@ -37,7 +38,7 @@ PAGE_MODES = ("wide", "center", "custom", "frame")
 #: Frontmatter keys the build reads itself; every other scalar key goes to the page's `meta`.
 KNOWN_KEYS = frozenset(
     "title description sidebarTitle nav_title icon iconType tag deprecated mode url hideFooterPagination "
-    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost".split()
+    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost canonical robots".split()
 )
 
 
@@ -107,7 +108,8 @@ def page_fields(page: DocPage) -> dict:
     ``lede``: the frontmatter ``description`` shows under the title. ``deprecated``,
     ``mode`` (PAGE_MODES), ``hidePager`` (``hideFooterPagination``), ``noAnchor``,
     ``href`` (an external ``url:``) and ``meta``: the page's other scalar keys, for
-    custom JS and CSS (``aiui:content-loaded`` detail, ``data-fm-*`` on the article).
+    custom JS and CSS (``aiui:content-loaded`` detail, ``data-fm-*`` on the article);
+    ``seo``: the head tags it sets (compiler/seo.py).
     """
     fm = page.frontmatter
     out: dict = {}
@@ -131,6 +133,8 @@ def page_fields(page: DocPage) -> dict:
     }
     if meta:
         out["meta"] = dict(list(meta.items())[:20])
+    if tags := frontmatter_tags(fm):
+        out["seo"] = tags  # compiler/seo.py: canonical, robots, keywords, og:*, twitter:*
     return out
 
 

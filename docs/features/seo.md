@@ -22,6 +22,17 @@ seo:
     aiTrain: false
   twitter:
     handle: "@yourhandle"
+  metatags:              # extra head tags on every page
+    google-site-verification: "abc123"
+    og:locale: en_GB
+  paths:                 # head tags for the pages under a folder
+    - path: v1           # or /docs/v1, v1/*; the longest matching path wins
+      metatags:
+        robots: noindex
+  organization:          # the JSON-LD publisher (default: site title, siteUrl, logo)
+    name: Acme Inc
+    logo: /logo.svg
+    sameAs: [https://github.com/acme]
 ```
 
 Every key is optional; the defaults are what most sites want.
@@ -120,6 +131,34 @@ hidden: true     # keep it out of the sidebar too (see Hidden pages)
 ```
 
 If `description` is omitted, the first paragraph is used automatically.
+Component and HTML tags are left out of it: a page that opens with
+`<Note>` or a multi-line `<img>` gets its first sentence of prose.
+
+Any Open Graph, Twitter or article tag, the canonical URL, the robots value
+and keywords can be set per page (quote keys that have a colon):
+
+```markdown
+---
+title: Install
+canonical: https://example.com/original/install
+robots: noindex, nofollow
+keywords: [install, setup]
+'og:image': /images/install-card.png
+'twitter:card': summary
+---
+```
+
+Each tag is decided once, in this order (later wins): the built defaults,
+`seo.metatags`, `seo.paths` (shorter paths first), the page's frontmatter.
+Then `og:url` follows the canonical and `twitter:image` the `og:image`
+(unless set themselves), and `twitter:card` is `summary_large_image` when the
+page has an image. Root-relative URLs (`/images/x.png`) become absolute.
+A noindex page keeps `noindex` whatever the overrides say, and a `robots`
+value with `noindex` (from frontmatter or a `seo.paths` folder) also leaves
+the page out of the sitemap, `llms.txt` and search, so they never disagree.
+Open Graph keys (`og:`, `article:`) are written as `property=`, the rest as
+`name=`; every value is HTML-escaped. `aiui validate` rejects a
+`seo.metatags` key that is not a tag name.
 
 ## Per-page HTML includes
 
@@ -127,15 +166,18 @@ Each route HTML file contains:
 
 - `<link rel="canonical">` (absolute HTTPS)
 - `<meta name="description">`
-- Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`, `og:image`)
-- Twitter Card tags
-- JSON-LD `TechArticle` schema
+- Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`, `og:site_name`, `og:image`), each once
+- Twitter Card tags (`summary_large_image` with an image)
+- Your `seo.metatags`, `seo.paths` and frontmatter tags
+- One JSON-LD `@graph`: `Organization`, `WebSite` (with a `SearchAction`: `?q=` opens site search),
+  `TechArticle` (publisher, `dateModified` with `content.docs.lastUpdated`, keywords, image) and a
+  `BreadcrumbList` from the sidebar groups
 - Static `<nav>` with links to every doc page (for non-JS crawlers)
 - `<noscript>` pre-rendered page content
 
 ## Runtime (SPA navigation)
 
-When users navigate via the sidebar, React updates title, canonical, OG, Twitter, robots, and JSON-LD to match the current page, with the same robots value and trailing-slash rule as the built HTML.
+When users navigate via the sidebar, React updates title, canonical, OG, Twitter, robots, and JSON-LD to match the current page, with the same tags, overrides and order as the built HTML (`docs-nav.json` carries each page's `seo` map). The built page's JSON-LD graph stays while it is the page shown.
 
 ## Deploy
 

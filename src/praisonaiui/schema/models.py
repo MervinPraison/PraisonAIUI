@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 
 
 class ThemeConfig(BaseModel):
@@ -241,6 +241,33 @@ class ContentSignalsConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+#: A head tag name: ``seo.metatags`` / ``seo.paths`` keys (compiler/seo.py).
+META_TAG_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,63}")
+
+
+class SEOPathConfig(BaseModel):
+    """``seo.paths`` entry: head tags for every page under ``path`` (``/docs/v1``, ``v1`` or ``v1/*``)."""
+
+    path: str
+    metatags: dict[str, Union[str, int, float]] = Field(default_factory=dict)
+
+    @field_validator("metatags")
+    @classmethod
+    def _check_metatags(cls, value: dict) -> dict:
+        return _check_tag_names(value)
+
+
+class SEOOrganizationConfig(BaseModel):
+    """``seo.organization``: the JSON-LD Organization every page names as publisher."""
+
+    name: Optional[str] = None
+    url: Optional[str] = None
+    logo: Optional[str] = None
+    same_as: list[str] = Field(default_factory=list, alias="sameAs")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class SEOConfig(BaseModel):
     """SEO configuration."""
 
@@ -256,8 +283,31 @@ class SEOConfig(BaseModel):
     )
     trailing_slash: bool = Field(default=False, alias="trailingSlash")
     content_signals: Optional[ContentSignalsConfig] = Field(default=None, alias="contentSignals")
+    metatags: dict[str, Union[str, int, float]] = Field(
+        default_factory=dict,
+        description="Extra head tags on every page (google-site-verification, og:locale, ...); "
+        "og:* keys are written as property=, the rest as name=",
+    )
+    paths: list[SEOPathConfig] = Field(
+        default_factory=list, description="Head tags for the pages under a folder; the longest path wins"
+    )
+    organization: Optional[SEOOrganizationConfig] = Field(
+        default=None, description="The JSON-LD Organization (default: the site title, URL and logo)"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("metatags")
+    @classmethod
+    def _check_metatags(cls, value: dict) -> dict:
+        return _check_tag_names(value)
+
+
+def _check_tag_names(tags: dict) -> dict:
+    bad = [k for k in tags if not META_TAG_NAME.fullmatch(k)]
+    if bad:
+        raise ValueError(f"not a meta tag name: {', '.join(map(repr, bad))} (letters, digits, : . _ -)")
+    return tags
 
 
 class MarkdownConfig(BaseModel):
