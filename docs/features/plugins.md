@@ -482,8 +482,8 @@ class AuroraPlugin:
 | `id` | Lower-case letters, digits and `-`, starting with a letter, at most 40 characters; `classic` is reserved |
 | `title`, `description` | Shown in the picker (palette and Settings → Appearance) |
 | `order` | Picker position (default `100`; the built-ins use 10 to 50) |
-| `module` | **Required** for a plugin layout: the ESM file that registers the frame. A relative path resolves into `static_dir()` (`/_plugins/<name>/<file>`) and gets an SRI `integrity` hash |
-| `css` | Optional stylesheet, resolved the same way, added when the layout first loads |
+| `module` | **Required** for a plugin layout: the ESM file that registers the frame. A relative path resolves into `static_dir()` (`/_plugins/<name>/<file>`) and gets an SRI `integrity` hash, which the import map carries like a page module's |
+| `css` | Optional stylesheet, resolved the same way (its hash is `cssIntegrity` in the manifest and on the `<link>`), added when the layout first loads |
 | `home` | The page `/` opens while this layout is on screen |
 | `primary` | Page ids of the primary nav, in order (at most 7 shown; YAML `layout.primary` wins) |
 
