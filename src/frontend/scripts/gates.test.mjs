@@ -12,6 +12,7 @@ import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { carryForward, previousAssets } from './carry-forward-assets.mjs'
 import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
+import { ICON_BUCKETS, ICON_NAMES_FILE, iconBucket, lucideIconNodes, lucideIcons } from './lib/lucide-icons.mjs'
 import { ManifestError, filesOf, findKey, loadManifest, namedChunks, staticClosure } from './lib/build-manifest.mjs'
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
@@ -444,4 +445,34 @@ test('npm run check:closure runs the layout isolation gate too (CI runs check:cl
   assert.match(script, /node scripts\/check-entry-closure\.mjs/)
   assert.match(script, /node scripts\/check-layout-isolation\.mjs/)
   assert.doesNotMatch(script, /[;|]/, 'chained with && so either failure fails the step')
+})
+
+test('lucide-icons: the loader finds any icon (or alias) in its lazy bucket; aiui-icons.json lists every name', async () => {
+  const root = path.resolve(SCRIPTS, '..')
+  const { nodes, aliases } = await lucideIconNodes(path.join(root, 'node_modules', 'lucide-react', 'dist', 'esm'))
+  assert.ok(Object.keys(nodes).length > 1500)
+  assert.equal(aliases.home, 'house')
+  assert.deepEqual(nodes.flag.map(([tag, attrs]) => [tag, Object.keys(attrs)]), [['path', ['d']]]) // React keys dropped
+  const buckets = new Set(Object.keys(nodes).map(iconBucket))
+  assert.equal(buckets.size, ICON_BUCKETS)
+
+  const plugin = lucideIcons(root)
+  assert.equal(plugin.resolveId('virtual:aiui-icons'), '\0aiui-icons')
+  const asModule = (code) => import('data:text/javascript,' + encodeURIComponent(code))
+  globalThis.__aiuiBucket = async (n) => asModule(await plugin.load(`\0aiui-icons-${n}`))
+  const index = (await plugin.load('\0aiui-icons')).replace(/import\('virtual:aiui-icons\/(\d+)'\)/g, 'globalThis.__aiuiBucket($1)')
+  const load = (await asModule(index)).default
+  assert.deepEqual(await load('flag'), nodes.flag)
+  assert.deepEqual(await load('home'), nodes.house)
+  assert.equal(await load('constructor'), undefined)
+  assert.equal(await load('no-such-icon'), undefined)
+  delete globalThis.__aiuiBucket
+
+  let emitted
+  await plugin.generateBundle.call({ emitFile: (file) => (emitted = file) })
+  const names = JSON.parse(emitted.source)
+  assert.equal(emitted.fileName, ICON_NAMES_FILE)
+  assert.ok(BUNDLE_ROOT_FILES.includes(ICON_NAMES_FILE))
+  assert.ok(names.includes('flag') && names.includes('home') && names.includes('house'))
+  assert.deepEqual(names, [...names].sort())
 })

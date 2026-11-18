@@ -1000,7 +1000,7 @@ img.aiui-docs-mark {
    set as a heading (titleSize) keeps the step's size and scrolls clear of the header. */
 .aiui-docs article.aiui-doc ol.aiui-steps > li.aiui-step[data-icon]::before { content: ''; }
 .aiui-docs article.aiui-doc .aiui-step-icon { position: absolute; top: 0; left: 0; z-index: 1; display: flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; color: var(--foreground); }
-.aiui-docs article.aiui-doc .aiui-step-icon svg { width: 0.875rem; height: 0.875rem; }
+.aiui-docs article.aiui-doc .aiui-step-icon :is(svg, img) { width: 0.875rem; height: 0.875rem; }
 .aiui-docs article.aiui-doc :is(h2, h3, h4).aiui-step-title { scroll-margin-top: 5rem; letter-spacing: -0.01em; }
 .aiui-docs article.aiui-doc h2.aiui-step-title { font-size: 1.25rem; }
 .aiui-docs article.aiui-doc h3.aiui-step-title { font-size: 1.0625rem; }
@@ -1050,7 +1050,7 @@ img.aiui-docs-mark {
   background: var(--muted);
   color: var(--aiui-card-accent, var(--ui-link));
 }
-.aiui-docs article.aiui-doc .aiui-card-icon svg { width: 1rem; height: 1rem; }
+.aiui-docs article.aiui-doc .aiui-card-icon :is(svg, img) { width: 1rem; height: 1rem; }
 /* Card options: accent colour, a header image, horizontal, a call to action, a link arrow. */
 .aiui-docs article.aiui-doc .aiui-card { position: relative; }
 .aiui-docs article.aiui-doc .aiui-card[data-img] { overflow: hidden; }
@@ -1114,7 +1114,12 @@ img.aiui-docs-mark {
   border-radius: var(--radius-sm, 6px); background: color-mix(in oklab, var(--aiui-tone) 13%, transparent); color: color-mix(in oklab, var(--aiui-tone) 78%, var(--foreground));
   font-size: 0.75rem; font-weight: 500; line-height: 1.5; vertical-align: 0.0625rem; white-space: nowrap;
 }
-.aiui-docs article.aiui-doc .aiui-badge svg { width: 0.875em; height: 0.875em; }
+.aiui-docs article.aiui-doc .aiui-badge :is(svg, img) { width: 0.875em; height: 0.875em; }
+/* <Icon>: the text's size unless `size` is given; an image or emoji icon fills the same box as a line icon. */
+.aiui-docs article.aiui-doc .aiui-icon { display: inline-flex; align-items: center; justify-content: center; width: var(--aiui-icon-size, 1em); height: var(--aiui-icon-size, 1em); font-size: var(--aiui-icon-size, 1em); line-height: 1; vertical-align: -0.125em; }
+.aiui-docs article.aiui-doc .aiui-icon > :is(svg, img) { width: 100%; height: 100%; object-fit: contain; }
+/* A lucide name that turned out not to exist leaves its frame empty: no box for it. */
+.aiui-docs article.aiui-doc :is(.aiui-icon, .aiui-card-icon, .aiui-step-icon):empty, .aiui-docs-feature-icon:empty, .aiui-docs-navicon:empty { display: none; }
 .aiui-docs article.aiui-doc .aiui-badge[data-stroke] { background: transparent; border-color: color-mix(in oklab, var(--aiui-tone) 45%, transparent); }
 .aiui-docs article.aiui-doc .aiui-badge[data-shape='pill'] { border-radius: 999px; }
 .aiui-docs article.aiui-doc .aiui-badge[data-size='xs'] { font-size: 0.625rem; padding-inline: 0.3125rem; }
@@ -1150,7 +1155,7 @@ img.aiui-docs-mark {
 /* <Prompt>: a card with the prompt folded and its actions. */
 .aiui-docs article.aiui-doc .aiui-prompt { margin-block: 1.25rem; padding: 0.875rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-xl, 12px); background: var(--card); }
 .aiui-docs article.aiui-doc .aiui-prompt-head { display: flex; gap: 0.5rem; align-items: flex-start; }
-.aiui-docs article.aiui-doc .aiui-prompt-head svg { flex: none; width: 1rem; height: 1rem; margin-top: 0.25rem; color: var(--ui-link); }
+.aiui-docs article.aiui-doc .aiui-prompt-head :is(svg, img) { flex: none; width: 1rem; height: 1rem; margin-top: 0.25rem; color: var(--ui-link); }
 .aiui-docs article.aiui-doc .aiui-prompt summary { margin-top: 0.5rem; color: var(--muted-foreground); font-size: 0.8125rem; cursor: pointer; }
 .aiui-docs article.aiui-doc .aiui-prompt-body { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-left: 2px solid var(--border); font-size: 0.875rem; }
 .aiui-docs article.aiui-doc .aiui-prompt-body > :first-child { margin-top: 0; }
@@ -1762,7 +1767,7 @@ dialog.aiui-zoom img {
   background: var(--muted);
   color: var(--ui-link);
 }
-.aiui-docs-feature-icon svg {
+.aiui-docs-feature-icon :is(svg, img) {
   width: 1rem;
   height: 1rem;
 }

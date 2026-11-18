@@ -8,7 +8,7 @@
  */
 import type { MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { DOCS_HOME_ICONS, DocsHomeIcon } from './docsHomeIcons'
+import { DocsHomeIcon, docsIcon } from './docsHomeIcons'
 import { resolveDocTarget } from './docSource'
 import { isExternal } from './chrome'
 import type { DocsHomeConfig } from '../types'
@@ -91,14 +91,12 @@ export function DocsHome({ home, homePath, onNavigate }: DocsHomeProps) {
             {features.length > 0 && (
                 <ul className="aiui-docs-features">
                     {features.map((feature) => {
-                        const icon = feature.icon && DOCS_HOME_ICONS[feature.icon.toLowerCase()] ? feature.icon : null
+                        const icon = docsIcon(feature.icon)
                         const href = feature.link ? homeHref(feature.link, homePath) : ''
                         return (
                             <li key={feature.title} className="aiui-docs-feature">
                                 {icon && (
-                                    <span className="aiui-docs-feature-icon">
-                                        <DocsHomeIcon name={icon} />
-                                    </span>
+                                    <span className="aiui-docs-feature-icon">{icon}</span>
                                 )}
                                 <h2 className="aiui-docs-feature-title">{feature.title}</h2>
                                 {feature.details && <p className="aiui-docs-feature-details">{feature.details}</p>}

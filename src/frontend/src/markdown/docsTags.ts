@@ -96,6 +96,8 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
         map: (a) => ({ ...a, stroke: on(a.stroke) ? 'true' : undefined, off: on(a.disabled) ? 'true' : undefined }),
     },
     Tooltip: { el: 'aiui-tooltip', attrs: ['tip', 'headline', 'cta', 'href'], inline: true },
+    // <Icon icon="flag" size={32} color="#0f766e" />: any lucide name, an emoji or an image URL.
+    Icon: { el: 'aiui-icon', attrs: ['icon', 'size', 'color'], inline: true },
     Tile: { el: 'aiui-tile', attrs: ['href', 'description'], slots: ['title'] },
     Prompt: { el: 'aiui-prompt', attrs: ['actions', 'icon', 'text'], slots: ['description'], raw: 'text', map: (a) => ({ ...a, actions: labels(a.actions) }) },
     // A file tree; <Tree> around a Markdown list works too (treeLists below).

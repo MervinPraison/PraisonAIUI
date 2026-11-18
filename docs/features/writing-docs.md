@@ -552,10 +552,8 @@ Five frames for the same app.
 </Card>
 </CardGroup>
 
-Icons: `message-square`, `panels-top-left`, `plug`, `book-open`,
-`layout-dashboard`, `shield-check`, `code`, `zap`, `rocket`, `terminal`,
-`bot`, `palette`, `arrow-right`. A list whose items start with bold text also
-becomes a grid of plain cards.
+`icon` takes any [icon](#icons). A list whose items start with bold text
+also becomes a grid of plain cards.
 
 Card options:
 
@@ -608,6 +606,32 @@ in 1 to 4 columns; on phones the columns stack.
 </Column>
 </Columns>
 
+## Icons
+
+Every `icon` (frontmatter, a navigation group, `<Card>`, `<Callout>`,
+`<Step>`, `<Tab>`, `<Accordion>`, `<Badge>`, `<Prompt>`) and the `<Icon>` tag
+take the same values:
+
+- any [lucide icon](https://lucide.dev/icons) name, case-insensitive (`flag`,
+  `git-branch`, or an old name such as `home`);
+- an emoji (`icon="🚀"`);
+- an image URL: `https://…` or a site path such as `/icons/logo.svg`.
+
+`<Icon>` puts one inside a sentence: `size` in pixels (default: the text's
+size) and `color` (a hex, `rgb()`, a colour name or a theme token).
+
+```markdown
+Ship it <Icon icon="flag" size={20} color="#0f766e" />, go <Icon icon="house" /> or <Icon icon="🚀" />.
+```
+
+Ship it <Icon icon="flag" size={20} color="#0f766e" />, go <Icon icon="house" /> or <Icon icon="🚀" />.
+
+The most used icons are drawn at once. Any other lucide icon loads on demand
+from one of 32 small files (about 4 kB each), so a page downloads only the
+icons it shows and no page gets heavier for the 1,900 icons on offer.
+`aiui validate` warns (7009) about an icon name that is not lucide's, with the
+nearest name.
+
 ## More components
 
 ```markdown
@@ -637,7 +661,7 @@ You are a technical writer. Use the second person.
 </Color>
 ```
 
-- `<Callout>`: `icon` (a [card icon](#cards) name), `color`, `title`.
+- `<Callout>`: `icon` (any [icon](#icons)), `color`, `title`.
 - `<Badge>` (inside a sentence): `color` (`gray`, `blue`, `green`, `yellow`, `orange`, `red`, `purple`, or a token), `size` (`xs` to `lg`), `shape="pill"`, `icon`, `stroke`, `disabled`.
 - `<Tooltip>`: `tip`, `headline`, `cta` + `href`. It opens on hover or keyboard focus; Escape closes it.
 - `<Tree>` (or `<FileTree>`) around a Markdown list, which reads on GitHub too: an item ending in `/` or with items under it is a folder (open), `**name**` is highlighted. The MDX form `<Tree.Folder name defaultOpen openable={false} highlight>` / `<Tree.File name highlight />` works as well; arrow keys move between rows, Right / Left open and close.

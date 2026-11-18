@@ -19,7 +19,7 @@ const home = {
     },
     features: [
         { title: 'Fast', details: 'Very.', icon: 'zap', link: 'guide/fast.md', linkText: 'Read' },
-        { title: 'Plain', icon: 'not-an-icon' },
+        { title: 'Plain', icon: 'not an icon' },
     ],
 }
 
