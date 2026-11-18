@@ -203,6 +203,13 @@
   top of `tests/`, which CI never ran, moved into `tests/unit` and
   `tests/integration` (the gap features suite had four stale theme
   assertions, now written against the accent presets).
+- Tests: the other 17 top-level test files are gone. Fifteen were scripts
+  with no test functions (pytest collected nothing, or they crashed at
+  import), one was a demo app, and the examples parity script needed a
+  fixture that did not exist and timed out on its CLI checks. The feature
+  APIs they poked are covered by `tests/integration/test_feature_apis.py` and
+  the unit suites. `tests/unit/test_test_layout.py` keeps new test files out
+  of the top level.
 - Docs: the plugin guide no longer tells you to pass `--style app` because a
   reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
   says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export

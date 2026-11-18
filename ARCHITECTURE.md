@@ -173,8 +173,9 @@ require_auth, config_path)`, the YAML schema (`schema/models.py`, including
 `/api/*` path and wire event, and the window events `aiui:page-change`,
 `aiui:session-select`, `aiui:prefill-composer`, `aiui:approval-required`.
 Re-export moved Python names from their old module.
-*Check:* `tests/unit/test_all_exports.py`, `tests/test_examples_parity.py`, the golden
-and snapshot tests in R6; a removed or renamed export is a rejection.
+*Check:* `tests/unit/test_all_exports.py`, `tests/unit/test_route_table_snapshot.py`,
+`tests/integration/test_endpoints.py` and `test_feature_apis.py` (every `/api/*`
+feature route through the real app), the golden and snapshot tests in R6; a removed or renamed export is a rejection.
 
 **R8. Every HTTP route and WebSocket is authenticated in every auth mode.**
 The three modes (`AUTH_ENFORCE` → `AuthEnforcementMiddleware`;
