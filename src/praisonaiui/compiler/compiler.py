@@ -443,12 +443,16 @@ class Compiler:
         if self.config.styling and "eyebrows" in self.config.styling.model_fields_set:
             result["styling"] = {"eyebrows": self.config.styling.eyebrows}
 
-        # Page footer text and "Was this page helpful?" (per-page facts are in docs-nav.json)
+        # Page footer text and "Was this page helpful?" (per-page facts are in docs-nav.json).
+        # No `feedback` entry: votes go to the aiui server's /api/docs/feedback (docs_feedback.py).
         docs = self.config.content.docs if self.config.content else None
-        if docs and (docs.edit_link or docs.feedback):
+        feedback = docs.feedback if docs else None
+        fb = feedback.model_dump(exclude_defaults=True) if hasattr(feedback, "model_dump") else feedback
+        fb = None if fb is True else fb
+        if docs and (docs.edit_link or fb is False or fb):
             result["pageFooter"] = {
                 **({"editText": docs.edit_link.text} if docs.edit_link else {}),
-                **({"feedbackIssues": docs.feedback.issues} if docs.feedback else {}),
+                **({"feedback": fb} if fb is False or fb else {}),
             }
 
         # Docs home page layout (frontmatter `layout: home` on the docs index)

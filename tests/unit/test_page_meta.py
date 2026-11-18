@@ -97,7 +97,7 @@ def test_build_adds_commit_dates_edit_links_and_footer_text(tmp_path: Path):
     assert first["editUrl"] == "https://github.com/acme/site/edit/main/docs/guide/first.md"
     home = next(v for k, v in _pages(nav).items() if k.endswith("/index") or k == "/docs")
     assert home["lastUpdated"] == "2026-01-02"
-    assert ui["pageFooter"] == {"editText": "Improve this page", "feedbackIssues": "https://github.com/acme/site/issues/new"}
+    assert ui["pageFooter"] == {"editText": "Improve this page", "feedback": {"issues": "https://github.com/acme/site/issues/new"}}
 
 
 def test_no_git_means_no_dates_but_edit_links_stay(tmp_path: Path, monkeypatch):

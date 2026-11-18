@@ -1499,6 +1499,24 @@ dialog.aiui-zoom img {
   .aiui-docs-feedback > button { position: relative; }
   .aiui-docs-feedback > button::after { content: ''; position: absolute; inset: -0.5rem -0.25rem; }
 }
+.aiui-docs-pagefoot:empty { display: none; }
+/* The optional comment after a vote, and under a flagged code block (docs/DocsFeedback.tsx). */
+.aiui-docs-feedback-form { display: grid; gap: 0.5rem; flex-basis: 100%; max-width: 32rem; }
+.aiui-docs-feedback-form label, .aiui-code-flag p { margin: 0; color: var(--muted-foreground); }
+.aiui-docs-feedback-form > div { display: flex; gap: 0.5rem; }
+.aiui-code-fb { position: relative; }
+.aiui-code-flag > button {
+  position: absolute; right: 0.5rem; bottom: 0.5rem;
+  display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem;
+  border: 1px solid var(--border); border-radius: var(--radius-sm, 6px);
+  background: var(--background); color: var(--muted-foreground);
+  opacity: 0; transition: opacity 120ms;
+}
+.aiui-code-flag > button svg { width: 0.875rem; height: 0.875rem; }
+.aiui-code-fb:hover .aiui-code-flag > button, .aiui-code-flag > button:focus-visible { opacity: 1; }
+.aiui-code-flag > button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: none) { .aiui-code-flag > button { opacity: 1; } }
+.aiui-code-flag[data-open] { margin: -0.5rem 0 1rem; font-size: 0.875rem; }
 
 /* ── Pager (previous / next) ───────────────────────────────────────────── */
 .aiui-docs-pager {
