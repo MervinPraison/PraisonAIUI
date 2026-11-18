@@ -49,8 +49,8 @@ section in `llms.txt` and an [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) 
 Every operation and 3.1 webhook gets a docs page, generated at build time as Markdown with
 the [API field components](writing-docs.md#api-fields): method and path, server URL,
 deprecation notice, path / query / header / cookie parameters, request body,
-each response (properties nested in `<Expandable>`, `$ref`s resolved, `allOf` merged, enums
-listed, recursive schemas stop), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
+each response ([schemas](#schemas) with `oneOf`/`anyOf` tabs, constraints and conditional
+requirements), [response examples](#response-examples), callbacks and a link to the spec. They publish like hand-written pages: agent `.md`, `llms.txt`,
 `llms-full.txt`, sitemap and site search (which also matches `METHOD /path`, the
 `operationId` and every parameter and body field name).
 
@@ -72,8 +72,53 @@ dropped). A slug already taken (by a hand-written page or another endpoint) gets
 The title is the `summary` as written, else the `operationId` in words. `aiui validate`
 warns about a duplicate tag, an unknown `parent` and a `parent` cycle.
 
+### Schemas
+
+Each field shows what the schema says, at build time, in the page Markdown (so agents and
+search see it too):
+
+| Schema | On the page |
+|---|---|
+| `$ref`, `allOf` | followed and merged into one field list |
+| `oneOf` / `anyOf` | tabs, one per choice, titled by its `title`, else its `$ref` name, else its type, else "Option n"; at the top of a body or response too |
+| `nullable: true`, `type: [x, "null"]`, `anyOf: [X, {type: "null"}]` | `x \| null` in the type; the field still expands to X's properties |
+| `object[]`, nested objects | properties nested under "Show properties", a recursive schema stops one level down |
+| `enum`, `const` | "Available options: `card`, `bank`", "Allowed value: `card`" |
+| `minimum`/`maximum` (exclusive too), `minLength`/`maxLength`, `minItems`/`maxItems`, `pattern` | "Required range: `1 <= x < 100`", "Required string length: `16 - 19`", "Required array length: `>= 1` elements", "Pattern: `^[0-9]+$`" |
+| `examples` / `example` on a field | "Example: `5`" (short values) |
+| `additionalProperties`, `not` | "Additional properties: `string`", "Must not match: `integer`" |
+| `if`/`then`/`else`, `dependentRequired`, `dependentSchemas` (also inside `allOf`) | a pill on each affected field: "required if method = card", "required unless method = card", "required if owner is set"; an `if` that tests more than sibling `const` / `enum` / `required` shows "conditionally required" |
+
+```yaml
+api:
+  openapi: openapi.yaml
+  params: {expanded: all}   # nested properties start open (default: closed)
+```
+
+### Response examples
+
+The side column's response example has one tab per status code, content type (when a response
+has several) and named example (its `summary`, else its key). This gives the tabs
+`200 · application/json · A small cat`, `200 · application/json · big` and `200 · application/xml`:
+
+```yaml
+responses:
+  "200":
+    content:
+      application/json:
+        examples:
+          small: {summary: A small cat, value: {name: Tom}}
+          big: {value: {name: Garfield}}
+      application/xml: {example: "<cat/>"}
+```
+
+Per content type: the `examples` map (`value`, 3.2 `dataValue` / `serializedValue`, or the
+`externalValue` URL), else `example`, else for JSON an example built from the schema. JSON is
+pretty-printed (a JSON string too); XML, HTML, YAML and CSV are highlighted; other types are text.
+
 **(planned)**: an Authorization section, method and `kind: badge` pills in the sidebar, request
-and response examples (cURL and more languages), `oneOf`/`anyOf` tabs, a Try-it playground.
+examples (cURL and more languages), a Try-it playground (choice picker for `any` fields,
+`api.optional`, and showing image, audio and video responses inline).
 
 From Python, `praisonaiui.compiler.openapi.load_spec("openapi.yaml")` returns an `ApiSpec`
 (`ok`, `issues`, `document`, `operations`, `dereference(node)`).

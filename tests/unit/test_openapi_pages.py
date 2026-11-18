@@ -113,7 +113,7 @@ def test_endpoint_page_source_and_agent_markdown(tmp_path):
     assert "Server: `https://api.example.com/v1`" in src
     assert "<Warning>This endpoint is deprecated.</Warning>" in src
     assert '<ParamField body="name" type="string" required>\n  Its &lt;Name>\n' in src  # allOf merged
-    assert 'Available options: `"cat"`, `"dog"`' in src
+    assert "Available options: `cat`, `dog`" in src
     assert '<ParamField body="id"' not in src  # readOnly: not in a request
     assert '<ParamField body="parent" type="Pet">\n  <Expandable title="parent properties">' in src
     assert src.count('body="parent"') == 2  # a recursive schema stops one level down

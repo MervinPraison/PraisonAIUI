@@ -187,6 +187,7 @@ def _convert(lines: list[str]) -> list[str]:
             elif name in ("ParamField", "ResponseField"):
                 at = next((k for k in FIELD_IN if k in a), None) if name == "ParamField" else None
                 on = [k for k in ("required", "deprecated") if a.get(k, "false") != "false"]
+                on += [x.strip() for x in a.get("post", "").split(",") if x.strip()]  # "required if method = card"
                 info = [x for x in (at, a.get("type"), *on) if x] + ([f"default: {a['default']}"] if a.get("default") else [])
                 flush()
                 field = ("".join(f["prefix"] for f in stack), f"- `{a.get(at or 'name', '')}`" + (f" ({', '.join(info)})" if info else ""))
