@@ -23,6 +23,7 @@ from urllib.parse import unquote
 
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import DocPage, DocsScanner
+from praisonaiui.compiler.redirects import pattern
 from praisonaiui.compiler.search_index import inline_text, slugify
 
 if TYPE_CHECKING:
@@ -174,7 +175,7 @@ class _Checker:
         if home:
             self.routes.setdefault("/", home)
             self.routes.setdefault(self.base or "/", home)
-        self.redirects = {_norm(r) for r in redirects if isinstance(r, str) and r.strip()}
+        self.redirects = [pattern(r) for r in redirects if isinstance(r, str) and r.strip()]
         self.files = sorted(
             f"{self.base}/{p.relative_to(docs_dir).as_posix()}"
             for p in docs_dir.rglob("*")
@@ -235,7 +236,7 @@ class _Checker:
                 return  # outside the docs (an app route): not ours to judge
         if entry is not None:
             self._anchor(entry, frag, raw, file, line)
-        elif route in self.redirects or url == "/":
+        elif url == "/" or any(p.fullmatch(route) for p in self.redirects):
             return
         elif not is_md and (self.docs_dir / route[len(self.base) + 1 :]).is_file():
             return
@@ -333,7 +334,7 @@ def _docs_checker(docs_dir, route_base, include, exclude, index_files, redirects
 def redirect_sources(cfg: Config) -> list[str]:
     """Redirect source paths in the config (``redirects:`` at the top level or
     under ``content.docs``, entries with ``source`` or ``from``); each counts
-    as a valid link target. Empty until the config has redirects."""
+    as a valid link target (``/old/:slug*`` covers everything under ``/old``)."""
     out: list[str] = []
     docs = cfg.content.docs if cfg.content else None
     for holder in (cfg, docs):
