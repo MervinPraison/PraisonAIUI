@@ -111,6 +111,8 @@ PAGE_TYPE_BY_ID: Mapping[str, str] = MappingProxyType(
         "auth": "settings",
         # Connect: per-client setup at a readable measure, beside a client rail
         "connect": "settings",
+        # API Reference: a route rail beside one route's form (the same shape)
+        "api-reference": "settings",
     }
 )
 

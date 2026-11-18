@@ -3,7 +3,8 @@
 ``GET /api/openapi.json`` walks the routes the running app serves (the core,
 every enabled feature, the built-ins' host routes and the plugins' routes)
 when it is asked, so the document lists exactly what this server answers and
-cannot drift from the code. Owned by ``builtin.api-reference``.
+cannot drift from the code. Owned by ``builtin.api-reference``, whose API
+Reference page (app shell) renders it and sends requests to this server.
 
 - Tags: the built-in record that owns a route (``sessions``, ``api``…), a
   third-party feature's or plugin's name, else ``core``.
