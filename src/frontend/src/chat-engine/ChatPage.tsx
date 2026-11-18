@@ -165,6 +165,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const [agents, setAgents] = useState<ChatAgent[]>([])
   const [agent, setAgent] = useState('')
   const [starters, setStarters] = useState<AiuiStarter[] | undefined>(undefined)
+  const [welcome, setWelcome] = useState('')
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
   // The sheet chunk is mounted after the first open only (as the shell does with MobileNav).
@@ -208,6 +209,11 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     void fetchStarters()
       .then((list) => alive && setStarters(list.length ? list : DEFAULT_STARTERS))
       .catch(() => alive && setStarters(DEFAULT_STARTERS))
+    // Its own small chunk: the greeting never delays the chat's first screen.
+    void import('./welcome')
+      .then(({ fetchWelcome }) => fetchWelcome())
+      .then((text) => alive && setWelcome(text))
+      .catch(() => undefined)
     return () => {
       alive = false
     }
@@ -394,6 +400,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
               fillPrompts={fill}
               starterIcons={icons}
               presentation={presentation}
+              welcome={welcome || undefined}
             />
           </AssistantRuntimeProvider>
         </div>

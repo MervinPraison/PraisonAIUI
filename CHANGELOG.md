@@ -490,3 +490,8 @@
 - Chat: two runs in one session (a reload mid-reply, a second tab) no longer
   save history as Q1, Q2, A2, A1. Questions carry a `turn_id`, replies a
   `reply_to`, and history lists each reply after its own question.
+- Chat: the `@aiui.welcome` greeting (and a chat YAML's `welcome:`) shows on
+  a new chat. Nothing ever called `POST /welcome`, so the documented callback
+  was ignored in every style. The app shell's chat (every layout), the `chat`
+  style and the dashboard's chat now show it as plain text on an empty
+  thread.

@@ -29,3 +29,11 @@ test('the first reply of a new conversation stays after the stream ends', async 
   await expect(page.getByText('plain first reply').first()).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
+
+test('the app greeting (@aiui.welcome) shows on an empty conversation', async ({ page }) => {
+  expect(SYSTEM_URL, 'AIUI_E2E_CHAT_SYSTEM_URL (set by playwright.config.ts)').not.toBe('')
+  const body = 'data: ' + JSON.stringify({ type: 'message', content: 'Hello from on_welcome' }) + '\n\ndata: {"type":"end"}\n\n'
+  await page.route('**/welcome', (route) => route.fulfill({ status: 200, contentType: 'text/event-stream', body }))
+  await page.goto(`${SYSTEM_URL}/`)
+  await expect(page.locator('[data-welcome]')).toHaveText('Hello from on_welcome')
+})

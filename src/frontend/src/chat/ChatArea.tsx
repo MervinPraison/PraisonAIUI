@@ -5,6 +5,7 @@ import { ChatMessages } from './ChatMessages'
 import { ChatInput } from './ChatInput'
 import { StarterMessages } from './StarterMessages'
 import { TaskSidebar } from './TaskSidebar'
+import { fetchWelcome } from '../chat-engine/welcome'
 
 interface ChatAreaProps {
     config?: ChatConfig
@@ -28,6 +29,15 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [loadingHistory, setLoadingHistory] = useState(false)
     const [dynamicStarters, setDynamicStarters] = useState<ChatStarter[]>([])
+    // The app's greeting (@aiui.welcome), shown on an empty conversation.
+    const [welcome, setWelcome] = useState('')
+    useEffect(() => {
+        let alive = true
+        void fetchWelcome().then((text) => alive && setWelcome(text))
+        return () => {
+            alive = false
+        }
+    }, [])
     // The session on screen now; stream callbacks compare against it, not a stale closure.
     const viewedSessionRef = useRef(externalSessionId)
     viewedSessionRef.current = externalSessionId
@@ -152,6 +162,7 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                         <StarterMessages
                             starters={effectiveStarters}
                             onStarterClick={handleStarterClick}
+                            welcome={welcome}
                         />
                     ) : showEmpty ? (
                         <div className="flex flex-col items-center justify-center h-full text-center">
@@ -161,7 +172,9 @@ export function ChatArea({ config, className = '', sessionId: externalSessionId,
                                 </svg>
                             </div>
                             <h2 className="text-xl font-semibold mb-1">{config?.name || 'AI Chat'}</h2>
-                            <p className="text-sm text-muted-foreground">How can I help you today?</p>
+                            <p className="text-sm text-muted-foreground whitespace-pre-line max-w-prose" data-welcome={welcome ? '' : undefined}>
+                                {welcome || 'How can I help you today?'}
+                            </p>
                         </div>
                     ) : (
                         <ChatMessages

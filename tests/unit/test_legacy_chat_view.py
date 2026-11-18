@@ -30,7 +30,7 @@ NODE = shutil.which("node")
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="node is not installed")
 
-EXPORTS = ["renderMarkdown", "escapeHtml", "handleWsMessage"]
+EXPORTS = ["renderMarkdown", "escapeHtml", "handleWsMessage", "parseWelcomeStream"]
 
 _HARNESS = r"""
 import { pathToFileURL } from 'node:url';
@@ -106,6 +106,7 @@ if (input.stream) {
     if (step.snapshot) out.stream.push({ at: step.snapshot, order: list.children.map(label), classes: list.children.map((c) => c.className) });
   }
 }
+if (input.welcome) out.welcome = input.welcome.map((body) => mod.parseWelcomeStream(body));
 console.log(JSON.stringify(out));
 """
 
@@ -379,3 +380,31 @@ class TestRunEnds:
         snap = ended["end3"]
         assert snap["order"][-2:] == ["user", "chat-msg chat-msg-system"]
         assert not any("streaming" in c for c in snap["classes"])
+
+
+def _sse(*events: dict) -> str:
+    return "".join(f"data: {json.dumps(e)}\n\n" for e in events)
+
+
+def test_welcome_stream_is_read_as_plain_text(tmp_path):
+    bodies = [
+        _sse({"type": "message", "content": "Welcome!"}, {"type": "message", "content": "Ask away."}, {"type": "end"}),
+        _sse({"type": "token", "token": "Hel"}, {"type": "token", "token": "lo"}, {"type": "end"}),
+        _sse({"type": "end"}),
+        _sse({"type": "error", "error": "boom"}, {"type": "end"}),
+        "data: {not json\n\n",
+        _sse(
+            {"type": "token", "message_id": "m1", "token": "Hel"},
+            {"type": "token", "message_id": "m1", "token": "lo"},
+            {"type": "message", "message_id": "m1", "content": "Hello"},
+            {"type": "end"},
+        ),
+    ]
+    assert _run(tmp_path, {"welcome": bodies})["welcome"] == [
+        "Welcome!\n\nAsk away.",
+        "Hello",
+        "",
+        "",
+        "",
+        "Hello",
+    ]

@@ -13,6 +13,8 @@ const composer = (page: Page) => page.getByRole('textbox', { name: 'Message' })
 const assistant = (page: Page) => page.locator('[data-role="assistant"]')
 const stopButton = (page: Page) => page.getByRole('button', { name: 'Stop' })
 
+const WELCOME_SSE = 'data: ' + JSON.stringify({ type: 'message', content: 'Hello from on_welcome' }) + '\n\ndata: ' + JSON.stringify({ type: 'end' }) + '\n\n'
+
 async function openChat(page: Page, transport: 'ws' | 'sse') {
   if (transport === 'sse') {
     // A proxy that refuses WebSocket upgrades: the chat falls back to POST /run.
@@ -169,6 +171,15 @@ test('WebSocket: a failed @reply shows its error, and still does after a reload'
   await expect(saved).toContainText('partial answer')
   await expect(saved.getByRole('alert')).toContainText('cbfail: the reply raised')
   expect(errors.pageErrors).toEqual([])
+})
+
+test('the app greeting (@aiui.welcome) shows on a new chat', async ({ page }) => {
+  // The scripted server has no welcome callback: answer /welcome as one would.
+  await page.route('**/welcome', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/event-stream', body: WELCOME_SSE }),
+  )
+  await openChat(page, 'ws')
+  await expect(page.locator('[data-thread-empty] [data-welcome]')).toHaveText('Hello from on_welcome')
 })
 
 test('WebSocket: a question from the agent can be answered', async ({ page }) => {

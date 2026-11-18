@@ -1044,6 +1044,7 @@ export async function render(container) {
   const fileInput = document.getElementById('chat-file-input');
   const sessionSearch = document.getElementById('chat-session-search');
   if (sessionSearch) sessionSearch.addEventListener('input', renderSessionList);
+  showWelcome();
   // Guard: if DOM elements aren't present yet (race condition), bail out
   if (!input || !sendBtn) {
     console.warn('[chat] DOM elements not ready — skipping event binding');
@@ -1394,6 +1395,49 @@ async function restoreSessionHistory(sessionId) {
   }
 }
 
+// The app's greeting (@aiui.welcome or a chat YAML's welcome:). POST /welcome
+// runs the callback and streams what it says; fetched once per page load.
+let welcomePromise = null;
+
+function parseWelcomeStream(body) {
+  const parts = [];
+  let streamed = '';
+  let streamId;
+  for (const line of String(body).split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    let ev;
+    try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+    if (!ev || typeof ev !== 'object') continue;
+    if (ev.type === 'message' && typeof ev.content === 'string' && ev.content.trim()) {
+      // A streamed Message ends with a `message` of its full text: it replaces the tokens.
+      if (streamed && (ev.message_id === undefined || ev.message_id !== streamId)) parts.push(streamed);
+      streamed = '';
+      parts.push(ev.content);
+    } else if (ev.type === 'token' && typeof ev.token === 'string') {
+      if (streamed && ev.message_id !== streamId) { parts.push(streamed); streamed = ''; }
+      streamId = ev.message_id;
+      streamed += ev.token;
+    }
+  }
+  if (streamed) parts.push(streamed);
+  return parts.join('\n\n').trim();
+}
+
+function showWelcome() {
+  if (!welcomePromise) {
+    welcomePromise = fetch('/welcome', { method: 'POST', headers: { Accept: 'text/event-stream' } })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then(parseWelcomeStream)
+      .catch(() => '');
+  }
+  return welcomePromise.then((text) => {
+    const p = text && document.querySelector('#chat-welcome p');
+    if (!p) return;
+    p.textContent = text;  // plain text, never HTML
+    p.style.whiteSpace = 'pre-line';
+  });
+}
+
 function newSession() {
   currentSessionId = null;
   const messagesEl = document.getElementById('chat-messages');
@@ -1405,6 +1449,7 @@ function newSession() {
         <p>Select an agent and start chatting. Messages stream in real-time.</p>
       </div>
     `;
+    showWelcome();
   }
   const title = document.getElementById('chat-header-title');
   if (title) title.textContent = 'New Chat';
