@@ -2,6 +2,22 @@ name: PyPI Release
 
 # Requires GitHub Environment "pypi" (manual) or "pypi-auto" (ci/nightly patch).
 # Secrets: PYPI_TOKEN (or PYPI_API_TOKEN), GH_TOKEN
+#
+# Order matters (tests/unit/test_release_workflow.py pins it):
+#   1. check out inputs.trigger_sha (or main) and refuse unless it is still
+#      origin/main with a green CI run (.github/scripts/release-gate.js verify-sha);
+#   2. bump, lock, build;
+#   3. push the "Release vX.Y.Z" commit and tag to main (no rebase: if main
+#      moved, the push is rejected and nothing is published);
+#   4. only then `uv publish`, wait for PyPI, create the GitHub release.
+# A failed publish after step 3 leaves main at X.Y.Z without the package:
+# re-dispatch with `-f version=X.Y.Z` to publish that version.
+
+# The release gate does not count a dry run as "released today": it looks for
+# the "[dry run]" marker (release-gate.js DRY_RUN_MARKER) in this title.
+run-name: >-
+  ${{ inputs.dry_run && format('PyPI Release [dry run] {0}', inputs.bump)
+      || format('PyPI Release {0} ({1})', inputs.bump, inputs.source) }}
 
 on:
   workflow_dispatch:
@@ -65,10 +81,12 @@ jobs:
           echo "Bump: ${{ inputs.bump }}"
           echo "Environment: ${{ (inputs.source == 'ci' || inputs.source == 'nightly') && inputs.bump == 'patch' && 'pypi-auto' || 'pypi' }}"
 
-      - name: Checkout main
+      # The gate verified CI on trigger_sha; build exactly that commit, never
+      # whatever main became while this run waited in the queue or for approval.
+      - name: Checkout the release commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
-          ref: main
+          ref: ${{ inputs.trigger_sha || 'main' }}
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
@@ -85,6 +103,20 @@ jobs:
           git config user.name "MervinPraison"
           git config user.email "454862+MervinPraison@users.noreply.github.com"
           gh auth setup-git
+
+      # Runs on dry runs too, so a preview says whether the release would go.
+      - name: Verify the release commit is main with green CI
+        env:
+          TRIGGER_SHA: ${{ inputs.trigger_sha }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          git fetch -q origin main
+          MAIN_SHA="$(git rev-parse FETCH_HEAD)"
+          CI_RUNS_JSON="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow ci.yml \
+            --commit "${HEAD_SHA}" --event push --limit 5 --json status,conclusion)"
+          export HEAD_SHA MAIN_SHA CI_RUNS_JSON
+          node .github/scripts/release-gate.js verify-sha
 
       - name: Compute release version
         id: versions
@@ -175,14 +207,37 @@ jobs:
           ))
           PY
 
-      - name: Publish aiui to PyPI
+      - name: Build aiui
         if: inputs.dry_run != true
         run: |
           set -euo pipefail
           rm -rf dist
           uv lock
           uv build
-          uv publish
+
+      # Before publishing: if this push fails (main moved, or the token cannot
+      # push), PyPI is untouched and pyproject.toml on main still matches it.
+      - name: Commit and tag the release on main
+        if: inputs.dry_run != true
+        env:
+          VERSION: ${{ steps.versions.outputs.new_version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          git add pyproject.toml uv.lock src/praisonaiui/__version__.py
+          if git diff --cached --quiet; then
+            echo "Version files already at ${VERSION} (re-publishing a pushed release)"
+          else
+            git commit -m "Release ${TAG}"
+          fi
+          git tag -f "${TAG}"
+          # Fast-forward only: never rebase the release onto commits CI has not
+          # checked. --atomic: the commit and the tag land together or not at all.
+          git push --atomic origin "HEAD:refs/heads/main" "+refs/tags/${TAG}:refs/tags/${TAG}"
+
+      - name: Publish aiui to PyPI
+        if: inputs.dry_run != true
+        run: uv publish
 
       - name: Wait for aiui on PyPI
         if: inputs.dry_run != true
@@ -207,25 +262,21 @@ jobs:
             sleep "$INTERVAL"
           done
 
-      - name: Commit, tag, and release
+      - name: GitHub release
         if: inputs.dry_run != true
         env:
           VERSION: ${{ steps.versions.outputs.new_version }}
         run: |
           set -euo pipefail
           TAG="v${VERSION}"
-          git add pyproject.toml uv.lock src/praisonaiui/__version__.py
-          git diff --cached --quiet && { echo "No version files to commit"; exit 0; }
-          git commit -m "Release ${TAG}"
-          git tag -f "${TAG}"
-          git pull --rebase origin main
-          git tag -f "${TAG}"
-          git push origin main
-          git push --tags -f
-          gh release create "${TAG}" \
-            --title "PraisonAIUI ${TAG}" \
-            --notes "Release ${TAG}" \
-            --latest
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "GitHub release ${TAG} already exists"
+          else
+            gh release create "${TAG}" \
+              --title "PraisonAIUI ${TAG}" \
+              --notes "Release ${TAG}" \
+              --latest
+          fi
 
       - name: Verify release
         if: inputs.dry_run != true

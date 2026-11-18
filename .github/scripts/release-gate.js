@@ -61,6 +61,14 @@ function utcDayStart(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
+// pypi-release.yml's run-name carries this marker on a dry run, which
+// concludes `success` without publishing anything.
+const DRY_RUN_MARKER = '[dry run]';
+
+function isDryRunRelease(run) {
+  return String(run.display_title || run.name || '').toLowerCase().includes(DRY_RUN_MARKER);
+}
+
 async function hasSuccessfulReleaseToday(github, owner, repo, now = new Date()) {
   const dayStart = utcDayStart(now);
   const runs = await github.rest.actions.listWorkflowRuns({
@@ -71,8 +79,40 @@ async function hasSuccessfulReleaseToday(github, owner, repo, now = new Date()) 
     per_page: 30,
   });
   return runs.data.workflow_runs.some(
-    (r) => r.conclusion === 'success' && new Date(r.created_at) >= dayStart
+    (r) => r.conclusion === 'success'
+      && new Date(r.created_at) >= dayStart
+      && !isDryRunRelease(r)
   );
+}
+
+/**
+ * pypi-release.yml publishes only the SHA the gate (or the person) verified:
+ * HEAD must be the trigger SHA when one was given, still be origin/main, and
+ * have a successful CI run. `ciRuns` is `gh run list --json status,conclusion`
+ * for that commit, newest first.
+ */
+function checkReleaseSha({ headSha, triggerSha = '', mainSha, ciRuns = [] }) {
+  const short = (s) => (s || 'none').slice(0, 7);
+  if (!headSha) return { ok: false, reason: 'could not resolve HEAD' };
+  if (triggerSha && headSha !== triggerSha) {
+    return { ok: false, reason: `checked out ${short(headSha)}, expected trigger SHA ${short(triggerSha)}` };
+  }
+  if (headSha !== mainSha) {
+    return {
+      ok: false,
+      reason: `${short(headSha)} is no longer origin/main (${short(mainSha)}); `
+        + 'the newer commit gets its own CI run and release gate',
+    };
+  }
+  const latest = ciRuns[0];
+  if (!latest) return { ok: false, reason: `no CI run for ${short(headSha)}` };
+  if (latest.status !== 'completed' || latest.conclusion !== 'success') {
+    return {
+      ok: false,
+      reason: `CI on ${short(headSha)} is ${latest.status}/${latest.conclusion || 'pending'}, not success`,
+    };
+  }
+  return { ok: true, reason: `CI green on ${short(headSha)}, which is origin/main` };
 }
 
 async function lastGreenCiSha(github, owner, repo) {
@@ -93,11 +133,17 @@ async function evaluateReleasePreflight(github, owner, repo, options, core) {
     headSha,
     isCiTrigger = false,
     bump = 'patch',
+    // Injectable for the selftest.
+    readVersions = readVersionsFromTree,
+    pypiExists = pypiVersionExists,
   } = options;
 
   const reasons = [];
   const out = {
     ready: false,
+    // true when the repo is in a state no later run can fix by itself: the
+    // workflow fails instead of reporting a quiet skip every night.
+    blocked: false,
     reasons,
     headSha: headSha || '',
     lastTag: '',
@@ -124,16 +170,24 @@ async function evaluateReleasePreflight(github, owner, repo, options, core) {
 
   let versions;
   try {
-    versions = readVersionsFromTree();
+    versions = readVersions();
   } catch (err) {
     reasons.push(err.message);
     return out;
   }
   out.targetVersion = versions.target;
 
-  const onPypi = await pypiVersionExists(config.pypiPackageName, versions.target);
+  // No release is active (checked above), so the next version being on PyPI
+  // means a release published it and never landed its bump on main. Every
+  // later run would compute the same target and skip: fail loudly instead.
+  const onPypi = await pypiExists(config.pypiPackageName, versions.target);
   if (onPypi) {
-    reasons.push(`already published: ${config.pypiPackageName}==${versions.target}`);
+    out.blocked = true;
+    reasons.push(
+      `${config.pypiPackageName}==${versions.target} is on PyPI but pyproject.toml on main `
+      + `still says ${versions.current}: a release published without pushing its bump. `
+      + `Bump pyproject.toml and __version__.py to ${versions.target} on main.`
+    );
     return out;
   }
 
@@ -192,8 +246,36 @@ async function evaluateReleasePreflight(github, owner, repo, options, core) {
   return out;
 }
 
+// CLI for pypi-release.yml: `node release-gate.js verify-sha`
+// (env HEAD_SHA, TRIGGER_SHA, MAIN_SHA, CI_RUNS_JSON).
+if (require.main === module) {
+  const [cmd] = process.argv.slice(2);
+  if (cmd !== 'verify-sha') {
+    console.error('usage: release-gate.js verify-sha');
+    process.exit(2);
+  }
+  let ciRuns = [];
+  try {
+    ciRuns = JSON.parse(process.env.CI_RUNS_JSON || '[]');
+  } catch {
+    console.error('CI_RUNS_JSON is not JSON');
+    process.exit(1);
+  }
+  const res = checkReleaseSha({
+    headSha: process.env.HEAD_SHA || '',
+    triggerSha: process.env.TRIGGER_SHA || '',
+    mainSha: process.env.MAIN_SHA || '',
+    ciRuns,
+  });
+  console.log(res.ok ? `ok: ${res.reason}` : `refusing to release: ${res.reason}`);
+  process.exit(res.ok ? 0 : 1);
+}
+
 module.exports = {
   bumpPatch,
+  checkReleaseSha,
+  isDryRunRelease,
+  DRY_RUN_MARKER,
   readVersionsFromTree,
   pypiVersionExists,
   hasSuccessfulReleaseToday,

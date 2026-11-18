@@ -73,6 +73,10 @@ jobs:
           npm run test:scripts
         working-directory: src/frontend
 
+      # The pipeline's own logic (release gate, merge gate, review chain).
+      - name: Pipeline script self-tests
+        run: for t in .github/scripts/*-selftest.js; do node "$t"; done
+
       # Every TypeScript file under src/frontend (eslint.config.js ignores only
       # dist, the shadcn primitives in src/components/ui, src/spike and dev).
       - name: Lint the frontend

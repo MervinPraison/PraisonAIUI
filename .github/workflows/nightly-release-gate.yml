@@ -49,13 +49,17 @@ jobs:
         id: ctx
         run: |
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "checkout_sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-            echo "source=ci" >> "$GITHUB_OUTPUT"
-            echo "is_ci=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "checkout_sha=${{ github.event.workflow_run.head_sha }}"
+              echo "source=ci"
+              echo "is_ci=true"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "checkout_sha=main" >> "$GITHUB_OUTPUT"
-            echo "source=nightly" >> "$GITHUB_OUTPUT"
-            echo "is_ci=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "checkout_sha=main"
+              echo "source=nightly"
+              echo "is_ci=false"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout
@@ -103,7 +107,11 @@ jobs:
             }
             await core.summary.write();
 
-            if (!result.ready) {
+            if (result.blocked) {
+              // A state no later run fixes by itself (e.g. PyPI ahead of
+              // pyproject.toml): fail so it is seen, instead of a quiet skip.
+              core.setFailed(`Release blocked: ${result.reasons.join('; ')}`);
+            } else if (!result.ready) {
               core.info(`Skip release: ${result.reasons.join('; ')}`);
             }
 
