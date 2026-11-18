@@ -311,7 +311,8 @@ class TestRunEndpoint:
 
 class TestSessions:
     def test_list_empty(self, client):
-        assert client.get("/sessions").json() == {"sessions": []}
+        # /sessions also reports the total (additive, #465; pages with ?limit=&offset=).
+        assert client.get("/sessions").json() == {"sessions": [], "total": 0}
 
     def test_create_and_get(self, client):
         sid = client.post("/sessions").json()["session_id"]

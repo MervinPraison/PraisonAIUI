@@ -43,6 +43,10 @@ pytest tests/unit/test_compiler.py::TestCompilerUiConfig::test_minimal_ui_config
   `--fail-on-skip`. That flag (defined in `tests/conftest.py`) makes the run
   exit non-zero when anything skips, so a missing tool cannot pass as a row of
   skips. Add a new suite of that kind to that step.
+- Every test file lives in `tests/unit/` or `tests/integration/`
+  (`tests/browser/` holds opt-in, dev-only browser checks). A `tests/test_*.py`
+  file at the top level is never run by CI; `tests/unit/test_test_layout.py`
+  fails if one appears.
 
 ## Test Structure
 
