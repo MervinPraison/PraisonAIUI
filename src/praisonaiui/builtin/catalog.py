@@ -740,6 +740,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 10,
                 home="chat",
                 primary=("chat", "artifacts", "agents", "cron", "knowledge", "sessions", "config"),
+                look="paper",  # meta.look of builtin/layouts/<id>.ts
             ),
         ),
     ),
@@ -754,6 +755,7 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
                 15,
                 home="chat",
                 primary=("chat", "agents", "cron", "knowledge", "sessions", "config"),
+                look="paper",  # meta.look of builtin/layouts/<id>.ts
             ),
         ),
     ),

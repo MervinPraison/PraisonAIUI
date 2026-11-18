@@ -145,6 +145,37 @@ test('the server offers the built-in layouts and the plugin layout', async ({ pa
   expect(aurora.module).toMatch(/^\/_plugins\/layoutfx\/aurora\.js/)
 })
 
+/** Font families the page downloads (woff2 file names up to "-latin"). */
+function trackFonts(page: Page): string[] {
+  const fonts: string[] = []
+  page.on('request', (r: Request) => {
+    const name = new URL(r.url()).pathname.split('/').pop() ?? ''
+    if (name.endsWith('.woff2')) fonts.push(name.split('-latin')[0])
+  })
+  return fonts
+}
+
+test('the default layout paints its Paper look from the first byte: no Pro (Geist) fonts', async ({ page }) => {
+  const fonts = trackFonts(page)
+  await page.goto('/chat')
+  await expect(frame(page, 'chat-canvas')).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-aiui-look', 'paper')
+  await page.waitForLoadState('networkidle')
+  expect(fonts.filter((f) => f.startsWith('geist'))).toEqual([])
+  expect(fonts).toEqual(expect.arrayContaining(['source-sans-3', 'newsreader']))
+})
+
+test('a viewer who chose plain Pro gets no Paper look, not even on first paint', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('aiui-look', 'pro'))
+  const fonts = trackFonts(page)
+  const response = await page.goto('/chat')
+  expect(await response!.text()).toContain('data-aiui-look="paper"')
+  await expect(frame(page, 'chat-canvas')).toBeVisible()
+  await expect(page.locator('html')).not.toHaveAttribute('data-aiui-look', /.*/)
+  await page.waitForLoadState('networkidle')
+  expect(fonts.filter((f) => f === 'newsreader' || f === 'source-sans-3')).toEqual([])
+})
+
 test('the app shell opens in the default layout and downloads only its chunks', async ({ page }) => {
   const errors = collectPageErrors(page)
   const scripts = trackScripts(page)

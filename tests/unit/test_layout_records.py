@@ -183,6 +183,7 @@ def test_a_plugin_layout_resolves_its_module_into_the_static_dir(tmp_path, caplo
                 {"id": "Bad Id", "title": "x", "module": "deck.js"},
                 {"id": "escape", "title": "x", "module": "../outside.js"},
                 {"id": "badorder", "title": "x", "module": "deck.js", "order": "first"},
+                {"id": "badlook", "title": "x", "module": "deck.js", "look": "Paper <b>"},
             ],
         )
     )
@@ -194,10 +195,11 @@ def test_a_plugin_layout_resolves_its_module_into_the_static_dir(tmp_path, caplo
     assert deck.module == "/_plugins/deck/deck.js"
     assert deck.integrity and deck.integrity.startswith("sha384-")
     assert deck.primary == ("chat", "logs") and deck.home == "chat"
-    assert specs[0].title == "Chat and Canvas"
+    assert deck.look is None
+    assert specs[0].title == "Chat and Canvas" and specs[0].look == "paper"
     logged = " ".join(r.getMessage() for r in caplog.records)
     for bad in ("'chat-canvas' ignored", "'classic'", "nomodule", "Bad Id", "escapes static dir",
-                "order must be a number"):
+                "order must be a number", "look must be an id"):
         assert bad in logged
 
 

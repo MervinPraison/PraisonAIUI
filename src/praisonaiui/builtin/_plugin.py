@@ -170,11 +170,13 @@ def layout_spec(
     *,
     home: str,
     primary: tuple[str, ...],
+    look: Optional[str] = None,
 ) -> LayoutSpec:
     """A first-party layout (ADR 0003). Its frame is the browser descriptor
     ``src/frontend/src/builtin/layouts/<id>.ts``; ``home`` is the page ``/``
     opens and ``primary`` the default primary nav (YAML ``layout.primary``
-    wins)."""
+    wins). ``look`` is the descriptor's ``meta.look``, painted from the first
+    byte when the layout is the default."""
     return LayoutSpec(
         id=id,
         title=title,
@@ -183,4 +185,5 @@ def layout_spec(
         home=home,
         primary=primary,
         source="builtin",
+        look=look,
     )

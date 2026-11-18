@@ -221,7 +221,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
 | Chat route (added by `/chat`) | 141,169 B |
-| `/chat` first-screen JS (boot + chat route) | 253,145 B |
+| `/chat` first-screen JS (boot + chat route) | 253,161 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
@@ -233,7 +233,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 9,134,657 B |
+| Wheel: all of `dist/assets` (uncompressed) | 9,134,666 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
@@ -259,7 +259,8 @@ routes left in `create_app` are core (pinned by `test_route_table_snapshot.py`);
 a PR may move code out, never in. Accepted exception: ADR 0003 added a few
 lines (the manifest `layouts` key from `praisonaiui.layouts.layouts_manifest`,
 the shell-only layout pages in `_page_records`, and `data-aiui-tokens="pro"`
-on the app shell's `<html>` from `layouts.default_layout`); the logic lives in
+plus the default layout's `data-aiui-look` and its bootstrap script on the app
+shell's `<html>` from `layouts.first_paint`); the logic lives in
 `layouts.py` and `builtin/page_sources.py`.
 *Check:* the diff of `server.py` adds no `Route(` and no `create_app` parameter;
 line count does not rise without a stated reason.
