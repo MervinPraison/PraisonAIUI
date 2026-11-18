@@ -111,6 +111,8 @@ under it:
 | 7004 | two sidebar entries in one folder have the same title |
 | 7005 | heading skips a level (`##` then `####`) |
 | 7006 | page has nothing beyond its headings |
+| 7007 | `{{name}}` with no value under `variables:` ([variables](../features/writing-docs.md#reusable-snippets-and-variables)) |
+| 7008 | snippet not found, outside the project folder, or including itself (fails `aiui build`) |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 
 Without `--config`, `validate`, `build` and `serve` read `./aiui.yaml`. The

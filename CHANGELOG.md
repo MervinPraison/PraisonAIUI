@@ -321,6 +321,14 @@
   `<Tree.Folder>` / `<Tree.File>`, arrow keys, `highlight`), `<Prompt>` with Copy and Open in
   ChatGPT / Claude / Cursor, `<Tile>`, `<Color>` swatches with light/dark values, and
   `<colgroup><col width>` in HTML tables. See [Writing docs](docs/features/writing-docs.md#more-components).
+- **Reusable snippets and `{{variables}}`.** `<Snippet file="install.md" pkg="aiui" />`
+  includes `docs/snippets/install.md` with `{pkg}` filled in; snippets nest, and the
+  Mintlify `import X from '/snippets/x.mdx'` + `<X />` form and MkDocs `--8<-- "x.md"`
+  work as is. Top-level `variables:` in `aiui.yaml` fills `{{name}}` in pages, code and
+  front matter titles. Expanded at build time, so the page, its `.md`, `llms-full.txt`
+  and search all see the text; `snippets/` is not published as pages. `aiui validate`
+  reports unknown variables (7007) and missing or looping snippets (7008, which fail
+  the build). See [Writing docs](docs/features/writing-docs.md#reusable-snippets-and-variables).
 
 ### Deprecated
 

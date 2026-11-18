@@ -1,13 +1,15 @@
-"""Content checks for ``aiui validate``: codes 7000-7006 and 7101 (listed in docs/api/cli.md).
+"""Content checks for ``aiui validate``: codes 7000-7008 and 7101 (listed in docs/api/cli.md).
 
 Each issue names the page and line and says how to fix it. Missing images and
-broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s.
+broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
+variables and snippets (7007, 7008) ``snippets.py``'s.
 """
 
 from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -152,8 +154,10 @@ def check_body(text: str, shown: str, frontmatter: dict, listed: bool = False) -
     return out
 
 
-def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset()) -> list[ContentIssue]:
-    """Every content check for the scanned docs pages, in page order; ``listed``: slugs given a directory listing."""
+def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(),
+                read: Callable[[Path], str] | None = None) -> list[ContentIssue]:
+    """Every content check for the scanned docs pages, in page order; ``listed``: slugs given a directory listing;
+    ``read``: the page text (``Compiler._page_text``: snippets expanded)."""
 
     def shown(page: DocPage) -> str:
         try:
@@ -163,7 +167,7 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
 
     out: list[ContentIssue] = []
     for page in pages:
-        text = page.path.read_text(encoding="utf-8")
+        text = read(page.path) if read else page.path.read_text(encoding="utf-8")
         out += check_frontmatter(text, shown(page))
         fm = page.frontmatter if isinstance(page.frontmatter, dict) else {}
         out += check_body(text, shown(page), fm, page.slug in listed)

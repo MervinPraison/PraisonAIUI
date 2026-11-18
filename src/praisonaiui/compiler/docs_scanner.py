@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+
+#: The docs folder's ``snippets/``: text pages include (compiler/snippets.py), never a page
+#: itself. Always the first exclude pattern, so ``!snippets`` in content.docs.exclude re-includes it.
+SNIPPETS_EXCLUDE = "/snippets"
 
 
 @dataclass
@@ -32,12 +37,14 @@ class DocsScanner:
         exclude: list[str] | None = None,
         index_files: list[str] | None = None,
         sort: str = "filesystem",
+        read: Callable[[Path], str] | None = None,
     ):
         self.docs_dir = docs_dir
         self.include = include or ["**/*.md", "**/*.mdx"]
-        self.exclude = exclude or []
+        self.exclude = [SNIPPETS_EXCLUDE, *(exclude or [])]
         self.index_files = index_files or ["index.md", "README.md"]
         self.sort = sort  # content.docs.nav.sort: filesystem | alpha | date
+        self.read = read  # the page text, e.g. with snippets expanded (Compiler._page_text)
 
     def scan(self) -> list[DocPage]:
         """
@@ -79,7 +86,7 @@ class DocsScanner:
 
     def _parse_page(self, file_path: Path) -> DocPage:
         """Parse a markdown file and extract metadata."""
-        content = file_path.read_text(encoding="utf-8")
+        content = self.read(file_path) if self.read else file_path.read_text(encoding="utf-8")
 
         # Extract frontmatter
         frontmatter = self._extract_frontmatter(content)
