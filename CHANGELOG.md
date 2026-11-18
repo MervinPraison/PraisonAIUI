@@ -502,3 +502,7 @@
   was ignored in every style. The app shell's chat (every layout), the `chat`
   style and the dashboard's chat now show it as plain text on an empty
   thread.
+- `aiui run chat.yaml`: `layout:` and `extensions:` apply (through
+  `set_layout` / `set_extensions`, the same blocks as in `aiui.yaml`), and any
+  other key `aiui run` does not use prints a warning naming it. They used to
+  be dropped without a word.

@@ -1417,9 +1417,47 @@ def _dev_request_refusal(
     return None
 
 
+#: The top-level keys ``aiui run chat.yaml`` reads. Anything else is reported.
+CHAT_YAML_KEYS = frozenset(
+    {
+        # _apply_chat_yaml
+        "style", "dashboard", "theme", "branding", "pages", "layout", "extensions",
+        # _register_yaml_chat
+        "name", "instructions", "model", "welcome", "goodbye", "starters",
+        "profiles", "tools", "features",
+        # aiui run (--datastore wins)
+        "datastore",
+    }
+)
+
+
+def chat_yaml_unknown_keys(chat_yaml: dict) -> list:
+    """Top-level keys of a chat YAML that ``aiui run`` does not use."""
+    return sorted(str(k) for k in chat_yaml if k not in CHAT_YAML_KEYS)
+
+
+def _apply_chat_yaml_layout(layout: Any) -> None:
+    """``layout:`` in a chat YAML: an id, or the ``aiui.yaml`` layout block."""
+    from praisonaiui.layouts import set_layout
+
+    if isinstance(layout, str):
+        set_layout(layout)
+        return
+    if not isinstance(layout, dict):
+        raise ValueError("expected a layout id or a mapping")
+    user_choice = layout.get("user_choice", layout.get("userChoice"))
+    set_layout(
+        layout.get("default"),
+        available=layout.get("available"),
+        user_choice=user_choice,
+        primary=layout.get("primary"),
+        options=layout.get("options"),
+    )
+
+
 def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
-    """Apply a YAML chat config (style, dashboard, theme, branding, pages)
-    through the public APIs and register its callbacks.
+    """Apply a YAML chat config (style, dashboard, theme, branding, pages,
+    layout, extensions) through the public APIs and register its callbacks.
 
     Returns the YAML's style, if it names one.
     """
@@ -1445,6 +1483,21 @@ def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
         _aiui.set_branding(**chat_yaml["branding"])
     if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
         _aiui.set_pages(chat_yaml["pages"])
+    if "layout" in chat_yaml:
+        # The same block as aiui.yaml's layout: (or just the default's id).
+        try:
+            _apply_chat_yaml_layout(chat_yaml["layout"])
+        except (TypeError, ValueError) as exc:
+            console.print(f"[yellow]Warning:[/yellow] chat YAML layout: ignored ({exc})")
+    if "extensions" in chat_yaml:
+        ext = chat_yaml["extensions"]
+        if isinstance(ext, dict):
+            _aiui.set_extensions(enabled=ext.get("enabled"), disabled=ext.get("disabled"))
+        else:
+            console.print(
+                "[yellow]Warning:[/yellow] chat YAML extensions: ignored "
+                "(expected a mapping with enabled: / disabled:)"
+            )
 
     # Auto-register callbacks from YAML
     _register_yaml_chat(chat_yaml)
@@ -1840,6 +1893,11 @@ def run(
             console.print(
                 f"[yellow]Warning:[/yellow] Unknown style {chat_yaml['style']!r} in {app_file}. "
                 f"Known styles: {', '.join(UI_STYLES)}"
+            )
+        for key in chat_yaml_unknown_keys(chat_yaml):
+            console.print(
+                f"[yellow]Warning:[/yellow] {app_file.name}: key {key!r} is not used by "
+                "aiui run (ignored)"
             )
         style = _apply_chat_yaml(chat_yaml) or style
         is_chat_mode = True
