@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import branding
+from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
@@ -122,17 +123,21 @@ class Compiler:
 
         indent = None if minify else 2
 
-        # Generate ui-config.json
-        ui_config = self._generate_ui_config()
-        self._write_json(output_dir / "ui-config.json", ui_config, indent)
-        files.append("ui-config.json")
-
         # Generate docs-nav.json if docs exist
+        nav: dict = {}
         if self.config.content and self.config.content.docs:
             nav = self._generate_docs_nav()
             self._annotate_page_footer(nav)
             self._write_json(output_dir / "docs-nav.json", nav, indent)
             files.append("docs-nav.json")
+
+        # Generate ui-config.json (its redirects leave out those a page hides)
+        ui_config = self._generate_ui_config()
+        redirects = rd.active_rules(self.config.redirects, self._page_routes(nav))
+        if redirects:
+            ui_config["redirects"] = [r.model_dump() for r in redirects]
+        self._write_json(output_dir / "ui-config.json", ui_config, indent)
+        files.append("ui-config.json")
 
         # Generate route-manifest.json
         route_manifest = self._generate_route_manifest()
@@ -184,6 +189,8 @@ class Compiler:
             files.extend(write_llms_files(self, output_dir, nav))
             files.extend(self._generate_search_index(output_dir, nav))
             self._patch_homepage_seo(output_dir, nav)
+        # After every page, so a stub never takes a page's file
+        files.extend(rd.write_redirects(output_dir, redirects, self.url_base, self._page_url))
 
         return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings)
 
@@ -191,17 +198,27 @@ class Compiler:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
         return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text)
 
-    def lint_content(self) -> list[ContentIssue]:
+    def lint_content(self, config_file: str = "aiui.yaml") -> list[ContentIssue]:
         """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …"""
         theme = self.config.site.theme if self.config.site else None
         issues = accent_contrast(theme.accent, theme.accent_dark) if theme else []
         pages = self._published_pages()
         # A group page the build appends a directory listing to is not empty (nav_directory.py).
         base = self.config.site.route_base_docs.rstrip("/") + "/"
-        items = walk_nav(self._generate_docs_nav().get("items", [])) if pages else ()
+        nav = self._generate_docs_nav() if pages else {}
+        items = walk_nav(nav.get("items", []))
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
         issues += branding.missing_images(self.config, self.base_path)
-        return issues + nav_icons(manual_entries(self.config)) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues
+        moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
+        return issues + nav_icons(manual_entries(self.config)) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved
+
+    def _page_routes(self, nav: dict) -> set[str]:
+        """Every published page path, and the site root and docs root when there is a home page."""
+        routes = {p["path"].rstrip("/") or "/" for p in self._collect_nav_pages(nav)}
+        base = self.config.site.route_base_docs.rstrip("/")
+        if f"{base}/index" in routes:
+            routes |= {"/", base or "/"}
+        return routes
 
     def _published_pages(self) -> list:
         """The docs pages the build publishes (``content.docs`` minus excludes)."""
@@ -481,6 +498,10 @@ class Compiler:
                 "reduceMotion": self.config.a11y.reduce_motion,
                 "ariaLabels": self.config.a11y.aria_labels,
             }
+
+        not_found = self.config.errors.not_found if self.config.errors else None
+        if not_found:
+            result["errors"] = {"notFound": not_found.model_dump(exclude_none=True)}
 
         # I18n configuration - emit for frontend consumption
         if self.config.i18n:

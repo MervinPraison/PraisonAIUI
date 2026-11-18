@@ -522,6 +522,48 @@ class SearchConfig(BaseModel):
     max_results: Optional[int] = Field(default=None, alias="maxResults", ge=1, le=100)
 
 
+class RedirectConfig(BaseModel):
+    """One redirect (docs/features/redirects.md): ``source`` and ``destination``
+    are site paths; ``:name`` matches one path segment and a final ``:name*``
+    the rest of the path, and ``destination`` reuses them."""
+
+    source: str
+    destination: str
+    permanent: bool = Field(default=True, description="301 (default); false for a temporary 302")
+
+    @field_validator("source")
+    @classmethod
+    def _check_source(cls, value: str) -> str:
+        if not value.startswith("/"):
+            raise ValueError("a redirect source is a site path starting with '/'")
+        if re.search(r":\w+\*.", value.rstrip("/")):
+            raise ValueError("':name*' matches the rest of the path, so it must come last")
+        return value
+
+
+class NotFoundConfig(BaseModel):
+    """The page a URL with no page shows (``errors: {404: …}``)."""
+
+    title: Optional[str] = Field(default=None, description="Heading, default 'Page not found'")
+    description: Optional[str] = Field(default=None, description="Markdown under the heading")
+    redirect: bool = Field(default=False, description="Send readers to the home page instead")
+
+
+class ErrorsConfig(BaseModel):
+    """Error pages; ``404`` (or ``notFound``) is the page-not-found view."""
+
+    not_found: Optional[NotFoundConfig] = Field(default=None, alias="404")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):  # YAML reads `404:` as an int key
+            data = {("404" if k in (404, "notFound") else k): v for k, v in data.items()}
+        return data
+
+
 class ChatProfileConfig(BaseModel):
     """Chat profile configuration for agent selection."""
 
@@ -874,6 +916,10 @@ class Config(BaseModel):
     api: Optional[ApiConfig] = None
     interaction: Optional[InteractionConfig] = None
     styling: Optional[StylingConfig] = None
+    redirects: list[RedirectConfig] = Field(
+        default_factory=list, description="Moved pages (docs/features/redirects.md)"
+    )
+    errors: Optional[ErrorsConfig] = None
     variables: dict[str, Union[str, int, float, bool]] = Field(
         default_factory=dict,
         description="Values for {{name}} in docs pages (docs/features/writing-docs.md#reusable-snippets-and-variables)",

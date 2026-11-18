@@ -364,6 +364,13 @@
   site now works, an image in `site.logo` is the logo, and `aiui validate` warns (7102)
   about a brand image that is not in the project. See
   [Theming](docs/features/theming.md#branding-a-docs-site).
+- **Redirects and a configurable not-found page.** `redirects:` maps old URLs to new ones (`:name`
+  for one segment, a final `:name*` for the rest). `aiui serve` answers 301 (302 with
+  `permanent: false`); `aiui build` writes `_redirects` and a stub page per old URL, and the docs
+  app follows wildcard rules on static hosts. `errors.404` sets the not-found heading and Markdown
+  text (`redirect: true` sends readers home), and the page suggests the closest pages. `aiui
+  validate` reports loops and dead ends (7010) and rules a page hides (7011). See
+  [Redirects](docs/features/redirects.md).
 
 ### Deprecated
 
