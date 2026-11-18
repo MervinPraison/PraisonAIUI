@@ -13,7 +13,7 @@ from praisonaiui.cli import _static_site_app
 from praisonaiui.compiler import Compiler
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler.links import check_links
-from praisonaiui.schema.models import Config, RedirectConfig, SiteConfig
+from praisonaiui.schema.models import Config, RedirectConfig
 
 RULES = [
     {"source": "/docs/old-start", "destination": "/docs/guide/start"},
@@ -24,13 +24,13 @@ RULES = [
 ]
 
 
-def _build(tmp_path: Path, url_base: str | None = None, **extra) -> tuple[Compiler, Path]:
+def _build(tmp_path: Path, url_base: str | None = None, rules=RULES, **extra) -> tuple[Compiler, Path]:
     docs = tmp_path / "docs"
     (docs / "guide").mkdir(parents=True, exist_ok=True)
     (docs / "index.md").write_text("# Home\n\nHello.\n", encoding="utf-8")
     (docs / "guide" / "start.md").write_text("# Start\n\nGo.\n", encoding="utf-8")
     config = Config.model_validate(
-        {"site": {"title": "R"}, "content": {"docs": {"dir": "./docs"}}, "redirects": RULES, **extra}
+        {"site": {"title": "R"}, "content": {"docs": {"dir": "./docs"}}, "redirects": rules, **extra}
     )
     compiler = Compiler(config, base_path=tmp_path, url_base=url_base)
     out = tmp_path / "site"
@@ -92,12 +92,7 @@ def test_serve_answers_301_and_302(tmp_path):
 
 
 def test_no_redirects_no_files(tmp_path):
-    docs = tmp_path / "docs"
-    docs.mkdir()
-    (docs / "index.md").write_text("# Home\n", encoding="utf-8")
-    config = Config(site=SiteConfig(title="R"), content={"docs": {"dir": "./docs"}})
-    out = tmp_path / "site"
-    assert Compiler(config, base_path=tmp_path).compile(out).success
+    _, out = _build(tmp_path, rules=[])
     assert not (out / "_redirects").exists()
     assert "redirects" not in json.loads((out / "ui-config.json").read_text(encoding="utf-8"))
 

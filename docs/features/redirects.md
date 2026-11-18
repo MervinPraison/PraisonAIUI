@@ -42,22 +42,14 @@ site paths and the build adds the base path.
 | GitHub Pages, any static host | A stub page at the old URL (meta refresh, a canonical link, a script redirect) | The docs app follows the rule from the page-not-found view |
 
 The query string and the `#section` carry over unless the destination sets
-its own. A stub page never replaces a real file, and the redirect never sends
-a crawler to a page it can't index: the stub has `noindex` and a canonical
-link to the new URL.
-
-The [link check](../api/cli.md#aiui-docs-check-links) treats every source as
-a valid link, so old links in your pages don't fail the build while you
-update them.
+its own. A stub never replaces a real file; it has `noindex` and a canonical
+link to the new URL. The [link check](../api/cli.md#aiui-docs-check-links)
+treats every source as a valid link.
 
 ### Checks
 
-`aiui validate` checks the exact rules:
-
-| Code | Finding |
-|------|---------|
-| 7010 | The redirect loops, or ends at a path under the docs that is not a page |
-| 7011 | A page is still published at the source, so the redirect never runs (delete the page or the rule) |
+`aiui validate` warns when an exact rule loops or ends at a docs path with no
+page (7010), or when a page is still published at its source (7011).
 
 ## The not-found page
 
