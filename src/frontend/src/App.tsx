@@ -11,7 +11,8 @@ import { Footer } from './Footer'
 import { LocaleProvider } from './i18n'
 import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
-import { detectActiveTabIndex, filterNavByTab } from './docs/navTabs'
+import { filterNavByTab } from './docs/navTabs'
+import { activeSection, divisionLinks, navSections, type DivisionLink, type NavDivisions } from './docs/navDivisions'
 import { docSearchGroups } from './docs/docNav'
 import { applyHeadTags, mergeTags, pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
@@ -102,13 +103,15 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
 
-  const navTabs = config.navigation?.tabs ?? []
+  // Tabs, tab menu items, anchors and dropdowns with groups: each has its own sidebar (docs/navDivisions.ts).
+  const sections = useMemo(() => navSections(config.navigation), [config.navigation])
+  const pickedSection = useRef(-1)
   const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
   useDocsTokens(docsStyle, config.site?.theme?.preset)
   useHashScroll(docsStyle)
   useHeadingAnchors(docsStyle)
   useImageZoom(docsStyle)
-  const searchGroups = useMemo(() => docSearchGroups(nav, config.navigation?.tabs), [nav, config.navigation?.tabs])
+  const searchGroups = useMemo(() => docSearchGroups(nav, sections), [nav, sections])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
   // A shared `?q=` link opens search prefilled (DocsSearch keeps `?q=` in step with the field).
   const [deepLinkQuery] = useState(() => new URLSearchParams(window.location.search).get('q')?.trim() ?? '')
@@ -139,15 +142,14 @@ export default function App() {
     openSearch()
   }, [searchEnabled, deepLinkQuery])
   const filteredNav = useMemo<DocsNav>(() => {
-    if (!navTabs.length) return nav
-    return { ...nav, items: filterNavByTab(nav.items ?? [], navTabs[activeTabIndex]) }
-  }, [nav, navTabs, activeTabIndex])
+    if (!sections.length) return nav
+    return { ...nav, items: filterNavByTab(nav.items ?? [], sections[activeTabIndex]) }
+  }, [nav, sections, activeTabIndex])
 
   useEffect(() => {
-    if (navTabs.length) {
-      setActiveTabIndex(detectActiveTabIndex(navTabs, currentPath))
-    }
-  }, [currentPath, navTabs])
+    if (!sections.length) return
+    setActiveTabIndex(activeSection(nav.items ?? [], sections, currentPath, pickedSection.current))
+  }, [currentPath, sections, nav])
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
@@ -399,6 +401,18 @@ export default function App() {
     if (samePage) scrollToHash()
   }
 
+  const openDivision = (link: DivisionLink, stay?: boolean) => {
+    pickedSection.current = link.section
+    if (link.page && !stay) handleItemClick(link.page)
+    else if (link.section >= 0) setActiveTabIndex(link.section)
+  }
+  const links = useMemo(
+    () => divisionLinks(config.navigation, nav.items ?? [], sections, sections[activeTabIndex]?.key ?? ''),
+    [config.navigation, nav, sections, activeTabIndex],
+  )
+  const divisions: NavDivisions = { ...links, open: openDivision }
+  const searchTabs = [...new Set(sections.map((s) => s.tab))]
+
   const templateMatch = resolveTemplate(
     currentPath.replace(/^\//, ''),
     routes,
@@ -422,23 +436,19 @@ export default function App() {
         title={config.site?.title || 'Navigation'}
         config={config}
         templateKey={activeTemplateKey}
-        navTabs={navTabs}
-        activeTabIndex={activeTabIndex}
-        onTabChange={setActiveTabIndex}
+        divisions={divisions}
       />
       <Header
         config={config}
         templateKey={activeTemplateKey}
         onMenuClick={() => setMobileNavOpen(true)}
-        navTabs={navTabs}
-        activeTabIndex={activeTabIndex}
-        onTabChange={setActiveTabIndex}
+        divisions={divisions}
         onSearchClick={searchEnabled ? openSearch : undefined}
       />
       {searchMounted && (
         <Suspense fallback={null}>
           <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')}
-            tabs={navTabs.map((t) => t.tab)} activeTab={navTabs[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
+            tabs={searchTabs} activeTab={sections[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
             placeholder={config.search?.prompt} maxResults={config.search?.maxResults} />
         </Suspense>
       )}
@@ -545,7 +555,7 @@ export default function App() {
         return (
           // Frontmatter `mode` (docs/pageHead.ts): docs.css drops the sidebar for center and custom.
           <div className="aiui-docs-shell docs-shell" data-mode={selectedItem?.mode}>
-            <Sidebar nav={filteredNav} activeItem={activeItemPath} onItemClick={handleItemClick} />
+            <Sidebar nav={filteredNav} activeItem={activeItemPath} onItemClick={handleItemClick} divisions={divisions} />
             <Content
               config={config}
               routes={routes}

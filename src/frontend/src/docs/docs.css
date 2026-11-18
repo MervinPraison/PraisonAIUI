@@ -165,12 +165,12 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   cursor: pointer;
   text-decoration: none;
 }
-.aiui-docs-tab:hover { color: var(--foreground); }
-.aiui-docs-tab[aria-pressed='true'] {
+.aiui-docs-tab:hover, .aiui-docs-tab[data-state='open'] { color: var(--foreground); }
+.aiui-docs-tab[data-active] {
   color: var(--foreground);
   font-weight: 500;
 }
-.aiui-docs-tab[aria-pressed='true']::after {
+.aiui-docs-tab[data-active]::after {
   content: '';
   position: absolute;
   left: 0.625rem;
@@ -181,7 +181,7 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   background: var(--foreground);
 }
 /* Inset ring: the tab is as tall as the header. */
-.aiui-docs button.aiui-docs-tab:focus-visible { outline: none; }
+.aiui-docs .aiui-docs-tab:focus-visible { outline: none; }
 .aiui-docs-tab:focus-visible::before {
   content: '';
   position: absolute;
@@ -409,15 +409,21 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
 }
 .aiui-docs-drawer-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
   margin-bottom: 1.25rem;
   border-radius: var(--radius-md, 8px);
   background: var(--muted);
 }
-.aiui-docs-drawer-tabs > button {
-  flex: 1;
+.aiui-docs-drawer-tabs > a {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.5rem;
   height: 1.875rem;
+  text-decoration: none;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -427,7 +433,7 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   font-weight: 500;
   cursor: pointer;
 }
-.aiui-docs-drawer-tabs > button[aria-pressed='true'] {
+.aiui-docs-drawer-tabs > a[data-active] {
   background: var(--card);
   color: var(--foreground);
   box-shadow: var(--ui-shadow-xs);
@@ -440,6 +446,34 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--border);
 }
+
+/* Tabs, tab menus, anchors and the dropdown switcher (docs/DivisionNav.tsx). */
+.aiui-docs-divicon { flex: none; width: 1rem; height: 1rem; margin-inline-end: 0.5rem; color: var(--ui-text-3); object-fit: contain; }
+.aiui-docs-tab .aiui-docs-divicon { margin-inline-end: 0.375rem; }
+.aiui-docs-divtext { display: flex; flex-direction: column; min-width: 0; text-align: start; }
+.aiui-docs-divtext > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aiui-docs-divtext small { color: var(--ui-text-3); font-size: 0.75rem; font-weight: 400; }
+.aiui-docs-menuchev { flex: none; width: 0.875rem; height: 0.875rem; margin-inline-start: 0.25rem; color: var(--ui-text-3); }
+.aiui-docs-divisions { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem; }
+.aiui-docs-divisions .aiui-docs-drawer-tabs { margin-bottom: 0; }
+.aiui-docs-anchors { display: flex; flex-direction: column; gap: 1px; }
+.aiui-docs-anchor[data-active] { background: var(--sidebar-accent); color: var(--foreground); font-weight: 500; }
+.aiui-docs-anchor[data-active] .aiui-docs-divicon { color: currentColor; }
+.aiui-docs-switcher {
+  display: flex; align-items: center; width: 100%; min-height: 2.5rem; padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--card);
+  color: var(--foreground); font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+}
+.aiui-docs-switcher:hover, .aiui-docs-switcher[data-state='open'] { background: var(--ui-row-hover); }
+.aiui-docs-switcher:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.aiui-docs-switcher .aiui-docs-menuchev { margin-inline-start: auto; }
+.aiui-docs-menu { min-width: 14rem; max-width: min(20rem, calc(100vw - 2rem)); }
+.aiui-docs-menuitem {
+  display: flex; align-items: center; padding: 0.375rem 0.5rem; border-radius: var(--radius-sm, 6px);
+  color: var(--popover-foreground); font-size: 0.875rem; text-decoration: none; cursor: pointer; outline: none;
+}
+.aiui-docs-menuitem:is(:hover, :focus, [data-highlighted]) { background: var(--ui-row-hover); }
+.aiui-docs-menuitem[data-active] { font-weight: 500; }
 
 /* ── Article column ────────────────────────────────────────────────────── */
 .aiui-docs-main {

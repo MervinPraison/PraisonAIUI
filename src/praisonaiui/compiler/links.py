@@ -387,9 +387,9 @@ def check_site_links(cfg: Config, config_path: Path, *, external: bool = False, 
                 walk(entry)
 
     links: list[str] = []
-    for tab in cfg.navigation.tabs if cfg.navigation else []:
-        links += [tab.url] if tab.url else []
-        for group in tab.groups:
+    for d, _ in cfg.navigation.divisions() if cfg.navigation else []:  # tabs, menu items, anchors, dropdowns
+        links += [h for h in (d.href, getattr(d, "url", None)) if h]
+        for group in d.sidebar_groups():
             walk(group)
     if cfg.navbar:
         links += [cfg.navbar.primary.href] if cfg.navbar.primary else []
