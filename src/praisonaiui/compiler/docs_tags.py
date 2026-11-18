@@ -18,7 +18,7 @@ KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
     "Steps Step CardGroup Card Columns Column Frame CodeGroup CodeBlock "
     "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility "
-    "Callout Badge Tooltip Icon Tile Prompt Tree FileTree Tree.Folder Tree.File Color Color.Row Color.Item".split()
+    "Callout Badge Tooltip Icon Tile Prompt Tree FileTree Tree.Folder Tree.File Color Color.Row Color.Item Update".split()
 )
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")

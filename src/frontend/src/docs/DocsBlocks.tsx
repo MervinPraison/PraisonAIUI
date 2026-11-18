@@ -14,6 +14,7 @@ import { cardHref } from './cardHref'
 import { DocsHomeIcon } from './docsHomeIcons'
 import { DocsTabs } from './DocsTabs'
 import { Embed, Video } from './DocsMedia'
+import { Update } from './DocsUpdate'
 import { Badge, ColorItem, ColorRow, Colors, Icon, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
 
 type BlockProps = { title?: string; children?: ReactNode }
@@ -163,4 +164,5 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-color': ColorItem,
     'aiui-embed': Embed,
     'aiui-video': Video,
+    'aiui-update': Update,
 }

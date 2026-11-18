@@ -386,6 +386,11 @@
   `--base-path`. The examples dashboard that `aiui dev` used to open is now
   `aiui dev --examples <folder>` (plain `aiui dev` still opens it in a folder with only
   `examples/`). See [Hot Reload](docs/features/hot-reload.md).
+- **Changelog pages**: `<Update label="2026-11-18" description="v1.2" tags={["API"]}>` entries,
+  each an anchored section (in "On this page", search and the page's `.md`) with its label in a
+  sticky left column; a tag filter kept in `?tags=`; and with front matter `rss: true` an RSS
+  feed at `<page>/rss.xml`, linked from the page's head. See
+  [Writing docs → Changelog](docs/features/writing-docs.md#changelog).
 
 ### Deprecated
 

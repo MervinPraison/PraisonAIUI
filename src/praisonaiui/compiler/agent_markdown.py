@@ -81,6 +81,12 @@ def _attrs(raw: str) -> dict[str, str]:
     return values
 
 
+def labels(value: str | None) -> list[str]:
+    """``tags={["API", "Fix"]}`` or ``tags="API, Fix"`` -> ``["API", "Fix"]`` (docsTags.ts ``labels``)."""
+    items = (value or "").strip().removeprefix("[").removesuffix("]").split(",")
+    return [t for t in (re.sub(r"^([\"'])(.*)\1$", r"\2", x.strip()) for x in items) if t]
+
+
 def _media_link(m: re.Match[str]) -> str:
     a = _attrs(m.group(2))
     src = a.get("src") or _attrs(next(iter(re.findall(r"<source\b([^>]*)>", m.group(3) or "")), "")).get("src")
@@ -212,6 +218,13 @@ def _convert(lines: list[str]) -> list[str]:
             elif name in ("RequestExample", "ResponseExample"):
                 titled(f"**{name[:-7]} example**")
                 stack.append(frame)
+            elif name == "Update":  # a changelog entry: its label is a section (compiler/changelog.py)
+                titled(f"## {a.get('label') or 'Update'}")
+                info = [x for x in (a.get("description"), ", ".join(labels(a.get("tags")))) if x]
+                if info:
+                    emit(" · ".join(info))
+                    emit()
+                stack.append(frame)
             elif name == "Accordion":
                 titled(f"**{a.get('title') or 'Details'}**")
                 stack.append(frame)
@@ -254,8 +267,9 @@ def page_md_path(route: str, docs_base: str = "/docs") -> str:
     return f"{route}.md"
 
 
-def rewrite_target(target: str, page_dir: str, docs_base: str, site: str) -> str:
-    """A link target as an absolute URL; one naming a page points at that page's ``.md``."""
+def rewrite_target(target: str, page_dir: str, docs_base: str, site: str, md: bool = True) -> str:
+    """A link target as an absolute URL; one naming a page points at that page's ``.md``
+    (``md=False``: at the page itself)."""
     bracketed = target.startswith("<")
     t = target.strip("<>")
     if not t or t.startswith(("#", "//")) or _SCHEME.match(t):
@@ -268,7 +282,7 @@ def rewrite_target(target: str, page_dir: str, docs_base: str, site: str) -> str
     last = path.rsplit("/", 1)[-1]
     in_docs = path == base or path.startswith(f"{base}/")
     if re.search(r"\.mdx?$", last, re.I) or path == "/" or (in_docs and "." not in last):
-        path = page_md_path(page_route(path), docs_base)
+        path = page_md_path(page_route(path), docs_base) if md else page_route(path)
     url = f"{site}{path}{tail}"
     return f"<{url}>" if bracketed else url
 
@@ -284,6 +298,21 @@ def instructions_block(instructions: str | list[str] | None) -> str:
     return "\n".join(["> ## Agent instructions", ">", *body])
 
 
+def body_markdown(
+    source: str, *, page_dir: str = "/docs", docs_base: str = "/docs", site: str = "", md: bool = True,
+) -> str:
+    """``source`` (no front matter) with its docs components as plain Markdown and site links
+    absolute (to pages' ``.md``, or with ``md=False`` to the pages)."""
+    code = _Code()
+    text = visibility(code.mask(strip_comments(source)), "agents", code)
+    body = "\n".join(_convert(_MEDIA.sub(_media_link, text).split("\n")))
+
+    def link(m: re.Match[str]) -> str:
+        return m.group(1) + rewrite_target(m.group(2), page_dir, docs_base, site, md)
+
+    return code.unmask(_REF_DEF.sub(link, _LINK.sub(link, body))).strip("\n")
+
+
 def to_agent_markdown(
     source: str,
     *,
@@ -296,14 +325,7 @@ def to_agent_markdown(
 ) -> str:
     """One page as agent-ready Markdown. ``page_dir``: the URL folder of its source
     file (relative links resolve there); ``site``: the site URL or base path links start with."""
-    code = _Code()
-    text = visibility(code.mask(strip_comments(_FRONTMATTER.sub("", source, count=1))), "agents", code)
-    body = "\n".join(_convert(_MEDIA.sub(_media_link, text).split("\n")))
-
-    def link(m: re.Match[str]) -> str:
-        return m.group(1) + rewrite_target(m.group(2), page_dir, docs_base, site)
-
-    body = code.unmask(_REF_DEF.sub(link, _LINK.sub(link, body))).strip("\n")
+    body = body_markdown(_FRONTMATTER.sub("", source, count=1), page_dir=page_dir, docs_base=docs_base, site=site)
     first, _, rest = body.partition("\n")
     if first.startswith("# ") and heading_id(first[2:])[0].strip().lower() == title.strip().lower():
         body = rest.lstrip("\n")

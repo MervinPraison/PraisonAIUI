@@ -36,6 +36,8 @@ _LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 # Emphasis marks; a lone * or _ only at a word edge, so snake_case stays.
 _INLINE = re.compile(r"\*\*|~~|(?<!\w)[*_]+|[*_]+(?!\w)")
 _CODE_SPAN = re.compile(r"(`+)(.+?)\1")
+# <Update label="…">: a changelog entry, a section of its own (compiler/changelog.py).
+_UPDATE = re.compile(r"^\s*<Update\b(.*?)/?>")
 _TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{2,}")
 _SPACE = re.compile(r"\s+")
 
@@ -105,6 +107,15 @@ def _sections(body: str) -> list[dict[str, Any]]:
             anchor = custom_id or slugify(title)
             sections.append({"heading": title, "anchor": anchor, "level": level, "text": []})
             continue
+        update = _UPDATE.match(raw)
+        if update:
+            from praisonaiui.compiler import changelog  # it imports this module
+
+            a = changelog.am._attrs(update.group(1))
+            if a.get("label"):
+                info = [a.get("description", ""), *changelog.am.labels(a.get("tags"))]
+                sections.append({"heading": a["label"], "anchor": changelog.anchor(a), "level": 2, "text": [x for x in info if x]})
+                continue
         if _TABLE_RULE.match(raw):
             continue
         block = _MKDOCS_BLOCK.match(raw.strip())

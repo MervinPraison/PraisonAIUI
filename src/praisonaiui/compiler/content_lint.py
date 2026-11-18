@@ -42,7 +42,7 @@ FRONTMATTER_TYPES: dict[str, str] = {
     "sidebarTitle": _STR, "tag": _STR, "mode": _STR, "url": _STR, "canonical": _STR, "robots": _STR,
     "order": _NUM, "boost": _NUM,
     "hidden": _BOOL, "noindex": _BOOL, "searchable": _BOOL,
-    "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL,
+    "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL, "rss": _BOOL,
     "lastUpdatedDate": _DATE,
     "keywords": "a list of words (or one comma-separated string)",
 }
