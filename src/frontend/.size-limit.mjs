@@ -273,7 +273,9 @@ export default [
   // route's +10 B above and new hashed docs chunk names in the entry's preload map.
   // 254,332 B (+1 B, exactly the overage): site.theme.strict in the shared
   // applyStoredThemePreference (themes.ts); no chat code changed.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254332 B', gzip: true },
+  // 254,333 B (+1 B, exactly the overage): the not-found view's lazy redirects
+  // chunk name in the entry's preload map; no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254333 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -362,5 +364,7 @@ export default [
   // (docs/DocsMedia.tsx, docs/embeds.ts, docs.css).
   // 9,597,840 B (measured, raised by exactly the overage, +1,200 B): docs
   // branding (logo per mode, strict mode, background decorations in docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9597840 B', brotli: false },
+  // 9,601,062 B (measured, raised by exactly the overage, +3,222 B): redirects
+  // and page suggestions on the not-found view (docs/redirects.ts, DocsNotFound.tsx).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9601062 B', brotli: false },
 ]
