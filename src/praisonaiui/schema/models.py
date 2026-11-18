@@ -303,10 +303,17 @@ class OpenApiSourceConfig(BaseModel):
 OpenApiRef = Union[str, OpenApiSourceConfig, list[Union[str, OpenApiSourceConfig]]]
 
 
+class ApiParamsConfig(BaseModel):
+    """``api.params``: how endpoint pages show parameters."""
+
+    expanded: Literal["all", "closed"] = "closed"  # all: nested properties start open
+
+
 class ApiConfig(BaseModel):
     """``api:`` — API reference settings (OpenAPI specs; see docs/features/openapi.md)."""
 
     openapi: Optional[OpenApiRef] = None
+    params: Optional[ApiParamsConfig] = None
 
 
 class NavLinkConfig(BaseModel):

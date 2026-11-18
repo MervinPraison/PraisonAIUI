@@ -2,7 +2,8 @@
 
 ``build_api_reference`` turns each loaded spec into one Markdown page per
 operation and webhook, written with the docs components a hand-written API page
-uses (``<ParamField>``, ``<ResponseField>``, ``<Expandable>``). The compiler
+uses (``<ParamField>``, ``<ResponseField>``, ``<Expandable>``, ``<Tabs>`` for
+``oneOf``/``anyOf``, ``<ResponseExample>``). The compiler
 publishes them like any page (one pipeline, R3): the browser renders the source,
 the agent ``.md`` export, ``llms*.txt``, the sitemap and site search come from it. The sidebar
 entries go where the spec is named: a group's pages, a tab's groups, or an
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
 DEFAULT_DIRECTORY = "api-reference"
 MAX_DEPTH = 6  # nested properties shown below a field
+_CYCLE = object()  # sample(): a schema repeating one it sits in
 _PARAMS = (("path", "Path parameters"), ("query", "Query parameters"),
            ("header", "Headers"), ("cookie", "Cookies"))
 
@@ -151,6 +153,8 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
     refs = spec_sources(config)
     in_nav = {r.source for r in refs if not r.where.startswith("api.")}
     taken = set(taken or ())
+    params = config.api.params if config.api else None
+    expand = bool(params and params.expanded == "all")
     sections: list[ApiSection] = []
     done: set[tuple] = set()
     for ref in refs:
@@ -160,13 +164,13 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
                 ref.where.startswith("api.") and ref.source in in_nav):
             continue
         done.add(key)
-        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken)))
+        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand)))
     if not sections:
         return None
     return ApiReference(sections, *_place(config, sections))
 
 
-def _pages(spec: ApiSpec, directory: str | None, taken: set[str]) -> list[ApiPage]:
+def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool = False) -> list[ApiPage]:
     tags = _tags(spec)
     order = {name: i for i, name in enumerate(tags)}
     folder = _path(directory) or DEFAULT_DIRECTORY
@@ -189,7 +193,7 @@ def _pages(spec: ApiSpec, directory: str | None, taken: set[str]) -> list[ApiPag
                     or f"{op.method} {op.path}")
         description = _first_line(op.description) or (
             f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}")
-        pages.append(ApiPage(slug, title, description, page_markdown(spec, op, title, description),
+        pages.append(ApiPage(slug, title, description, page_markdown(spec, op, title, description, expand=expand),
                              group, op.hidden, order.get(tag, len(order)) if tag else
                              len(order) + 1 if op.webhook else -1))
     return pages
@@ -301,20 +305,167 @@ def type_label(spec: ApiSpec, schema: Any, depth: int = 0) -> str:
     return " | ".join(out) or _ref_name(schema) or ("enum" if s.get("enum") else "")
 
 
+def _one(spec: ApiSpec, schema: Any) -> Any:
+    """``schema``, or its only non-null ``oneOf``/``anyOf`` choice (``Pet | null`` shows a Pet)."""
+    for _ in range(4):
+        s = merged(spec, schema)
+        subs = next((s[k] for k in ("oneOf", "anyOf") if isinstance(s.get(k), list)), None)
+        rest = [x for x in subs or [] if merged(spec, x).get("type") != "null"]
+        if "properties" in s or len(rest) != 1:
+            return schema
+        schema = rest[0]
+    return schema
+
+
 def _children(spec: ApiSpec, schema: Any) -> tuple[dict, list, Any]:
     """(properties, required, the schema that holds them): an object's, or its array items'."""
+    schema = _one(spec, schema)
     s = merged(spec, schema)
     if "properties" not in s and isinstance(s.get("items"), dict):
-        inner = merged(spec, s["items"])
-        return inner.get("properties") or {}, inner.get("required") or [], s["items"]
+        holder = _one(spec, s["items"])
+        inner = merged(spec, holder)
+        return inner.get("properties") or {}, inner.get("required") or [], holder
     return s.get("properties") or {}, s.get("required") or [], schema
+
+
+def options(spec: ApiSpec, schema: Any, items: bool = True) -> list[tuple[str, Any]]:
+    """The ``oneOf``/``anyOf`` choices shown as tabs, ``(title, schema)``: titled by
+    ``title``, the ``$ref`` name, the type, else "Option n". ``null`` is left out (the type shows it)."""
+    s = merged(spec, _one(spec, schema))
+    if items and "properties" not in s and isinstance(s.get("items"), dict):
+        s = merged(spec, _one(spec, s["items"]))
+    subs = next((s[k] for k in ("oneOf", "anyOf") if isinstance(s.get(k), list)), [])
+    subs = [x for x in subs if merged(spec, x).get("type") != "null"]
+    if len(subs) < 2:
+        return []
+    titles = []
+    for i, x in enumerate(subs, 1):
+        label = type_label(spec, x)
+        own = spec.resolve(x)
+        titles.append(str(own.get("title") if isinstance(own, dict) and own.get("title") else _ref_name(x)
+                          or (label if label not in ("", "object") else f"Option {i}")))
+    return [(t if titles.count(t) == 1 else f"{t} {i}", x) for i, (t, x) in enumerate(zip(titles, subs), 1)]
+
+
+def _code(value: Any) -> str:
+    """``value`` as inline code (JSON for non-strings)."""
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    return f"`` {text} ``" if "`" in text else f"`{text}`"
+
+
+def _plain(value: Any) -> str:
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _bounds(lo: Any, hi: Any) -> str:
+    """``1 - 100``, ``>= 1``, ``<= 100`` (or "" with neither)."""
+    lo, hi = (v if _number(v) else None for v in (lo, hi))
+    if lo is not None and hi is not None:
+        return f"{lo} - {hi}" if lo != hi else str(lo)
+    return f">= {lo}" if lo is not None else f"<= {hi}" if hi is not None else ""
+
+
+def _range(s: dict) -> str:
+    """``1 <= x < 100``, ``x >= 1``, ``x <= 100`` from (exclusive) minimum / maximum."""
+    lo = ("<", s["exclusiveMinimum"]) if _number(s.get("exclusiveMinimum")) else (
+        ("<=", s["minimum"]) if _number(s.get("minimum")) else None)
+    hi = ("<", s["exclusiveMaximum"]) if _number(s.get("exclusiveMaximum")) else (
+        ("<=", s["maximum"]) if _number(s.get("maximum")) else None)
+    if lo and hi:
+        return f"{lo[1]} {lo[0]} x {hi[0]} {hi[1]}"
+    if lo:
+        return f"x {'>' if lo[0] == '<' else '>='} {lo[1]}"
+    return f"x {hi[0]} {hi[1]}" if hi else ""
+
+
+def details(spec: ApiSpec, schema: Any) -> list[str]:
+    """What a field's description leaves out: enum options, const, ranges, lengths,
+    pattern, an example, additional properties and ``not``. One line each."""
+    s = merged(spec, _one(spec, schema))
+    items = merged(spec, s["items"]) if isinstance(s.get("items"), dict) else {}
+    out = []
+    enum = next((x["enum"] for x in (s, items) if isinstance(x.get("enum"), list) and x["enum"]), None)
+    if enum:
+        out.append("Available options: " + ", ".join(_code(v) for v in enum))
+    if "const" in s:
+        out.append(f"Allowed value: {_code(s['const'])}")
+    if text := _range(s):
+        out.append(f"Required range: {_code(text)}")
+    if text := _bounds(s.get("minLength"), s.get("maxLength")):
+        out.append(f"Required string length: {_code(text)}")
+    if text := _bounds(s.get("minItems"), s.get("maxItems")):
+        out.append(f"Required array length: {_code(text)} elements")
+    if isinstance(s.get("pattern"), str):
+        out.append(f"Pattern: {_code(s['pattern'])}")
+    examples = s.get("examples") if isinstance(s.get("examples"), list) else []
+    if examples and len(text := _code(examples[0])) <= 120:
+        out.append(f"Example: {text}")
+    if isinstance(s.get("additionalProperties"), dict):
+        out.append(f"Additional properties: {_code(type_label(spec, s['additionalProperties']) or 'any')}")
+    if isinstance(s.get("not"), dict):
+        out.append(f"Must not match: {_code(type_label(spec, s['not']) or _plain(s['not'])[:120])}")
+    return out
+
+
+def _condition(spec: ApiSpec, test: Any) -> str:
+    """``method = card``, ``kind is cat or dog``, ``id is set`` for an ``if`` that tests
+    sibling properties with ``const`` / ``enum`` / ``required``; "" when it does more."""
+    test = spec.resolve(test)
+    if not isinstance(test, dict) or set(test) - {"properties", "required", "type"}:
+        return ""
+    props = test.get("properties") if isinstance(test.get("properties"), dict) else {}
+    parts = []
+    for name, sub in props.items():
+        sub = spec.resolve(sub)
+        if isinstance(sub, dict) and "const" in sub:
+            parts.append(f"{name} = {_plain(sub['const'])}")
+        elif isinstance(sub, dict) and isinstance(sub.get("enum"), list):
+            parts.append(f"{name} is " + " or ".join(map(_plain, sub["enum"])))
+        else:
+            return ""
+    parts += [f"{n} is set" for n in test.get("required") or [] if n not in props]
+    return " and ".join(parts)
+
+
+def conditions(spec: ApiSpec, schema: Any, depth: int = 0) -> dict[str, list[str]]:
+    """``{property: ["required if method = card"]}`` from an object's ``dependentRequired``,
+    ``dependentSchemas`` and ``if``/``then``/``else`` (its ``allOf`` parts too)."""
+    s = spec.resolve(schema)
+    out: dict[str, list[str]] = {}
+    if not isinstance(s, dict) or depth > 8:
+        return out
+
+    def add(names: Any, label: str) -> None:
+        for n in names if isinstance(names, list) else []:
+            out.setdefault(str(n), []).append(label)
+
+    for key, names in (s["dependentRequired"] if isinstance(s.get("dependentRequired"), dict) else {}).items():
+        add(names, f"required if {key} is set")
+    for key, sub in (s["dependentSchemas"] if isinstance(s.get("dependentSchemas"), dict) else {}).items():
+        sub = spec.resolve(sub)
+        add(sub.get("required") if isinstance(sub, dict) else None, f"required if {key} is set")
+    if isinstance(s.get("if"), dict):
+        cond = _condition(spec, s["if"])
+        for branch, word in (("then", "if"), ("else", "unless")):
+            target = spec.resolve(s.get(branch))
+            if isinstance(target, dict):
+                add(target.get("required"), f"required {word} {cond}" if cond else "conditionally required")
+    for part in s["allOf"] if isinstance(s.get("allOf"), list) else []:
+        for name, labels in conditions(spec, part, depth + 1).items():
+            out.setdefault(name, []).extend(labels)
+    return out
 
 
 def field_lines(spec: ApiSpec, tag: str, at: str, name: str, schema: Any, *,
                 required: bool = False, description: Any = None, deprecated: bool = False,
-                skip: str = "", indent: str = "", stack: tuple = ()) -> list[str]:
-    """One ``<ParamField>`` / ``<ResponseField>``, its object properties nested in
-    ``<Expandable>`` (refs resolved, allOf merged; a recursive schema stops).
+                skip: str = "", indent: str = "", stack: tuple = (), post: Any = (),
+                expand: bool = False) -> list[str]:
+    """One ``<ParamField>`` / ``<ResponseField>``: type, pills (``post``: conditional
+    requirements), description and :func:`details`, then what it holds (:func:`nested`).
     ``skip``: ``readOnly`` in requests, ``writeOnly`` in responses."""
     s = merged(spec, schema)
     attrs = f'{at}="{_attr(name)}"'
@@ -323,23 +474,60 @@ def field_lines(spec: ApiSpec, tag: str, at: str, name: str, schema: Any, *,
     attrs += " required" * required + " deprecated" * bool(deprecated or s.get("deprecated"))
     if "default" in s:
         attrs += f' default="{_attr(s["default"])}"'
+    if pills := [p.replace(",", ";") for p in dict.fromkeys(post)]:
+        attrs += f' post="{_attr(", ".join(pills))}"'
     lines = [f"{indent}<{tag} {attrs}>"]
-    text = _prose(description or s.get("description"))
-    if isinstance(s.get("enum"), list):
-        options = ", ".join(f"`{json.dumps(v, ensure_ascii=False)}`" for v in s["enum"])
-        text += ("\n\n" if text else "") + f"Available options: {options}"
+    text = "\n\n".join(x for x in (_prose(description or s.get("description")), *details(spec, schema)) if x)
     lines += [f"{indent}  {line}".rstrip() for line in text.splitlines()]
+    lines += nested(spec, tag, at, name, schema, skip=skip, indent=indent + "  ", stack=stack, expand=expand)
+    return [*lines, f"{indent}</{tag}>"]
+
+
+def _fields(spec: ApiSpec, tag: str, at: str, holder: Any, props: dict, req: list, *, skip: str,
+            indent: str, stack: tuple, expand: bool, gap: bool) -> list[str]:
+    conds = conditions(spec, holder)
+    out: list[str] = []
+    for key, sub in props.items():
+        if skip and merged(spec, sub).get(skip):
+            continue
+        out += field_lines(spec, tag, at, str(key), sub, required=key in req, skip=skip, indent=indent,
+                           stack=stack, post=() if key in req else conds.get(str(key), ()), expand=expand)
+        out += [""] * gap
+    return out
+
+
+def nested(spec: ApiSpec, tag: str, at: str, name: str, schema: Any, *, skip: str = "", indent: str = "",
+           stack: tuple = (), expand: bool = False, boxed: bool = True, gap: bool = False,
+           top: bool = False) -> list[str]:
+    """A schema's properties (in an ``<Expandable>`` when ``boxed``; ``expand``: open)
+    and its ``oneOf``/``anyOf`` choices as ``<Tabs>``. A recursive schema stops one
+    level down (``top``: a body or response itself, not yet a level)."""
     props, req, holder = _children(spec, schema)
     ref = _ref_name(holder)
-    if props and len(stack) < MAX_DEPTH and (ref is None or ref not in stack):
-        lines.append(f'{indent}  <Expandable title="{_attr(name)} properties">')
-        for key, sub in props.items():
-            if isinstance(sub, dict) and merged(spec, sub).get(skip):
-                continue
-            lines += field_lines(spec, tag, at, str(key), sub, required=key in req, skip=skip,
-                                 indent=indent + "    ", stack=(*stack, ref or name))
-        lines.append(f"{indent}  </Expandable>")
-    return [*lines, f"{indent}</{tag}>"]
+    if len(stack) >= MAX_DEPTH or (ref is not None and ref in stack):
+        return []
+    stack = (*stack, name if top else ref or name)
+    out: list[str] = []
+    if props:
+        inner = _fields(spec, tag, at, holder, props, req, skip=skip, indent=indent + "  " * boxed,
+                        stack=stack, expand=expand, gap=gap)
+        out += [f'{indent}<Expandable title="{_attr(name)} properties"{" defaultOpen" * expand}>',
+                *inner, f"{indent}</Expandable>"] if boxed else inner
+    if choices := options(spec, schema):
+        out.append(f'{indent}<Tabs sync="false">')
+        for title, sub in choices:
+            s = merged(spec, sub)
+            kind = "" if "properties" in s or not type_label(spec, sub) else f"Type: {_code(type_label(spec, sub))}"
+            needs = "Requires " + ", ".join(map(_code, s["required"])) + "." if (
+                s.get("required") and "properties" not in s) else ""
+            text = "\n\n".join(x for x in (kind, _prose(s.get("description")), needs, *details(spec, sub)) if x)
+            out.append(f'{indent}  <Tab title="{_attr(title)}">')
+            out += [f"{indent}    {line}".rstrip() for line in text.splitlines()]
+            out += nested(spec, tag, at, title, sub, skip=skip, indent=indent + "    ", stack=stack,
+                          expand=expand, boxed=False, gap=gap)
+            out.append(f"{indent}  </Tab>")
+        out.append(f"{indent}</Tabs>")
+    return out
 
 
 def _media(content: Any) -> tuple[str, dict]:
@@ -358,34 +546,129 @@ def server_url(server: Any) -> str:
 
 
 def _schema_fields(spec: ApiSpec, schema: Any, tag: str, at: str, whole: str, skip: str,
-                   required: bool = False) -> list[str]:
-    """An object's properties, one field each; any other schema one field named ``whole``."""
-    s = merged(spec, schema) if schema else {}
-    if "properties" not in s:
-        return [*field_lines(spec, tag, at, whole, schema, required=required, skip=skip), ""] if s else []
-    req = s.get("required") or []
-    return [line for key, sub in s["properties"].items() if not merged(spec, sub).get(skip)
-            for line in (*field_lines(spec, tag, at, str(key), sub, required=key in req, skip=skip), "")]
+                   required: bool = False, expand: bool = False) -> list[str]:
+    """An object's properties, one field each, and its ``oneOf``/``anyOf`` choices as
+    tabs; any other schema one field named ``whole``."""
+    s = merged(spec, _one(spec, schema)) if schema else {}
+    if not s:
+        return []
+    if "properties" not in s and not options(spec, schema, items=False):
+        return [*field_lines(spec, tag, at, whole, schema, required=required, skip=skip, expand=expand), ""]
+    return [*nested(spec, tag, at, whole, schema, skip=skip, expand=expand, boxed=False, gap=True, top=True), ""]
 
 
-def _body_lines(spec: ApiSpec, body: dict | None, heading: str, skip: str = "readOnly") -> list[str]:
+def sample(spec: ApiSpec, schema: Any, depth: int = 0, skip: str = "", stack: tuple = ()) -> Any:
+    """An example value: the schema's own example, else one made from its type
+    (a property that would repeat a schema it sits in is left out)."""
+    ref = _ref_name(schema)
+    if ref in stack:
+        return _CYCLE
+    stack = (*stack, ref) if ref else stack
+    s = merged(spec, schema)
+    for key in ("example", "default", "const"):
+        if key in s:
+            return s[key]
+    if isinstance(s.get("examples"), list) and s["examples"]:
+        return s["examples"][0]
+    if isinstance(s.get("enum"), list) and s["enum"]:
+        return s["enum"][0]
+    for key in ("oneOf", "anyOf"):
+        subs = [x for x in s[key] if merged(spec, x).get("type") != "null"] if isinstance(s.get(key), list) else []
+        if subs and depth < MAX_DEPTH and "properties" not in s:
+            return sample(spec, subs[0], depth + 1, skip, stack)
+    types = s.get("type") if isinstance(s.get("type"), list) else [s.get("type")]
+    t = next((x for x in types if x not in (None, "null")), "object" if "properties" in s else None)
+    if t == "object" or "properties" in s:
+        if depth >= MAX_DEPTH:
+            return {}
+        values = {k: sample(spec, v, depth + 1, skip, stack) for k, v in (s.get("properties") or {}).items()
+                  if not (skip and merged(spec, v).get(skip))}
+        return {k: v for k, v in values.items() if v is not _CYCLE}
+    if t == "array":
+        item = sample(spec, s.get("items"), depth + 1, skip, stack) if depth < MAX_DEPTH else _CYCLE
+        return [] if item is _CYCLE else [item]
+    formats = {"date-time": "2024-01-01T00:00:00Z", "date": "2024-01-01", "email": "user@example.com",
+               "uuid": "3c90c3cc-0d44-4b50-8888-8dd25736052a", "uri": "https://example.com"}
+    return {"integer": 123, "number": 123.45, "boolean": True, "string": formats.get(
+        s.get("format"), "<string>")}.get(t) if t else None
+
+
+def media_examples(spec: ApiSpec, kind: str, media: dict, skip: str = "") -> list[tuple[str, Any]]:
+    """``(label, value)`` per example of one content type: each entry of an ``examples``
+    map (label: its ``summary``, else its key), else ``example``, else for JSON one
+    made from the schema (:func:`sample`)."""
+    if "example" in media:
+        return [("", media["example"])]
+    found = []
+    for key, entry in (media.get("examples") or {}).items() if isinstance(media.get("examples"), dict) else ():
+        entry = spec.resolve(entry)
+        value = next((entry[k] for k in ("dataValue", "value", "serializedValue", "externalValue")
+                      if isinstance(entry, dict) and k in entry), _CYCLE)
+        if value is not _CYCLE:
+            found.append((str(entry.get("summary") or key), value))
+    if found or "json" not in kind or not media.get("schema"):
+        return found
+    value = sample(spec, media["schema"], skip=skip)
+    return [] if value is _CYCLE or value is None else [("", value)]
+
+
+def _example_text(kind: str, value: Any) -> str:
+    """An example as shown: JSON pretty-printed (a JSON string parsed first), other text as written."""
+    if isinstance(value, str) and "json" in kind:
+        try:
+            value = json.loads(value)
+        except ValueError:
+            pass
+    return value if isinstance(value, str) and "json" not in kind else json.dumps(value, indent=2, ensure_ascii=False)
+
+
+def _fence(lang: str, title: str, code: str) -> list[str]:
+    ticks = "`" * max([3, *(len(m) + 1 for m in re.findall(r"`{3,}", code))])
+    return [f'{ticks}{lang} title="{title}"', code, ticks]
+
+
+def _lang(kind: str) -> str:
+    """The fence language for a content type."""
+    return next((lang for key, lang in (("json", "json"), ("xml", "xml"), ("html", "html"), ("yaml", "yaml"),
+                                        ("javascript", "js"), ("csv", "csv")) if key in kind), "text")
+
+
+def response_examples(spec: ApiSpec, responses: dict[str, Any]) -> list[str]:
+    """``<ResponseExample>``: one tab per status code, content type and named example."""
+    out: list[str] = []
+    for code, response in responses.items():
+        content = spec.resolve(response).get("content") if isinstance(spec.resolve(response), dict) else None
+        kinds = [(k, m) for k, m in content.items() if isinstance(m, dict)] if isinstance(content, dict) else []
+        kinds.sort(key=lambda km: "json" not in km[0])
+        for kind, media in kinds:
+            for label, value in media_examples(spec, kind, media, "writeOnly"):
+                text = _example_text(kind, value)
+                title = " · ".join(x for x in (str(code), kind if len(kinds) > 1 else "", label) if x)
+                out += [*_fence(_lang(kind), _attr(title), text), ""]
+    return ["<ResponseExample>", "", *out, "</ResponseExample>", ""] if out else []
+
+
+def _body_lines(spec: ApiSpec, body: dict | None, heading: str, skip: str = "readOnly",
+                expand: bool = False) -> list[str]:
     """A request body's fields (``skip``: ``writeOnly`` for a payload the API sends)."""
     kind, media = _media((body or {}).get("content"))
     if not kind:
         return []
     intro = f"`{kind}`" + (f": {_prose(body.get('description'))}" if body.get("description") else "")
     return [heading, "", intro, "", *_schema_fields(spec, media.get("schema"), "ParamField", "body", "body",
-                                                     skip, bool(body.get("required")))]
+                                                     skip, bool(body.get("required")), expand)]
 
 
-def _response_lines(spec: ApiSpec, responses: dict[str, dict], heading: str) -> list[str]:
+def _response_lines(spec: ApiSpec, responses: dict[str, dict], heading: str, expand: bool = False) -> list[str]:
     out = [heading, ""] if responses else []
     for code, response in responses.items():
         response = response if isinstance(response, dict) else {}
         kind, media = _media(response.get("content"))
-        intro = " ".join(x for x in (_prose(response.get("description")), f"(`{kind}`)" if kind else "") if x)
+        kinds = ", ".join(f"`{k}`" for k in response.get("content") or {}) if kind else ""
+        intro = " ".join(x for x in (_prose(response.get("description")), f"({kinds})" if kinds else "") if x)
         out += [f"### {code}", "", *([intro, ""] if intro else []),
-                *_schema_fields(spec, media.get("schema"), "ResponseField", "name", "response", "writeOnly")]
+                *_schema_fields(spec, media.get("schema"), "ResponseField", "name", "response", "writeOnly",
+                                expand=expand)]
     return out
 
 
@@ -408,8 +691,8 @@ def _callback_lines(spec: ApiSpec, op: Operation) -> list[str]:
     return ["## Callbacks", "", *out] if out else []
 
 
-def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str) -> str:
-    """The Markdown source of one endpoint page."""
+def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False) -> str:
+    """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``)."""
     keywords = [f"{op.method} {op.path}", *([op.operation_id] if op.operation_id else []),
                 *dict.fromkeys(str(p.get("name")) for p in op.parameters if p.get("name"))]
     _kind, media = _media((op.request_body or {}).get("content"))
@@ -437,10 +720,12 @@ def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str) ->
         for p in params:  # a cookie is listed as a header field: ParamField has no cookie slot
             lines += [*field_lines(spec, "ParamField", "header" if where == "cookie" else where,
                                    str(p.get("name")), p.get("schema") or {}, required=bool(p.get("required")),
-                                   description=p.get("description"), deprecated=bool(p.get("deprecated"))), ""]
-    lines += (_body_lines(spec, op.request_body, "## Payload", "writeOnly") if op.webhook
-              else _body_lines(spec, op.request_body, "## Body"))
-    lines += _response_lines(spec, op.responses, "## Your response" if op.webhook else "## Response")
+                                   description=p.get("description"), deprecated=bool(p.get("deprecated")),
+                                   expand=expand), ""]
+    lines += (_body_lines(spec, op.request_body, "## Payload", "writeOnly", expand) if op.webhook
+              else _body_lines(spec, op.request_body, "## Body", expand=expand))
+    lines += _response_lines(spec, op.responses, "## Your response" if op.webhook else "## Response", expand)
+    lines += response_examples(spec, op.responses)
     lines += _callback_lines(spec, op)
     lines += [f"[OpenAPI spec](/openapi/{spec.slug}.json)", ""]
     return "\n".join(lines).rstrip() + "\n"

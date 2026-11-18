@@ -309,6 +309,13 @@
   `detail.meta`) and CSS (`data-fm-*` on the article). A shallow clone now
   keeps the date of pages changed inside its history. See [Writing docs
   pages](docs/features/writing-docs.md#front-matter).
+- **API schemas and response examples.** Endpoint pages show `oneOf`/`anyOf` as tabs
+  (titled by `title` or `$ref` name), nullable types, constraints (ranges, lengths, pattern,
+  `const`, examples, `additionalProperties`, `not`) and `if`/`then`/`else`,
+  `dependentRequired` and `dependentSchemas` as "required if method = card" pills, and a
+  response example tab per status code, content type and named example (`examples` with
+  `summary`). `api.params.expanded: all` opens nested properties. Enum options no longer
+  show JSON quotes. See [OpenAPI](docs/features/openapi.md#schemas).
 
 ### Deprecated
 
