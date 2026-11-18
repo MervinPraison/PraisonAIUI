@@ -260,7 +260,9 @@ export default [
   // to import.meta.url (vite renderBuiltUrl), so each dynamic import passes
   // import.meta.url; src/lib/url.ts joins the legacy App chunk.
   // 254,171 B (+14 B, exactly the overage): the <Visibility> entry in DOCS_TAGS.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254171 B', gzip: true },
+  // 254,172 B (+1 B, exactly the overage): new hashed DocsSearch chunk name in
+  // the entry's preload map (docs full-text search); no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254172 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
