@@ -96,6 +96,9 @@ _PUBLIC_ROUTES = {
     ("GET", "/_aiui/externals/{name}"),
     ("GET", "/dashboard-plugins/{name}/{path:path}"),
     ("GET", "/shared/{token}"),
+    # OAuth sign-in redirects (security-reviewed: they return no data)
+    ("GET", "/api/auth/oauth/{provider}"),
+    ("GET", "/api/auth/oauth/{provider}/callback"),
     ("GET", "/"),
     ("GET", "/{path:path}"),
 }

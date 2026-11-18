@@ -22,7 +22,8 @@ never read or written.
 | `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
 | `app-shell` | `AIUI_SHELL=app` + the example plugin, `AIUI_LAYOUT=classic` (the classic frame) | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose`, and one with no `set_theme()` (three servers) | `theme-presets`, `chat-os-theme` |
-| `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown` |
+| `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown`, `docs-*` |
+| `docs-auth` | the same site on `create_app(static_dir)` behind `AUTH_ENFORCE` (`fixtures/docs-auth/serve.py`) | `docs-auth` |
 | `page-reload-dashboard`, `page-reload-app` | the `dashboard-legacy` and `app-shell` servers | `page-reload` |
 | `layouts-host` | `AIUI_SHELL=app` + the third-party layout plugin (`fixtures/layout-plugin/serve.py`) | `layouts-host`, `layout-<id>` |
 | `page-types` | the same server, its own instance (the layout suites' chats stay out of its baselines) | `page-types`, `knowledge-page` |
@@ -47,6 +48,10 @@ never read or written.
   tokens, a table, KaTeX, a Mermaid diagram, an admonition, no horizontal
   page scroll, `index.js?v=` / `index.css?v=` cache-busting, and the entry
   loaded once across client-side navigation.
+- **docs-auth**: a docs site behind `AUTH_ENFORCE`: a signed-in reader's
+  page requests carry the token and the page renders; a signed-out reader gets
+  the sign-in prompt and never the page content, a wrong token is refused and
+  the right one opens the page.
 - **legacy-parity**: the default dashboard against screenshots of v0.3.153
   (`/overview`, `/chat`, `/logs`, `/usage`, `/agents`, `/approvals`, `/jobs`,
   dark and light, 1280×800, at most 0.5% differing pixels; the log stream and

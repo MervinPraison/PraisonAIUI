@@ -1703,14 +1703,25 @@ async function maybeShowOnboarding(opts = {}) {
     params = null;
   }
 
-  // Magic link: ?token= auto-consume, then strip from history.
-  const urlToken = params ? params.get('token') : null;
+  // Magic link: ?token= auto-consume, then strip from history. OAuth sign-in
+  // returns the token in the fragment (#token=), which no server or log sees.
+  let hashParams = null;
+  try {
+    hashParams = window.location.hash.length > 1 ? new URLSearchParams(window.location.hash.slice(1)) : null;
+  } catch (e) {
+    hashParams = null;
+  }
+  const hashToken = hashParams ? hashParams.get('token') : null;
+  const urlToken = hashToken || (params ? params.get('token') : null);
   if (urlToken) {
     const ok = await consumeToken(urlToken);
     try {
-      params.delete('token');
-      const qs = params.toString();
-      const clean = window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash;
+      if (!hashToken && params) params.delete('token');
+      if (hashToken) hashParams.delete('token');
+      const qs = params ? params.toString() : '';
+      const hs = hashToken ? hashParams.toString() : '';
+      const hash = hashToken ? (hs ? `#${hs}` : '') : window.location.hash;
+      const clean = window.location.pathname + (qs ? `?${qs}` : '') + hash;
       window.history.replaceState({}, document.title, clean);
     } catch (e) { /* ignore */ }
     if (ok) return;

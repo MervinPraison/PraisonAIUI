@@ -70,6 +70,7 @@ volumes:
 | `AIUI_ALLOWED_HOSTS` | — | Comma-separated host names the server answers to when reached on a loopback or private address (`.example.com` also matches subdomains); `*` turns the check off |
 | `AIUI_KNOWLEDGE_ROOTS` | — | Folders (`os.pathsep`-separated) that `POST /api/knowledge/add-file` may read, in addition to the chat attachments folder; any other `file_path` is refused with 400 |
 | `AIUI_MAX_BODY_MB` | `25` | Largest request body in MiB; a bigger one gets 413 before it is read. `0` turns this cap off. Paths that need no credentials (login, sign-up, protocol negotiation) always take at most 64 KiB |
+| `AIUI_PUBLIC_STATIC_DIR` | — | `1` serves every file in a `static_dir` without credentials (see [Auth Enforcement](#auth-enforcement)); by default only code, styles, fonts, images and the HTML shell are public |
 | `OPENAI_API_KEY` | — | OpenAI API key for LLM provider |
 
 ### Feature data and the data directory
@@ -113,6 +114,22 @@ curl -H "Authorization: Bearer <api-key>" http://localhost:8082/api/config
   `/sessions` and `/agents` too, but only as the page, never their JSON)
 - static code: `/assets/*`, `/plugins/*`, `/_aiui/externals/*`, `/_plugins/*`,
   `/icon.svg`, `/manifest.json`, `/sw.js`, `/custom.js`, `/ui-config.json`
+- OAuth sign-in: `GET /api/auth/oauth/{provider}` and its `/callback` (they
+  only redirect)
+
+**A `static_dir` folder** (`create_app(static_dir=...)`, `aiui run --config`)
+is not public as a whole. Its code, styles, fonts and images
+(`.js .mjs .css .map .woff .woff2 .ttf .otf .eot .svg .png .jpg .jpeg .gif .webp .avif .ico`)
+answer without credentials. So do its HTML pages, but under `AUTH_ENFORCE` and
+`require_auth` they are served as the app shell only: the page's inlined
+markdown and `<noscript>` copy are removed. Markdown, JSON (a search index) and
+any other file need credentials, under `AUTH_ENFORCE`, `require_auth` and
+URL-token mode alike. The docs app sends the stored access token with every
+request it makes (pages, manifests, search). A reader who has not signed in
+sees the sign-in prompt, and after entering the token reads the site as on an
+open server. Page titles and descriptions stay visible: `/docs-nav.json` lists
+them for the sidebar. To keep the folder public in front of a private API, set
+`AIUI_PUBLIC_STATIC_DIR=1`.
 
 WebSocket handshakes are gated too (all of them). Browsers cannot send an
 `Authorization` header on a WebSocket, so the UI first exchanges its key for a
@@ -149,6 +166,20 @@ again until someone registers; create the admin in your app at startup
 (`praisonaiui.auth.register_user("admin", password)`) to close it. Under
 `AUTH_ENFORCE` and URL-token mode `/register` already needs the API key or URL
 token, as before; with no auth mode it stays open.
+
+### OAuth sign-in
+
+With a provider configured (`AIUI_OAUTH_<PROVIDER>_CLIENT_ID` and
+`_CLIENT_SECRET`), a browser starts sign-in at
+`/api/auth/oauth/<provider>?return_url=/chat`. Both that route and the callback
+are public in every auth mode. `return_url` must be a path on this server
+(starting with a single `/`). Anything else, such as an absolute URL or
+`//host`, returns to `/`. The callback sends the browser to
+`<return_url>#token=<session token>`. The token is in the URL fragment, which
+browsers never send to a server, a log or a `Referer`. The dashboard stores it
+and removes it from the address bar. A client that sends
+`Accept: application/json` gets `{"user", "token"}` instead. OAuth tokens are
+session tokens, so they sign in under `require_auth` / `auth.requireAuth`.
 
 ## Configuration
 

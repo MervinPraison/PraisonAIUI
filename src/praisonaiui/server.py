@@ -2896,8 +2896,13 @@ async def oauth_callback_handler(request: Request) -> Response:
         token = create_token(user.identifier)
         if "application/json" in request.headers.get("accept", ""):
             return JSONResponse({"user": user.to_dict(), "token": token})
-        return_url = state_data.get("return_url", "/")
-        return RedirectResponse(url=f"{return_url}?token={token}", status_code=302)
+        # Same-origin path only, and the token in the fragment: browsers never
+        # send a fragment to a server, a log or a Referer (R8). The dashboard
+        # reads it and strips it from history.
+        from praisonaiui.oauth_providers import safe_return_url
+
+        return_url = safe_return_url(state_data.get("return_url", "/"))
+        return RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
     except ImportError:
         return JSONResponse({"error": "OAuth providers not available"}, status_code=500)
     except Exception as e:
@@ -4087,11 +4092,23 @@ def create_app(
             }
         )
 
-    async def _docs_nav_json(request: Request) -> JSONResponse:
-        return JSONResponse({"items": []})
+    def _built_manifest(name: str) -> Optional[Response]:
+        # A docs site served from static_dir (style docs) brings its own
+        # navigation and routes from `aiui build`.
+        if not static_dir or _effective_style != "docs":
+            return None
+        built = Path(static_dir) / name
+        if not built.is_file():
+            return None
+        from starlette.responses import FileResponse
 
-    async def _route_manifest_json(request: Request) -> JSONResponse:
-        return JSONResponse({})
+        return FileResponse(str(built), media_type="application/json")
+
+    async def _docs_nav_json(request: Request) -> Response:
+        return _built_manifest("docs-nav.json") or JSONResponse({"items": []})
+
+    async def _route_manifest_json(request: Request) -> Response:
+        return _built_manifest("route-manifest.json") or JSONResponse({})
 
     routes = [
         Route("/health", health, methods=["GET"]),
@@ -4395,6 +4412,14 @@ def create_app(
         async def _serve_static_file(scope, receive, send, file_path: Path, media_type: str | None = None):
             from starlette.responses import FileResponse
 
+            if file_path.suffix.lower() == ".html" and _bearer_auth_static(require_auth):
+                # Under bearer-token auth a page is the app shell only: its
+                # body comes from the .md the app fetches with credentials.
+                from praisonaiui.http_guard import strip_page_content
+
+                text = strip_page_content(file_path.read_text(encoding="utf-8"))
+                await HTMLResponse(text, headers={"Cache-Control": "no-store"})(scope, receive, send)
+                return
             response = FileResponse(
                 str(file_path),
                 media_type=media_type,
@@ -4413,6 +4438,11 @@ def create_app(
 
             request_path = scope.get("path", "")
             rel = request_path.lstrip("/")
+            if not rel:
+                root_index = _inside_static_root(_static_root / "index.html")
+                if root_index is not None and root_index.is_file():
+                    await _serve_static_file(scope, receive, send, root_index, media_type="text/html")
+                    return
             if rel:
                 exact = _inside_static_root(_static_root / rel)
                 if exact is not None and exact.is_file():
@@ -4495,14 +4525,16 @@ def create_app(
 
     # The surface a logged-out browser needs (see http_guard.is_public_http):
     # the HTML shell for page navigations and the share-link viewer.
-    from praisonaiui.http_guard import NavigationRoute, mark_public
+    from praisonaiui.http_guard import NavigationRoute, mark_public, static_dir_public_predicate
 
     mark_public(_serve_index)
     mark_public(view_shared_thread_handler)
     _page_host: Any = _serve_index
     if static_dir and static_dir.exists():
-        mark_public(_http_only_static)
-        _page_host = mark_public(_static_entry)
+        # Public: code, styles, fonts, images and the shell; content needs credentials.
+        _static_public = static_dir_public_predicate(_static_root)
+        mark_public(_http_only_static, when=_static_public)
+        _page_host = mark_public(_static_entry, when=_static_public)
     # First: a browser opening /<page id> gets the page even where a JSON API
     # shares the path (GET /agents, /sessions); fetch() keeps getting JSON.
     routes.insert(
@@ -4524,3 +4556,16 @@ def create_app(
     )
 
     return app
+
+
+def _bearer_auth_static(require_auth: bool) -> bool:
+    """True when static_dir pages are served without their content.
+
+    AUTH_ENFORCE and ``require_auth`` take credentials only as an
+    ``Authorization`` header, which a page navigation cannot send, so pages
+    stay public as shells and their content needs credentials (R8).
+    """
+    if os.environ.get("AIUI_PUBLIC_STATIC_DIR", "").strip().lower() in ("1", "true", "yes"):
+        return False
+    return bool(require_auth) or os.environ.get("AUTH_ENFORCE", "").lower() in ("true", "1", "yes")
+

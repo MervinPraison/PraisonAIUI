@@ -183,7 +183,14 @@ The three modes (`AUTH_ENFORCE` → `AuthEnforcementMiddleware`;
 `AIUI_REQUIRE_TOKEN` / `auth.requireToken` → `TokenQueryMiddleware`) deny by
 default for both `http` and `websocket` scopes. The only public surface is
 `http_guard.is_public_http` (`PUBLIC_EXACT_PATHS`, `PUBLIC_PREFIXES`,
-`mark_public`). Browsers open a WebSocket with a single-use 60 s ticket from
+`PUBLIC_API_PREFIXES` for the OAuth redirects, `mark_public`). A `static_dir`
+mount is public only for its code, styles, fonts, images and pages
+(`static_dir_public_predicate`); under bearer-token auth its pages are served
+without their content (`strip_page_content`), and its markdown and JSON need
+credentials in every mode. The React UIs send the stored token with every
+same-origin request (`lib/auth.ts`, installed in `main.tsx`), and the legacy
+App shows the shared sign-in prompt (`lib/TokenGate.tsx`) on a 401 for page
+content. Browsers open a WebSocket with a single-use 60 s ticket from
 `POST /api/auth/ws-ticket` (`?ticket=`), never a long-lived key in a URL.
 Secrets never appear in URLs or logs (`install_secret_redaction`). Request
 bodies are capped by `BodySizeLimitMiddleware` (`AIUI_MAX_BODY_MB`, 64 KiB on
@@ -220,8 +227,8 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 141,169 B |
-| `/chat` first-screen JS (boot + chat route) | 253,161 B |
+| Chat route (added by `/chat`) | 141,178 B |
+| `/chat` first-screen JS (boot + chat route) | 253,339 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
@@ -233,7 +240,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 9,134,666 B |
+| Wheel: all of `dist/assets` (uncompressed) | 9,135,130 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
