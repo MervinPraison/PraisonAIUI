@@ -546,13 +546,19 @@ How a reply ends:
 
 ### `@aiui.welcome`
 
-Send a welcome message when a user connects.
+The greeting on a new, empty chat.
 
 ```python
 @aiui.welcome
 async def on_welcome():
     await aiui.say("Welcome! How can I help you today?")
 ```
+
+The chat runs it through `POST /welcome` once per page load and shows what
+it says (`aiui.say`, or streamed tokens) as plain text on the empty thread:
+in the app shell's chat and every layout, the `chat` style and the
+dashboard's chat. It is not saved to the conversation. A chat YAML's
+`welcome:` key registers one for you.
 
 ---
 

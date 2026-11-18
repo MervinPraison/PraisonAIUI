@@ -672,6 +672,8 @@ export interface ThreadProps {
   starterIcons?: ReadonlyMap<string, string>
   /** A layout's presentation of the thread (ChatPage passes `meta.chat` and the host). */
   presentation?: ThreadPresentation
+  /** The app's greeting (`@aiui.welcome`), shown as plain text on an empty thread. */
+  welcome?: string
 }
 
 const ThreadSkeleton: FC = () => (
@@ -718,7 +720,7 @@ function focusComposerEnd(from: HTMLElement) {
   })
 }
 
-export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, starterIcons, presentation }) => {
+export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loading, notice, sessionId, fillPrompts, starterIcons, presentation, welcome }) => {
   const parts = usePartComponents()
   const chat = presentation?.chat
   const host = presentation?.host
@@ -726,6 +728,11 @@ export const Thread: FC<ThreadProps> = memo(({ title, subtitle, placeholder, loa
     <div>
       <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title ?? 'How can I help you today?'}</h2>
       {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
+      {welcome && (
+        <p className="mx-auto mt-3 max-w-prose text-sm whitespace-pre-line text-foreground" data-welcome>
+          {welcome}
+        </p>
+      )}
     </div>
   )
   // The starters of an empty thread; a layout's `empty` region replaces them.

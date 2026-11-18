@@ -195,7 +195,9 @@ export default [
   // 141,178 B (measured, raised by exactly the overage, +9 B): the access-token
   // fetch wrapper and the sign-in prompt (lib/auth, lib/TokenGate) are shared
   // with the legacy React App now, so Rollup re-split the chunks around them.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141178 B', gzip: true },
+  // 141,274 B (measured, raised by exactly the overage, +96 B): the
+  // @aiui.welcome greeting on the empty thread (its fetch is a lazy chunk).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141274 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -221,7 +223,8 @@ export default [
   // 253,339 B (measured, raised by exactly the overage, +178 B): the same
   // re-split (lib/auth and lib/TokenGate in a chunk the shell and the legacy
   // App share) and the 401 hook for docs content.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253339 B', gzip: true },
+  // 253,419 B (measured, raised by exactly the overage, +80 B): the same greeting.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '253419 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -266,5 +269,7 @@ export default [
   // 9,134,666 B (+9 B, exactly the overage): the same LayoutHost change.
   // 9,135,130 B (measured, raised by exactly the overage, +464 B): the legacy
   // App's sign-in (AuthGate) and the shared auth chunk.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9135130 B', brotli: false },
+  // 9,136,671 B (measured, raised by exactly the overage, +1,541 B): the
+  // @aiui.welcome greeting (chat engine, its lazy chunk and the chat style).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9136671 B', brotli: false },
 ]

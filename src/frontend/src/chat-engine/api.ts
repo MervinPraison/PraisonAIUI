@@ -4,7 +4,7 @@
  *   rename    PATCH /sessions/{id} {title}
  *   delete    DELETE /sessions/{id}
  *   agents    GET /agents, merged with GET /api/agents/definitions
- *   starters  GET /starters
+ *   starters  GET /starters (the greeting, POST /welcome, is in welcome.ts)
  * Requests go through window.fetch, which the shell / legacy runtime wraps
  * with the gateway token when one is stored.
  */

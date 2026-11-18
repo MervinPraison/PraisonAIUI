@@ -17,6 +17,8 @@ function luminance(css: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
+const WELCOME_SSE = 'data: ' + JSON.stringify({ type: 'message', content: 'Hello from on_welcome' }) + '\n\ndata: ' + JSON.stringify({ type: 'end' }) + '\n\n'
+
 async function openChat(page: Page) {
   await page.goto('/chat')
   await expect(page.locator('#chat-input')).toBeVisible()
@@ -43,6 +45,15 @@ async function transcript(page: Page): Promise<string[]> {
 }
 
 test.describe('chat', () => {
+  test('the app greeting (@aiui.welcome) shows on a new chat', async ({ page }) => {
+    // The scripted server has no welcome callback: answer /welcome as one would.
+    await page.route('**/welcome', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/event-stream', body: WELCOME_SSE }),
+    )
+    await openChat(page)
+    await expect(page.locator('#chat-welcome p')).toHaveText('Hello from on_welcome')
+  })
+
   test('a markdown table in a reply renders as a table', async ({ page }) => {
     const errors = collectPageErrors(page)
     await openChat(page)
