@@ -3,7 +3,7 @@
 ``build_api_reference`` turns each loaded spec into one Markdown page per
 operation and webhook, written with the docs components a hand-written API page
 uses (``<ParamField>``, ``<ResponseField>``, ``<Expandable>``, ``<Tabs>`` for
-``oneOf``/``anyOf``, ``<ResponseExample>``). The compiler
+``oneOf``/``anyOf``, ``<RequestExample>`` (compiler/code_samples.py), ``<ResponseExample>``). The compiler
 publishes them like any page (one pipeline, R3): the browser renders the source,
 the agent ``.md`` export, ``llms*.txt``, the sitemap and site search come from it. The sidebar
 entries go where the spec is named: a group's pages, a tab's groups, or an
@@ -155,6 +155,8 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
     taken = set(taken or ())
     params = config.api.params if config.api else None
     expand = bool(params and params.expanded == "all")
+    examples = config.api.examples if config.api else None
+    languages = examples.languages if examples else None
     sections: list[ApiSection] = []
     done: set[tuple] = set()
     for ref in refs:
@@ -164,13 +166,14 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
                 ref.where.startswith("api.") and ref.source in in_nav):
             continue
         done.add(key)
-        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand)))
+        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand, languages)))
     if not sections:
         return None
     return ApiReference(sections, *_place(config, sections))
 
 
-def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool = False) -> list[ApiPage]:
+def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool = False,
+           languages: list[str] | None = None) -> list[ApiPage]:
     tags = _tags(spec)
     order = {name: i for i, name in enumerate(tags)}
     folder = _path(directory) or DEFAULT_DIRECTORY
@@ -193,7 +196,8 @@ def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool =
                     or f"{op.method} {op.path}")
         description = _first_line(op.description) or (
             f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}")
-        pages.append(ApiPage(slug, title, description, page_markdown(spec, op, title, description, expand=expand),
+        pages.append(ApiPage(slug, title, description, page_markdown(spec, op, title, description, expand=expand,
+                                                                   languages=languages),
                              group, op.hidden, order.get(tag, len(order)) if tag else
                              len(order) + 1 if op.webhook else -1))
     return pages
@@ -691,8 +695,11 @@ def _callback_lines(spec: ApiSpec, op: Operation) -> list[str]:
     return ["## Callbacks", "", *out] if out else []
 
 
-def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False) -> str:
-    """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``)."""
+def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False,
+                  languages: list[str] | None = None) -> str:
+    """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``;
+    ``languages``: request example languages, ``api.examples.languages``)."""
+    from praisonaiui.compiler.code_samples import request_examples  # it builds on this module
     keywords = [f"{op.method} {op.path}", *([op.operation_id] if op.operation_id else []),
                 *dict.fromkeys(str(p.get("name")) for p in op.parameters if p.get("name"))]
     _kind, media = _media((op.request_body or {}).get("content"))
@@ -725,6 +732,7 @@ def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *,
     lines += (_body_lines(spec, op.request_body, "## Payload", "writeOnly", expand) if op.webhook
               else _body_lines(spec, op.request_body, "## Body", expand=expand))
     lines += _response_lines(spec, op.responses, "## Your response" if op.webhook else "## Response", expand)
+    lines += request_examples(spec, op, languages)
     lines += response_examples(spec, op.responses)
     lines += _callback_lines(spec, op)
     lines += [f"[OpenAPI spec](/openapi/{spec.slug}.json)", ""]

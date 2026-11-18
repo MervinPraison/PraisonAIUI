@@ -371,6 +371,13 @@
   text (`redirect: true` sends readers home), and the page suggests the closest pages. `aiui
   validate` reports loops and dead ends (7010) and rules a page hides (7011). See
   [Redirects](docs/features/redirects.md).
+- **Request examples on API endpoint pages.** Every generated endpoint page shows the request
+  as code in the side column: cURL, Python and JavaScript by default, or any of Go, Java, Ruby,
+  PHP, C#, Rust and Swift with `api.examples.languages` (`all` for every one). Samples use the
+  spec's server, parameters, auth scheme and body example, are built at build time (no browser
+  code) and stay in the agent `.md` export. An operation's `x-codeSamples` / `x-code-samples`
+  come first and replace the generated sample in their language. See
+  [OpenAPI](docs/features/openapi.md#request-examples).
 
 ### Deprecated
 
