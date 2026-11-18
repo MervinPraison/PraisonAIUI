@@ -383,11 +383,32 @@ class ApiParamsConfig(BaseModel):
     expanded: Literal["all", "closed"] = "closed"  # all: nested properties start open
 
 
+class ApiExamplesConfig(BaseModel):
+    """``api.examples``: request examples on endpoint pages."""
+
+    # curl python javascript go java ruby php csharp rust swift (aliases: node, shell, c#, ...),
+    # "all", or [] for the spec's own x-codeSamples only
+    languages: Union[Literal["all"], list[str]] = ["curl", "python", "javascript"]
+
+    @field_validator("languages")
+    @classmethod
+    def _known(cls, value: Union[str, list[str]]) -> list[str]:
+        from praisonaiui.compiler.code_samples import LANGUAGES, language
+
+        if value == "all":
+            return list(LANGUAGES)
+        unknown = [x for x in value if language(x) not in LANGUAGES]
+        if unknown:
+            raise ValueError(f"unknown language {', '.join(unknown)}; use any of {', '.join(LANGUAGES)}")
+        return list(dict.fromkeys(map(language, value)))
+
+
 class ApiConfig(BaseModel):
     """``api:`` — API reference settings (OpenAPI specs; see docs/features/openapi.md)."""
 
     openapi: Optional[OpenApiRef] = None
     params: Optional[ApiParamsConfig] = None
+    examples: Optional[ApiExamplesConfig] = None
 
 
 class NavLinkConfig(BaseModel):
