@@ -463,7 +463,7 @@ def load_config_specs(config: "Config", base_path: Path | str | None = None, *,
     for ref in spec_sources(config):
         if ref.source not in specs:
             stem = re.sub(r"[^a-z0-9]+", "-", Path(urlparse(ref.source).path).stem.lower())
-            slug = _unique(stem.strip("-") or "openapi", {s.slug for s in specs.values()}, "-")
+            slug = _unique(stem.strip("-") or "openapi", {"index", *(s.slug for s in specs.values())}, "-")
             specs[ref.source] = load_spec(ref.source, base_path, fetch=fetch)
             specs[ref.source].slug = slug
     return specs

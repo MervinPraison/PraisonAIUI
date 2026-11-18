@@ -185,7 +185,7 @@ def test_config_keys_sources_and_one_load_per_spec(tmp_path):
     data = {"site": {"title": "Docs"}, "api": {"openapi": "openapi.yaml"}, "navigation": {"tabs": [{
         "tab": "API", "openapi": ["openapi.yaml", {"source": "v2/openapi.yaml", "directory": "api/v2"}],
         "groups": [{"group": "G", "openapi": {"source": "openapi.yaml"},
-                    "pages": [{"group": "Nested", "openapi": "other.json"}]}],
+                    "pages": [{"group": "Nested", "openapi": "index.json"}]}],
     }]}}
     assert find_unknown_keys(Config, data) == []
     cfg = Config.model_validate(data)
@@ -194,12 +194,12 @@ def test_config_keys_sources_and_one_load_per_spec(tmp_path):
         ("openapi.yaml", None, "navigation.tabs[0].openapi[0]"),
         ("v2/openapi.yaml", "api/v2", "navigation.tabs[0].openapi[1]"),
         ("openapi.yaml", None, "navigation.tabs[0].groups[0].openapi"),
-        ("other.json", None, "navigation.tabs[0].groups[0].pages[0].openapi"),
+        ("index.json", None, "navigation.tabs[0].groups[0].pages[0].openapi"),
     ]
     spec = "openapi: 3.1.0\ninfo: {title: T, version: '1'}\ncomponents: {}\n"
-    write(tmp_path, {"openapi.yaml": spec, "v2/openapi.yaml": spec, "other.json": spec})
+    write(tmp_path, {"openapi.yaml": spec, "v2/openapi.yaml": spec, "index.json": spec})
     assert [(s, v.slug) for s, v in load_config_specs(cfg, tmp_path).items()] == [
-        ("openapi.yaml", "openapi"), ("v2/openapi.yaml", "openapi-2"), ("other.json", "other")]
+        ("openapi.yaml", "openapi"), ("v2/openapi.yaml", "openapi-2"), ("index.json", "index-2")]
 
 
 def test_build_writes_specs_and_validate_reports_errors(tmp_path):
