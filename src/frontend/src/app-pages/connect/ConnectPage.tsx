@@ -8,7 +8,7 @@
  * that actually connected, with what to fix. `?client=<id>` preselects.
  * Data: /api/connect and /api/connect/tools (features/connect.py).
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 // Only icons the chat route does not import: a shared one would be split into a
 // chunk of its own on the chat's first screen (R10).
 import { ClipboardCheck, ClipboardCopy, RotateCw } from 'lucide-react'
@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { notify } from '@/sdk/notify'
-import { ago, fullTime, useJson, useNow, type AppPageProps, type Tone } from '../shared'
+import { ago, fullTime, useJson, useNow, type Tone } from '../shared'
 import { PageBody, Pill, Section, StatusDot } from '../ui'
 import { Modal, ModalActions } from '../Modal'
 import { capWarning, connectionRows, groupClients, initialClient, launch, toolGroups, withClient, type ConnectClient, type ConnectData, type ToolsData } from './model'
@@ -125,7 +125,7 @@ function ClientPanel({ client, data, scopeFlag, onLaunch, opened }: { client: Co
   )
 }
 
-function ConnectPage(_props: AppPageProps) {
+function ConnectPage() {
   const [chosen, setChosen] = useState<string[] | null>(null)
   const url = chosen ? `/api/connect?tools=${encodeURIComponent(chosen.join(','))}` : '/api/connect'
   const res = useJson<ConnectData>(url, 30_000)
@@ -133,13 +133,12 @@ function ConnectPage(_props: AppPageProps) {
   const now = useNow(30_000)
   const data = res.data
   const clients = useMemo(() => data?.clients ?? [], [data])
-  const [selected, setSelected] = useState<string | null>(null)
+  const [picked, setSelected] = useState<string | null>(null)
   const [opened, setOpened] = useState<Record<string, boolean>>({})
   const [missing, setMissing] = useState<ConnectClient | null>(null)
 
-  useEffect(() => {
-    if (selected === null && clients.length) setSelected(initialClient(window.location.search, clients, data?.status))
-  }, [clients, data?.status, selected])
+  // Until the user picks one: ?client=, else a client this machine already has.
+  const selected = picked ?? (clients.length ? initialClient(window.location.search, clients, data?.status) : null)
   const pick = (id: string) => {
     setSelected(id)
     window.history.replaceState(window.history.state, '', withClient(window.location.search, id) + window.location.hash)
