@@ -57,7 +57,7 @@ Inspired by AWP validation rules R1–R32 pattern.
 
 Navigation model:
 
-- **`navigation.tabs`** — top tab bar (Mintlify-style)
+- **`navigation.tabs`** — top tab bar
 - **`content.docs.nav.mode`** — sidebar source: `auto` (filesystem scan) or `manual` (use `navigation.tabs` groups)
 
 ## File include rules

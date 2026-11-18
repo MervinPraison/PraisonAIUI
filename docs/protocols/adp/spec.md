@@ -115,7 +115,7 @@ ADP separates **top tab bar** from **sidebar source**:
 
 ```yaml
 navigation:
-  tabs:                   # Top tab bar (Mintlify-style)
+  tabs:                   # Top tab bar
     - tab: Documentation
       groups:
         - group: Getting Started

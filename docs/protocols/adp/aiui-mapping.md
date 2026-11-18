@@ -42,7 +42,7 @@ Field-by-field mapping from current `aiui.yaml` (`Config` model in `src/praisona
 
 | Field | PraisonAIUI | ADP | Status | Notes |
 |-------|-------------|-----|--------|-------|
-| `navigation.tabs[]` | Mintlify-style tabs | `spec.navigation.tabs` | Partial | Compiled, not rendered |
+| `navigation.tabs[]` | Top tab bar | `spec.navigation.tabs` | Partial | Compiled, not rendered |
 | `content.docs.nav.mode` | `NavConfig.mode` | Same | Gap | Defined but unused by compiler |
 | Top-level `navigation.mode` | Not present | Removed from ADP | N/A | Use `content.docs.nav.mode` instead |
 

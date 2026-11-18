@@ -105,7 +105,7 @@ ls /Users/praison/praisonai-package/src/praisonai-agents/praisonaiagents/
 - CLI commands, options, help text
 - Integrations (db/observability/tools)
 - Tests (unit/integration), fixtures, CI config
-- Docs (Mintlify), examples, recipes
+- Docs (MDX docs site), examples, recipes
 
 Provide: **file paths + key symbols + grep counts + entry points**.
 

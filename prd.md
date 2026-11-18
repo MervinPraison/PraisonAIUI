@@ -1267,7 +1267,7 @@ aiui dev --debug
 ### v0.5.0 - shadcn Frontend
 - [ ] Vite + React + shadcn/ui frontend package
 - [ ] Pre-built bundle served by `aiui serve`
-- [ ] Real shadcn components (like Chainlit's approach with MUI)
+- [ ] Real shadcn components (a full component library, not hand-rolled widgets)
 - [ ] Tailwind CSS integration
 - [ ] Extendable component library
 

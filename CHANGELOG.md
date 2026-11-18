@@ -142,7 +142,7 @@
 - **Docs components**: `<Note>`, `<Info>`, `<Tip>`, `<Check>`, `<Warning>`,
   `<Danger>`, `<Steps>`/`<Step>`, `<CardGroup>`/`<Card>` (icon, link),
   `<Tabs>`/`<Tab>`, `<Accordion>`/`<AccordionGroup>` and `<Frame>` (caption),
-  written as in Mintlify. Images in docs zoom on click. See
+  in the usual MDX tag syntax. Images in docs zoom on click. See
   [Writing docs pages](docs/features/writing-docs.md).
 - **Docs code blocks: file names, highlighted lines, code groups.**
   ```` ```python title="app.py" {1,3-4} ```` (or `app.py {2}`, `hl_lines`,
@@ -230,7 +230,7 @@
   its text and `aiui build` / `aiui validate` warn with file and line;
   `{/* … */}` comments are hidden; `## Title {#id}` pins an anchor. One table
   (`DOCS_TAGS`, `markdown/docsTags.ts`) defines every docs component.
-- Docs code blocks take Mintlify's options: multi-word titles, `lines`,
+- Docs code blocks take the usual fence options: multi-word titles, `lines`,
   `wrap`, `expandable`, `nocopy`, `icon=`, `highlight={1-2,5}`, `focus=`,
   and `// [!code ++]` / `[!code --]` / `[!code highlight]` / `[!code focus]`
   comments (with `:N` ranges), which never reach the page or the clipboard.
@@ -297,7 +297,7 @@
   levels, empty pages, accent contrast (7000-7006, 7101) at `file:line`, `--format json`
   ([CLI](docs/api/cli.md#aiui-validate)). **`$ref` splits `aiui.yaml`**; `aiui schema` and the
   `$schema` line `aiui init` writes give editor autocomplete ([Configuration](docs/concepts/configuration.md#split-the-config-with-ref)).
-- **Page front matter (Mintlify keys).** `description` shows under the title
+- **Page front matter (common docs keys).** `description` shows under the title
   (and `title` becomes the `#` heading when the body has none);
   `sidebarTitle` (alias of `nav_title`, now in the generated sidebar too);
   `icon` takes an emoji or image URL as well as a lucide name; `tag` badges;
@@ -323,7 +323,7 @@
   `<colgroup><col width>` in HTML tables. See [Writing docs](docs/features/writing-docs.md#more-components).
 - **Reusable snippets and `{{variables}}`.** `<Snippet file="install.md" pkg="aiui" />`
   includes `docs/snippets/install.md` with `{pkg}` filled in; snippets nest, and the
-  Mintlify `import X from '/snippets/x.mdx'` + `<X />` form and MkDocs `--8<-- "x.md"`
+  MDX `import X from '/snippets/x.mdx'` + `<X />` form and MkDocs `--8<-- "x.md"`
   work as is. Top-level `variables:` in `aiui.yaml` fills `{{name}}` in pages, code and
   front matter titles. Expanded at build time, so the page, its `.md`, `llms-full.txt`
   and search all see the text; `snippets/` is not published as pages. `aiui validate`
@@ -674,7 +674,7 @@
   `404.html` is `noindex`.
 - A docs folder without an index page is a sidebar section only: no empty
   `/docs/<folder>` route or sitemap entry. In `nav.mode: manual`, pages no
-  group lists are hidden (routable, not indexed), as Mintlify does.
+  group lists are hidden (routable, not indexed).
 - App shell: the `@aiui.welcome` greeting shows on a new chat in the layouts
   too (`chat`, what `aiui run` opens, `chat-canvas`, `workbench`, `command`,
   `mission`). The layouts' new-chat hero replaced the thread heading that
