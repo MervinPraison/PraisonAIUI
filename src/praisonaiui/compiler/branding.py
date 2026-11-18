@@ -67,14 +67,20 @@ def patch_favicon(page: str, light: Optional[str], dark: Optional[str]) -> str:
     return _ICON_LINK_RE.sub(lambda _m: favicon_links(light, dark), page, count=1)
 
 
-def background(value: Optional[str]) -> tuple[Optional[str], Optional[str]]:
-    """``site.theme.background`` as (decoration for ``data-aiui-bg``, image URL or None)."""
+def background(value) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """``site.theme.background`` as (decoration for ``data-aiui-bg``, light image, dark image).
+
+    A string is ``gradient``, ``grid`` or one image for both modes; ``{light, dark}``
+    is an image per mode (one alone serves both)."""
+    if value is not None and not isinstance(value, str):
+        light, dark = value.light or value.dark, value.dark or value.light
+        return ("image", light, dark) if light else (None, None, None)
     v = (value or "").strip()
     if not v or v == "none":
-        return None, None
+        return None, None, None
     if v.lower() in DECORATIONS:
-        return v.lower(), None
-    return "image", v
+        return v.lower(), None, None
+    return "image", v, v
 
 
 def missing_images(config, base: Path) -> list:
@@ -89,8 +95,9 @@ def missing_images(config, base: Path) -> list:
         ("favicon.light", config.favicon and config.favicon.light),
         ("favicon.dark", config.favicon and config.favicon.dark),
         ("site.logo", config.site.logo if config.site and config.site.logo and is_image(config.site.logo) else None),
-        ("site.theme.background", background(theme.background if theme else None)[1]),
     ]
+    _, bg_light, bg_dark = background(theme.background if theme else None)
+    values += [("site.theme.background", bg_light), ("site.theme.background", bg_dark if bg_dark != bg_light else None)]
     out = []
     for key, value in values:
         if value and asset_url(value, base, {}) == value and not value.startswith(("http://", "https://", "data:", "/")):

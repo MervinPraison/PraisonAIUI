@@ -359,6 +359,7 @@ def inject_theme_css(
     accent: Optional[str] = None,
     accent_dark: Optional[str] = None,
     background_image: Optional[str] = None,
+    background_image_dark: Optional[str] = None,
 ) -> None:
     """
     Write the build-time theme stylesheet (``assets/theme.css``).
@@ -381,6 +382,7 @@ def inject_theme_css(
         accent_dark: ``site.theme.accentDark``, the dark-mode accent
         background_image: URL of ``site.theme.background``'s image, as
             ``--aiui-bg-image`` (docs/docs.css paints it)
+        background_image_dark: its dark-mode image, when it differs
     """
     css = get_seed_theme_css(preset, radius, accent, accent_dark=accent_dark)
     pro = get_pro_seed_css(preset, accent, accent_dark)
@@ -388,9 +390,10 @@ def inject_theme_css(
         css = f"{css}\n{pro}\n" if css else f"{pro}\n"
     if (preset or "").strip().lower() == PAPER_LOOK:
         css = f"{css}{get_paper_first_paint_css()}\n"
-    if background_image:
-        safe = re.sub(r'["\\\x00-\x1f]', "", background_image)
-        css = f'{css}:root {{ --aiui-bg-image: url("{safe}"); }}\n'
+    for selector, url in ((":root", background_image), (":root.dark", background_image_dark)):
+        if url and (selector == ":root" or url != background_image):
+            safe = re.sub(r'["\\\x00-\x1f]', "", url)
+            css = f'{css}{selector} {{ --aiui-bg-image: url("{safe}"); }}\n'
 
     # Write to theme.css
     theme_file = output_dir / "assets" / "theme.css"

@@ -148,7 +148,8 @@ site:
 - **Background.** `gradient` (a soft wash of the accent at the top) and
   `grid` (hairlines that fade out) are drawn in CSS from the theme tokens, so
   they fit both modes and add no download. An image path or URL covers the
-  page behind the content.
+  page behind the content; `background: {light: bg.png, dark: bg-dark.png}`
+  uses one image per mode.
 - **Strict mode.** `strict: true` removes the theme toggle and ignores a
   reader's stored choice, so the site always shows `mode` (`system` still
   follows the OS).

@@ -104,6 +104,19 @@ def test_background_decoration_and_image(tmp_path):
     assert (out / "bg.png").is_file()
 
 
+def test_background_image_per_mode(tmp_path):
+    (tmp_path / "bg-dark.png").write_text("png", encoding="utf-8")
+    out = _build(tmp_path, site={"theme": {"background": {"light": "bg.png", "dark": "bg-dark.png"}}})
+    css = (out / "assets" / "theme.css").read_text()
+    assert ':root { --aiui-bg-image: url("/bg.png"); }' in css
+    assert ':root.dark { --aiui-bg-image: url("/bg-dark.png"); }' in css
+    assert '<html data-aiui-bg="image"' in (out / "index.html").read_text()
+    assert (out / "bg-dark.png").is_file()
+    out = _build(tmp_path, site={"theme": {"background": {"dark": "bg-dark.png"}}})
+    css = (out / "assets" / "theme.css").read_text()
+    assert ':root { --aiui-bg-image: url("/bg-dark.png"); }' in css and ":root.dark" not in css
+
+
 def test_no_branding_keeps_the_bundle_icon(tmp_path):
     out = _build(tmp_path)
     page = (out / "index.html").read_text()

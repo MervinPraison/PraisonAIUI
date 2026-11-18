@@ -147,8 +147,7 @@ class Compiler:
         from praisonaiui.themes import get_radius_value, inject_theme_css
 
         theme = self.config.site.theme
-        bg_image = branding.background(theme.background if theme else None)[1]
-        bg_image = self._asset(bg_image)
+        _, bg_light, bg_dark = branding.background(theme.background if theme else None)
         inject_theme_css(
             output_dir,
             preset=theme.preset if theme else "zinc",
@@ -156,7 +155,8 @@ class Compiler:
             radius=get_radius_value(theme.radius if theme else "md"),
             accent=theme.accent if theme else None,
             accent_dark=theme.accent_dark if theme else None,
-            background_image=f"{self.url_base}{bg_image}" if bg_image and bg_image.startswith("/") else bg_image,
+            background_image=self._css_url(self._asset(bg_light)),
+            background_image_dark=self._css_url(self._asset(bg_dark)),
         )
         files.append("assets/theme.css")
 
@@ -796,6 +796,10 @@ class Compiler:
         patched = self._ENTRY_ASSET_RE.sub(versioned, html)
         if patched != html:
             html_path.write_text(patched, encoding="utf-8")
+
+    def _css_url(self, url: str | None) -> str | None:
+        """A site path with ``site.basePath`` applied (for CSS, which the HTML rewrite misses)."""
+        return f"{self.url_base}{url}" if url and url.startswith("/") else url
 
     def _asset(self, value: str | None) -> str | None:
         """A logo, favicon or background image as a site URL (branding.asset_url)."""

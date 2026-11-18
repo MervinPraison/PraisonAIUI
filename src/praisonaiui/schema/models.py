@@ -8,6 +8,13 @@ from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 
 
+class ModeImages(BaseModel):
+    """An image per colour mode (favicon, page background)."""
+
+    light: Optional[str] = None
+    dark: Optional[str] = None
+
+
 class ThemeConfig(BaseModel):
     """Theme configuration."""
 
@@ -63,9 +70,12 @@ class ThemeConfig(BaseModel):
         default=False,
         description="Docs site: keep the configured mode and hide the light/dark toggle.",
     )
-    background: Optional[str] = Field(
+    background: Optional[Union[str, ModeImages]] = Field(
         default=None,
-        description="Docs site page background: 'gradient', 'grid', or an image path or URL.",
+        description=(
+            "Docs site page background: 'gradient', 'grid', an image path or URL, "
+            "or {light, dark} images."
+        ),
     )
     density: Optional[Literal["compact", "comfortable", "spacious"]] = Field(
         default=None,
@@ -354,13 +364,6 @@ class LogoConfig(BaseModel):
     light: Optional[str] = None
     dark: Optional[str] = None
     href: str = "/"
-
-
-class FaviconConfig(BaseModel):
-    """Favicon per browser colour scheme."""
-
-    light: Optional[str] = None
-    dark: Optional[str] = None
 
 
 class OpenApiSourceConfig(BaseModel):
@@ -863,7 +866,7 @@ class Config(BaseModel):
     dependencies: Optional[DependenciesConfig] = None
     # Docs site fields
     logo: Optional[LogoConfig] = None
-    favicon: Optional[FaviconConfig] = None
+    favicon: Optional[ModeImages] = None
     navigation: Optional[NavigationConfig] = None
     navbar: Optional[NavbarConfig] = None
     footer: Optional[FooterConfig] = None
