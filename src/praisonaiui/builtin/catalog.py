@@ -455,6 +455,11 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         host_routes=_mcp_routes,
     ),
     BuiltinPlugin(
+        "connect",
+        "Connect editors and agents to this app's MCP server",
+        feature_refs=(feature(".connect", "ConnectFeature"),),
+    ),
+    BuiltinPlugin(
         "config",
         "Server configuration",
         (

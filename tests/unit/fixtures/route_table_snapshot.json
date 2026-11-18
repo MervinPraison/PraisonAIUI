@@ -82,6 +82,8 @@
  ["Route", "/api/config/watcher", ["GET", "HEAD"]],
  ["Route", "/api/config/watcher/start", ["POST"]],
  ["Route", "/api/config/watcher/stop", ["POST"]],
+ ["Route", "/api/connect", ["GET", "HEAD"]],
+ ["Route", "/api/connect/tools", ["GET", "HEAD"]],
  ["Route", "/api/dashboard/plugins", ["GET", "HEAD"]],
  ["Route", "/api/debug", ["GET", "HEAD"]],
  ["Route", "/api/eval", ["GET", "HEAD"]],

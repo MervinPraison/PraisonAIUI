@@ -519,7 +519,7 @@ def test_third_party_pages_cannot_carry_inline_svg():
 DEFAULT_FEATURES = [
     "agents_crud", "agui", "approvals", "attachments", "auth", "browser_automation",
     "channels", "chat", "code_execution", "config_hot_reload", "config_runtime",
-    "device_pairing", "eval", "guardrails", "hooks", "i18n", "jobs", "kanban",
+    "connect", "device_pairing", "eval", "guardrails", "hooks", "i18n", "jobs", "kanban",
     "knowledge", "logs", "marketplace", "media_analysis", "memory", "model_fallback",
     "nodes", "openai_api", "protocol", "pwa", "realtime", "replay", "schedules",
     "security", "sessions_ext", "skills", "subagents", "surfaces", "telemetry", "theme",
