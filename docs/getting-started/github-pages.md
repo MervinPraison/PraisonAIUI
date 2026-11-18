@@ -100,7 +100,9 @@ jobs:
 
       - name: Build
         run: |
-          aiui build --output site --minify
+          # auto: user.github.io/<repo> gets the /<repo> prefix; a CNAME or a
+          # <user>.github.io repo is served at the root
+          aiui build --output site --minify --base-path auto
           # Keep the custom domain, if there is one
           if [ -f CNAME ]; then cp CNAME site/CNAME; fi
 
@@ -117,6 +119,43 @@ jobs:
 2. Set **Source** to `Deploy from a branch`
 3. Set **Branch** to `gh-pages` / `/ (root)`
 4. Push to `main` — your site deploys automatically
+
+## Project sites (no custom domain)
+
+A repository other than `<user>.github.io` is published at
+`https://<user>.github.io/<repo>/`, under a path prefix. `--base-path auto` in
+the workflow above handles it: in GitHub Actions it reads the repository name,
+so every asset, page, link, search and Markdown URL starts with `/<repo>`, and
+the sitemap, `llms.txt` and canonical links use
+`https://<user>.github.io/<repo>` as the site URL. Nothing else to configure,
+and no custom domain needed.
+
+`auto` builds for the root when the repository has a `CNAME` file, when the
+repository is `<user>.github.io`, when `seo.siteUrl` is set (its path is the
+prefix), and outside GitHub Actions. To set the prefix yourself:
+
+```yaml
+site:
+  basePath: /my-repo        # or: aiui build --base-path /my-repo
+```
+
+The same works for any host that serves the site under a path, such as
+`example.com/docs` behind a reverse proxy (`--base-path /docs`). Write links in
+your Markdown as usual (`/docs/guide`, `../img/x.png`): the build and the app
+add the prefix. Order of precedence: `--base-path`, then `site.basePath`, then
+the path of `seo.siteUrl`. `--base-path /` builds for the root.
+
+If you deploy with `actions/configure-pages` (Pages source "GitHub Actions"),
+you can pass its output instead, which also knows a custom domain set in the
+repository settings: `--base-path "${{ steps.pages.outputs.base_path }}"`.
+
+Preview a prefixed build locally: `aiui serve --base-path /my-repo` serves it at
+`http://127.0.0.1:8000/my-repo/` (and `aiui serve --no-build` serves an
+existing build under the prefix it was built for).
+
+Under a prefix, the legacy plugins that read the URL themselves
+(`content-loader`, `homepage`, `topnav`) are not supported; the default
+`fetch-retry` and `nav-intercept` are.
 
 ## Custom Domain
 

@@ -23,6 +23,8 @@ interface DocsSearchProps {
     groups: { title: string; pages: NavItem[] }[]
     /** Open a page, at a section when `anchor` is set. */
     onSelect: (item: NavItem, anchor?: string) => void
+    /** The index URL, with the site's base path (the App passes it: this chunk imports nothing of the App's). */
+    indexUrl?: string
 }
 
 function Marked({ text, query }: { text: string; query: string }) {
@@ -54,14 +56,14 @@ function ResultRow({ result, query }: { result: SearchResult; query: string }) {
     )
 }
 
-export default function DocsSearch({ open, onOpenChange, groups, onSelect }: DocsSearchProps) {
+export default function DocsSearch({ open, onOpenChange, groups, onSelect, indexUrl }: DocsSearchProps) {
     const [query, setQuery] = useState('')
     const [index, setIndex] = useState<SearchIndex | null>(null)
 
     useEffect(() => {
         if (!open) return
         let live = true
-        loadSearchIndex().then((loaded) => live && setIndex(loaded))
+        loadSearchIndex(indexUrl).then((loaded) => live && setIndex(loaded))
         return () => {
             live = false
         }

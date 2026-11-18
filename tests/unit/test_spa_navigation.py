@@ -104,7 +104,8 @@ class TestSpaNavigation:
 
     def test_app_normalizes_initial_url_without_trailing_slash(self):
         source = Path("src/frontend/src/App.tsx").read_text(encoding="utf-8")
-        assert "replaceState(null, '', initialPath" in source
+        # withBase: the URL under the site's base path (lib/url.ts); the path itself at the root.
+        assert "replaceState(null, '', withBase(initialPath)" in source
         assert "normalizeDocPath(path)" in source or "canonicalPath = normalizeDocPath" in source
 
     def test_content_renders_mermaid_in_react_not_plugin(self):

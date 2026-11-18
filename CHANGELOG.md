@@ -216,6 +216,15 @@
   (path, URL, list or `{source, directory}`; JSON/YAML; 3.0, 3.1, 3.2). Other-file `$ref`s are
   bundled, 3.0 is normalised to 3.1, `aiui validate`/`build` report errors as file:line, and
   `aiui build` writes `openapi/<slug>.json` + `openapi/index.json` ([OpenAPI](docs/features/openapi.md)).
+- Docs sites can be published under a path prefix: a GitHub project site
+  (`user.github.io/repo`) or `example.com/docs` behind a proxy. `aiui build
+  --base-path /docs` or `site.basePath`, else the path of `seo.siteUrl`;
+  `--base-path auto` detects a GitHub Pages project site in Actions (and sets
+  the site URL for the sitemap). `aiui serve` previews the build under its
+  prefix. The app resolves every URL through one helper (`src/lib/url.ts`,
+  `<meta name="aiui-base">`), and the bundle's chunks and fonts now load
+  relative to the file that names them. A build without a prefix is
+  unchanged. See [GitHub Pages](docs/getting-started/github-pages.md).
 
 ### Deprecated
 

@@ -41,9 +41,16 @@ class CompileResult:
 class Compiler:
     """Main compiler that generates manifests from configuration."""
 
-    def __init__(self, config: "Config", base_path: Path | None = None):
+    def __init__(
+        self, config: "Config", base_path: Path | None = None, url_base: str | None = None
+    ):
         self.config = config
-        self.base_path = base_path or Path.cwd()
+        self.base_path = base_path or Path.cwd()  # the project folder
+        # `aiui build --base-path`: the URL path the site is published under
+        # (base_path.resolve_base_path). Resolved by compile().
+        self._url_base_option = url_base
+        self.url_base = ""
+        self._inferred_site_url: str | None = None
         self._excluded: list[str] = []
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
@@ -59,6 +66,18 @@ class Compiler:
         """
         # Apply composition resolver before validation
         self._apply_composition_resolver()
+
+        from praisonaiui.compiler.base_path import resolve_base_path
+
+        try:
+            self.url_base, self._inferred_site_url = resolve_base_path(
+                self._url_base_option,
+                self.config.site.base_path,
+                self.config.seo.site_url if self.config.seo else None,
+                self.base_path,
+            )
+        except ValueError as e:
+            return CompileResult(success=False, files=[], error=str(e))
 
         # Validate first
         validation = validate_config(self.config, self.base_path)
@@ -366,7 +385,9 @@ class Compiler:
                 "titleTemplate": self.config.seo.title_template,
                 "defaultImage": self.config.seo.default_image,
                 "twitter": self.config.seo.twitter,
-                "siteUrl": self.config.seo.site_url or self._site_url(),
+                "siteUrl": (
+                    self._site_url() if self.url_base else self.config.seo.site_url or self._site_url()
+                ),
                 "robots": self.config.seo.robots,
                 "trailingSlash": self.config.seo.trailing_slash,
             }
@@ -595,6 +616,7 @@ class Compiler:
                 output_dir / "assets",
                 version_entry=(frontend_dir / "aiui-manifest.json").is_file(),
             )
+            self._patch_url_base(output_dir / "index.html")
             # Create 404.html as a copy of patched index.html
             # for SPA routing on static hosts like GitHub Pages
             not_found = output_dir / "404.html"
@@ -687,6 +709,23 @@ class Compiler:
         html = html.replace("__AIUI_DARK_DEFAULT__", dark_default)
         if theme and theme.preset == PAPER_LOOK and "data-aiui-look=" not in html:
             html = re.sub(r"<html\b", f'<html data-aiui-look="{PAPER_LOOK}"', html, count=1)
+        html_path.write_text(html, encoding="utf-8")
+
+    _ROOT_URL_RE = re.compile(r"""(\s(?:src|href)=)(["'])/(?!/)""")
+
+    def _patch_url_base(self, html_path: Path) -> None:
+        """Under a base path, prefix the shell's root-absolute ``src``/``href``
+        URLs (assets, icon, plugin loader, sitemap) and tell the app the base
+        with ``<meta name="aiui-base">`` (src/frontend/src/lib/url.ts). The
+        per-route pages copy this file, and their own links go through
+        ``_absolute_url``. No base: the file is left as it is."""
+        if not self.url_base or not html_path.is_file():
+            return
+        html = html_path.read_text(encoding="utf-8")
+        html = self._ROOT_URL_RE.sub(rf"\1\2{self.url_base}/", html)
+        html = html.replace(
+            "<head>", f'<head>\n  <meta name="aiui-base" content="{self.url_base}" />', 1
+        )
         html_path.write_text(html, encoding="utf-8")
 
     _LOADER_RE = re.compile(r"""(/plugins/plugin-loader\.js)(?:\?[^"']*)?(["'])""")
@@ -903,6 +942,13 @@ class Compiler:
         return pages
 
     def _site_url(self) -> str | None:
+        """The site's public URL, with the base path (``https://u.github.io/repo``)."""
+        site = self._origin_url()
+        if site and self.url_base and not site.endswith(self.url_base):
+            site += self.url_base
+        return site
+
+    def _origin_url(self) -> str | None:
         if self.config.seo and self.config.seo.site_url:
             return self.config.seo.site_url.rstrip("/")
         for candidate in (self.base_path / "CNAME", self.base_path / "docs" / "CNAME"):
@@ -910,7 +956,7 @@ class Compiler:
                 domain = candidate.read_text(encoding="utf-8").strip()
                 if domain and "." in domain:
                     return f"https://{domain.rstrip('/')}"
-        return None
+        return self._inferred_site_url
 
     def _public_path(self, path: str) -> str:
         """The URL a page is published at: the docs home (`/docs`, `/docs/index`) is the site root."""
@@ -932,7 +978,7 @@ class Compiler:
         path = self._public_path(path)
         site = self._site_url()
         if not site:
-            return path
+            return f"{self.url_base}{path}" if path.startswith("/") else path
         if not path.startswith("/"):
             path = f"/{path}"
         return f"{site}{path}"
@@ -1188,7 +1234,8 @@ class Compiler:
         """Preload tags for the docs home hero image (docs_home.hero_preload_tags)."""
         from praisonaiui.compiler.docs_home import hero_preload_tags
 
-        return hero_preload_tags(self._docs_home(), self._docs_home_path(nav), self._color_mode())
+        tags = hero_preload_tags(self._docs_home(), self._docs_home_path(nav), self._color_mode())
+        return self._ROOT_URL_RE.sub(rf"\1\2{self.url_base}/", tags) if self.url_base else tags
 
     def _build_crawl_nav_html(self, nav: dict) -> str:
         """Static nav links for non-JS crawlers."""

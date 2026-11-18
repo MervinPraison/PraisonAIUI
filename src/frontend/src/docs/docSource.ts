@@ -13,6 +13,7 @@
  */
 
 import { normalizeDocPath } from '../pathUtils'
+import { withBase } from '../lib/url'
 
 const FRONTMATTER = /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/
 
@@ -24,11 +25,16 @@ export function stripFrontmatter(md: string): string {
 const FENCE = /^\s*(`{3,}|~{3,})/
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
-/** Resolve one relative target against the folder of `docPath` (a /docs/... page path). */
+/**
+ * Resolve one relative target against the folder of `docPath` (a /docs/... page
+ * path). Root-absolute targets and resolved ones come back as browser URLs
+ * (with the site's base path, lib/url.ts).
+ */
 export function resolveDocTarget(target: string, docPath: string): string {
-    if (!target || target.startsWith('/') || target.startsWith('#') || SCHEME.test(target) || target.startsWith('//')) {
+    if (!target || target.startsWith('#') || SCHEME.test(target) || target.startsWith('//')) {
         return target
     }
+    if (target.startsWith('/')) return withBase(target)
     const base = docPath.replace(/\/+$/, '').replace(/[^/]*$/, '')
     let url: URL
     try {
@@ -38,7 +44,7 @@ export function resolveDocTarget(target: string, docPath: string): string {
     }
     // A page link names its route; the docs home page's route is the site root.
     const route = pageRoute(url.pathname)
-    return (route !== url.pathname ? canonicalDocPath(route) : route) + url.search + url.hash
+    return withBase(route !== url.pathname ? canonicalDocPath(route) : route) + url.search + url.hash
 }
 
 /**

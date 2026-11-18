@@ -7,6 +7,7 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import type { UIConfig } from '../types'
+import { withBase } from '../lib/url'
 
 interface DocsNotFoundProps {
     config: UIConfig
@@ -46,7 +47,7 @@ export function DocsNotFound({ config, path, onSearch }: DocsNotFoundProps) {
             </p>
             <div className="aiui-docs-empty-actions">
                 <Button asChild>
-                    <a href="/">Go to the home page</a>
+                    <a href={withBase('/')}>Go to the home page</a>
                 </Button>
                 {onSearch && (
                     <Button type="button" variant="outline" onClick={onSearch}>Search the docs</Button>

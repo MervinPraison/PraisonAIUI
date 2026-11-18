@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { BrandMark } from './docs/BrandMark'
 import { docsChromeModel, isExternal } from './docs/chrome'
+import { withBase } from './lib/url'
 
 interface HeaderProps {
     config: UIConfig
@@ -36,7 +37,7 @@ export function Header({
     const onLogoClick = (event: React.MouseEvent) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
-        window.history.pushState({}, '', logoHref)
+        window.history.pushState({}, '', withBase(logoHref))
         window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: logoHref } }))
     }
 
@@ -58,7 +59,7 @@ export function Header({
                     </Button>
                 )}
 
-                <a href={logoHref} className="aiui-docs-brand" onClick={onLogoClick}>
+                <a href={withBase(logoHref)} className="aiui-docs-brand" onClick={onLogoClick}>
                     <BrandMark name={logoText} src={logoSrc} />
                     <span>{logoText}</span>
                 </a>

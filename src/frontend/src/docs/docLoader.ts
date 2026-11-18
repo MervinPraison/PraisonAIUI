@@ -18,6 +18,7 @@
  */
 import { docPathToMarkdown, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath } from './docSource'
+import { appPathname, stripBase, withBase } from '../lib/url'
 
 export interface DocResult {
     ok: boolean
@@ -96,7 +97,8 @@ export interface RetryOptions {
 }
 
 /**
- * GET `url` with a time limit per attempt and a fresh request after each
+ * GET `url` (an app path such as `/docs/x.md`: the site's base path is added
+ * here, lib/url.ts) with a time limit per attempt and a fresh request after each
  * timeout, network error or 5xx. 2xx and 4xx are answers (no retry). Aborting
  * `signal` stops at once with an AbortError. All attempts failed: DocLoadError.
  */
@@ -112,7 +114,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
     for (let attempt = 0; attempt < timeouts.length; attempt++) {
         if (signal.aborted) throw abortError()
         try {
-            const response = await withTimeout(timeouts[attempt], signal, (s) => fetchImpl(url, { signal: s }))
+            const response = await withTimeout(timeouts[attempt], signal, (s) => fetchImpl(withBase(url), { signal: s }))
             if (response.status < 500) {
                 const text = response.ok ? await withTimeout(bodyTimeoutMs, signal, () => response.text()) : ''
                 return { ok: response.ok, status: response.status, text }
@@ -247,7 +249,7 @@ export function adoptInlinedDoc(root: InlinedDocSource | undefined = typeof docu
  * after them. Content.tsx then joins this request (or finds it cached). The
  * site root is skipped: in the chat and agents styles `/` is not a docs page.
  */
-export function prefetchInitialDoc(pathname = window.location.pathname, base = '/docs'): string | null {
+export function prefetchInitialDoc(pathname = appPathname(), base = '/docs'): string | null {
     adoptInlinedDoc() // the page's markdown inlined by `aiui build`: no request at all
     const path = normalizeDocPath(pathname)
     if (path !== base && !path.startsWith(`${base}/`)) return null
@@ -277,7 +279,7 @@ export function docHrefMarkdownUrl(href: string, pageUrl: string, base = '/docs'
         return null
     }
     if (url.origin !== new URL(pageUrl).origin) return null
-    const path = normalizeDocPath(url.pathname)
+    const path = normalizeDocPath(stripBase(url.pathname))
     if (path !== '/' && !path.startsWith(`${base}/`)) return null
     const last = path.split('/').pop() || ''
     if (last.includes('.') && !last.endsWith('.md')) return null // assets, images

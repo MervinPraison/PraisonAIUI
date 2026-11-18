@@ -20,11 +20,29 @@ const _nativeReplaceState = History.prototype.replaceState;
 
 let knownPaths = new Set();
 
+// A site built with `aiui build --base-path /repo` lives under /repo: its
+// paths here (knownPaths, aiui:navigate) are app paths (/docs/x), its URLs
+// carry the base (src/frontend/src/lib/url.ts does the same for the app).
+const BASE = (function () {
+  const meta = document.querySelector('meta[name="aiui-base"]');
+  return meta ? (meta.content || '').replace(/\/+$/, '') : '';
+})();
+
+function toAppPath(pathname) {
+  if (!BASE) return pathname;
+  if (pathname === BASE) return '/';
+  return pathname.startsWith(BASE + '/') ? pathname.slice(BASE.length) : pathname;
+}
+
+function currentAppPath() {
+  return normalizePath(toAppPath(window.location.pathname));
+}
+
 /* ── Load navigation data ────────────────────────────────────────── */
 
 async function loadNavData() {
   try {
-    const resp = await fetch('/docs-nav.json');
+    const resp = await fetch(BASE + '/docs-nav.json');
     if (!resp.ok) return;
     const data = await resp.json();
 
@@ -65,11 +83,11 @@ function mainHasVisibleContent() {
 
 function spaNavigate(path) {
   const target = normalizePath(path);
-  const current = normalizePath(window.location.pathname);
+  const current = currentAppPath();
   if (target === current && mainHasVisibleContent()) return;
 
   // Canonical URL: no trailing slash (matches React pushState)
-  _nativePushState.call(window.history, null, '', target);
+  _nativePushState.call(window.history, null, '', BASE + target);
 
   // Tell content-loader + topnav + homepage plugins to update
   window.dispatchEvent(new CustomEvent('aiui:navigate', {
@@ -88,7 +106,9 @@ function interceptClicks() {
   // CAPTURE phase on document — fires BEFORE React 18's event delegation on #root
   document.addEventListener('click', function (e) {
     // Only intercept sidebar nav buttons/links
-    const btn = e.target.closest('aside button, aside a, main a[href^="/docs"], article a[href^="/docs"]');
+    const btn = e.target.closest(
+      `aside button, aside a, main a[href^="${BASE}/docs"], article a[href^="${BASE}/docs"]`
+    );
     if (!btn) return;
 
     // Skip group headers (uppercase section labels like "CONCEPTS", "FEATURES")
@@ -114,7 +134,7 @@ function interceptClicks() {
       try {
         const url = new URL(btn.href, window.location.origin);
         if (url.origin === window.location.origin) {
-          const normalized = normalizePath(url.pathname);
+          const normalized = normalizePath(toAppPath(url.pathname));
           if (knownPaths.has(normalized)) {
             e.preventDefault();
             e.stopPropagation();        // stops event before it reaches #root
@@ -159,10 +179,10 @@ function patchHistory() {
         path = url;
       }
       const normalized = normalizePath(path);
-      const current = normalizePath(window.location.pathname);
+      const appPath = normalizePath(toAppPath(path));
 
-      if (knownPaths.has(normalized) && normalized !== current) {
-        spaNavigate(normalized);
+      if (knownPaths.has(appPath) && appPath !== currentAppPath()) {
+        spaNavigate(appPath);
         return;
       }
       if (parsed && normalized !== path) {
@@ -184,10 +204,10 @@ function patchHistory() {
         path = url;
       }
       const normalized = normalizePath(path);
-      const current = normalizePath(window.location.pathname);
+      const appPath = normalizePath(toAppPath(path));
 
-      if (knownPaths.has(normalized) && normalized !== current) {
-        spaNavigate(normalized);
+      if (knownPaths.has(appPath) && appPath !== currentAppPath()) {
+        spaNavigate(appPath);
         return;
       }
       if (parsed && normalized !== path) {
@@ -203,7 +223,7 @@ function patchHistory() {
 
 function handlePopState() {
   window.addEventListener('popstate', function () {
-    const path = normalizePath(window.location.pathname);
+    const path = currentAppPath();
     // Dispatch navigate event so content-loader handles it
     window.dispatchEvent(new CustomEvent('aiui:navigate', {
       detail: { path: path, fromPath: '' }
@@ -219,7 +239,7 @@ function canonicalizeUrlBar() {
   const next = normalized + window.location.search + window.location.hash;
   _nativeReplaceState.call(window.history, null, '', next);
   window.dispatchEvent(new CustomEvent('aiui:navigate', {
-    detail: { path: normalized, fromPath: current }
+    detail: { path: currentAppPath(), fromPath: current }
   }));
   console.debug('[AIUI:nav] Canonical URL:', current, '→', normalized);
 }

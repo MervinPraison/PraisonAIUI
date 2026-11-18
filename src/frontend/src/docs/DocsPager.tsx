@@ -1,6 +1,7 @@
 // Previous / next page links under a docs article, in sidebar reading order.
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { canonicalDocPath } from './docSource'
+import { withBase } from '../lib/url'
 import type { DocsNav, NavItem } from '../types'
 import { docNeighbours } from './docNav'
 
@@ -10,7 +11,7 @@ export function DocsPager({ nav, path, onNavigate }: { nav: DocsNav; path: strin
 
     const link = (item: NavItem, dir: 'prev' | 'next') => (
         <a
-            href={canonicalDocPath(item.path || '/')}
+            href={withBase(canonicalDocPath(item.path || '/'))}
             className="aiui-docs-pager-link"
             data-dir={dir}
             rel={dir}
