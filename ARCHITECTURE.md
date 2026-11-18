@@ -381,7 +381,10 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 `templates/frontend/plugins/` (`dashboard.js`, `views/*.js`, `syntax-highlight.js`,
 `mermaid.js`, `code-copy.js`; `markdown/legacyPlugins.ts` only shields React
 output from them), the legacy React App folders (`chat/`, `agent-ui/`, `views/`,
-`src/Header.tsx`, `src/Sidebar.tsx`), dashboard-plugin folders and `custom.js`
+`src/Header.tsx`, `src/Sidebar.tsx`; the engines and first-party plugin code,
+`chat-engine/`, `markdown/`, `layout-features/`, `app-layouts/`, `app-pages/`,
+`builtin/` and `surfaces/`, never import `chat/`, `agent-ui/` or `views/`, even
+lazily: `shell/core-purity.test.ts`), dashboard-plugin folders and `custom.js`
 `registerView` (use a UI plugin), HSL-triple theme variables (use seeds).
 A built docs site (`aiui build`) renders code, mermaid, tabs, the TOC and
 header tabs in React, so its default `site.plugins` is `fetch-retry` and

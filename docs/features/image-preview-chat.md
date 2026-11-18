@@ -35,7 +35,7 @@ sequenceDiagram
 | **Adapter** | [`providers/__init__.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/providers/__init__.py) — PraisonAI bridge only | No — maps SDK/callback queue → protocol |
 | **Transport** | [`chat.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/features/chat.py) — broadcast + persist | Yes |
 | **Storage** | [`attachments.py`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/features/attachments.py) — `GET /api/chat/media/{id}` | Yes — reuses attachment store for b64 |
-| **UI** | [`chat.js`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/plugins/views/chat.js), [`ElementRenderer`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/src/chat/MultimediaElements.tsx) | Yes — renders `{type, url, alt}` |
+| **UI** | [`chat.js`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/praisonaiui/templates/frontend/plugins/views/chat.js), [`ElementRenderer`](https://github.com/MervinPraison/PraisonAIUI/blob/main/src/frontend/src/chat-engine/parts/media/MultimediaElements.tsx) | Yes — renders `{type, url, alt}` |
 
 Detection and UI do **not** import PraisonAI. Only the provider adapter knows ImageAgent / OpenAI `{data: [{url}]}` shapes.
 

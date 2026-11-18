@@ -1,6 +1,6 @@
 /**
  * A file, PDF or video artifact: the chat's own media elements
- * (chat/MultimediaElements, a lazy chunk of its own). A PDF or video from
+ * (chat-engine/parts/media/MultimediaElements, a lazy chunk of its own). A PDF or video from
  * another host waits for a click (see ./ClickToLoad); a file is only a link.
  */
 import { lazy, Suspense, type JSX } from 'react'
@@ -9,7 +9,7 @@ import type { ArtifactKind } from '@/sdk/layoutTypes'
 import { ClickToLoad } from './ClickToLoad'
 
 const Media = lazy(() =>
-  import('@/chat/MultimediaElements').then((m) => ({
+  import('@/chat-engine/parts/media/MultimediaElements').then((m) => ({
     default: function MediaElement({ kind, url, name, mime }: { kind: ArtifactKind; url: string; name: string; mime?: string }) {
       if (kind === 'video') return <m.VideoElement url={url} className="max-w-full" />
       if (kind === 'pdf') return <m.PdfElement url={url} name={name} />

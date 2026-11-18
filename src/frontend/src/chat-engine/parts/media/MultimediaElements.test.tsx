@@ -1,6 +1,7 @@
 /**
- * ElementRenderer (classic chat): one element that fails to render shows the
- * fallback card through ElementBoundary, an error boundary. The JSX used to
+ * ElementRenderer (the chat engine's media; the classic chat imports it
+ * through chat/): one element that fails to render shows the fallback card
+ * through ElementBoundary, an error boundary. The JSX used to
  * sit in a try/catch, which cannot catch a child's render error.
  */
 import { test } from 'node:test'

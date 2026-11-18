@@ -218,6 +218,14 @@
   dry run of the release no longer counts as "already released today", and
   the release gate fails (instead of skipping every night) when the next
   version is already on PyPI but `pyproject.toml` on `main` is behind.
+- Frontend layering: the chat engine and the artifacts canvas no longer import
+  the legacy React App's `chat/` folder. The media renderers (video, audio,
+  PDF, file, code, surface; `ElementRenderer` and its `ElementBoundary`) moved
+  to `src/frontend/src/chat-engine/parts/media/` (the legacy App imports them
+  through a re-export in `chat/`), and `shell/core-purity.test.ts` now fails if
+  `chat-engine/`, `markdown/`, `layout-features/`, `app-layouts/`,
+  `app-pages/`, `builtin/` or `surfaces/` import `chat/`, `agent-ui/` or
+  `views/`. The media chunk stays lazy.
 - Docs: the plugin guide no longer tells you to pass `--style app` because a
   reply app "runs in the chat style" (`aiui run app.py` opens the app shell),
   says aiui ships six layouts, and ARCHITECTURE.md quotes the real SDK export

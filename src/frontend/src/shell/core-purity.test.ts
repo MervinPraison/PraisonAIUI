@@ -132,6 +132,29 @@ test('the core never imports a feature module (@/chat-engine, …)', () => {
   assert.deepEqual(bad, [], 'register first-party pages in src/builtin instead')
 })
 
+/**
+ * The engines and first-party plugin code: new code that grows the app. They
+ * never import the legacy React App folders (ARCHITECTURE §4: "exists, do not
+ * use for new code"; extend chat-engine/, not chat/), statically or lazily,
+ * so the legacy App can be retired without touching them.
+ */
+const ENGINE_DIRS = ['chat-engine', 'markdown', 'layout-features', 'app-layouts', 'app-pages', 'builtin', 'surfaces']
+const LEGACY_APP_DIRS = ['chat', 'agent-ui', 'views']
+
+test('the engines never import the legacy React App (chat/, agent-ui/, views/), even lazily', () => {
+  const bad: string[] = []
+  for (const dir of ENGINE_DIRS) {
+    for (const full of sourceFiles(path.join(SRC, dir))) {
+      const code = stripComments(readFileSync(full, 'utf8'))
+      for (const spec of specifiers(code)) {
+        const target = targetDir(spec, full)
+        if (target && LEGACY_APP_DIRS.includes(target)) bad.push(`${path.relative(SRC, full)} imports '${spec}'`)
+      }
+    }
+  }
+  assert.deepEqual(bad, [], 'move what the engine needs out of the legacy folder (leave a re-export there)')
+})
+
 test('sdk/ never imports the shell (the shell provides its services to the SDK, not the reverse)', () => {
   const bad: string[] = []
   for (const f of files) {
