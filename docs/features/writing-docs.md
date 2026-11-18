@@ -398,6 +398,32 @@ dropped (`adr/0003-selectable-layouts.md` at `/docs/adr/selectable-layouts`).
 List such a page in the nav by its file path (`protocols/adp/README`); the
 header still opens the tab that lists it.
 
+## Check links
+
+`aiui docs check-links` finds every link that leads nowhere, before readers do:
+
+```bash
+aiui docs check-links
+```
+
+```text
+docs/guide/setup.md:11: instal.md: page not found (did you mean install.md?)
+docs/guide/setup.md:12: ../index.md#nowhere: anchor #nowhere not found on /docs/index
+✗ 2 broken of 40 links checked in 12 pages
+```
+
+It checks Markdown links and images, reference links, `href` and `src` on
+components and HTML (`<Card href>`, `<a>`, `<img>`), the docs home `hero` and
+`features` links, the nav page entries and the navbar and footer links in the
+YAML. A `#section` link is checked against the ids the site gives its headings
+(`## The aiui CLI` is `#the-aiui-cli`). Links in code are skipped. Paths outside
+the docs (app routes such as `/chat`) are not judged.
+
+`--external` also requests every `http(s)` URL, and `--json` prints the result
+for scripts. The exit code is `1` when a link is broken, so a CI step needs one
+line. `aiui validate --strict` and `aiui build --strict` fail on broken links
+too; without `--strict` they print them as warnings.
+
 ## Page actions
 
 Above every page's title, **Copy page** copies the page's Markdown, ready to

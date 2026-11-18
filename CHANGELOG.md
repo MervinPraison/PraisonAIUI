@@ -226,6 +226,12 @@
   relative to the file that names them. A build without a prefix is
   unchanged. See [GitHub Pages](docs/getting-started/github-pages.md).
 
+- **Broken link check.** `aiui docs check-links` finds broken page links,
+  `#anchor`s, images, `<Card href>`s and nav entries, prints `file:line` with
+  a "did you mean" fix and exits 1 for CI (`--external` checks URLs too).
+  `aiui validate --strict` and the new `aiui build --strict` fail on them. See
+  [Writing docs pages](docs/features/writing-docs.md#check-links).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

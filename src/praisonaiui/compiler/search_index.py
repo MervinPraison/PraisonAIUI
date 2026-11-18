@@ -31,11 +31,17 @@ _TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{2,}")
 _SPACE = re.compile(r"\s+")
 
 
+# JavaScript's \s (ECMAScript WhiteSpace + LineTerminator). Python's \s differs
+# (no U+FEFF, adds U+001C-U+001F and U+0085), so slug.ts's classes are spelt out.
+_JS_SPACE = "\t\n\v\f\r    -     　﻿"
+_SLUG_DROP = re.compile(f"[^A-Za-z0-9_{_JS_SPACE}-]")
+_SLUG_SPACE = re.compile(f"[{_JS_SPACE}]+")
+
+
 def slugify(text: str) -> str:
-    """Heading id, as ``markdown/slug.ts`` computes it from the heading's text."""
-    s = text.lower()
-    s = re.sub(r"[^\w\s-]", "", s, flags=re.ASCII)
-    s = re.sub(r"\s+", "-", s)
+    """Heading id, exactly as ``markdown/slug.ts`` computes it from the heading's text."""
+    s = _SLUG_DROP.sub("", text.lower())
+    s = _SLUG_SPACE.sub("-", s)
     s = re.sub(r"-+", "-", s)
     return s.strip("-")
 
