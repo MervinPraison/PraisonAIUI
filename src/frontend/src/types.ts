@@ -8,6 +8,8 @@ export interface NavItem {
     path?: string
     description?: string
     noindex?: boolean
+    /** Frontmatter `searchable: false`: left out of the site's own search (still in the sidebar). */
+    searchable?: boolean
     /** Routable, but not in the sidebar or pager (frontmatter `hidden: true`, a hidden nav group or tab). */
     hidden?: boolean
     /** Date of the page's last commit (YYYY-MM-DD), from `aiui build` with `content.docs.lastUpdated`. */
@@ -70,6 +72,8 @@ export interface NavTabGroupConfig {
     icon?: string
     prefix?: string
     pages?: string[]
+    /** Search ranking multiplier for the group's pages (a page's frontmatter `boost` wins). */
+    boost?: number
 }
 
 export interface NavTabConfig {
@@ -101,6 +105,18 @@ export interface NavbarConfig {
 export interface SearchConfig {
     enabled?: boolean
     provider?: string
+    /** Placeholder of the search field and the header button (default "Search docs"). */
+    prompt?: string
+    /** Most results the dialog lists (1-100, default 24). */
+    maxResults?: number
+}
+
+/** Searchable pages of one top-level nav group (docNav.docSearchGroups), with its tab and boost. */
+export interface SearchGroup {
+    title: string
+    pages: NavItem[]
+    tab?: string
+    boost?: number
 }
 
 export interface WidgetConfig {

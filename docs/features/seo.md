@@ -63,6 +63,7 @@ the page's robots meta, so they never disagree:
 | `noindex: true` | yes | no | `noindex` |
 | hidden | no | no (yes with `seo.indexing: all`) | `noindex` (`index, follow` with `all`) |
 | any, with `seo.robots.index: false` | as above | no sitemap or llms files; search kept | `noindex` |
+| `searchable: false` | yes | sitemap and llms yes; site search no | `index, follow` |
 
 Each page has exactly one robots meta tag. `noindex` does not add `nofollow`:
 crawlers still follow the page's links to the pages that are indexed.

@@ -84,6 +84,24 @@ test('search groups put top-level pages first', () => {
     )
 })
 
+test('search groups carry their tab and the YAML group boost; searchable: false pages leave search', () => {
+    const nav: DocsNav = {
+        items: [
+            { title: 'Home', path: '/docs/index' },
+            { title: 'Guides', children: [{ title: 'One', path: '/docs/guides/one' }, { title: 'Draft', path: '/docs/guides/draft', searchable: false }] },
+            { title: 'Api', children: [{ title: 'Auth', path: '/docs/api/auth' }] },
+        ],
+    }
+    const tabs = [
+        { tab: 'Docs', groups: [{ group: 'Guides', prefix: 'guides', pages: ['index'] }] },
+        { tab: 'API', groups: [{ group: 'Api', prefix: 'api', boost: 2 }] },
+    ]
+    assert.deepEqual(
+        docSearchGroups(nav, tabs).map((g) => [g.title, g.tab, g.boost, g.pages.map((p) => p.title)]),
+        [['Pages', 'Docs', undefined, ['Home']], ['Guides', 'Docs', undefined, ['One']], ['Api', 'API', 2, ['Auth']]],
+    )
+})
+
 test('the section is the closest group title', () => {
     assert.equal(docSection(NAV, '/docs/guides/one'), 'Guides')
     assert.equal(docSection(NAV, '/docs/index'), null)

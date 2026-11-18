@@ -3,7 +3,8 @@
  * article, and the section an active page sits in (its eyebrow).
  */
 import { normalizeDocPath } from '../pathUtils'
-import type { DocsNav, NavItem } from '../types'
+import type { DocsNav, NavItem, NavTabConfig, SearchGroup } from '../types'
+import { navItemTabGroupIndex } from './navTabs'
 
 /** Whether a sidebar item shows: hidden pages never, a group only with a page that shows. */
 export function navItemShown(item: NavItem): boolean {
@@ -51,18 +52,30 @@ export function docSection(nav: DocsNav, path: string): string | null {
 }
 
 /** Pages grouped by top-level section for search; top-level pages first, under "Pages".
- *  `noindex` pages (and hidden ones, which the build marks noindex unless `seo.indexing: all`) are left out. */
-export function docSearchGroups(nav: DocsNav): { title: string; pages: NavItem[] }[] {
-    const searchable = (p: NavItem) => !p.noindex
-    const loose: NavItem[] = []
-    const groups: { title: string; pages: NavItem[] }[] = []
+ *  `noindex` pages (and hidden ones, which the build marks noindex unless `seo.indexing: all`)
+ *  and `searchable: false` pages are left out. With header `tabs`, each group carries the tab
+ *  that holds it and that YAML group's `boost` (the sidebar's own rule, navTabs). */
+export function docSearchGroups(nav: DocsNav, tabs: NavTabConfig[] = []): SearchGroup[] {
+    const searchable = (p: NavItem) => !p.noindex && p.searchable !== false
+    const placeOf = (item: NavItem): Pick<SearchGroup, 'tab' | 'boost'> => {
+        for (const tab of tabs) {
+            const i = navItemTabGroupIndex(item, tab)
+            if (i >= 0) return { tab: tab.tab, boost: tab.groups?.[i]?.boost }
+        }
+        return {}
+    }
+    const loose = new Map<string, SearchGroup>()
+    const groups: SearchGroup[] = []
     for (const item of nav.items ?? []) {
         if (item.children?.length) {
             const pages = docPages({ items: item.children }, searchable)
-            if (pages.length) groups.push({ title: item.title, pages })
+            if (pages.length) groups.push({ title: item.title, pages, ...placeOf(item) })
         } else if (item.path && searchable(item)) {
-            loose.push(item)
+            const place = placeOf(item)
+            const key = `${place.tab ?? ''}|${place.boost ?? ''}`
+            if (!loose.has(key)) loose.set(key, { title: 'Pages', pages: [], ...place })
+            loose.get(key)!.pages.push(item)
         }
     }
-    return loose.length ? [{ title: 'Pages', pages: loose }, ...groups] : groups
+    return [...loose.values(), ...groups]
 }

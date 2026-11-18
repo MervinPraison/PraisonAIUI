@@ -264,6 +264,16 @@
   screens and follow the article on phones. See
   [Writing docs pages](docs/features/writing-docs.md#api-fields).
 
+- Docs search is full text and forgiving: every word of a section is indexed
+  (the 600-character cap is now 6,000 per section), ranking is BM25 with
+  stems, prefixes and one-typo matches, and question words drop out. New
+  front matter `keywords` (matched, never shown), `boost` (0.1 to 10; also
+  on a navigation group) and `searchable: false`; new `search.prompt` and
+  `search.maxResults`. A `?q=` link opens search prefilled, and on sites
+  with header tabs chips filter the results by tab. `aiui validate` now
+  warns that `search.provider` is ignored. See [Writing docs
+  pages](docs/features/writing-docs.md#search).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

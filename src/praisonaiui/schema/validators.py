@@ -200,6 +200,16 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
         warnings.warn(css_warning, UserWarning, stacklevel=2)
 
     found_warnings.extend(layout_warnings(config))
+    search = getattr(config, "search", None)
+    if search is not None and "provider" in search.model_fields_set:
+        found_warnings.append(
+            ValidationError(
+                code=5201,
+                category="search",
+                message=f"search.provider '{search.provider}' is ignored: the built-in search index is always used",
+                suggestion="Remove search.provider; tune search with search.prompt and search.maxResults",
+            )
+        )
     api_specs = _check_api_specs(config, base, errors, found_warnings)
 
     # Track component usage
