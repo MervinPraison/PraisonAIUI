@@ -49,7 +49,7 @@ for (const mode of ['light', 'dark'] as const) {
     await page.goto('/docs/media')
     const article = page.locator('#main-content article').first()
     const other = mode === 'light' ? 'dark' : 'light'
-    await expect(article.getByRole('img', { name: `${mode === 'light' ? 'Light' : 'Dark'} only` })).toBeVisible()
+    await expect(article.getByAltText(`${mode === 'light' ? 'Light' : 'Dark'} only`)).toBeVisible()
     await expect(article.getByAltText(`${other === 'light' ? 'Light' : 'Dark'} only`)).toBeHidden()
     await expect(article.getByAltText('Dark by suffix')).toBeVisible({ visible: mode === 'dark' })
     await expect.poll(() => article.getByAltText('Picture').evaluate((i: HTMLImageElement) => i.currentSrc)).toMatch(mode === 'dark' ? /\?dark$/ : /\?light$/)
@@ -57,6 +57,7 @@ for (const mode of ['light', 'dark'] as const) {
 }
 
 test('noZoom keeps an image out of zoom; the zoom dialog offers Copy and Download', async ({ page }) => {
+  await siteMode(page, 'light')
   await page.goto('/docs/media')
   const article = page.locator('#main-content article').first()
   const light = article.getByAltText('Light only')
