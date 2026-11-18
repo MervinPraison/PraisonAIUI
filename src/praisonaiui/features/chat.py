@@ -711,8 +711,9 @@ class ChatManager(ChatProtocol):
     def record_run_event(self, run_id: str, event: Dict[str, Any]) -> None:
         """Number *event* (``seq``, per run) and keep a copy for replay.
 
-        Consecutive token-only ``run_content`` frames are kept as one, so a
-        long reply costs one buffered event, not one per token.
+        Consecutive token-only ``run_content`` frames of the same agent are
+        kept as one, so a long reply costs one buffered event, not one per
+        token (a handoff starts a new one, keeping each agent's own text).
         """
         rec = self._run_replay.get(run_id)
         if rec is None:
@@ -729,6 +730,7 @@ class ChatManager(ChatProtocol):
             and set(last) <= _TOKEN_EVENT_KEYS
             and "token" in event
             and "token" in last
+            and event.get("agent_name") == last.get("agent_name")
         ):
             last["token"] += event["token"]
             last["seq"] = event["seq"]

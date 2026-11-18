@@ -1753,3 +1753,17 @@ def test_replay_buffer_is_dropped_when_the_run_ends(monkeypatch):
         _read_until(ws, _turn_done("s-end"))
         _attach(ws, "s-end")  # a round trip: the run's cleanup has run
         assert run_id not in get_chat_manager()._run_replay
+
+
+def test_replay_keeps_tokens_of_different_agents_apart():
+    from praisonaiui.features.chat import ChatManager
+
+    mgr = ChatManager()
+    mgr.start_run_replay("r1", "q", None)
+    for agent, tok in (("a", "x"), ("a", "y"), ("b", "z")):
+        mgr.record_run_event(
+            "r1", {"type": "run_content", "run_id": "r1", "token": tok, "agent_name": agent}
+        )
+    events = mgr._run_replay["r1"]["events"]
+    assert [(e["agent_name"], e["token"]) for e in events] == [("a", "xy"), ("b", "z")]
+    assert events[-1]["seq"] == 3
