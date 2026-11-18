@@ -234,7 +234,10 @@ export default [
   // 253,464 B (measured, raised by exactly the overage, +45 B): LayoutHost
   // passes the declared nav groups and chrome.openSettings to the frame.
   // 254,080 B (measured, raised by exactly the overage, +616 B): the same.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254080 B', gzip: true },
+  // 254,082 B (measured, raised by exactly the overage, +2 B): new hashed names of
+  // the lazy docs App chunks (hidden pages, seoMeta) in the entry's preload map;
+  // no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254082 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -285,5 +288,7 @@ export default [
   // nav groups and the Plugin settings entry in every layout frame.
   // 9,140,565 B (measured, raised by exactly the overage, +2,155 B): a tab
   // reloaded mid-reply takes its run back.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9140565 B', brotli: false },
+  // 9,140,919 B (measured, raised by exactly the overage, +354 B): hidden docs
+  // pages (sidebar, pager, search) and the docs seoMeta helper.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9140919 B', brotli: false },
 ]
