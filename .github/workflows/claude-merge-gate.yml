@@ -13,10 +13,12 @@ on:
         type: choice
         default: merge
         options: [merge, squash, rebase]
+  # Keep in step with gate-config.js mergeGateWorkflowRuns: CI is ci.yml's
+  # `name:` (tests/unit/test_pipeline_workflows.py checks both).
   workflow_run:
     workflows:
       - Claude Assistant
-      - Core Tests
+      - CI
     types: [completed]
   repository_dispatch:
     types: [claude-merge-gate]
@@ -64,7 +66,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             if (wr.conclusion !== 'success') return;
-            const allowed = ['Claude Assistant', 'Core Tests'];
+            const allowed = require(process.env.GATE_CONFIG_PATH).mergeGateWorkflowRuns;
             if (!allowed.includes(wr.name)) return;
             const prNumber = await mergeGate.resolvePrNumberFromWorkflowRun(github, owner, repo, wr);
             if (!prNumber) return;

@@ -205,6 +205,10 @@
   list them with legacy-parity as not enforced on Linux yet.
 - Package metadata no longer lists Python 3.9, which `requires-python
   >=3.10` already refused; ruff and mypy target 3.10 to match.
+- CI: the merge gate starts when `CI` passes on a pull request. It listened
+  for a "Core Tests" workflow that does not exist, so a green PR waited for
+  the 10-minute scan. ARCHITECTURE R15 now names the hub `merge-gate.js` and
+  this repo's `gate-config.js`, which is what runs.
 - Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
   package smoke checklist, attachments, MCP connect security, the feature
   APIs), not 2 of its files, and e2e shard 1 runs the dashboard view
