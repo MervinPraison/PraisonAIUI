@@ -187,3 +187,26 @@ def test_api_fields_and_examples_become_plain_markdown() -> None:
     assert "- `user` (object): The user.\n  - `email` (string, deprecated): Use `emails`." in md
     assert "**Request example**\n\n```bash cURL\ncurl x\n```" in md and "Side note." in md
     assert "Field" not in md and "Expandable" not in md and "Panel" not in md
+
+
+def test_video_embeds_become_links() -> None:
+    """<iframe> and <video> (a page's raw HTML media) are links in the agent .md; code keeps them."""
+    source = "\n".join(
+        [
+            '<iframe width="560" src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Tour" allowfullscreen></iframe>',
+            "",
+            '<video autoPlay muted loop playsInline src="/videos/loop.mp4"></video>',
+            "",
+            "<video controls>",
+            '  <source src="clip.webm" type="video/webm" />',
+            "</video>",
+            "",
+            "`<iframe src=x>`",
+        ]
+    )
+    md = to_agent_markdown(source, title="Media", site="https://docs.example.com", page_dir="/docs/guide")
+    assert "[Tour](https://www.youtube.com/embed/dQw4w9WgXcQ)" in md
+    assert "[Video](https://docs.example.com/videos/loop.mp4)" in md
+    assert "[Video](https://docs.example.com/docs/guide/clip.webm)" in md
+    assert "<video" not in md and "<source" not in md
+    assert "`<iframe src=x>`" in md

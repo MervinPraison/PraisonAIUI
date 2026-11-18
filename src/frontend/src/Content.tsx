@@ -16,6 +16,7 @@ import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
 import { DocsPre } from './docs/DocsPre'
 import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
+import { DocsImage, DocsSource } from './docs/DocsMedia'
 import { splitPanels } from './docs/panels'
 import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
 import { PageFooter } from './docs/PageFooter'
@@ -37,8 +38,8 @@ interface ContentProps {
     onSearch?: () => void
 }
 
-/** Docs-only element overrides (code titles and highlights; the docs components). Module scope: Markdown wants a stable object. */
-const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, ...DOCS_TAG_COMPONENTS }
+/** Docs-only element overrides (code titles and highlights; light/dark images; the docs components). Module scope: Markdown wants a stable object. */
+const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, img: DocsImage, source: DocsSource, ...DOCS_TAG_COMPONENTS }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'
