@@ -293,6 +293,8 @@ def init(
     ),
 ) -> None:
     """Initialize a new PraisonAIUI project."""
+    from praisonaiui.schema.loader import SCHEMA_URL
+
     config_path = Path.cwd() / CONFIG_NAME
 
     # If --frontend flag, scaffold a frontend project
@@ -313,7 +315,7 @@ def init(
         raise typer.Exit(code=1)
 
     # Create minimal config
-    minimal_config = """# aiui.yaml
+    minimal_config = f"# yaml-language-server: $schema={SCHEMA_URL}\n" + """# aiui.yaml: autocomplete and hover docs in VS Code (YAML extension), JetBrains and Neovim
 schemaVersion: 1
 
 site:
@@ -437,14 +439,15 @@ def validate(
     strict: bool = typer.Option(
         False,
         "--strict",
-        help="Enable strict validation (unknown keys and broken links become errors)",
+        help="Fail on warnings: unknown keys, broken links, missing nav pages and content issues",
     ),
+    output_format: str = typer.Option("text", "--format", help="text, or json for CI"),
 ) -> None:
-    """Validate configuration file and docs links."""
+    """Validate the configuration and the docs content (front matter, alt text, headings, links)."""
+    import json
     import warnings
 
-    import yaml
-
+    from praisonaiui.schema.loader import source_of
     from praisonaiui.schema.models import Config
     from praisonaiui.schema.validators import (
         ValidationError,
@@ -453,17 +456,8 @@ def validate(
     )
 
     config = _resolve_config(config)
-    if not config.exists():
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(code=2)
-
-    try:
-        with open(config, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        cfg = Config.model_validate(data)
-    except Exception as e:
-        console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
-        raise typer.Exit(code=1)
+    sources: dict = {}
+    data, cfg = _load_site_config(config, sources)
 
     # The library also emits these as UserWarning; here they are printed.
     with warnings.catch_warnings():
@@ -471,15 +465,19 @@ def validate(
         result = validate_config(cfg, config.parent, strict=strict)
 
     # Loading ignores keys no field takes, so a misspelling (stlye:, themee:)
-    # silently does nothing. Report them, and broken docs links (aiui docs
-    # check-links); --strict makes them errors.
+    # silently does nothing. Report them, broken docs links (aiui docs
+    # check-links) and the content checks (content_lint.py); --strict makes
+    # them errors.
+    from praisonaiui.compiler import Compiler
     from praisonaiui.compiler.links import check_site_links, format_broken
 
+    compiler = Compiler(cfg, base_path=config.parent)
     issues = [
         ValidationError(
             code=1003,
             category="config",
             message=f"Unknown key '{_format_loc(loc)}' (ignored)",
+            file=source_of(loc, sources),
             suggestion=(
                 "Check the spelling; see "
                 "https://ui.praison.ai/concepts/configuration for the supported keys."
@@ -491,6 +489,11 @@ def validate(
         ValidationError(code=6001, category="links", message=format_broken(link))
         for link in check_site_links(cfg, config).broken
     ]
+    issues += [
+        ValidationError(code=i.code, category="content", message=i.message, file=i.file,
+                        line=i.line or None, suggestion=i.hint)
+        for i in compiler.lint_content()
+    ]
     for issue in issues:
         if strict:
             result.errors.append(issue)
@@ -499,27 +502,91 @@ def validate(
             result.warnings.append(issue)
 
     # Docs pages that use component tags the renderer does not know.
-    from praisonaiui.compiler import Compiler
-
-    for docs_warning in Compiler(cfg, base_path=config.parent).lint_docs():
+    for docs_warning in compiler.lint_docs():
         result.warnings.append(ValidationError(code=1004, category="docs", message=docs_warning))
+
+    if output_format == "json":
+        from dataclasses import asdict
+
+        typer.echo(json.dumps({
+            "valid": result.valid,
+            "errors": [asdict(e) for e in result.errors],
+            "warnings": [asdict(w) for w in result.warnings],
+        }, indent=2))
+        if not result.valid:
+            raise typer.Exit(code=1)
+        return
+
+    def where(issue: ValidationError) -> str:
+        if not issue.file:
+            return ""
+        return f"{issue.file}:{issue.line}: " if issue.line else f"{issue.file}: "
 
     for warning in result.warnings:
         console.print(
-            f"  [yellow]\\[{warning.category}] {warning.code} {escape(warning.message)}[/yellow]"
+            f"  [yellow]\\[{warning.category}] {warning.code} "
+            f"{escape(where(warning) + warning.message)}[/yellow]"
         )
         if warning.suggestion:
-            console.print(f"    💡 {warning.suggestion}")
+            console.print(f"    💡 {escape(warning.suggestion)}")
 
     if result.valid:
         console.print("[green]✓[/green] Configuration is valid")
     else:
         console.print("[red]✗[/red] Configuration has errors:")
         for error in result.errors:
-            console.print(f"  \\[{error.category}] {error.message}")
+            console.print(f"  \\[{error.category}] {error.code} {escape(where(error) + error.message)}")
             if error.suggestion:
-                console.print(f"    💡 {error.suggestion}")
+                console.print(f"    💡 {escape(error.suggestion)}")
         raise typer.Exit(code=1)
+
+
+def _load_site_config(config: Path, sources: Optional[dict] = None) -> tuple:
+    """``(data, Config)`` for a site config, with ``$ref`` includes resolved.
+
+    Exits 2 when the file is missing and 1 when it cannot be read or does
+    not fit the schema (a key in an included file names that file).
+    """
+    from pydantic import ValidationError as PydanticError
+
+    from praisonaiui.schema.loader import ConfigLoadError, load_config_file, source_of
+    from praisonaiui.schema.models import Config
+
+    if not config.exists():
+        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
+        raise typer.Exit(code=2)
+    sources = {} if sources is None else sources
+    try:
+        data = load_config_file(config, sources)
+        return data, Config.model_validate(data)
+    except ConfigLoadError as e:
+        console.print(f"[red]Error:[/red] {escape(str(e))}")
+    except PydanticError as e:
+        console.print(f"[red]Error:[/red] Failed to parse configuration: {escape(str(e))}")
+        for err in e.errors():
+            src = source_of(tuple(err["loc"]), sources)
+            if src:
+                console.print(f"  {escape(_format_loc(tuple(err['loc'])))} is set in {escape(src)}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] Failed to parse configuration: {escape(str(e))}")
+    raise typer.Exit(code=1)
+
+
+@app.command()
+def schema(
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write to this file instead of stdout"),
+) -> None:
+    """Print the JSON Schema of aiui.yaml, for editor autocomplete and hover docs."""
+    import json
+
+    from praisonaiui.schema.loader import config_json_schema
+
+    text = json.dumps(config_json_schema(), indent=2) + "\n"
+    if output is None:
+        typer.echo(text, nl=False)
+        return
+    output.write_text(text, encoding="utf-8")
+    console.print(f"[green]✓[/green] Wrote {output}", highlight=False)
 
 
 def _format_loc(loc: tuple) -> str:
@@ -562,23 +629,10 @@ def build(
     strict: bool = typer.Option(False, "--strict", help="Fail (exit 1) on broken links in the docs"),
 ) -> None:
     """Build manifests from configuration."""
-    import yaml
-
     from praisonaiui.compiler import Compiler
-    from praisonaiui.schema.models import Config
 
     config = _resolve_config(config)
-    if not config.exists():
-        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
-        raise typer.Exit(code=2)
-
-    try:
-        with open(config, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        cfg = Config.model_validate(data)
-    except Exception as e:
-        console.print(f"[red]Error:[/red] Failed to parse configuration: {e}")
-        raise typer.Exit(code=1)
+    _data, cfg = _load_site_config(config)
 
     from praisonaiui.cli_docs import print_broken_links
     from praisonaiui.compiler.links import check_site_links
@@ -3819,10 +3873,11 @@ def _load_extensions_policy(config: Optional[Path]) -> Any:
     import yaml
 
     from praisonaiui.plugin_registry import get_plugin_registry
+    from praisonaiui.schema.loader import ConfigLoadError, load_config_file
 
     try:
-        data = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError) as exc:
+        data = load_config_file(config) or {}
+    except (OSError, yaml.YAMLError, ConfigLoadError) as exc:
         console.print(f"[red]Error:[/red] cannot read {config}: {exc}")
         raise typer.Exit(code=2)
     section = data.get("extensions") if isinstance(data, dict) else None

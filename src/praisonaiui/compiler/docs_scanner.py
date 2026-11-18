@@ -96,6 +96,8 @@ class DocsScanner:
 
         # Extract order from frontmatter or filename
         order = frontmatter.get("order", 0)
+        if isinstance(order, bool) or not isinstance(order, (int, float)):
+            order = 0  # `order: "3"` would break sorting; aiui validate reports it (7001)
         if order == 0:
             # Try to extract number prefix from filename (e.g., "01-intro.md")
             match = re.match(r"^(\d+)", file_path.stem)
@@ -187,7 +189,8 @@ class DocsScanner:
             # Lazy import yaml
             import yaml
 
-            return yaml.safe_load(frontmatter_str) or {}
+            data = yaml.safe_load(frontmatter_str)
+            return data if isinstance(data, dict) else {}
         except Exception:
             return {}
 

@@ -38,7 +38,7 @@ def test_misspelled_keys_are_warned_by_path(tmp_path):
 def test_strict_makes_unknown_keys_errors(tmp_path):
     result, _ = _validate(tmp_path, BASE + "stlye: app\n", "--strict")
     assert result.exit_code == 1
-    assert "[config] Unknown key 'stlye'" in result.output
+    assert "[config] 1003 Unknown key 'stlye'" in result.output
 
 
 def test_clean_config_has_no_unknown_key_warning(tmp_path):

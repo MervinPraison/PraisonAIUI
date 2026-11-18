@@ -293,6 +293,10 @@
   they reach `llms.txt`, the agent `.md` export and site search. Specs are
   listed in `llms.txt` and `/.well-known/api-catalog` (RFC 9727). See
   [OpenAPI](docs/features/openapi.md#endpoint-pages).
+- **`aiui validate` checks the pages**: front matter, alt text, duplicate pages and titles, heading
+  levels, empty pages, accent contrast (7000-7006, 7101) at `file:line`, `--format json`
+  ([CLI](docs/api/cli.md#aiui-validate)). **`$ref` splits `aiui.yaml`**; `aiui schema` and the
+  `$schema` line `aiui init` writes give editor autocomplete ([Configuration](docs/concepts/configuration.md#split-the-config-with-ref)).
 
 ### Deprecated
 

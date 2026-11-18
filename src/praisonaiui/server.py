@@ -3643,10 +3643,9 @@ def load_config_from_yaml(config_path: Path) -> Optional[dict]:
     if not config_path.exists():
         return None
     try:
-        import yaml
+        from praisonaiui.schema.loader import load_config_file
 
-        with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+        return load_config_file(config_path)  # $ref includes resolved
     except Exception:
         return None
 
