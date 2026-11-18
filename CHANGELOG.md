@@ -113,17 +113,6 @@
 
 ### New
 
-- **Redirects and a configurable not-found page.** `redirects:` in
-  `aiui.yaml` maps old URLs to new ones (`:name` for one segment, a final
-  `:name*` for the rest of the path). `aiui serve` answers with 301 (302 with
-  `permanent: false`), `aiui build` writes a `_redirects` file and a stub page
-  at each old URL so static hosts redirect too, and the docs app follows
-  wildcard rules on hosts without server rules. `errors.404` sets the
-  not-found heading and Markdown text (or `redirect: true` sends readers
-  home), and the page now suggests the closest pages. `aiui validate` reports
-  loops and dead ends (7010) and rules a page hides (7011). See
-  [Redirects](docs/features/redirects.md).
-
 - **Docs sites load less JavaScript.** The chat, agents and playground
   layouts load only for their style, so a docs page's first load is 53.6 KB
   (gzip) smaller: 24 files instead of 33.
@@ -358,6 +347,16 @@
   gets heavier; `aiui validate` warns (7009) about a name that is not an icon and suggests the
   nearest. The build ships the name list as `templates/frontend/aiui-icons.json`. See
   [Writing docs](docs/features/writing-docs.md#icons).
+- **Redirects and a configurable not-found page.** `redirects:` in
+  `aiui.yaml` maps old URLs to new ones (`:name` for one segment, a final
+  `:name*` for the rest of the path). `aiui serve` answers with 301 (302 with
+  `permanent: false`), `aiui build` writes a `_redirects` file and a stub page
+  at each old URL so static hosts redirect too, and the docs app follows
+  wildcard rules on hosts without server rules. `errors.404` sets the
+  not-found heading and Markdown text (or `redirect: true` sends readers
+  home), and the page now suggests the closest pages. `aiui validate` reports
+  loops and dead ends (7010) and rules a page hides (7011). See
+  [Redirects](docs/features/redirects.md).
 
 ### Deprecated
 

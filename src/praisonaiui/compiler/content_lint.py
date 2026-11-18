@@ -2,7 +2,8 @@
 
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
-variables and snippets (7007, 7008) ``snippets.py``'s.
+variables and snippets (7007, 7008) ``snippets.py``'s; redirects (7010, 7011)
+``redirects.py``'s.
 """
 
 from __future__ import annotations
