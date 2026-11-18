@@ -762,20 +762,20 @@ img.aiui-docs-mark {
 
 /* Code groups (<CodeGroup>, or tabs that each hold one code block): the tab
    strip is the code panel's header. */
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl, 12px);
   background: var(--ui-code-bg);
 }
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > [role='tablist'] {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > :is([role='tablist'], .aiui-tabs-picker) {
   padding-inline: 0.5rem;
   background: var(--ui-panel-head, color-mix(in oklab, var(--muted) 55%, var(--ui-code-bg)));
 }
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > [role='tabpanel'] {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) > :is([role='tabpanel'], .aiui-tabs-panel) {
   padding-top: 0;
 }
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) :is(.aiui-code-frame, [data-streamdown='code-block']) {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) :is(.aiui-code-frame, [data-streamdown='code-block']) {
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -793,14 +793,14 @@ img.aiui-docs-mark {
 /* In a group the tab names the code, so the block's own header row goes and
    its copy button moves up into the tab strip (2.375rem tall). Streamdown's
    content-visibility: auto would clip it (paint containment). */
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] {
   overflow: visible;
   content-visibility: visible !important;
 }
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block-header'] {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block-header'] {
   display: none;
 }
-.aiui-docs article.aiui-doc .aiui-tabs:has(> [role='tabpanel'] > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] > .absolute {
+.aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) [data-streamdown='code-block'] > .absolute {
   top: -1.9rem;
 }
 
@@ -910,6 +910,16 @@ img.aiui-docs-mark {
 .aiui-docs article.aiui-doc .aiui-tabs [role='tab']:focus-visible { outline-offset: -2px; }
 .aiui-docs article.aiui-doc .aiui-tabs [role='tabpanel'] > [data-streamdown='code-block'] { margin-top: 0.25rem; }
 
+/* Tab options (docs/DocsTabs.tsx): an icon before the title, deep-link
+   anchors below the sticky header, borderBottom, and the dropdown code group. */
+.aiui-docs article.aiui-doc .aiui-tabs [role='tab'] { display: inline-flex; align-items: center; gap: 0.375rem; }
+.aiui-docs article.aiui-doc .aiui-tab-icon { width: 0.875rem; height: 0.875rem; flex: none; }
+.aiui-docs article.aiui-doc .aiui-tab-label[id] { scroll-margin-top: 6rem; }
+.aiui-docs article.aiui-doc .aiui-tabs-rule { padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.aiui-docs article.aiui-doc .aiui-tabs-picker { display: flex; align-items: center; min-height: 2.375rem; padding-inline: 0.25rem; border-bottom: 1px solid var(--border); }
+.aiui-docs article.aiui-doc .aiui-tabs-picker-fallback { padding: 0.5rem 0.625rem; font-size: 0.875rem; font-weight: 500; }
+.aiui-docs article.aiui-doc .aiui-tabs-panel { min-width: 0; }
+
 /* ── Components (docs/DocsBlocks.tsx; syntax in writing-docs.md) ─────── */
 /* Steps: a numbered rail; the number is a counter, the rail a hairline. */
 .aiui-docs article.aiui-doc ol.aiui-steps.aiui-steps {
@@ -960,6 +970,22 @@ img.aiui-docs-mark {
 .aiui-docs article.aiui-doc .aiui-step-body > :first-child { margin-top: 0; }
 .aiui-docs article.aiui-doc .aiui-step-body > :last-child { margin-bottom: 0; }
 
+/* Step options: an icon in the circle instead of the number; a step title
+   set as a heading (titleSize) keeps the step's size and scrolls clear of the header. */
+.aiui-docs article.aiui-doc ol.aiui-steps > li.aiui-step[data-icon]::before { content: ''; }
+.aiui-docs article.aiui-doc .aiui-step-icon { position: absolute; top: 0; left: 0; z-index: 1; display: flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; color: var(--foreground); }
+.aiui-docs article.aiui-doc .aiui-step-icon svg { width: 0.875rem; height: 0.875rem; }
+.aiui-docs article.aiui-doc :is(h2, h3, h4).aiui-step-title { scroll-margin-top: 5rem; letter-spacing: -0.01em; }
+.aiui-docs article.aiui-doc h2.aiui-step-title { font-size: 1.25rem; }
+.aiui-docs article.aiui-doc h3.aiui-step-title { font-size: 1.0625rem; }
+.aiui-docs article.aiui-doc h4.aiui-step-title { font-size: 1rem; }
+.aiui-docs article.aiui-doc li.aiui-step[id] { scroll-margin-top: 5rem; }
+
+/* Columns: the card grid around any content; a column is a plain cell. */
+.aiui-docs article.aiui-doc .aiui-column { min-width: 0; }
+.aiui-docs article.aiui-doc .aiui-column > :first-child { margin-top: 0; }
+.aiui-docs article.aiui-doc .aiui-column > :last-child { margin-bottom: 0; }
+
 /* Cards: a grid of hairline tiles; a card with a link lifts on hover. */
 .aiui-docs article.aiui-doc .aiui-cards {
   display: grid;
@@ -996,9 +1022,22 @@ img.aiui-docs-mark {
   margin-bottom: 0.25rem;
   border-radius: var(--radius-md, 8px);
   background: var(--muted);
-  color: var(--ui-link);
+  color: var(--aiui-card-accent, var(--ui-link));
 }
 .aiui-docs article.aiui-doc .aiui-card-icon svg { width: 1rem; height: 1rem; }
+/* Card options: accent colour, a header image, horizontal, a call to action, a link arrow. */
+.aiui-docs article.aiui-doc .aiui-card { position: relative; }
+.aiui-docs article.aiui-doc .aiui-card[data-img] { overflow: hidden; }
+.aiui-docs article.aiui-doc .aiui-card > img.aiui-card-img { width: calc(100% + 2.25rem); max-width: none; height: 10rem; margin: -1rem -1.125rem 0.5rem; object-fit: cover; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; }
+.aiui-docs article.aiui-doc .aiui-card[data-horizontal] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.75rem; align-items: center; align-content: center; }
+.aiui-docs article.aiui-doc .aiui-card[data-horizontal] > :not(.aiui-card-icon, .aiui-card-img) { grid-column: 2; }
+.aiui-docs article.aiui-doc .aiui-card[data-horizontal] > .aiui-card-icon { grid-area: 1 / 1 / span 2; margin: 0; }
+.aiui-docs article.aiui-doc .aiui-card[data-horizontal] .aiui-card-body:empty { display: none; }
+.aiui-docs article.aiui-doc .aiui-card-cta { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: 0.25rem; color: var(--ui-link); font-size: 0.875rem; font-weight: 500; }
+.aiui-docs article.aiui-doc .aiui-card-cta svg { width: 0.875rem; height: 0.875rem; }
+.aiui-docs article.aiui-doc .aiui-card-arrow { position: absolute; top: 1rem; right: 1rem; width: 1rem; height: 1rem; color: var(--muted-foreground); }
+.aiui-docs article.aiui-doc a.aiui-card:hover .aiui-card-arrow { color: var(--ui-link); }
+.aiui-docs article.aiui-doc .aiui-card:has(.aiui-card-arrow) .aiui-card-title { padding-right: 1.5rem; }
 .aiui-docs article.aiui-doc .aiui-card-title {
   font-weight: 600;
   line-height: 1.35;
@@ -1073,6 +1112,10 @@ dialog.aiui-zoom img {
 .aiui-docs article.aiui-doc .aiui-accordions > .aiui-admonition:first-child { border-top-left-radius: var(--radius-lg, 10px); border-top-right-radius: var(--radius-lg, 10px); }
 .aiui-docs article.aiui-doc .aiui-accordions > .aiui-admonition:last-child { border-bottom-left-radius: var(--radius-lg, 10px); border-bottom-right-radius: var(--radius-lg, 10px); }
 .aiui-docs article.aiui-doc .aiui-accordions { margin-block: 1.25rem; }
+/* Accordion options: an icon before the title, a description under it, a deep-link anchor. */
+.aiui-docs article.aiui-doc .aiui-admonition-icon { display: inline; width: 1rem; height: 1rem; margin-right: 0.375rem; vertical-align: -0.1875rem; color: var(--muted-foreground); }
+.aiui-docs article.aiui-doc .aiui-admonition-desc { margin-top: 0.125rem; }
+.aiui-docs article.aiui-doc details.aiui-admonition[id] { scroll-margin-top: 5rem; }
 @media (prefers-reduced-motion: no-preference) {
   .aiui-docs article.aiui-doc .aiui-admonition[data-type='accordion']::before { transition: transform var(--ui-duration, 120ms) var(--ui-ease, ease); }
 }

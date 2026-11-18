@@ -15,8 +15,10 @@ const TONE: Record<string, string> = {
 }
 
 type BlockProps = { children?: ReactNode; title?: string; type?: string; collapsible?: string }
+/** Docs extras (docs/DocsBlocks.tsx passes them): an anchor id, an icon and a line under the title. */
+type AdmonitionProps = BlockProps & { id?: string; icon?: ReactNode; description?: string }
 
-export function Admonition({ children, title, type = 'note', collapsible }: BlockProps) {
+export function Admonition({ children, title, type = 'note', collapsible, id, icon, description }: AdmonitionProps) {
     const kind = type.toLowerCase()
     const heading = title || kind.charAt(0).toUpperCase() + kind.slice(1)
     const cls = cn(
@@ -26,14 +28,18 @@ export function Admonition({ children, title, type = 'note', collapsible }: Bloc
     const body = '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0'
     if (collapsible) {
         return (
-            <details className={cn(cls, 'group')} data-type={kind} open={collapsible === 'open'}>
-                <summary className="cursor-pointer select-none font-semibold text-foreground marker:text-muted-foreground">{heading}</summary>
+            <details id={id} className={cn(cls, 'group')} data-type={kind} open={collapsible === 'open'}>
+                <summary className="cursor-pointer select-none font-semibold text-foreground marker:text-muted-foreground">
+                    {icon}
+                    {heading}
+                    {description && <span className="aiui-admonition-desc block text-sm font-normal text-muted-foreground">{description}</span>}
+                </summary>
                 <div className={cn('mt-2', body)}>{children}</div>
             </details>
         )
     }
     return (
-        <div className={cls} data-type={kind} role="note" aria-label={heading}>
+        <div id={id} className={cls} data-type={kind} role="note" aria-label={heading}>
             <p className="mb-1.5 font-semibold text-foreground">{heading}</p>
             <div className={body}>{children}</div>
         </div>
@@ -44,12 +50,26 @@ export function MkdocsTab({ children }: BlockProps) {
     return <div className="aiui-tab">{children}</div>
 }
 
+type TabsProps = BlockProps & {
+    /** The selected tab, when the caller owns it (docs/DocsTabs.tsx syncs tabs across the page). */
+    value?: number
+    onValueChange?: (index: number) => void
+    /** A tab's label (default: its title). */
+    label?: (tab: ReactElement<BlockProps>, index: number) => ReactNode
+    className?: string
+}
+
 /** Tab strip; panels stay mounted (hidden) so in-page anchors and the TOC still resolve. */
-export function MkdocsTabs({ children }: BlockProps) {
+export function MkdocsTabs({ children, value, onValueChange, label, className }: TabsProps) {
     const tabs = Children.toArray(children).filter(
         (c): c is ReactElement<BlockProps> => isValidElement<BlockProps>(c) && typeof c.props.title === 'string',
     )
-    const [active, setActive] = useState(0)
+    const [own, setOwn] = useState(0)
+    const active = Math.max(0, Math.min(value ?? own, tabs.length - 1))
+    const setActive = (i: number) => {
+        setOwn(i)
+        onValueChange?.(i)
+    }
     const base = useId()
     const buttons = useRef<(HTMLButtonElement | null)[]>([])
     if (tabs.length === 0) return <>{children}</>
@@ -69,7 +89,7 @@ export function MkdocsTabs({ children }: BlockProps) {
     }
 
     return (
-        <div className="aiui-tabs my-4 min-w-0" data-aiui-tabs="">
+        <div className={cn('aiui-tabs my-4 min-w-0', className)} data-aiui-tabs="">
             <div role="tablist" onKeyDown={onKeyDown} className="flex gap-1 overflow-x-auto border-b border-border">
                 {tabs.map((t, i) => (
                     <button
@@ -88,7 +108,7 @@ export function MkdocsTabs({ children }: BlockProps) {
                             i === active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
                         )}
                     >
-                        {t.props.title}
+                        {label ? label(t, i) : t.props.title}
                     </button>
                 ))}
             </div>

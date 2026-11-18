@@ -15,7 +15,8 @@ function collectHeadings(): TocHeading[] {
     const article = document.querySelector('#main-content article') ?? document.querySelector('article.prose')
     if (!article) return []
 
-    return Array.from(article.querySelectorAll('h2[id], h3[id], h4[id]')).map((el) => ({
+    // Headings in a tab that is not shown stay out (docs/DocsTabs.tsx asks for a refresh on a switch).
+    return Array.from(article.querySelectorAll('h2[id], h3[id], h4[id]')).filter((el) => !el.closest('[hidden]')).map((el) => ({
         id: el.id,
         text: el.textContent?.trim() ?? '',
         level: Number(el.tagName.slice(1)),
@@ -57,11 +58,13 @@ function usePageHeadings(selectedItem: NavItem | null) {
         const timer2 = window.setTimeout(refreshHeadings, 500)
         // The article renders after its markdown arrives.
         window.addEventListener('aiui:content-loaded', refreshHeadings)
+        window.addEventListener('aiui:toc-refresh', refreshHeadings)
         return () => {
             cancelAnimationFrame(frame)
             window.clearTimeout(timer)
             window.clearTimeout(timer2)
             window.removeEventListener('aiui:content-loaded', refreshHeadings)
+            window.removeEventListener('aiui:toc-refresh', refreshHeadings)
         }
     }, [selectedItem, refreshHeadings])
 

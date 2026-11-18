@@ -145,6 +145,31 @@ Reply to every message with `@aiui.reply`.
 </Step>
 </Steps>
 
+Options: `titleSize="h2"` (or `h3`, `h4`) on `<Steps>` or one `<Step>` makes
+the titles real headings, so they appear in "On this page" and get a link;
+`stepNumber={n}` restarts the count at `n`; `icon="terminal"` draws an icon
+in the circle instead of the number; `id="…"` names the step for a link.
+
+```markdown
+<Steps titleSize="h3">
+<Step title="Install the package" icon="terminal">
+`pip install aiui`
+</Step>
+<Step title="Start the server" stepNumber={3}>
+`aiui run app.py`
+</Step>
+</Steps>
+```
+
+<Steps titleSize="h3">
+<Step title="Install the package" icon="terminal">
+`pip install aiui`
+</Step>
+<Step title="Start the server" stepNumber={3}>
+`aiui run app.py`
+</Step>
+</Steps>
+
 ## Accordions
 
 `<Accordion>` hides detail the reader opens on demand: long output, edge
@@ -173,6 +198,21 @@ Yes. See [Deploy to GitHub Pages](../getting-started/github-pages.md).
 </Accordion>
 </AccordionGroup>
 
+`description="…"` adds a line under the title, `icon="code"` an icon before
+it, and `id="…"` an anchor: `writing-docs#accordion-faq` opens the page with
+that accordion open. A link to a heading inside a closed accordion opens it
+too.
+
+```markdown
+<Accordion title="How do I link to an answer?" description="Give it an id" icon="code" id="accordion-faq">
+Link to `#accordion-faq`; the accordion opens and scrolls into view.
+</Accordion>
+```
+
+<Accordion title="How do I link to an answer?" description="Give it an id" icon="code" id="accordion-faq">
+Link to `#accordion-faq`; the accordion opens and scrolls into view.
+</Accordion>
+
 In MkDocs syntax, `???` makes any callout a disclosure and `???+` starts it
 open.
 
@@ -198,6 +238,40 @@ Run `export OPENAI_API_KEY=sk-...` before `aiui run`.
 </Tab>
 <Tab title="Windows">
 Run `setx OPENAI_API_KEY sk-...`, then open a new terminal.
+</Tab>
+</Tabs>
+
+Tabs sync by title: pick "Windows" once and every set of tabs on the page
+with a "Windows" tab shows it, code groups included. The pick is remembered,
+so the next page opens on it as well, and "On this page" lists only the
+headings of the tabs shown. That covers a page-wide language or platform
+switcher: use the same tab titles in each set. Options:
+
+| Option | What it does |
+|---|---|
+| `sync={false}` on `<Tabs>` | This set keeps its own selection. |
+| `defaultTabIndex={1}` on `<Tabs>` | The tab shown first (counted from 0) until the reader picks one. |
+| `borderBottom` on `<Tabs>` | A rule under the tab content, to set it apart from the text below. |
+| `icon="terminal"` on `<Tab>` | An icon before the title. |
+| `id="…"` on `<Tab>` | An anchor: `#windows-setup` in the URL opens that tab. |
+
+```markdown
+<Tabs defaultTabIndex={1} borderBottom>
+<Tab title="macOS and Linux">
+`export OPENAI_API_KEY=sk-...`
+</Tab>
+<Tab title="Windows" icon="terminal" id="windows-setup">
+`setx OPENAI_API_KEY sk-...`
+</Tab>
+</Tabs>
+```
+
+<Tabs defaultTabIndex={1} borderBottom>
+<Tab title="macOS and Linux">
+`export OPENAI_API_KEY=sk-...`
+</Tab>
+<Tab title="Windows" icon="terminal" id="windows-setup">
+`setx OPENAI_API_KEY sk-...`
 </Tab>
 </Tabs>
 
@@ -364,6 +438,36 @@ poetry add aiui
 
 </CodeGroup>
 
+`<CodeGroup dropdown>` picks the file from a menu in the header instead of
+tabs, for groups with many files or long names. Code groups sync with tabs
+of the same title.
+
+`````markdown
+<CodeGroup dropdown>
+
+```bash pip
+pip install aiui
+```
+
+```bash uv
+uv pip install aiui
+```
+
+</CodeGroup>
+`````
+
+<CodeGroup dropdown>
+
+```bash pip
+pip install aiui
+```
+
+```bash uv
+uv pip install aiui
+```
+
+</CodeGroup>
+
 ## Cards
 
 `<Card>` is a tile with a title, an optional `icon` and an optional `href`
@@ -395,6 +499,57 @@ Icons: `message-square`, `panels-top-left`, `plug`, `book-open`,
 `layout-dashboard`, `shield-check`, `code`, `zap`, `rocket`, `terminal`,
 `bot`, `palette`, `arrow-right`. A list whose items start with bold text also
 becomes a grid of plain cards.
+
+Card options:
+
+| Option | What it does |
+|---|---|
+| `horizontal` | Icon beside the title, one compact row. |
+| `img="images/x.png"` | A header image across the top (relative paths resolve like Markdown images). |
+| `cta="Read the guide"` | A call-to-action line with an arrow at the bottom. |
+| `arrow` / `arrow={false}` | A link arrow in the corner (on by default for links that leave the site). |
+| `color="#0f766e"` | The icon's colour (a hex, `rgb()`, `hsl()` or colour name). |
+
+```markdown
+<CardGroup cols={2}>
+<Card title="Quick start" icon="rocket" horizontal color="#0f766e" href="../getting-started/quickstart.md" />
+<Card title="Themes" img="../images/theme-comparison.png" cta="Pick a theme" href="theming.md">
+Light, dark and the presets side by side.
+</Card>
+</CardGroup>
+```
+
+<CardGroup cols={2}>
+<Card title="Quick start" icon="rocket" horizontal color="#0f766e" href="../getting-started/quickstart.md" />
+<Card title="Themes" img="../images/theme-comparison.png" cta="Pick a theme" href="theming.md">
+Light, dark and the presets side by side.
+</Card>
+</CardGroup>
+
+## Columns
+
+`<Columns cols={2}>` lays any content side by side, one `<Column>` per cell,
+in 1 to 4 columns; on phones the columns stack.
+
+```markdown
+<Columns cols={2}>
+<Column>
+**Python**: `pip install aiui`
+</Column>
+<Column>
+**From source**: `pip install -e ".[dev]"`
+</Column>
+</Columns>
+```
+
+<Columns cols={2}>
+<Column>
+**Python**: `pip install aiui`
+</Column>
+<Column>
+**From source**: `pip install -e ".[dev]"`
+</Column>
+</Columns>
 
 ## Component tags
 

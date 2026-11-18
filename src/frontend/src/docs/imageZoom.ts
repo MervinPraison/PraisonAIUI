@@ -4,7 +4,7 @@
 // delegated handler; nothing in the markdown chunk the chat shares.
 import { useEffect } from 'react'
 
-const ZOOMABLE = '#main-content article.aiui-doc img:not(.katex img)'
+const ZOOMABLE = '#main-content article.aiui-doc img:not(.katex img, .aiui-card-img)'
 const DIALOG_ID = 'aiui-image-zoom'
 
 /** Images worth zooming: not inside a link (a card or a linked badge), not tiny. */

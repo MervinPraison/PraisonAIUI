@@ -321,5 +321,8 @@ export default [
   // 9,151,241 B (measured, raised by exactly the overage, +6,160 B): docs code
   // block options (codeMeta.ts, DocsPre.tsx, docs.css: titles, flags, focus,
   // diff notation, <CodeBlock>).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9151241 B', brotli: false },
+  // 9,160,731 B (measured, raised by exactly the overage, +9,490 B): docs layout
+  // component options (DocsBlocks.tsx, DocsTabs.tsx, tabSync.ts, docs.css) and the
+  // lazy TabsSelect chunk of dropdown code groups.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9160731 B', brotli: false },
 ]
