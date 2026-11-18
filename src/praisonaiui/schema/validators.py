@@ -147,6 +147,8 @@ class ValidationResult:
     errors: list[ValidationError]
     # Non-fatal findings (they never make ``valid`` False).
     warnings: list[ValidationError] = field(default_factory=list)
+    # {source: ApiSpec} (praisonaiui.compiler.openapi), loaded once; the compiler reuses them.
+    api_specs: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def success(cls) -> "ValidationResult":
@@ -198,6 +200,7 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
         warnings.warn(css_warning, UserWarning, stacklevel=2)
 
     found_warnings.extend(layout_warnings(config))
+    api_specs = _check_api_specs(config, base, errors, found_warnings)
 
     # Track component usage
     used_components = set()
@@ -317,7 +320,21 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
     else:
         result = ValidationResult.success()
     result.warnings = found_warnings
+    result.api_specs = api_specs
     return result
+
+
+def _check_api_specs(config: Any, base: Path, errors: list, found: list) -> dict[str, Any]:
+    """Load every OpenAPI spec the config names; report its issues as file:line."""
+    from praisonaiui.compiler.openapi import load_config_specs
+
+    specs = load_config_specs(config, base) if hasattr(config, "api") else {}
+    for issue in (i for spec in specs.values() for i in spec.issues):
+        error = issue.severity == "error"
+        (errors if error else found).append(ValidationError(
+            code=6001 if error else 6002, category="openapi", file=issue.file, line=issue.line,
+            message=str(issue).replace(f"{base.resolve()}/", "")))
+    return specs
 
 
 def builtin_layout_ids() -> list[str]:

@@ -271,6 +271,23 @@ class LogoConfig(BaseModel):
     href: str = "/"
 
 
+class OpenApiSourceConfig(BaseModel):
+    """``{source, directory}`` form of an ``openapi`` entry."""
+
+    source: str  # spec file (relative to the config) or http(s) URL
+    directory: Optional[str] = None  # folder its endpoint pages go under (planned)
+
+
+# `openapi:` takes a path or URL, a {source, directory} object, or a list of either.
+OpenApiRef = Union[str, OpenApiSourceConfig, list[Union[str, OpenApiSourceConfig]]]
+
+
+class ApiConfig(BaseModel):
+    """``api:`` — API reference settings (OpenAPI specs; see docs/features/openapi.md)."""
+
+    openapi: Optional[OpenApiRef] = None
+
+
 class NavGroupConfig(BaseModel):
     """A navigation group within a tab.
 
@@ -285,6 +302,7 @@ class NavGroupConfig(BaseModel):
     prefix: Optional[str] = None
     hidden: bool = False  # pages stay routable but leave the sidebar (and indexing, see seo.indexing)
     pages: list[Union[str, "NavGroupConfig"]] = Field(default_factory=list)
+    openapi: Optional[OpenApiRef] = None
 
     def page_slugs(self) -> list[str]:
         """Every page entry, nested groups flattened, in order."""
@@ -304,6 +322,7 @@ class NavTabConfig(BaseModel):
     url: Optional[str] = None
     hidden: bool = False  # the tab and its groups' pages leave the header and sidebar
     groups: list[NavGroupConfig] = Field(default_factory=list)
+    openapi: Optional[OpenApiRef] = None
 
 
 class NavigationConfig(BaseModel):
@@ -709,6 +728,7 @@ class Config(BaseModel):
     navbar: Optional[NavbarConfig] = None
     footer: Optional[FooterConfig] = None
     search: Optional[SearchConfig] = None
+    api: Optional[ApiConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
