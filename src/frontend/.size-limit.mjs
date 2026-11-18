@@ -350,5 +350,7 @@ export default [
   // one of their icons (scripts/lib/lucide-icons.mjs; ~1,670 drawings, 377 kB).
   // 9,588,481 B (measured, raised by exactly the overage, +14,515 B): the
   // Connect page chunk (app-pages/connect).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9588481 B', brotli: false },
+  // 9,589,637 B (measured, raised by exactly the overage, +1,156 B): docs
+  // branding (logo per mode, strict mode, background decorations in docs.css).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9589637 B', brotli: false },
 ]
