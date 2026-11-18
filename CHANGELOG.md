@@ -405,6 +405,15 @@
   spec (`x-default` first; `api.examples.prefill`), the live curl command, and the response's
   status, time, size, headers and body. Sent from the browser, no proxy. `api.playground.display:
   interactive | simple | none`. Lazy chunk; data in `openapi/try/<page>.json`. See [OpenAPI](docs/features/openapi.md#try-it).
+- **Endpoints on your own pages and in the sidebar.** Front matter `openapi: "GET /users"` (or
+  `"spec.yaml POST /users"`, `"webhook new-user"`) joins that operation to a hand-written page:
+  the endpoint bar and Try it under its title, your Markdown, then the generated fields and
+  examples; the operation gets no second page. `api: "POST /v1/users"` makes an endpoint page
+  without a spec: Try it from the page's `<ParamField>`s, `api.server` and `api.auth`. Navigation
+  `pages:` take `"GET /users"` entries: only the listed operations get pages, where listed. An
+  operation's `x-aiui` sets its page's front matter (`metadata`), Markdown above the generated
+  part (`content`) and URL (`href`). `aiui validate` names an operation no spec has (7012). See
+  [OpenAPI](docs/features/openapi.md#endpoints-on-your-own-pages).
 
 ### Deprecated
 

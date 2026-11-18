@@ -18,10 +18,21 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from praisonaiui.compiler.openapi import ApiSpec, Operation, SpecSource, spec_sources
+from praisonaiui.compiler.openapi import (
+    ApiSpec,
+    Operation,
+    SpecSource,
+    endpoint_ref,
+    find_operation,
+    same_source,
+    spec_sources,
+)
 from praisonaiui.schema.models import NavGroupConfig
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from praisonaiui.compiler.docs_scanner import DocPage
     from praisonaiui.schema.models import Config
 
 DEFAULT_DIRECTORY = "api-reference"
@@ -43,6 +54,24 @@ class ApiPage:
     hidden: bool  # x-hidden: built, routable, not in the sidebar
     order: int = 0  # the group's place in the spec's `tags` list
     playground: dict | None = None  # Try-it data, published as openapi/try/<slug>.json (compiler/playground.py)
+    frontmatter: dict = field(default_factory=dict)  # from the operation's x-aiui metadata (sidebarTitle, tag, ...)
+    pointer: str = ""  # the operation's JSON pointer in its spec
+
+
+@dataclass
+class Embed:
+    """A hand-written page showing one endpoint: front matter ``openapi:`` (``spec`` and ``op``
+    set: the generated reference joins the page) or ``api:`` (neither: the bar and Try it
+    from the page's own ``<ParamField>``s, compiler/playground.py ``manual_data``)."""
+
+    slug: str
+    method: str  # "GET", or "webhook"
+    path: str  # the path, or the webhook name
+    mode: str  # playground display: front matter `playground:`, else api.playground.display
+    spec: ApiSpec | None = None
+    op: Operation | None = None
+    playground: dict | None = None  # Try-it data (openapi/try/<slug>.json)
+    frontmatter: dict = field(default_factory=dict)  # the page's own
 
 
 @dataclass
@@ -52,11 +81,19 @@ class ApiSection:
     ref: SpecSource
     spec: ApiSpec
     pages: list[ApiPage] = field(default_factory=list)
+    listed: set[str] = field(default_factory=set)  # pointers of operations navigation lists: only these get pages
+
+    @property
+    def location(self) -> str:
+        return self.ref.where.split(".openapi")[0]  # "navigation.tabs[0].groups[1]", or "api"
 
     def entries(self) -> list[str | NavGroupConfig]:
         """Sidebar entries: ungrouped pages, then one group per tag (nested by
-        3.2 ``parent``), in the spec's tag order. x-hidden pages are left out."""
+        3.2 ``parent``), in the spec's tag order. x-hidden pages are left out.
+        None when navigation lists the operations (they sit where listed)."""
         root: dict = {"pages": [], "groups": {}}
+        if self.listed:
+            return []
         for page in sorted(self.pages, key=lambda p: p.order):
             if page.hidden:
                 continue
@@ -79,6 +116,8 @@ class ApiReference:
     sections: list[ApiSection]
     config: "Config"  # navigation with the spec entries added (ui-config tabs, manual sidebar)
     extra: list[NavGroupConfig]  # entries for `api.openapi` specs, at the end of the sidebar
+    embeds: dict["Path", Embed] = field(default_factory=dict)  # hand-written endpoint pages by file
+    issues: list[tuple["Path | None", str, str]] = field(default_factory=list)  # (page or None: config, key, message)
 
     @property
     def pages(self) -> list[ApiPage]:
@@ -148,11 +187,53 @@ def group_path(name: str | None, tags: dict[str, dict]) -> tuple[str, ...]:
     return tuple(out)
 
 
-def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
-                        taken: set[str] | None = None) -> ApiReference | None:
+def page_settings(op: Operation) -> dict:
+    """An operation's ``x-aiui`` (over ``x-mint``, the key other docs tools write): ``metadata``
+    (front matter: title, sidebarTitle, description, playground, tag, og:*, ...), ``content``
+    (Markdown above the generated part) and ``href`` (the page URL)."""
+    out: dict = {"metadata": {}}
+    for key in ("x-mint", "x-aiui"):
+        ext = op.extensions.get(key)
+        if isinstance(ext, dict):
+            out.update({k: v for k, v in ext.items() if k != "metadata"})
+            out["metadata"].update(ext["metadata"] if isinstance(ext.get("metadata"), dict) else {})
+    return out
+
+
+def _nav_entries(config: "Config") -> list[tuple[str, int, tuple]]:
+    """``(group location, index, endpoint_ref)`` for each ``METHOD /path`` entry in navigation."""
+    out: list[tuple[str, int, tuple]] = []
+
+    def walk(pages: list, where: str) -> None:
+        for k, p in enumerate(pages):
+            if hasattr(p, "group"):
+                walk(p.pages, f"{where}.pages[{k}]")
+            elif ref := endpoint_ref(p):
+                out.append((where, k, ref))
+
+    nav = config.navigation
+    for i, t in enumerate(nav.tabs if nav else []):
+        for j, g in enumerate(t.groups):
+            walk(g.pages, f"navigation.tabs[{i}].groups[{j}]")
+    for j, g in enumerate(nav.groups if nav else []):
+        walk(g.pages, f"navigation.groups[{j}]")
+    walk(nav.pages if nav else [], "navigation")
+    return out
+
+
+def _inside(where: str, location: str) -> bool:
+    return where == location or where.startswith(location + ".") or location == "api"
+
+
+def build_api_reference(config: "Config", specs: dict[str, ApiSpec], taken: set[str] | None = None,
+                        written: "list[DocPage] | None" = None) -> ApiReference | None:
     """Pages for every spec the config names, or None when it names none.
-    ``taken``: slugs of hand-written pages; a generated page never replaces one."""
-    from praisonaiui.compiler.playground import playground_mode  # it builds on this module
+    ``taken``: slugs of hand-written pages; a generated page never replaces one.
+    ``written``: hand-written pages with ``openapi:`` or ``api:`` front matter (:class:`Embed`)."""
+    from praisonaiui.compiler.playground import (  # it builds on this module
+        playground_data,
+        playground_mode,
+    )
     refs = spec_sources(config)
     in_nav = {r.source for r in refs if not r.where.startswith("api.")}
     taken = set(taken or ())
@@ -161,7 +242,6 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
     examples = config.api.examples if config.api else None
     languages = examples.languages if examples else None
     prefill = examples.prefill if examples else True
-    mode = playground_mode(config.api)
     sections: list[ApiSection] = []
     done: set[tuple] = set()
     for ref in refs:
@@ -171,27 +251,81 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec],
                 ref.where.startswith("api.") and ref.source in in_nav):
             continue
         done.add(key)
-        sections.append(ApiSection(ref, spec, _pages(spec, ref.directory, taken, expand, languages,
-                                                   mode, prefill)))
-    if not sections:
+        sections.append(ApiSection(ref, spec))
+    issues: list[tuple[Path | None, str, str]] = []
+    embeds: dict[Path, Embed] = {}
+    claimed: dict[tuple[str, str], str] = {}  # (spec source, operation pointer) -> the page showing it
+    ordered = list({id(s): s for s in [*(x.spec for x in sections), *specs.values()] if s.document}.values())
+    for page in written or ():
+        fm, key = page.frontmatter, "openapi" if "openapi" in page.frontmatter else "api"
+        ref = endpoint_ref(fm.get(key))
+        mode = playground_mode(config.api, fm)
+        if key == "api" and ref and not ref[0] and ref[1] != "webhook":
+            embeds[page.path.resolve()] = Embed(page.slug, ref[1], ref[2], mode, frontmatter=fm)
+            continue
+        hit = next(((sp, op) for sp in ordered if ref and (not ref[0] or same_source(sp.source, ref[0]))
+                    and (op := find_operation(sp, ref[1], ref[2]))), None) if key == "openapi" else None
+        if hit is None:
+            issues.append((page.path, key, _missing(key, fm.get(key), ref, specs)))
+            continue
+        sp, op = hit
+        embeds[page.path.resolve()] = Embed(page.slug, ref[1], ref[2], mode, sp, op, playground_data(sp, op, prefill)
+                                  if mode == "interactive" and not op.webhook else None, fm)
+        claimed.setdefault((sp.source, op.pointer), page.slug)
+    chosen: dict[tuple[str, int], tuple[ApiSection, Operation] | str | None] = {}
+    for where, k, (file, method, path) in _nav_entries(config):
+        near = sorted((s for s in sections if _inside(where, s.location)), key=lambda s: -len(s.location))
+        cands = [s for s in sections if same_source(s.spec.source, file)] if file else [*near, *sections]
+        hit = next(((s, op) for s in cands if (op := find_operation(s.spec, method, path))), None)
+        if hit is None:
+            issues.append((None, "navigation", _missing("navigation", f"{file or ''} {method} {path}".strip(),
+                                                        (file, method, path), specs)))
+        elif (hit[0].spec.source, hit[1].pointer) in claimed:
+            hit = claimed[(hit[0].spec.source, hit[1].pointer)]
+        elif _inside(where, hit[0].location):
+            hit[0].listed.add(hit[1].pointer)
+        chosen[(where, k)] = hit
+    for hit in chosen.values():  # listed elsewhere, from a spec whose own group lists operations
+        if isinstance(hit, tuple) and hit[0].listed:
+            hit[0].listed.add(hit[1].pointer)
+    if not sections and not embeds and not chosen:
         return None
-    return ApiReference(sections, *_place(config, sections))
+    for s in sections:
+        skip = {p for (src, p) in claimed if src == s.spec.source}
+        s.pages = _pages(s.spec, s.ref.directory, taken, expand, languages, config.api, prefill, s.listed, skip)
+    slugs = {(s.spec.source, p.pointer): p.slug for s in sections for p in s.pages}
+    found = {at: hit if isinstance(hit, str) or hit is None else slugs.get((hit[0].spec.source, hit[1].pointer))
+             for at, hit in chosen.items()}
+    return ApiReference(sections, *_place(config, sections, found), embeds, issues)
+
+
+def _missing(key: str, value: object, ref: tuple | None, specs: dict[str, ApiSpec]) -> str:
+    if ref is None:
+        form = "'METHOD /path'" if key == "api" else "'METHOD /path', 'spec.yaml METHOD /path' or 'webhook name'"
+        return f"{key}: {value!r} should be {form}"
+    if ref[0] and not any(same_source(s, ref[0]) for s in specs):
+        return f"{key}: '{value}' names a spec that is not loaded ({ref[0]})"
+    return f"{key}: '{value}' matches no operation in {'that spec' if ref[0] else 'the OpenAPI specs'}"
 
 
 def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool = False,
-           languages: list[str] | None = None, mode: str = "interactive", prefill: bool = True) -> list[ApiPage]:
-    from praisonaiui.compiler.playground import TRY_DIR, playground_data
+           languages: list[str] | None = None, api: Any = None, prefill: bool = True,
+           only: set[str] | None = None, skip: set[str] | None = None) -> list[ApiPage]:
+    """``only``: pointers of the operations to build (all when empty); ``skip``: ones a hand-written page shows."""
+    from praisonaiui.compiler.playground import TRY_DIR, playground_data, playground_mode
     tags = _tags(spec)
     order = {name: i for i, name in enumerate(tags)}
     folder = _path(directory) or DEFAULT_DIRECTORY
     pages = []
     for op in spec.operations:
-        if op.excluded:
+        if op.excluded or (only and op.pointer not in only) or op.pointer in (skip or ()):
             continue
         tag = nav_tag(op, tags)
         group = group_path(tag, tags) or (("Webhooks",) if op.webhook else ())
-        mint = op.extensions.get("x-mint")
-        href = mint.get("href") if isinstance(mint, dict) and isinstance(mint.get("href"), str) else ""
+        settings = page_settings(op)
+        meta = {k: v for k, v in settings.pop("metadata").items() if isinstance(k, str) and (
+            isinstance(v, (str, int, float, bool)) or (isinstance(v, list) and all(isinstance(x, str) for x in v)))}
+        href = settings.get("href") if isinstance(settings.get("href"), str) else ""
         slug = _path(re.sub(r"^/?docs/", "", href)) or "/".join(x for x in (
             folder, kebab(tag) if tag else "webhooks" if op.webhook else "", op_slug(op)) if x)
         n, base = 1, slug
@@ -199,36 +333,44 @@ def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool =
             n += 1
             slug = f"{base}-{n}"
         taken.add(slug)
-        title = str(op.summary or kebab(op.operation_id).replace("-", " ").capitalize()
+        title = str(meta.pop("title", "") or op.summary or kebab(op.operation_id).replace("-", " ").capitalize()
                     or f"{op.method} {op.path}")
-        description = _first_line(op.description) or (
-            f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}")
+        description = str(meta.pop("description", "") or _first_line(op.description) or (
+            f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}"))
+        mode = playground_mode(api, meta)
         live = mode == "interactive" and not op.webhook
+        content = settings.get("content") if isinstance(settings.get("content"), str) else ""
         text = page_markdown(spec, op, title, description, expand=expand, languages=languages, playground=mode,
-                             src=f"/{TRY_DIR}/{slug}.json" if live else "")
+                             src=f"/{TRY_DIR}/{slug}.json" if live else "", meta=meta, content=content)
         pages.append(ApiPage(slug, title, description, text, group, op.hidden,
                              order.get(tag, len(order)) if tag else len(order) + 1 if op.webhook else -1,
-                             playground_data(spec, op, prefill) if live else None))
+                             playground_data(spec, op, prefill) if live else None, meta, op.pointer))
     return pages
 
 
-def _place(config: "Config", sections: list[ApiSection]) -> tuple["Config", list[NavGroupConfig]]:
-    """The config with each section's entries where it is named, and the
-    ``api.openapi`` sections' "API Reference" groups."""
+def _place(config: "Config", sections: list[ApiSection],
+           found: dict[tuple[str, int], str | None]) -> tuple["Config", list[NavGroupConfig]]:
+    """The config with each section's entries where it is named, ``METHOD /path`` entries
+    replaced by their page (``found``; None: dropped), and the ``api.openapi`` sections'
+    "API Reference" groups."""
     at: dict[str, list[ApiSection]] = {}
     for s in sections:
-        at.setdefault(s.ref.where.split(".openapi")[0], []).append(s)
+        at.setdefault(s.location, []).append(s)
+
+    def entries(pages: list, where: str) -> list:
+        out = [group(p, f"{where}.pages[{k}]") if hasattr(p, "group") else found.get((where, k), p)
+               for k, p in enumerate(pages)]
+        return [p for p in out if p is not None]
 
     def group(g: NavGroupConfig, where: str) -> NavGroupConfig:
-        pages = [group(p, f"{where}.pages[{k}]") if hasattr(p, "group") else p for k, p in enumerate(g.pages)]
-        pages += [e for s in at.get(where, []) for e in s.entries()]
+        pages = entries(g.pages, where) + [e for s in at.get(where, []) for e in s.entries()]
         return g.model_copy(update={"pages": pages})
 
     def wrapped(s: ApiSection, label: str) -> list[NavGroupConfig]:
-        entries = s.entries()
-        loose = [e for e in entries if isinstance(e, str)]
+        items = s.entries()
+        loose = [e for e in items if isinstance(e, str)]
         return [NavGroupConfig(group=label, pages=loose)] * bool(loose) + [
-            e for e in entries if not isinstance(e, str)]
+            e for e in items if not isinstance(e, str)]
 
     nav = config.navigation
     if nav:
@@ -241,8 +383,7 @@ def _place(config: "Config", sections: list[ApiSection]) -> tuple["Config", list
         nav = nav.model_copy(update={
             "tabs": tabs,
             "groups": [group(g, f"navigation.groups[{j}]") for j, g in enumerate(nav.groups)],
-            "pages": [group(p, f"navigation.pages[{k}]") if hasattr(p, "group") else p
-                      for k, p in enumerate(nav.pages)],
+            "pages": entries(nav.pages, "navigation"),
         })
     api = at.get("api", [])
     extra = [NavGroupConfig(group="API Reference" if len(api) == 1 else s.spec.title, pages=s.entries())
@@ -704,37 +845,39 @@ def _callback_lines(spec: ApiSpec, op: Operation) -> list[str]:
     return ["## Callbacks", "", *out] if out else []
 
 
-def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False,
-                  languages: list[str] | None = None, playground: str = "interactive", src: str = "") -> str:
-    """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``;
-    ``languages``: request example languages, ``api.examples.languages``; ``playground``: the display mode,
-    :func:`~praisonaiui.compiler.playground.playground_mode`; ``src``: its Try-it data URL, interactive only)."""
-    from praisonaiui.compiler.code_samples import request_examples  # it builds on this module
-    keywords = [f"{op.method} {op.path}", *([op.operation_id] if op.operation_id else []),
-                *dict.fromkeys(str(p.get("name")) for p in op.parameters if p.get("name"))]
+def bar(method: str, path: str, playground: str = "interactive", src: str = "") -> list[str]:
+    """The endpoint bar (docs/ApiFields.tsx), with ``src`` its Try it button; ``none``: plain text."""
+    if playground == "none":
+        return [f"`{method}` `{path}`", ""]
+    return [f'<ApiPlayground method="{method}" path="{_attr(path)}"'
+            + (f' src="{_attr(src)}"' if src and playground == "interactive" else "") + " />", ""]
+
+
+def keywords(spec: ApiSpec, op: Operation) -> list[str]:
+    """Search terms of an endpoint page: ``METHOD /path``, the operationId, parameter and body field names."""
+    words = [f"{op.method} {op.path}", *([op.operation_id] if op.operation_id else []),
+             *(str(p.get("name")) for p in op.parameters if p.get("name"))]
     _kind, media = _media((op.request_body or {}).get("content"))
-    keywords += [str(k) for k in _children(spec, media.get("schema"))[0]] if media.get("schema") else []
-    front = {"title": title, "description": description,
-             "openapi": f"{spec.source} {'webhook ' if op.webhook else ''}{op.method} {op.path}",
-             "keywords": list(dict.fromkeys(keywords))}
-    lines = ["---", *(f"{k}: {json.dumps(v, ensure_ascii=False)}" for k, v in front.items()), "---", "",
-             f"# {_prose(title)}", ""]
-    if op.webhook:
-        lines += [f"`{op.method}` webhook `{op.path}`: your server receives this request.", ""]
-    elif playground == "none":
-        lines += [f"`{op.method}` `{op.path}`", ""]
-    else:  # the endpoint bar (docs/ApiFields.tsx); with src, its Try it button
-        lines += [f'<ApiPlayground method="{op.method}" path="{_attr(op.path)}"'
-                  + (f' src="{_attr(src)}"' if src and playground == "interactive" else "") + " />", ""]
-    if not op.webhook:
-        servers = [s for s in op.servers if isinstance(s, dict) and s.get("url")]
-        if servers:
-            urls = ", ".join(f"`{server_url(s)}`" for s in servers)
-            lines += [f"{'Servers' if len(servers) > 1 else 'Server'}: {urls}", ""]
-    if op.deprecated:
-        lines += ["<Warning>This endpoint is deprecated.</Warning>", ""]
-    if text := _prose(op.description):
-        lines += [text, ""]
+    words += [str(k) for k in _children(spec, media.get("schema"))[0]] if media.get("schema") else []
+    return list(dict.fromkeys(words))
+
+
+def endpoint_head(spec: ApiSpec, op: Operation, playground: str = "interactive", src: str = "") -> list[str]:
+    """Under the title: the endpoint bar (a webhook's line), its servers and a deprecation notice."""
+    lines = ([f"`{op.method}` webhook `{op.path}`: your server receives this request.", ""] if op.webhook
+             else bar(op.method, op.path, playground, src))
+    servers = [s for s in op.servers if isinstance(s, dict) and s.get("url")] if not op.webhook else []
+    if servers:
+        urls = ", ".join(f"`{server_url(s)}`" for s in servers)
+        lines += [f"{'Servers' if len(servers) > 1 else 'Server'}: {urls}", ""]
+    return lines + (["<Warning>This endpoint is deprecated.</Warning>", ""] if op.deprecated else [])
+
+
+def endpoint_reference(spec: ApiSpec, op: Operation, *, expand: bool = False,
+                       languages: list[str] | None = None) -> list[str]:
+    """Parameters, body, responses, request and response examples, callbacks and the spec link."""
+    from praisonaiui.compiler.code_samples import request_examples  # it builds on this module
+    lines: list[str] = []
     for where, heading in _PARAMS:
         params = [p for p in op.parameters if p.get("in") == where]
         lines += [f"## {heading}", ""] if params else []
@@ -749,8 +892,66 @@ def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *,
     lines += request_examples(spec, op, languages)
     lines += response_examples(spec, op.responses)
     lines += _callback_lines(spec, op)
-    lines += [f"[OpenAPI spec](/openapi/{spec.slug}.json)", ""]
+    return lines + [f"[OpenAPI spec](/openapi/{spec.slug}.json)", ""]
+
+
+def _front_line(key: str, value: Any) -> str:
+    name = key if re.fullmatch(r"[A-Za-z_][\w-]*", key) else json.dumps(key)  # "og:image": quoted
+    return f"{name}: {json.dumps(value, ensure_ascii=False)}"
+
+
+def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *, expand: bool = False,
+                  languages: list[str] | None = None, playground: str = "interactive", src: str = "",
+                  meta: dict | None = None, content: str = "") -> str:
+    """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``;
+    ``languages``: request example languages, ``api.examples.languages``; ``playground``: the display mode,
+    :func:`~praisonaiui.compiler.playground.playground_mode`; ``src``: its Try-it data URL, interactive only;
+    ``meta``: more front matter and ``content``: Markdown above the description, from :func:`page_settings`)."""
+    front = {"title": title, "description": description,
+             "openapi": f"{spec.source} {'webhook ' if op.webhook else ''}{op.method} {op.path}",
+             "keywords": keywords(spec, op), **(meta or {})}
+    lines = ["---", *(_front_line(k, v) for k, v in front.items()), "---", "", f"# {_prose(title)}", "",
+             *endpoint_head(spec, op, playground, src)]
+    lines += [content.strip(), ""] if content.strip() else []
+    if text := _prose(op.description):
+        lines += [text, ""]
+    lines += endpoint_reference(spec, op, expand=expand, languages=languages)
     return "\n".join(lines).rstrip() + "\n"
+
+
+_FRONT = re.compile(r"\A(---[ \t]*\r?\n(?:.*?\r?\n)?)(---[ \t]*(?:\r?\n|\Z))", re.S)
+
+
+def embed_markdown(text: str, embed: Embed, *, expand: bool = False,
+                   languages: list[str] | None = None, servers: list[str] | None = None) -> str:
+    """A hand-written endpoint page with its endpoint joined in: the bar (and servers, deprecation)
+    under the page's ``#`` title, the page's own Markdown, then (``openapi:``) the generated
+    reference. Missing ``title``, ``description`` and ``keywords`` come from the operation;
+    the spec's description shows when the page has no text of its own."""
+    from praisonaiui.compiler.playground import TRY_DIR
+    m = _FRONT.match(text)
+    front, close, body = (m[1], m[2], text[m.end():]) if m else ("---\n", "---\n", text)
+    lines = body.split("\n")
+    first = next((i for i, line in enumerate(lines) if line.strip()), len(lines))
+    h1 = first < len(lines) and re.match(r"#\s", lines[first]) is not None
+    top, rest = (lines[: first + 1], lines[first + 1:]) if h1 else ([], lines)
+    src = f"/{TRY_DIR}/{embed.slug}.json" if embed.mode == "interactive" and embed.method != "webhook" else ""
+    spec, op = embed.spec, embed.op
+    if spec is None or op is None:  # `api:`: the bar and the configured servers
+        head = bar(embed.method, embed.path, embed.mode, src)
+        head += [f"{'Servers' if len(servers or []) > 1 else 'Server'}: "
+                 + ", ".join(f"`{u}`" for u in servers or []), ""] if servers else []
+        tail: list[str] = []
+        add: dict = {"keywords": [f"{embed.method} {embed.path}"]}
+    else:
+        head = endpoint_head(spec, op, embed.mode, src)
+        own = "\n".join(rest).strip()
+        tail = [*([_prose(op.description), ""] if not own and op.description else []),
+                *endpoint_reference(spec, op, expand=expand, languages=languages)]
+        add = {"title": None if h1 else op.summary, "description": _first_line(op.description),
+               "keywords": keywords(spec, op)}
+    front += "".join(_front_line(k, v) + "\n" for k, v in add.items() if v and k not in embed.frontmatter)
+    return front + close + "\n".join([*top, "", *head, *rest, "", *tail]).rstrip() + "\n"
 
 
 def strip_excluded(document: dict) -> dict:

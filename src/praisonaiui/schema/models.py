@@ -414,6 +414,13 @@ class ApiPlaygroundConfig(BaseModel):
     display: Literal["interactive", "simple", "none"] = "interactive"
 
 
+class ApiAuthConfig(BaseModel):
+    """``api.auth``: the credential Try it asks for on ``api:`` pages (a header input)."""
+
+    method: Literal["bearer", "basic", "key", "none"] = "bearer"
+    name: Optional[str] = None  # the header for `key` (default X-API-Key)
+
+
 class ApiConfig(BaseModel):
     """``api:`` — API reference settings (OpenAPI specs; see docs/features/openapi.md)."""
 
@@ -421,6 +428,8 @@ class ApiConfig(BaseModel):
     params: Optional[ApiParamsConfig] = None
     examples: Optional[ApiExamplesConfig] = None
     playground: Optional[ApiPlaygroundConfig] = None
+    server: Optional[Union[str, list[str]]] = None  # base URL(s) of `api: "POST /v1/users"` pages (no spec)
+    auth: Optional[ApiAuthConfig] = None
 
 
 class NavLinkConfig(BaseModel):

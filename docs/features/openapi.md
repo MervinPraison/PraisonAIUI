@@ -67,8 +67,8 @@ requirements), [request examples](#request-examples) in several languages, [resp
 
 URL: `/docs/<directory>/<tag name>/<slug>`, the slug from the `operationId` (`listPets` ->
 `list-pets`, so rewording a summary keeps the URL), else the summary, else method and path
-(`get-pets-id`). `x-mint: {href: /reference/pets}` sets the whole path (kebab-cased, `..`
-dropped). A slug already taken (by a hand-written page or another endpoint) gets `-2`, `-3`.
+(`get-pets-id`). `x-aiui: {href: /reference/pets}` sets the whole path (kebab-cased, `..`
+dropped; see [page settings](#page-settings-in-the-spec)). A slug already taken (by a hand-written page or another endpoint) gets `-2`, `-3`.
 The title is the `summary` as written, else the `operationId` in words. `aiui validate`
 warns about a duplicate tag, an unknown `parent` and a `parent` cycle.
 
@@ -172,8 +172,9 @@ api:
     prefill: true          # false: inputs start empty, the example as placeholder
 ```
 
-Webhooks have no Try it. Front matter `playground:` (same values) sets the display of an
-endpoint page written from a page's `openapi:` front matter **(planned)**.
+Webhooks have no Try it. Front matter `playground:` (same values) sets the display of one
+[`openapi:` or `api:` page](#endpoints-on-your-own-pages), `x-aiui` `metadata.playground` of
+one generated page.
 
 The request goes straight from the reader's browser to your API: no proxy, so it works on a
 static host and keys never pass through a third party, and the browser's CORS rules apply. The
@@ -191,6 +192,81 @@ alone, usable on a hand-written page); the agent `.md` keeps `` `GET` `/pets` ``
 **(planned)**: an Authorization section and auth inputs in Try it (API key, bearer, basic,
 OAuth2), file uploads and streaming responses in Try it, method and `kind: badge` pills in the
 sidebar, a choice picker for `any` fields, `api.optional`, and showing image, audio and video responses inline.
+
+## Endpoints on your own pages
+
+Name an operation in a page's front matter and the page shows it: the endpoint bar and Try it
+under your `#` title, your Markdown, then the generated parameters, body, responses and
+request and response examples.
+
+```markdown
+---
+openapi: "GET /users"
+---
+
+# Listing users
+
+Paging works like this...
+```
+
+- `"GET /users"` looks in every spec the config names; `"admin.yaml POST /users"` in that file
+  (its name is enough; a file only pages name is loaded, relative to `aiui.yaml`, and published);
+  `"webhook user-created"` names a webhook.
+- `title`, `description` and search keywords come from the operation unless the page sets them;
+  the spec's description shows only when the page has no text of its own.
+- The operation gets no generated page of its own: your page replaces it.
+- `playground: simple` (or `none`) on the page changes its Try it display.
+
+### Pages without a spec
+
+`api:` makes an endpoint page from the page alone: the bar, and Try it with an input per
+`<ParamField>` (`placeholder`, else `default`, as the example), per `{param}` in the path, and a
+JSON body of the `body` fields.
+
+```markdown
+---
+api: "POST /v1/users"
+---
+
+<ParamField body="name" type="string" placeholder="Ada" required>The name.</ParamField>
+```
+
+```yaml
+api:
+  server: https://api.example.com     # or a list: a menu in Try it
+  auth: {method: key, name: X-API-Key}  # bearer (default), basic, key or none: a header input
+```
+
+### Endpoints in navigation
+
+A `pages:` entry can be an operation: `"GET /users"`, `"admin.yaml POST /users"` or
+`"webhook user-created"`. Without a file it comes from the nearest group or tab with `openapi`,
+else `api.openapi`, else any spec. When a spec's own group (or `api.openapi`) lists operations,
+only the listed ones get pages, each where it is listed, and no tag groups are added. An entry
+for an operation a page shows (`openapi:` front matter) links that page.
+
+```yaml
+navigation:
+  groups:
+    - group: Users
+      openapi: openapi.yaml
+      pages: [guides/users, "GET /users", "POST /users", "webhook user-created"]
+```
+
+`aiui validate` names a reference that matches no operation (7012).
+
+### Page settings in the spec
+
+An operation's `x-aiui` sets its generated page: `metadata` is front matter (`title`,
+`sidebarTitle`, `description`, `playground`, `tag`, `og:*`, ...), `content` is Markdown shown
+above the description (any docs component works) and `href` the page URL. The `x-mint` key
+other docs tools write is read too; `x-aiui` wins where both set a value.
+
+```yaml
+x-aiui:
+  metadata: {title: Create a user, sidebarTitle: Create, tag: NEW}
+  content: "<Note>Needs an admin key.</Note>"
+```
 
 From Python, `praisonaiui.compiler.openapi.load_spec("openapi.yaml")` returns an `ApiSpec`
 (`ok`, `issues`, `document`, `operations`, `dereference(node)`).

@@ -64,7 +64,9 @@ tag: NEW
 | `robots` | string | The robots meta, such as `noindex, nofollow`; a value with `noindex` also leaves the page out of the sitemap, `llms.txt` and search. |
 | `og:*`, `twitter:*`, `article:*` | string | That head tag for this page (quote the key: `'og:image': /images/card.png`); see [SEO](seo.md#page-level-overrides). |
 | `boost` | number | Search ranking weight (`2` ranks the page higher). |
-| `playground` | string | `interactive`, `simple` or `none`: the Try-it display of an endpoint page written from this page's `openapi:` front matter **(planned)**; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
+| `openapi` | string | `"GET /users"`, `"spec.yaml POST /users"` or `"webhook name"`: the page shows that operation, its endpoint bar, Try it, fields and examples around your text ([OpenAPI](openapi.md#endpoints-on-your-own-pages)). |
+| `api` | string | `"POST /v1/users"`: an endpoint page without a spec, Try it from the page's `<ParamField>`s ([OpenAPI](openapi.md#pages-without-a-spec)). |
+| `playground` | string | `interactive`, `simple` or `none`: the Try-it display of an `openapi:` or `api:` page; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
 | `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
