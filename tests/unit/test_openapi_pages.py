@@ -109,7 +109,9 @@ def test_api_openapi_pages_nav_slugs_and_visibility(tmp_path):
 def test_endpoint_page_source_and_agent_markdown(tmp_path):
     out = build(tmp_path, {"api": {"openapi": "openapi.yaml"}})
     src = (out / "docs/api-reference/pets/create-pet.source.md").read_text()
-    assert src.startswith('---\ntitle: "Create pet"\n') and "\n# Create pet\n\n`POST` `/pets`\n" in src
+    assert src.startswith('---\ntitle: "Create pet"\n') and (
+        '\n# Create pet\n\n<ApiPlayground method="POST" path="/pets" src="/openapi/try/api-reference/pets/create-pet.json" />\n'
+        in src)
     assert "Server: `https://api.example.com/v1`" in src
     assert "<Warning>This endpoint is deprecated.</Warning>" in src
     assert '<ParamField body="name" type="string" required>\n  Its &lt;Name>\n' in src  # allOf merged
@@ -125,7 +127,7 @@ def test_endpoint_page_source_and_agent_markdown(tmp_path):
     hook = (out / "docs/api-reference/webhooks/new-pet-added.source.md").read_text()
     assert "## Payload" in hook and '<ParamField body="id"' in hook
     md = (out / "docs/api-reference/pets/create-pet.md").read_text()
-    assert md.startswith("# Create pet\n\n> POST /pets\n")
+    assert md.startswith("# Create pet\n\n> POST /pets\n") and "\n`POST` `/pets`\n" in md
     assert "- `name` (body, string, required): Its &lt;Name>" in md and "<ParamField" not in md
     assert "(/openapi/openapi.json)" in md
 

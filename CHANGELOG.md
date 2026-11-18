@@ -400,6 +400,11 @@
   document's example, the response with status and time, and a cURL copy without credentials;
   `?op=<operationId>` links one route. See
   [API Reference page and OpenAPI document](docs/features/api-reference.md).
+- **Try it on endpoint pages**: an endpoint bar (method, path, copy) and a Try it form: server
+  menu and variables, path / query / header / cookie inputs and a JSON body, prefilled from the
+  spec (`x-default` first; `api.examples.prefill`), the live curl command, and the response's
+  status, time, size, headers and body. Sent from the browser, no proxy. `api.playground.display:
+  interactive | simple | none`. Lazy chunk; data in `openapi/try/<page>.json`. See [OpenAPI](docs/features/openapi.md#try-it).
 
 ### Deprecated
 

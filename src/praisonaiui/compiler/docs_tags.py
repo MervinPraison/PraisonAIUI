@@ -17,7 +17,7 @@ from pathlib import Path
 KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
     "Steps Step CardGroup Card Columns Column Frame CodeGroup CodeBlock "
-    "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility "
+    "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility ApiPlayground "
     "Callout Badge Tooltip Icon Tile Prompt Tree FileTree Tree.Folder Tree.File Color Color.Row Color.Item".split()
 )
 

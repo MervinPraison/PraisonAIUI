@@ -215,6 +215,8 @@ def _convert(lines: list[str]) -> list[str]:
             elif name == "Accordion":
                 titled(f"**{a.get('title') or 'Details'}**")
                 stack.append(frame)
+            elif name == "ApiPlayground":  # the endpoint bar: its method and path as text
+                titled(f"`{a.get('method', '')}` `{a.get('path', '')}`")
             elif name == "Icon":  # an emoji stays as text; a drawn icon has no words
                 cur += a.get("icon", "") if a.get("icon") and not any(c.isascii() for c in a["icon"]) else ""
             elif name in CONTAINERS:

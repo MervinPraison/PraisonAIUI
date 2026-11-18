@@ -402,6 +402,17 @@ class ApiExamplesConfig(BaseModel):
             raise ValueError(f"unknown language {', '.join(unknown)}; use any of {', '.join(LANGUAGES)}")
         return list(dict.fromkeys(map(language, value)))
 
+    # Try-it inputs start filled from the spec's examples (x-default, example, default);
+    # false leaves them empty with the example as the placeholder.
+    prefill: bool = True
+
+
+class ApiPlaygroundConfig(BaseModel):
+    """``api.playground``: the Try-it panel on endpoint pages (front matter ``playground:`` per page)."""
+
+    # interactive: endpoint bar with Try it; simple: the bar without it; none: method and path as text
+    display: Literal["interactive", "simple", "none"] = "interactive"
+
 
 class ApiConfig(BaseModel):
     """``api:`` — API reference settings (OpenAPI specs; see docs/features/openapi.md)."""
@@ -409,6 +420,7 @@ class ApiConfig(BaseModel):
     openapi: Optional[OpenApiRef] = None
     params: Optional[ApiParamsConfig] = None
     examples: Optional[ApiExamplesConfig] = None
+    playground: Optional[ApiPlaygroundConfig] = None
 
 
 class NavLinkConfig(BaseModel):

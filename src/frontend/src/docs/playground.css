@@ -1,0 +1,47 @@
+/* Try it (docs/ApiPlayground.tsx): a modal <dialog> in a portal on <body>,
+   loaded with its lazy chunk. Tokens only; full screen below 768px. */
+dialog.aiui-try { width: min(72rem, 96vw); max-width: none; height: min(48rem, 92vh); max-height: none; margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl, 12px); background: var(--background); color: var(--foreground); font-family: var(--aiui-font-sans); font-size: 0.875rem; box-shadow: var(--ui-shadow-overlay, none); }
+dialog.aiui-try[open] { display: flex; flex-direction: column; }
+dialog.aiui-try::backdrop { background: var(--ui-scrim, var(--muted)); }
+.aiui-try-head { display: flex; align-items: center; gap: 0.625rem; min-height: 3rem; padding: 0.5rem 0.75rem 0.5rem 1rem; border-bottom: 1px solid var(--border); }
+.aiui-try-title { flex: 1; min-width: 0; font-family: var(--aiui-font-mono); font-weight: 600; overflow-wrap: anywhere; }
+.aiui-try-status, .aiui-try-hint { display: flex; align-items: center; gap: 0.5rem; margin: 0; color: var(--muted-foreground); font-size: 0.8125rem; }
+.aiui-try-status { padding: 1.5rem 1rem; }
+.aiui-try-body { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); overflow: auto; }
+.aiui-try-form, .aiui-try-out { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
+.aiui-try fieldset { display: flex; flex-direction: column; gap: 0.625rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.aiui-try legend { margin-bottom: 0.5rem; padding: 0; font-size: 0.8125rem; font-weight: 600; }
+.aiui-try-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.aiui-try-field label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.375rem; font-size: 0.8125rem; }
+.aiui-try-name { font-family: var(--aiui-font-mono); font-weight: 600; }
+.aiui-try-type { color: var(--ui-text-3); font-family: var(--aiui-font-mono); font-size: 0.75rem; font-weight: 400; }
+.aiui-try-req { color: var(--destructive); font-size: 0.75rem; }
+.aiui-try-select { width: 100%; height: 2rem; padding-inline: 0.5rem; border: 1px solid var(--input); border-radius: var(--radius-md, 8px); background: var(--background); color: var(--foreground); font-size: 0.875rem; }
+.aiui-try-select:focus-visible, .aiui-try textarea:focus-visible, .aiui-try-headers > summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.aiui-try-base { overflow-wrap: anywhere; color: var(--muted-foreground); font-family: var(--aiui-font-mono); font-size: 0.8125rem; }
+.aiui-try-code { width: 100%; margin: 0; padding: 0.75rem; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); background: var(--ui-code-bg, var(--muted)); color: var(--foreground); font-family: var(--aiui-font-mono); font-size: 0.8125rem; line-height: 1.6; white-space: pre; }
+.aiui-try textarea.aiui-try-code { min-height: 10rem; resize: vertical; }
+.aiui-try-out pre.aiui-try-code { max-height: 22rem; }
+.aiui-try-actions { display: flex; justify-content: flex-end; }
+.aiui-try-out section { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.aiui-try-out-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 1.75rem; font-size: 0.8125rem; font-weight: 600; }
+.aiui-try-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; color: var(--muted-foreground); font-weight: 400; }
+.aiui-try-code-pill { padding: 0 0.5rem; border-radius: var(--radius-sm, 6px); background: var(--muted); color: var(--foreground); font-family: var(--aiui-font-mono); font-weight: 600; line-height: 1.5rem; }
+.aiui-try-code-pill[data-tone='2'] { background: var(--ui-success-soft, var(--muted)); }
+.aiui-try-code-pill[data-tone='3'] { background: var(--ui-info-soft, var(--muted)); }
+.aiui-try-code-pill[data-tone='4'] { background: var(--ui-warning-soft, var(--muted)); }
+.aiui-try-code-pill[data-tone='5'] { background: var(--ui-danger-soft, var(--muted)); }
+.aiui-try-error { margin: 0; padding: 0.625rem 0.75rem; border-radius: var(--radius-lg, 10px); background: var(--ui-danger-soft, var(--muted)); }
+.aiui-try-headers > summary { color: var(--muted-foreground); font-size: 0.8125rem; cursor: pointer; }
+.aiui-try-headers dl { display: grid; gap: 0.25rem; margin: 0.5rem 0 0; font-family: var(--aiui-font-mono); font-size: 0.75rem; }
+.aiui-try-headers dl > div { display: flex; flex-wrap: wrap; gap: 0 0.5rem; overflow-wrap: anywhere; }
+.aiui-try-headers dt { color: var(--muted-foreground); }
+.aiui-try-headers dd { margin: 0; }
+@media (min-width: 900px) {
+  .aiui-try-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: hidden; }
+  .aiui-try-form, .aiui-try-out { overflow: auto; }
+  .aiui-try-out { border-left: 1px solid var(--border); background: var(--card); }
+}
+@media (max-width: 767px) {
+  dialog.aiui-try { width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+}
