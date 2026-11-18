@@ -17,7 +17,8 @@ from pathlib import Path
 KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
     "Steps Step CardGroup Card Columns Column Frame CodeGroup CodeBlock "
-    "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility".split()
+    "ParamField ResponseField Expandable Panel RequestExample ResponseExample Visibility "
+    "Callout Badge Tooltip Tile Prompt Tree FileTree Tree.Folder Tree.File Color Color.Row Color.Item".split()
 )
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
@@ -89,7 +90,7 @@ def unknown_tags(text: str) -> list[tuple[int, str]]:
 
 
 def lint_pages(paths: Iterable[Path], root: Path) -> list[str]:
-    """One warning per unknown tag per page: ``docs/a.md:12: <Tree> is not a docs component …``."""
+    """One warning per unknown tag per page: ``docs/a.md:12: <Gadget> is not a docs component …``."""
     warnings: list[str] = []
     for path in paths:
         text = path.read_text(encoding="utf-8")

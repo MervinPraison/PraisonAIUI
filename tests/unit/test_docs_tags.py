@@ -24,7 +24,7 @@ def test_known_tags_match_the_renderer_table():
     """KNOWN_DOCS_TAGS mirrors DOCS_TAG_NAMES (DOCS_TAGS keys + PASSTHROUGH) in docsTags.ts."""
     src = TS_TABLE.read_text(encoding="utf-8")
     table = src[src.index("export const DOCS_TAGS") : src.index("\n}\n", src.index("export const DOCS_TAGS"))]
-    names = set(re.findall(r"^    ([A-Z]\w*):", table, re.M))
+    names = set(re.findall(r"^    '?([A-Z][\w.]*)'?:", table, re.M))
     names |= set(re.findall(r"'([A-Z]\w*)'", re.search(r"PASSTHROUGH = new Set\(\[(.*?)\]\)", src).group(1)))
     assert names == set(KNOWN_DOCS_TAGS)
 
@@ -34,19 +34,19 @@ def test_unknown_tags_are_reported_once_with_their_first_line():
         [
             "# Page",  # 1
             "<Note>known</Note>",  # 2
-            "<Tree>",  # 3
-            '  <Tree.Folder name="app">',  # 4
-            "  </Tree.Folder>",  # 5
-            "</Tree>",  # 6
+            "<Widget>",  # 3
+            '  <Widget.Part name="app">',  # 4
+            "  </Widget.Part>",  # 5
+            "</Widget>",  # 6
             "```mdx",  # 7
             "<InFence />",  # 8
             "```",  # 9
             "Use `<InSpan>` and <B>bold</B>, <DIV>x</DIV>.",  # 10
             "{/* <InComment /> */}",  # 11
-            '<Tree label="again" /> <Color hex="#fff">c</Color>',  # 12
+            '<Widget label="again" /> <Swatch hex="#fff">c</Swatch>',  # 12
         ]
     )
-    assert unknown_tags(md) == [(3, "Tree"), (4, "Tree.Folder"), (12, "Color")]
+    assert unknown_tags(md) == [(3, "Widget"), (4, "Widget.Part"), (12, "Swatch")]
 
 
 def test_comments_are_removed_outside_fences_keeping_line_numbers():
@@ -75,13 +75,13 @@ def _site(tmp_path: Path, page: str) -> Path:
 
 
 def test_build_and_validate_warn_about_unknown_components_with_file_and_line(tmp_path):
-    config = _site(tmp_path, "# Guide\n\n<Note>ok</Note>\n\n<Tree>\nkept {/* hidden */}\n</Tree>\n")
+    config = _site(tmp_path, "# Guide\n\n<Note>ok</Note>\n\n<Widget>\nkept {/* hidden */}\n</Widget>\n")
     out = tmp_path / "out"
     for args in (["build", "--output", str(out)], ["validate"]):
         result = CliRunner().invoke(app, [*args, "--config", str(config)])
         assert result.exit_code == 0, result.output
         text = " ".join(result.output.split())
-        assert "docs/guide.md:5: <Tree> is not a docs component" in text
+        assert "docs/guide.md:5: <Widget> is not a docs component" in text
         assert "<Note>" not in text
     # Agents' full export drops the MDX comment.
     full = (out / "llms-full.txt").read_text(encoding="utf-8")

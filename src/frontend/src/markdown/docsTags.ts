@@ -22,6 +22,10 @@ export interface DocsTag {
     map?: (a: TagAttrs) => Record<string, string | undefined>
     /** Sits inside a sentence (Badge, Tooltip); otherwise a block. */
     inline?: boolean
+    /** Attributes written in Markdown (<Frame caption>): each becomes an `aiui-slot` child rendered by the page. */
+    slots?: readonly string[]
+    /** The attribute that gets the tag's body as written (<Prompt>: the text Copy copies). */
+    raw?: string
 }
 
 const on = (v?: string) => v !== undefined && v !== 'false'
@@ -31,6 +35,11 @@ const anchor = (a: TagAttrs) => (/^[\w-]+$/.test(a.id ?? '') ? a.id : undefined)
 const ICON = ['icon', 'anchor'] as const
 /** `pre={["a", "b"]}` or `pre="a, b"` → `a,b`: the labels shown before or after a field's name. */
 const labels = (v?: string) => v?.replace(/^\[|\]$/g, '').split(',').map((s) => s.trim().replace(/^(["'])(.*)\1$/, '$2')).filter(Boolean).join(',')
+const folder = (a: TagAttrs) => ({
+    name: a.name, opened: on(a.defaultOpen) ? 'true' : undefined, fixed: a.openable === 'false' ? 'true' : undefined, hl: on(a.highlight) ? 'true' : undefined,
+})
+/** `value={{ light: "#fff", dark: "#000" }}` → the one mode's colour. */
+const shade = (v: string | undefined, mode: string) => new RegExp(`\\b${mode}\\s*:\\s*["']([^"']+)["']`).exec(v ?? '')?.[1]
 /** <ParamField path|query|body|header="name"> and <ResponseField name>: one field row (docs/ApiFields.tsx). */
 const FIELD_IN = ['path', 'query', 'body', 'header'] as const
 const apiField = (response: boolean): DocsTag => ({
@@ -79,7 +88,24 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Columns: { el: 'aiui-cards', attrs: ['cols'] },
     Column: { el: 'aiui-column' },
     Card: { el: 'aiui-card', attrs: ['title', 'icon', 'href', 'horizontal', 'img', 'cta', 'arrow', 'color'] },
-    Frame: { el: 'aiui-frame', attrs: ['caption'] },
+    Frame: { el: 'aiui-frame', slots: ['hint', 'caption'] },
+    // <Callout icon color>: a callout in any colour; Badge and Tooltip sit inside a sentence.
+    Callout: { el: 'aiui-admonition', attrs: ['type', 'title', 'icon', 'color'], map: (a) => ({ type: 'callout', title: a.title, icon: a.icon, color: a.color }) },
+    Badge: {
+        el: 'aiui-badge', attrs: ['color', 'size', 'shape', 'icon', 'stroke', 'off'], inline: true,
+        map: (a) => ({ ...a, stroke: on(a.stroke) ? 'true' : undefined, off: on(a.disabled) ? 'true' : undefined }),
+    },
+    Tooltip: { el: 'aiui-tooltip', attrs: ['tip', 'headline', 'cta', 'href'], inline: true },
+    Tile: { el: 'aiui-tile', attrs: ['href', 'description'], slots: ['title'] },
+    Prompt: { el: 'aiui-prompt', attrs: ['actions', 'icon', 'text'], slots: ['description'], raw: 'text', map: (a) => ({ ...a, actions: labels(a.actions) }) },
+    // A file tree; <Tree> around a Markdown list works too (treeLists below).
+    Tree: { el: 'aiui-tree' },
+    FileTree: { el: 'aiui-tree' },
+    'Tree.Folder': { el: 'aiui-tree-folder', attrs: ['name', 'opened', 'fixed', 'hl'], map: folder },
+    'Tree.File': { el: 'aiui-tree-file', attrs: ['name', 'hl'], map: (a) => ({ name: a.name, hl: on(a.highlight) ? 'true' : undefined }) },
+    Color: { el: 'aiui-colors', attrs: ['variant'] },
+    'Color.Row': { el: 'aiui-color-row', slots: ['title'] },
+    'Color.Item': { el: 'aiui-color', attrs: ['name', 'value', 'dark'], map: (a) => ({ name: a.name, value: shade(a.value, 'light') ?? a.value, dark: shade(a.value, 'dark') }) },
     ParamField: apiField(false),
     ResponseField: apiField(true),
     Expandable: { el: 'aiui-expandable', attrs: ['title', 'opened'], map: (a) => ({ title: a.title, opened: on(a.defaultOpen) ? 'true' : undefined }) },
@@ -98,8 +124,57 @@ export const DOCS_TAG_NAMES: readonly string[] = [...Object.keys(DOCS_TAGS), ...
 /** Element → attributes for the docs sanitizer (Markdown `allowElements`). */
 export const DOCS_ALLOWED_ELEMENTS: Readonly<Record<string, readonly string[]>> = {}
 for (const t of Object.values(DOCS_TAGS)) (DOCS_ALLOWED_ELEMENTS as Record<string, string[]>)[t.el] = [...(DOCS_ALLOWED_ELEMENTS[t.el] ?? []), ...(t.attrs ?? [])]
+;(DOCS_ALLOWED_ELEMENTS as Record<string, string[]>)['aiui-slot'] = ['slot']
 
-const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '&#10;')
+
+/** The body of a tag opened at `lines[li]` (after `rest`) up to its close tag, dedented as written. */
+function rawBody(lines: string[], li: number, rest: string, name: string): string {
+    const end = `</${name}>`
+    const body = [rest]
+    for (let i = li + 1; !body[body.length - 1].includes(end) && i < lines.length; i++) body.push(lines[i])
+    body[body.length - 1] = body[body.length - 1].split(end)[0]
+    const pad = Math.min(...body.filter((l) => l.trim()).map(leading))
+    return body.map((l) => l.slice(Math.min(pad, leading(l)))).join('\n').trim()
+}
+
+const TREE_OPEN = /^\s*<(Tree|FileTree)\s*>\s*$/
+const TREE_ITEM = /^(\s*)[-*+]\s+(.*?)\s*$/
+
+/**
+ * `<Tree>` around a Markdown list (it reads on GitHub too) → <Tree.Folder> /
+ * <Tree.File> tags: an item ending in `/` or with items under it is a folder
+ * (open), `**name**` is highlighted. Any other body is left as written.
+ */
+export function treeLists(md: string): string {
+    const lines = md.split('\n')
+    let fence: string | null = null
+    for (let i = 0; i < lines.length; i++) {
+        const f = FENCE.exec(lines[i])?.[1]
+        if (f && (!fence || (f[0] === fence[0] && f.length >= fence.length))) fence = fence ? null : f
+        const open = !fence && TREE_OPEN.exec(lines[i])
+        if (!open) continue
+        const close = lines.findIndex((l, k) => k > i && l.trim() === `</${open[1]}>`)
+        const items = lines.slice(i + 1, close).filter((l) => l.trim()).map((l) => TREE_ITEM.exec(l))
+        if (close < 0 || !items.length || items.some((m) => !m)) continue
+        const out: string[] = []
+        const depth: number[] = []
+        items.forEach((m, k) => {
+            const [indent, text] = [m![1].length, m![2]]
+            for (; depth.length && depth[depth.length - 1] >= indent; depth.pop()) out.push('</Tree.Folder>')
+            const hl = /^\*\*(.+)\*\*$/.exec(text)
+            const name = (hl ? hl[1] : text).replace(/"/g, "'")
+            const isFolder = name.endsWith('/') || (items[k + 1]?.[1].length ?? 0) > indent
+            const attrs = `name="${name.replace(/\/$/, '')}"${hl ? ' highlight' : ''}`
+            if (isFolder) depth.push(indent)
+            out.push(isFolder ? `<Tree.Folder ${attrs} defaultOpen>` : `<Tree.File ${attrs} />`)
+        })
+        out.push(...depth.map(() => '</Tree.Folder>'))
+        lines.splice(i + 1, close - i - 1, ...out)
+        i += out.length
+    }
+    return lines.join('\n')
+}
 
 /** `<el a="…">` with only the attributes the table names for it. */
 function openTag(spec: DocsTag, a: TagAttrs): string {
@@ -200,7 +275,7 @@ function codeBlockAt(lines: string[], li: number, first: string): [string[], num
 
 /** Rewrites docs component tags into the `aiui-*` elements the docs renderer draws. */
 export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_TAGS): string {
-    const lines = md.split('\n')
+    const lines = treeLists(md).split('\n')
     const out: string[] = []
     const stack: Open[] = []
     let fence: string | null = null
@@ -312,7 +387,14 @@ export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_
                     }
                     const indent = lineIndent()
                     if (spec) {
+                        if (spec.raw && !tag.selfClosing) tag.attrs[spec.raw] = rawBody(lines, li, s.slice(i), tag.name)
                         emitBlock(openTag(spec, tag.attrs), indent)
+                        for (const k of spec.slots ?? []) {
+                            if (!tag.attrs[k]?.trim()) continue
+                            emitBlock(`<aiui-slot slot="${k}">`, indent)
+                            out.push(indent + tag.attrs[k].trim(), '')
+                            emitBlock('</aiui-slot>', indent)
+                        }
                         if (tag.selfClosing) emitBlock(`</${spec.el}>`, indent)
                         else stack.push({ name: tag.name, spec, indent, strip: s.slice(i).trim() ? 0 : null })
                     } else if (!tag.selfClosing && !cur.trim() && !s.slice(i).trim()) {

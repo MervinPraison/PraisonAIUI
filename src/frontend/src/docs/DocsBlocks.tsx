@@ -13,6 +13,7 @@ import { isExternal } from './chrome'
 import { cardHref } from './cardHref'
 import { DocsHomeIcon } from './docsHomeIcons'
 import { DocsTabs } from './DocsTabs'
+import { Badge, ColorItem, ColorRow, Colors, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
 
 type BlockProps = { title?: string; children?: ReactNode }
 type CardProps = BlockProps & {
@@ -20,8 +21,6 @@ type CardProps = BlockProps & {
 }
 
 const on = (v?: string) => v !== undefined && v !== 'false'
-/** An author's colour (`#0f766e`, `teal`, `rgb(…)`): kept only when it is plainly one. */
-const COLOR = /^(#[\da-f]{3,8}|[a-z]{3,20}|(rgb|hsl|oklch)a?\([\d\s.,%/-]+\))$/i
 
 function Card({ title, icon, href, horizontal, img, cta, arrow, color, children }: CardProps) {
     const glyph = icon ? <DocsHomeIcon name={icon} /> : null
@@ -48,7 +47,7 @@ function Card({ title, icon, href, horizontal, img, cta, arrow, color, children 
         className: 'aiui-card',
         'data-horizontal': on(horizontal) ? '' : undefined,
         'data-img': image ? '' : undefined,
-        style: color && COLOR.test(color) ? ({ '--aiui-card-accent': color } as CSSProperties) : undefined,
+        style: accent(color) ? ({ '--aiui-card-accent': accent(color) } as CSSProperties) : undefined,
     }
     if (!href) return <div {...props}>{inner}</div>
     return (
@@ -99,19 +98,34 @@ function Cards({ cols, children }: BlockProps & { cols?: string | number }) {
 
 const Column = ({ children }: BlockProps) => <div className="aiui-column">{children}</div>
 
-/** Callouts and accordions: the shared Admonition, plus the docs' icon, description and anchor. */
-function DocsAdmonition({ icon, anchor, ...rest }: Parameters<typeof Admonition>[0] & { icon?: string; anchor?: string }) {
-    return <Admonition {...rest} id={anchor} icon={icon ? <DocsHomeIcon name={icon} className="aiui-admonition-icon" /> : undefined} />
+type DocsAdmonitionProps = Parameters<typeof Admonition>[0] & { icon?: string; anchor?: string; color?: string }
+
+/** Callouts and accordions: the shared Admonition, plus the docs' icon, description, anchor and <Callout color>. */
+function DocsAdmonition({ icon, anchor, color, ...rest }: DocsAdmonitionProps) {
+    const tone = accent(color)
+    return (
+        <Admonition
+            {...rest}
+            id={anchor}
+            icon={icon ? <DocsHomeIcon name={icon} className="aiui-admonition-icon" /> : undefined}
+            style={tone ? ({ '--aiui-callout-accent': tone } as CSSProperties) : undefined}
+        />
+    )
 }
 
 const CardTag = ({ href, ...rest }: CardProps) => <Card {...rest} href={href ? cardHref(href) : undefined} />
 
-function Frame({ caption, children }: BlockProps & { caption?: string }) {
+/** A mat around an image; `hint` (Markdown) is a line above it, `caption` (Markdown) sits under it. */
+function Frame({ children }: BlockProps) {
+    const [{ hint, caption }, rest] = slots(children)
     return (
-        <figure className="aiui-frame">
-            {children}
-            {caption && <figcaption>{caption}</figcaption>}
-        </figure>
+        <>
+            {hint && <div className="aiui-frame-hint">{hint}</div>}
+            <figure className="aiui-frame">
+                {rest}
+                {caption && <figcaption>{caption}</figcaption>}
+            </figure>
+        </>
     )
 }
 
@@ -134,4 +148,15 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-expandable': Expandable,
     'aiui-panel': Panel,
     'aiui-visibility': Visibility,
+    'aiui-slot': Slot,
+    'aiui-badge': Badge,
+    'aiui-tooltip': Tooltip,
+    'aiui-tile': Tile,
+    'aiui-prompt': Prompt,
+    'aiui-tree': Tree,
+    'aiui-tree-folder': TreeFolder,
+    'aiui-tree-file': TreeFile,
+    'aiui-colors': Colors,
+    'aiui-color-row': ColorRow,
+    'aiui-color': ColorItem,
 }

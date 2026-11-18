@@ -193,7 +193,8 @@ Docs tags are driven by one table, `DOCS_TAGS` in
 1. An entry: the `aiui-*` element it becomes (`el`), the lower-case
    attributes the sanitizer keeps (`attrs`), an optional `map` from the
    author's attributes, and `inline: true` for a tag inside a sentence:
-   `Badge: { el: 'aiui-badge', attrs: ['color'], inline: true }`.
+   `Badge: { el: 'aiui-badge', attrs: ['color'], inline: true }`. `slots: ['caption']`
+   renders an attribute as Markdown (an `aiui-slot` child; `slots()` in `docs/DocsWidgets.tsx`).
 2. Its React component under the same element name in `DOCS_TAG_COMPONENTS`
    (`src/frontend/src/docs/DocsBlocks.tsx`): those attributes are its props.
 3. The name in `KNOWN_DOCS_TAGS` (`src/praisonaiui/compiler/docs_tags.py`) so

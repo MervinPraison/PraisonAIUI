@@ -44,7 +44,7 @@ class CompileResult:
     error: str | None = None
     #: Docs paths left out of the output (content.docs.exclude, .aiuiignore); folders end in "/".
     excluded: list[str] = field(default_factory=list)
-    #: Problems that did not stop the build, e.g. ``docs/a.md:3: <Tree> is not a docs component …``.
+    #: Problems that did not stop the build, e.g. ``docs/a.md:3: <Gadget> is not a docs component …``.
     warnings: list[str] = field(default_factory=list)
 
 

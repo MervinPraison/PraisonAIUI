@@ -1095,6 +1095,108 @@ img.aiui-docs-mark {
   line-height: 1.5;
   text-align: center;
 }
+/* Markdown attributes (<Frame caption>, <Tile title>, ...): one paragraph, no margins. */
+.aiui-docs article.aiui-doc .aiui-slot > * { margin: 0; }
+.aiui-docs article.aiui-doc .aiui-frame-hint { margin: 1.5rem 0 -0.75rem; color: var(--muted-foreground); font-size: 0.875rem; }
+.aiui-docs article.aiui-doc .aiui-frame-hint :is(p, li) { color: inherit !important; }
+
+/* <Callout icon color>: the author's colour (or a token) as the tone; a named icon replaces the default one. */
+.aiui-docs article.aiui-doc .aiui-admonition[data-type='callout'] {
+  --tone: var(--aiui-callout-accent, var(--ui-link)); --tone-soft: color-mix(in oklab, var(--tone) 9%, var(--background));
+  --tone-line: color-mix(in oklab, var(--tone) 30%, var(--background));
+}
+.aiui-docs article.aiui-doc .aiui-admonition[data-type='callout']:has(.aiui-admonition-icon)::before { display: none; }
+.aiui-docs article.aiui-doc .aiui-admonition[data-type='callout'] .aiui-admonition-icon { position: absolute; top: 0.9375rem; left: 1rem; margin: 0; color: var(--tone); }
+
+/* <Badge>: a tone tint (stroke: a hairline instead), sizes xs to lg, pill shape. */
+.aiui-docs article.aiui-doc .aiui-badge {
+  --aiui-tone: var(--muted-foreground); display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.0625rem 0.4375rem; border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px); background: color-mix(in oklab, var(--aiui-tone) 13%, transparent); color: color-mix(in oklab, var(--aiui-tone) 78%, var(--foreground));
+  font-size: 0.75rem; font-weight: 500; line-height: 1.5; vertical-align: 0.0625rem; white-space: nowrap;
+}
+.aiui-docs article.aiui-doc .aiui-badge svg { width: 0.875em; height: 0.875em; }
+.aiui-docs article.aiui-doc .aiui-badge[data-stroke] { background: transparent; border-color: color-mix(in oklab, var(--aiui-tone) 45%, transparent); }
+.aiui-docs article.aiui-doc .aiui-badge[data-shape='pill'] { border-radius: 999px; }
+.aiui-docs article.aiui-doc .aiui-badge[data-size='xs'] { font-size: 0.625rem; padding-inline: 0.3125rem; }
+.aiui-docs article.aiui-doc .aiui-badge[data-size='sm'] { font-size: 0.6875rem; }
+.aiui-docs article.aiui-doc .aiui-badge[data-size='lg'] { font-size: 0.875rem; padding: 0.125rem 0.5625rem; }
+.aiui-docs article.aiui-doc .aiui-badge[aria-disabled] { opacity: 0.5; }
+
+/* <Tooltip>: a dotted term; the tip shows on hover or focus (and stays while the pointer is on it). */
+.aiui-docs article.aiui-doc .aiui-tooltip { position: relative; border-bottom: 1px dotted var(--muted-foreground); cursor: help; }
+.aiui-docs article.aiui-doc .aiui-tooltip:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 2px; }
+.aiui-docs article.aiui-doc .aiui-tooltip-tip {
+  position: absolute; bottom: 100%; left: 50%; z-index: 30; display: flex; flex-direction: column; gap: 0.25rem; width: max-content; max-width: min(18rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.75rem; margin-bottom: 0.375rem; border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--popover);
+  color: var(--popover-foreground); box-shadow: var(--ui-shadow-float); font-size: 0.8125rem; font-weight: 400; line-height: 1.45; white-space: normal; cursor: auto;
+  transform: translateX(calc(-50% + var(--aiui-tip-dx, 0px))); visibility: hidden; opacity: 0; transition: opacity 120ms;
+}
+.aiui-docs article.aiui-doc .aiui-tooltip-tip::after { content: ''; position: absolute; inset: 100% 0 -0.5rem; } /* a bridge to the term */
+.aiui-docs article.aiui-doc .aiui-tooltip:is(:hover, :focus-within):not([data-hidden]) > .aiui-tooltip-tip { visibility: visible; opacity: 1; }
+.aiui-docs article.aiui-doc .aiui-tooltip-tip a { color: var(--ui-link); font-weight: 500; }
+
+/* <Tile>: a preview area, then the title and description; laid out by <Columns>. */
+.aiui-docs article.aiui-doc .aiui-tile { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; color: var(--foreground); font-weight: 400; text-decoration: none; }
+.aiui-docs article.aiui-doc .aiui-tile-preview {
+  display: grid; place-items: center; aspect-ratio: 16 / 9; margin-bottom: 0.375rem; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl, 12px);
+  background: var(--muted);
+}
+.aiui-docs article.aiui-doc .aiui-tile-preview :is(img, svg, p) { max-width: 100%; max-height: 100%; margin: 0; border: 0; }
+.aiui-docs article.aiui-doc a.aiui-tile:hover .aiui-tile-preview { border-color: var(--input); }
+.aiui-docs article.aiui-doc .aiui-tile > .aiui-slot { font-weight: 600; }
+.aiui-docs article.aiui-doc a.aiui-tile:hover > .aiui-slot { color: var(--ui-link); }
+.aiui-docs article.aiui-doc .aiui-tile-desc { color: var(--muted-foreground); font-size: 0.875rem; }
+
+/* <Prompt>: a card with the prompt folded and its actions. */
+.aiui-docs article.aiui-doc .aiui-prompt { margin-block: 1.25rem; padding: 0.875rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-xl, 12px); background: var(--card); }
+.aiui-docs article.aiui-doc .aiui-prompt-head { display: flex; gap: 0.5rem; align-items: flex-start; }
+.aiui-docs article.aiui-doc .aiui-prompt-head svg { flex: none; width: 1rem; height: 1rem; margin-top: 0.25rem; color: var(--ui-link); }
+.aiui-docs article.aiui-doc .aiui-prompt summary { margin-top: 0.5rem; color: var(--muted-foreground); font-size: 0.8125rem; cursor: pointer; }
+.aiui-docs article.aiui-doc .aiui-prompt-body { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-left: 2px solid var(--border); font-size: 0.875rem; }
+.aiui-docs article.aiui-doc .aiui-prompt-body > :first-child { margin-top: 0; }
+.aiui-docs article.aiui-doc .aiui-prompt-body > :last-child { margin-bottom: 0; }
+.aiui-docs article.aiui-doc .aiui-prompt-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.aiui-docs article.aiui-doc .aiui-prompt-actions > * {
+  display: inline-flex; align-items: center; min-height: 2rem; padding: 0 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md, 8px);
+  background: var(--background); color: var(--foreground); font-size: 0.8125rem; font-weight: 500; text-decoration: none; cursor: pointer;
+}
+.aiui-docs article.aiui-doc .aiui-prompt-actions > :hover { background: var(--muted); }
+.aiui-docs article.aiui-doc .aiui-prompt-actions > :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* <Tree>: folder and file rows; folders fold; highlight marks the current item. */
+.aiui-docs article.aiui-doc .aiui-tree {
+  --tree-highlight: var(--ui-link); margin-block: 1.25rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-lg, 10px);
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.8125rem; line-height: 1.5;
+}
+.aiui-docs article.aiui-doc .aiui-tree-row { display: flex; align-items: center; gap: 0.375rem; min-height: 1.75rem; padding: 0 0.375rem; border-radius: var(--radius-sm, 6px); list-style: none; cursor: default; }
+.aiui-docs article.aiui-doc summary.aiui-tree-row { cursor: pointer; }
+.aiui-docs article.aiui-doc summary.aiui-tree-row::-webkit-details-marker { display: none; }
+.aiui-docs article.aiui-doc .aiui-tree-row:hover { background: var(--muted); }
+.aiui-docs article.aiui-doc .aiui-tree-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.aiui-docs article.aiui-doc .aiui-tree-row svg { flex: none; width: 0.9375rem; height: 0.9375rem; color: var(--muted-foreground); }
+.aiui-docs article.aiui-doc .aiui-tree-file { padding-left: 1.6875rem; }
+.aiui-docs article.aiui-doc .aiui-tree-chevron { transition: transform 120ms; }
+.aiui-docs article.aiui-doc :is(details[open], [data-open]) > .aiui-tree-row > .aiui-tree-chevron { transform: rotate(90deg); }
+.aiui-docs article.aiui-doc .aiui-tree-children { margin-left: 0.8125rem; padding-left: 0.5rem; border-left: 1px solid var(--border); }
+.aiui-docs article.aiui-doc [data-hl] { color: var(--tree-highlight); }
+.aiui-docs article.aiui-doc .aiui-tree-row[data-hl], .aiui-docs article.aiui-doc [data-hl] > .aiui-tree-row { background: color-mix(in oklab, var(--tree-highlight) 10%, transparent); font-weight: 600; }
+.aiui-docs article.aiui-doc [data-hl] > .aiui-tree-row svg { color: inherit; }
+
+/* <Color>: swatches in a wrap (compact) or labelled rows (table); dark mode shows the dark value. */
+.aiui-docs article.aiui-doc .aiui-colors { display: grid; gap: 0.75rem; margin-block: 1.25rem; }
+.aiui-docs article.aiui-doc .aiui-colors[data-variant='compact'], .aiui-docs article.aiui-doc .aiui-color-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.75rem; }
+.aiui-docs article.aiui-doc .aiui-color-row { display: grid; gap: 0.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.aiui-docs article.aiui-doc .aiui-color-row > .aiui-slot { font-weight: 600; font-size: 0.875rem; }
+.aiui-docs article.aiui-doc .aiui-color {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.125rem; min-width: 0; padding: 0; border: 0; background: none; color: var(--foreground); font-size: 0.8125rem;
+  text-align: left; cursor: copy;
+}
+.aiui-docs article.aiui-doc .aiui-color:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--radius-md, 8px); }
+.aiui-docs article.aiui-doc .aiui-color-swatch { width: 100%; height: 3rem; margin-bottom: 0.25rem; border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--aiui-swatch); }
+.dark .aiui-docs article.aiui-doc .aiui-color-swatch { background: var(--aiui-swatch-dark); }
+.aiui-docs article.aiui-doc .aiui-color-name { font-weight: 500; }
+.aiui-docs article.aiui-doc .aiui-color code { color: var(--muted-foreground); font-size: 0.75rem; overflow-wrap: anywhere; }
+
 /* Click to zoom (docs/imageZoom.ts). */
 .aiui-docs article.aiui-doc img[data-zoom] { cursor: zoom-in; }
 .aiui-docs article.aiui-doc img[data-zoom]:focus-visible {
