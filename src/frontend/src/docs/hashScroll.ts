@@ -4,6 +4,26 @@
 // Content.tsx) or at once when the page is already on screen.
 import { useEffect } from 'react'
 
+/**
+ * Show what hides `el`: open the closed accordions around it and pick the tab
+ * that holds it or that it names (`<Tab id>`, `<Accordion id>`). True when
+ * anything changed (the layout settles a frame later).
+ */
+export function revealTarget(el: Element): boolean {
+    let changed = false
+    for (let n: Element | null = el; n; n = n.parentElement) {
+        if (n instanceof HTMLDetailsElement && !n.open) n.open = changed = true
+        const tab = n.getAttribute('role') === 'tabpanel' && (n as HTMLElement).hidden
+            ? document.getElementById(n.getAttribute('aria-labelledby') ?? '')
+            : n.getAttribute('role') === 'tab' && n.getAttribute('aria-selected') !== 'true' ? n : null
+        if (tab instanceof HTMLElement) {
+            tab.click()
+            changed = true
+        }
+    }
+    return changed
+}
+
 /** Scroll the element named by `hash` to the top of the reading area; false when it is not on the page. */
 export function scrollToHash(hash: string = typeof window === 'undefined' ? '' : window.location.hash): boolean {
     let id = hash.replace(/^#/, '')
@@ -16,7 +36,8 @@ export function scrollToHash(hash: string = typeof window === 'undefined' ? '' :
     const el = document.getElementById(id)
     if (!el) return false
     // Headings carry a scroll-margin for the sticky header (docs.css).
-    el.scrollIntoView({ block: 'start' })
+    if (revealTarget(el)) window.requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }))
+    else el.scrollIntoView({ block: 'start' })
     return true
 }
 
@@ -79,12 +100,16 @@ export function useHashScroll(active: boolean): void {
                 cancel = scrollWhenReady(() => touched)
             })
         }
+        // A same-page `#id` link: the browser cannot jump into a closed accordion or a hidden tab.
+        const onHash = () => scrollToHash()
         window.addEventListener('aiui:content-loaded', onLoaded)
+        window.addEventListener('hashchange', onHash)
         for (const type of READER_INPUT) window.addEventListener(type, onInput, { passive: true })
         onLoaded()
         return () => {
             cancel()
             window.removeEventListener('aiui:content-loaded', onLoaded)
+            window.removeEventListener('hashchange', onHash)
             for (const type of READER_INPUT) window.removeEventListener(type, onInput)
         }
     }, [active])

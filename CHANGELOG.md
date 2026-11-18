@@ -237,6 +237,16 @@
   `<CodeBlock>` takes the same options as attributes. Flags were shown as
   file names before. Chat code blocks are unchanged. See
   [Writing docs pages](docs/features/writing-docs.md#code-block-options).
+- Docs layout components: `<Columns cols>` / `<Column>` (stack on phones);
+  card `horizontal`, `img`, `cta`, `arrow`, `color`; step `titleSize`
+  (titles join "On this page"), `stepNumber`, `icon`, `id`; accordion
+  `description`, `icon`, `id`; tab `icon`, `id`, `defaultTabIndex`,
+  `borderBottom`; `<CodeGroup dropdown>` (attributes no longer break a code
+  group). Tabs and code groups sync by title across the page and remember
+  the reader's pick on later pages (`sync={false}` opts out); "On this page"
+  lists only the shown tab's headings; `#id` in the URL opens the tab or
+  accordion it names, and the accordion around a linked heading. See
+  [Writing docs pages](docs/features/writing-docs.md#columns).
 
 ### Deprecated
 

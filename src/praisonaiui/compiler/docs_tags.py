@@ -16,7 +16,7 @@ from pathlib import Path
 #: Mirrors ``DOCS_TAG_NAMES`` in ``src/frontend/src/markdown/docsTags.ts``.
 KNOWN_DOCS_TAGS = frozenset(
     "Note Info Tip Check Warning Danger Accordion AccordionGroup Tabs Tab "
-    "Steps Step CardGroup Card Frame CodeGroup CodeBlock".split()
+    "Steps Step CardGroup Card Columns Column Frame CodeGroup CodeBlock".split()
 )
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")

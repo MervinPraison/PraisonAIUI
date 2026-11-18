@@ -81,7 +81,8 @@ export function stripMkdocsGridWrappers(text: string): string {
     return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
 }
 
-const CODE_GROUP_OPEN = /^\s*<CodeGroup>\s*$/i
+// Attributes are allowed: `<CodeGroup dropdown>` picks the file from a menu instead of tabs.
+const CODE_GROUP_OPEN = /^\s*<CodeGroup\b([^>]*)>\s*$/i
 const CODE_GROUP_CLOSE = /^\s*<\/CodeGroup>\s*$/i
 
 /** A fence's tab label in a code group: its title (docs/codeMeta.ts), else its language. */
@@ -94,7 +95,7 @@ function fenceLabel(info: string): string {
  * `<CodeGroup>` … `</CodeGroup>` around fences → one set of tabs, one tab per
  * fence, labelled with its file name or language (the MkDocs tabs renderer).
  */
-function convertCodeGroup(lines: string[], start: number): [string[], number] {
+function convertCodeGroup(lines: string[], start: number, dropdown = false): [string[], number] {
     const tabs: string[] = []
     let i = start
     while (i < lines.length && !CODE_GROUP_CLOSE.test(lines[i])) {
@@ -115,7 +116,7 @@ function convertCodeGroup(lines: string[], start: number): [string[], number] {
         }
         tabs.push(`<aiui-tab title="${attr(label)}">`, '', ...body, '', '</aiui-tab>', '')
     }
-    return [['', '<aiui-tabs>', '', ...tabs, '</aiui-tabs>', ''], Math.min(i + 1, lines.length)]
+    return [['', dropdown ? '<aiui-tabs variant="dropdown">' : '<aiui-tabs>', '', ...tabs, '</aiui-tabs>', ''], Math.min(i + 1, lines.length)]
 }
 
 // Titles run to the last quote on the line, as in Python-Markdown, so `\"` inside works.
@@ -177,9 +178,10 @@ export function convertMkdocsBlocks(md: string): string {
             continue
         }
 
-        if (CODE_GROUP_OPEN.test(line)) {
-            const [group, next] = convertCodeGroup(lines, i + 1)
-            out.push(...group)
+        const group = CODE_GROUP_OPEN.exec(line)
+        if (group) {
+            const [tabs, next] = convertCodeGroup(lines, i + 1, /(^|\s)dropdown(?![\w=])|dropdown=\{?true/.test(group[1]))
+            out.push(...tabs)
             i = next
             continue
         }

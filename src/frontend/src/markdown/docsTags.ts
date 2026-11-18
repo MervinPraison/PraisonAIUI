@@ -26,6 +26,9 @@ export interface DocsTag {
 
 const on = (v?: string) => v !== undefined && v !== 'false'
 const callout = (type: string): DocsTag => ({ el: 'aiui-admonition', attrs: ['type', 'title'], map: (a) => ({ type, title: a.title }) })
+/** `id="…"` for deep links (`#id` opens a tab or accordion): word characters and dashes only. */
+const anchor = (a: TagAttrs) => (/^[\w-]+$/.test(a.id ?? '') ? a.id : undefined)
+const ICON = ['icon', 'anchor'] as const
 
 export const DOCS_TAGS: Record<string, DocsTag> = {
     Note: callout('note'),
@@ -36,16 +39,30 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Danger: callout('danger'),
     Accordion: {
         el: 'aiui-admonition',
-        attrs: ['type', 'title', 'collapsible'],
-        map: (a) => ({ type: 'accordion', title: a.title || 'Details', collapsible: on(a.defaultOpen) ? 'open' : 'closed' }),
+        attrs: ['type', 'title', 'collapsible', 'description', ...ICON],
+        map: (a) => ({
+            type: 'accordion', title: a.title || 'Details', collapsible: on(a.defaultOpen) ? 'open' : 'closed',
+            description: a.description, icon: a.icon, anchor: anchor(a),
+        }),
     },
     AccordionGroup: { el: 'aiui-accordions' },
-    Tabs: { el: 'aiui-tabs' },
-    Tab: { el: 'aiui-tab', attrs: ['title'], map: (a) => ({ title: a.title || 'Tab' }) },
-    Steps: { el: 'aiui-steps' },
-    Step: { el: 'aiui-step', attrs: ['title'] },
+    // Tabs sync by title across the page (and are remembered) unless sync={false}.
+    Tabs: {
+        el: 'aiui-tabs',
+        attrs: ['sync', 'initial', 'rule', 'variant'],
+        map: (a) => ({ sync: a.sync === 'false' ? 'off' : undefined, initial: a.defaultTabIndex, rule: on(a.borderBottom) ? 'bottom' : undefined }),
+    },
+    Tab: { el: 'aiui-tab', attrs: ['title', ...ICON], map: (a) => ({ title: a.title || 'Tab', icon: a.icon, anchor: anchor(a) }) },
+    Steps: { el: 'aiui-steps', attrs: ['heading'], map: (a) => ({ heading: a.titleSize }) },
+    Step: {
+        el: 'aiui-step',
+        attrs: ['title', 'heading', 'num', ...ICON],
+        map: (a) => ({ title: a.title, heading: a.titleSize, num: a.stepNumber, icon: a.icon, anchor: anchor(a) }),
+    },
     CardGroup: { el: 'aiui-cards', attrs: ['cols'] },
-    Card: { el: 'aiui-card', attrs: ['title', 'icon', 'href'] },
+    Columns: { el: 'aiui-cards', attrs: ['cols'] },
+    Column: { el: 'aiui-column' },
+    Card: { el: 'aiui-card', attrs: ['title', 'icon', 'href', 'horizontal', 'img', 'cta', 'arrow', 'color'] },
     Frame: { el: 'aiui-frame', attrs: ['caption'] },
 }
 
