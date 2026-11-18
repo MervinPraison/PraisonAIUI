@@ -109,6 +109,8 @@ PAGE_TYPE_BY_ID: Mapping[str, str] = MappingProxyType(
         # settings template gives the editor's code surface)
         "config": "settings",
         "auth": "settings",
+        # Connect: per-client setup at a readable measure, beside a client rail
+        "connect": "settings",
     }
 )
 

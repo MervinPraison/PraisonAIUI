@@ -132,9 +132,13 @@ def test_shell_only_pages_stay_out_of_the_page_table_and_follow_their_layouts():
         )
     )
     assert not {"deck-home", "deck-any"} & {s.id for s in reg.pages(origin="all")}
-    assert [s.id for s in reg.shell_pages(["deck"])] == ["deck-home", "deck-any"]
-    assert [s.id for s in reg.shell_pages(["other"])] == ["deck-any"]
-    home = reg.shell_pages(["deck"])[0]
+
+    def ours(layouts):  # the catalog's own shell pages (builtin.connect) are in every layout too
+        return [s for s in reg.shell_pages(layouts) if s.source == "builtin.layout-test"]
+
+    assert [s.id for s in ours(["deck"])] == ["deck-home", "deck-any"]
+    assert [s.id for s in ours(["other"])] == ["deck-any"]
+    home = ours(["deck"])[0]
     assert home.shell_only and home.layouts == ("deck",) and home.replaces == "overview"
     assert home.source == "builtin.layout-test"
     assert "shellOnly" not in home.to_dict() and home.to_dict()["layouts"] == ["deck"]
@@ -144,7 +148,7 @@ def test_a_bad_shell_page_entry_is_dropped(caplog):
     reg = _registry()
     reg.register_builtin(_owner(page("bad", "Bad", "x", "Agent", "Bad", 0, shell_only=True, layouts="deck")))
     with caplog.at_level(logging.WARNING, logger="praisonaiui.plugin_registry"):
-        assert reg.shell_pages(["deck"]) == []
+        assert [s for s in reg.shell_pages(["deck"]) if s.id == "bad"] == []
     assert any("layouts must be a list" in r.getMessage() for r in caplog.records)
 
 

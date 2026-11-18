@@ -29,6 +29,9 @@ SHIPPED_LAYOUT_PAGES = {"guided": ("start", "templates")}
 #: Shell-only pages that name a layout: page id -> (owning record, layouts).
 #: Each arrives with the React page that renders it.
 LAYOUT_PAGES = {"artifacts": ("builtin.artifacts", ["chat-canvas"])}
+#: Shell-only pages for every layout (no ``layouts``): listed whenever the app
+#: shell offers a layout, like the layout records' own pages.
+ANY_LAYOUT_PAGES = {"connect"}
 
 
 @pytest.fixture(autouse=True)
@@ -73,7 +76,8 @@ def test_layout_records_add_only_their_shipped_pages_to_the_app_shell(layout, mo
     if layout:
         monkeypatch.setenv("AIUI_LAYOUT", layout)
     with_layouts = _manifest(_client())
-    assert [p["id"] for p in with_layouts["pages"] if not p.get("layouts")] == without
+    assert [p["id"] for p in with_layouts["pages"] if not p.get("layouts") and p["id"] not in ANY_LAYOUT_PAGES] == without
+    assert ANY_LAYOUT_PAGES <= {p["id"] for p in with_layouts["pages"]}
     owned = {p["id"]: p for p in with_layouts["pages"] if p.get("layouts")}
     assert sorted(owned) == sorted([i for ids in SHIPPED_LAYOUT_PAGES.values() for i in ids] + list(LAYOUT_PAGES))
     for lid, ids in SHIPPED_LAYOUT_PAGES.items():
