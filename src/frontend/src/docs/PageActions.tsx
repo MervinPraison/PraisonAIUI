@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { loadDoc, peekDoc } from './docLoader'
+import { loadDoc, peekDoc, prefetchDoc } from './docLoader'
 import { assistantLinks, copyText } from './pageActionLinks'
 import { docPathToMarkdown } from '../pathUtils'
 import { withBase } from '../lib/url'
@@ -22,7 +22,9 @@ export function PageActions({ path, title }: { path: string; title: string }) {
     const timer = useRef<number | undefined>(undefined)
     useEffect(() => () => window.clearTimeout(timer.current), [])
 
-    const mdPath = docPathToMarkdown(path) // the URL Content.tsx loaded, so peekDoc hits
+    // The agent-ready .md, warmed on hover/focus so the click copies at once (Safari).
+    const mdPath = docPathToMarkdown(path)
+    const warm = () => prefetchDoc(mdPath)
     const mdHref = withBase(mdPath)
     const mdUrl = typeof window === 'undefined' ? mdHref : new URL(mdHref, window.location.origin).href
     const links = assistantLinks(mdUrl, title)
@@ -30,8 +32,6 @@ export function PageActions({ path, title }: { path: string; title: string }) {
     const copyPage = async () => {
         let ok = false
         try {
-            // The article's own Markdown is in the loader's cache, so the copy
-            // runs inside the click (Safari refuses clipboard writes after an await).
             const doc = peekDoc(mdPath) ?? (await loadDoc(mdPath, new AbortController().signal))
             ok = doc.ok && (await copyText(doc.text))
         } catch {
@@ -44,7 +44,7 @@ export function PageActions({ path, title }: { path: string; title: string }) {
 
     const label = state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy page'
     return (
-        <div className="aiui-docs-actions-menu" role="group" aria-label="Page actions">
+        <div className="aiui-docs-actions-menu" role="group" aria-label="Page actions" onPointerEnter={warm} onFocus={warm}>
             <Button variant="outline" size="sm" onClick={copyPage}>
                 {state === 'copied' ? <Check aria-hidden="true" /> : <ClipboardCopy aria-hidden="true" />}
                 {label}
@@ -63,7 +63,7 @@ export function PageActions({ path, title }: { path: string; title: string }) {
                     <DropdownMenuItem asChild>
                         <a href={mdHref} target="_blank" rel="noopener">
                             <FileCode2 aria-hidden="true" />
-                            <span><strong>View as Markdown</strong><small>The page source, as plain text</small></span>
+                            <span><strong>View as Markdown</strong><small>The page for assistants, as plain text</small></span>
                         </a>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

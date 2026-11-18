@@ -96,7 +96,7 @@ def test_no_root_absolute_url_remains_under_a_base_path(tmp_path):
         assert 'src="/repo/plugins/plugin-loader.js?v=' in html
     assert 'rel="preload" as="image" href="/repo/hero.png"' in (out / "index.html").read_text()
     # The inlined markdown keeps its app path: the loader's cache key (docLoader.ts).
-    assert '"url": "/docs/guide/start.md"' in (out / "docs" / "guide" / "start.html").read_text()
+    assert '"url": "/docs/guide/start.source.md"' in (out / "docs" / "guide" / "start.html").read_text()
 
 
 def test_site_urls_carry_the_base_path(tmp_path):

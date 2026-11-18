@@ -16,7 +16,7 @@
  * 10 s so a link that is merely very slow still gets the page. The body has
  * its own, longer limit (it can be large and arrives in pieces).
  */
-import { docPathToMarkdown, normalizeDocPath } from '../pathUtils'
+import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath } from './docSource'
 import { appPathname, stripBase, withBase } from '../lib/url'
 
@@ -253,7 +253,7 @@ export function prefetchInitialDoc(pathname = appPathname(), base = '/docs'): st
     adoptInlinedDoc() // the page's markdown inlined by `aiui build`: no request at all
     const path = normalizeDocPath(pathname)
     if (path !== base && !path.startsWith(`${base}/`)) return null
-    const url = docPathToMarkdown(canonicalDocPath(path, base))
+    const url = docPathToSource(canonicalDocPath(path, base))
     prefetchDoc(url)
     return url
 }
@@ -283,7 +283,7 @@ export function docHrefMarkdownUrl(href: string, pageUrl: string, base = '/docs'
     if (path !== '/' && !path.startsWith(`${base}/`)) return null
     const last = path.split('/').pop() || ''
     if (last.includes('.') && !last.endsWith('.md')) return null // assets, images
-    return docPathToMarkdown(path.replace(/\.md$/, ''))
+    return docPathToSource(path.replace(/\.md$/, ''))
 }
 
 function linkMarkdownUrl(anchor: HTMLAnchorElement): string | null {

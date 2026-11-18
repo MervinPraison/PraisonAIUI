@@ -49,8 +49,8 @@ test('markdown targets and card links resolve to URLs under the base', () => {
 
 test('a link under the base prefetches the app path the loader caches', () => {
     setBasePathForTests('/repo')
-    assert.equal(docHrefMarkdownUrl('/repo/docs/a', 'https://u.github.io/repo/docs/b'), '/docs/a.md')
-    assert.equal(docHrefMarkdownUrl('/repo/', 'https://u.github.io/repo/docs/b'), '/docs/index.md')
+    assert.equal(docHrefMarkdownUrl('/repo/docs/a', 'https://u.github.io/repo/docs/b'), '/docs/a.source.md')
+    assert.equal(docHrefMarkdownUrl('/repo/', 'https://u.github.io/repo/docs/b'), '/docs/index.source.md')
 })
 
 test('fetchWithRetry requests the URL under the base', async () => {

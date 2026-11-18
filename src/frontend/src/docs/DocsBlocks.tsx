@@ -115,6 +115,9 @@ function Frame({ caption, children }: BlockProps & { caption?: string }) {
     )
 }
 
+// <Visibility for="agents"> content is for the agent-ready .md only, never the page.
+const Visibility = ({ audience, children }: BlockProps & { audience?: string }) => (audience === 'agents' ? null : <>{children}</>)
+
 /** Element → renderer, for the elements named in DOCS_TAGS (markdown/docsTags.ts). */
 export const DOCS_TAG_COMPONENTS = {
     'aiui-steps': Steps,
@@ -130,4 +133,5 @@ export const DOCS_TAG_COMPONENTS = {
     'aiui-field': ApiField,
     'aiui-expandable': Expandable,
     'aiui-panel': Panel,
+    'aiui-visibility': Visibility,
 }

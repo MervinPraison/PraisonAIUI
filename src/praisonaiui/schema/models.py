@@ -256,6 +256,17 @@ class SEOConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class MarkdownConfig(BaseModel):
+    """``markdown:`` — the agent-ready Markdown ``aiui build`` publishes (docs/features/ai-ready-docs.md)."""
+
+    instructions: Optional[Union[str, list[str]]] = Field(
+        default=None,
+        description="Guidance for AI agents, prepended to every page's .md, llms.txt and llms-full.txt",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class DependenciesConfig(BaseModel):
     """Component dependencies configuration."""
 
@@ -725,6 +736,7 @@ class Config(BaseModel):
     dashboard: Optional[DashboardConfig] = None
     extensions: Optional[ExtensionsConfig] = None
     seo: Optional[SEOConfig] = None
+    markdown: Optional[MarkdownConfig] = None
     i18n: Optional[I18nConfig] = None
     a11y: Optional[A11yConfig] = None
     dependencies: Optional[DependenciesConfig] = None

@@ -9,7 +9,8 @@ description: Every block a docs page can use, with its Markdown and a live examp
 A docs site is a folder of Markdown and one YAML file. This page lists every
 block a page can use: the Markdown you write, then the block as this site
 draws it. Pages that `aiui build` publishes also exist as plain Markdown
-(`/docs/<page>.md`) and in `llms.txt`, so assistants read the same source.
+(`/docs/<page>.md`, components converted) and in `llms.txt`, so assistants
+read the same content ([AI-ready docs](ai-ready-docs.md)).
 
 ## The look
 
@@ -666,6 +667,9 @@ A tag the site does not know (say `<Tree>` from another docs tool) keeps its
 text as plain Markdown, and `aiui build` and `aiui validate` name it:
 `Warning: docs/guide.md:12: <Tree> is not a docs component; its content shows as plain Markdown`.
 
+`<Visibility for="humans">` / `for="agents"` shows its content only on the page /
+only to agents ([AI-ready docs](ai-ready-docs.md#content-for-people-or-for-agents-only)).
+
 ## Comments
 
 `{/* … */}` and `<!-- … -->` never show on the page, in search or in
@@ -761,8 +765,8 @@ paste into an assistant. Its menu also has:
 
 | Action | What it does |
 |---|---|
-| Copy page | The page's Markdown on the clipboard (front matter included) |
-| View as Markdown | Opens `/docs/<page>.md`, the page source as plain text |
+| Copy page | The page's agent-ready Markdown on the clipboard |
+| View as Markdown | Opens `/docs/<page>.md`, the page as plain Markdown for assistants |
 | Open in ChatGPT | A new ChatGPT chat that reads the page and takes questions |
 | Open in Claude | The same, in Claude |
 
@@ -798,12 +802,13 @@ The footer of this page shows all three.
 
 | File | What it holds |
 |---|---|
-| `/llms.txt` | every page with its description ([llmstxt.org](https://llmstxt.org)) |
-| `/llms-full.txt` | every page's Markdown in one file |
-| `/docs/<page>.md` | one page's Markdown |
+| `/llms.txt` | every page with its description, by nav group ([llmstxt.org](https://llmstxt.org)) |
+| `/llms-full.txt` | every page's agent-ready Markdown in one file |
+| `/docs/<page>.md` | one page's agent-ready Markdown ([AI-ready docs](ai-ready-docs.md)) |
+| `/docs/<page>.source.md` | the page source the site renders |
 | `/search-index.json` | headings and text per page, for the site's own search |
 | `/sitemap.xml`, `/robots.txt` | for search engines |
 
-Each page's HTML also carries that page's Markdown (a JSON script,
+Each page's HTML also carries that page's source (a JSON script,
 `id="aiui-initial-doc"`), so the first visit renders without a second request
 for it. Pages over 200 KB of Markdown are fetched as before.

@@ -7,7 +7,7 @@ import { enhanceMkdocsDom } from './markdown/mkdocsEnhance'
 import { preprocessMkdocsMarkdown } from './markdown/mkdocsPreprocess'
 import { Markdown, preloadMarkdown, preloadMarkdownPlugins } from './markdown/LazyMarkdown'
 import { MobileToc } from './Toc'
-import { docPathToMarkdown, normalizeDocPath } from './pathUtils'
+import { docPathToSource, normalizeDocPath } from './pathUtils'
 import type { DocsNav, UIConfig, NavItem, RouteManifest } from './types'
 import { docSourcePath, hasSectionHeadings, prepareDocSource } from './docs/docSource'
 import { docNeighbours, docSection } from './docs/docNav'
@@ -82,7 +82,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             return
         }
 
-        const mdUrl = docPathToMarkdown(sourcePath)
+        const mdUrl = docPathToSource(sourcePath)
         const pageTitle = sourcePath.split('/').pop()?.replace(/-/g, ' ') ?? 'page'
         const controller = new AbortController()
         let cancelIdle = () => {}
@@ -98,7 +98,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                 const docsNav = navRef.current
                 const { prev, next } = docsNav ? docNeighbours(docsNav, sourcePath) : {}
                 for (const item of [prev, next]) {
-                    if (item?.path) prefetchDoc(docPathToMarkdown(item.path))
+                    if (item?.path) prefetchDoc(docPathToSource(item.path))
                 }
             })
         }

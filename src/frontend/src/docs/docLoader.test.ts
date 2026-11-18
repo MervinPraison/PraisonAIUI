@@ -146,11 +146,11 @@ describe('docHrefMarkdownUrl', () => {
     const page = 'https://site.test/docs/guide/first'
 
     test('maps docs links to their markdown file', () => {
-        assert.equal(docHrefMarkdownUrl('/docs/guide/second', page), '/docs/guide/second.md')
-        assert.equal(docHrefMarkdownUrl('/docs/guide/second/#install', page), '/docs/guide/second.md')
-        assert.equal(docHrefMarkdownUrl('/docs/guide/second.md', page), '/docs/guide/second.md')
-        assert.equal(docHrefMarkdownUrl('second', page), '/docs/guide/second.md')
-        assert.equal(docHrefMarkdownUrl('/', page), '/docs/index.md')
+        assert.equal(docHrefMarkdownUrl('/docs/guide/second', page), '/docs/guide/second.source.md')
+        assert.equal(docHrefMarkdownUrl('/docs/guide/second/#install', page), '/docs/guide/second.source.md')
+        assert.equal(docHrefMarkdownUrl('/docs/guide/second.md', page), '/docs/guide/second.source.md')
+        assert.equal(docHrefMarkdownUrl('second', page), '/docs/guide/second.source.md')
+        assert.equal(docHrefMarkdownUrl('/', page), '/docs/index.source.md')
     })
 
     test('ignores other origins, other sections and files', () => {
@@ -163,8 +163,8 @@ describe('docHrefMarkdownUrl', () => {
 describe('prefetchInitialDoc', () => {
     test('a deep link under /docs starts its markdown at boot', () => {
         const { calls } = stubFetch(['hang'])
-        assert.equal(prefetchInitialDoc('/docs/guide/first'), '/docs/guide/first.md')
-        assert.equal(prefetchInitialDoc('/docs'), '/docs/index.md')
+        assert.equal(prefetchInitialDoc('/docs/guide/first'), '/docs/guide/first.source.md')
+        assert.equal(prefetchInitialDoc('/docs'), '/docs/index.source.md')
         assert.equal(calls.length, 2)
     })
 

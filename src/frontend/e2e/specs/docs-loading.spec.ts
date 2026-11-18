@@ -10,7 +10,7 @@ const sidebarLink = (page: Page, href: string) => page.locator(`aside a[data-nav
 
 test('a request that hangs is retried: the page shows within seconds, not after the hang', async ({ page }) => {
   let requests = 0
-  await page.route('**/docs/guide/second.md', async (route) => {
+  await page.route('**/docs/guide/second.source.md', async (route) => {
     requests += 1
     if (requests === 1) {
       // The owner's failure mode: one connection stalls for ~20-30 s.
@@ -57,7 +57,7 @@ test('rapid clicks through the sidebar: the last click wins, promptly', async ({
 
 test('a page that cannot load says so and offers Retry', async ({ page }) => {
   let failing = true
-  await page.route('**/docs/guide/second.md', (route) => (failing ? route.abort('failed') : route.continue()))
+  await page.route('**/docs/guide/second.source.md', (route) => (failing ? route.abort('failed') : route.continue()))
   await page.goto('/docs/guide/first')
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
 
@@ -82,11 +82,11 @@ test('a page read before shows at once from memory, without a new request', asyn
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
   await sidebarLink(page, '/docs/markdown').click()
   await expect(page.getByRole('heading', { name: 'Markdown sample', level: 1 })).toBeVisible()
-  const before = fetched.filter((p) => p === '/docs/guide/first.md').length
+  const before = fetched.filter((p) => p === '/docs/guide/first.source.md').length
 
   await sidebarLink(page, '/docs/guide/first').click()
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
-  expect(fetched.filter((p) => p === '/docs/guide/first.md').length).toBe(before)
+  expect(fetched.filter((p) => p === '/docs/guide/first.source.md').length).toBe(before)
 })
 
 test('first load: a hung manifest is retried and the page still shows within seconds', async ({ page }) => {
@@ -117,7 +117,7 @@ test('first load: a page renders from the markdown inlined in its HTML, with no 
   })
   await page.goto('/docs/guide/second')
   await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
-  expect(mdRequests.filter((p) => p === '/docs/guide/second.md')).toEqual([])
+  expect(mdRequests.filter((p) => p === '/docs/guide/second.source.md')).toEqual([])
   await expect(page.locator('#aiui-initial-doc')).toHaveCount(0) // read once, then removed
 })
 
@@ -138,10 +138,10 @@ test('first load: without the inlined block, a deep link fetches its page alongs
   })
   await page.goto('/docs/guide/second')
   await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
-  expect(started['/docs/guide/second.md']).toBeDefined()
-  expect(started['/docs/guide/second.md']).toBeLessThan(finished['/docs-nav.json'])
+  expect(started['/docs/guide/second.source.md']).toBeDefined()
+  expect(started['/docs/guide/second.source.md']).toBeLessThan(finished['/docs-nav.json'])
   // One request for it: Content.tsx joined the boot prefetch.
-  const mdRequests = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => e.name.endsWith('/docs/guide/second.md')).length)
+  const mdRequests = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => e.name.endsWith('/docs/guide/second.source.md')).length)
   expect(mdRequests).toBe(1)
 })
 

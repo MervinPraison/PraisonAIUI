@@ -186,7 +186,8 @@ test('page actions: copy the page as Markdown, view it, open it in an assistant'
   await expect(actions.getByRole('button', { name: 'Copied' })).toBeVisible()
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   expect(copied).toContain('## Usage')
-  expect(copied).toContain('title: First page')
+  expect(copied.startsWith('# First page\n\n> The first guide page.')).toBe(true)
+  expect(copied).not.toContain('title: First page')
 
   await actions.getByRole('button', { name: 'More page actions' }).click()
   const menu = page.getByRole('menu')
@@ -198,6 +199,7 @@ test('page actions: copy the page as Markdown, view it, open it in an assistant'
   await expect(menu.getByRole('menuitem', { name: /Open in Claude/ })).toHaveAttribute('rel', 'noopener noreferrer')
   const res = await page.request.get('/docs/guide/first.md')
   expect(res.ok()).toBe(true)
+  expect(await res.text()).toContain('[second page](/docs/guide/second.md)')
 })
 
 test('phone: page actions fit beside the section and the page never scrolls sideways', async ({ page }) => {

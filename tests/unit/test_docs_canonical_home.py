@@ -47,8 +47,7 @@ def test_sitemap_lists_the_home_once_at_the_root(tmp_path: Path) -> None:
 def test_llms_files_name_the_root(tmp_path: Path) -> None:
     out = _build(tmp_path)
     llms = (out / "llms.txt").read_text()
-    assert f"[Home]({SITE}/)" in llms
-    assert "/docs/index" not in llms
+    assert f"[Home]({SITE}/docs/index.md)" in llms  # llms.txt links each page's Markdown
     assert f"Source: {SITE}/\n" in (out / "llms-full.txt").read_text()
 
 
