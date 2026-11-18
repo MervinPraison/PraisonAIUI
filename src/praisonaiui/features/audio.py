@@ -2,6 +2,10 @@
 
 Provides @aiui.on_audio_start, @aiui.on_audio_chunk, @aiui.on_audio_end
 for server-side STT pipelines where frontend streams mic audio.
+
+Deprecated: no built-in record mounts ``AudioFeature`` and no browser code
+streams to ``/ws/audio``, so the hooks never fire. ``aiui.on_audio_*`` warn
+and will be removed.
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, warn_unwired_hook
 
 _log = logging.getLogger(__name__)
 
@@ -386,6 +390,7 @@ def on_audio_start(func: Callable) -> Callable:
         async def start(session_id: str):
             await aiui.Message(content="🎙 Listening...").send()
     """
+    warn_unwired_hook("on_audio_start")
     return register_audio_start_hook(func)
 
 
@@ -401,6 +406,7 @@ def on_audio_chunk(func: Callable) -> Callable:
             # Forward to Whisper server / Deepgram / local vosk
             await stt_buffer.append(pcm)
     """
+    warn_unwired_hook("on_audio_chunk")
     return register_audio_chunk_hook(func)
 
 
@@ -416,6 +422,7 @@ def on_audio_end(func: Callable) -> Callable:
             transcript = await stt_buffer.finalise()
             await handler(aiui.InboundMessage(content=transcript, source="voice"))
     """
+    warn_unwired_hook("on_audio_end")
     return register_audio_end_hook(func)
 
 

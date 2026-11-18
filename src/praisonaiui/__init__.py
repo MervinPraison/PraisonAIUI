@@ -327,6 +327,7 @@ def __getattr__(name: str):
 
         return getattr(lifecycle, name)
     if name in _window_message_attrs:
+        # Deprecated (R7 shim): the hooks warn when used, see the module.
         from praisonaiui.features import window_message
 
         return getattr(window_message, name)

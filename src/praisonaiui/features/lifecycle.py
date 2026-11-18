@@ -2,6 +2,10 @@
 
 Provides lifecycle decorators @aiui.on_app_startup and @aiui.on_app_shutdown
 for initializing resources at server start and cleaning up on graceful shutdown.
+
+The hooks run from the server lifespan (``server.py``). ``LifecycleFeature``
+and its ``/api/lifecycle`` status routes are not mounted by any built-in
+record.
 """
 
 from __future__ import annotations

@@ -256,7 +256,8 @@ contributes no pages: they leave `GET /api/pages`, the shell manifest and the
 sidebar. Its feature routes are not mounted (`/api/training/...` returns 404),
 the server does not load its feature modules, and a bundled dashboard-plugin
 folder that belongs to it (`kanban` belongs to `builtin.work`, `video-studio`
-to `builtin.video`) is not served either. The same holds for the routes the
+to `builtin.video`, the `sample-board` demo page in the Examples group to
+`builtin.examples`) is not served either. The same holds for the routes the
 host itself serves for a built-in: `builtin.mcp` owns `/api/mcp/*`,
 `builtin.debug` owns `/api/debug`, `builtin.overview` owns
 `GET /api/overview`, `builtin.feedback` owns `GET /api/feedback` and

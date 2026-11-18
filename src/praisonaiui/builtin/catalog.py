@@ -720,6 +720,13 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         # The bundled folder is the Video Studio page; it only calls /api/video.
         dashboard_plugins=("video-studio",),
     ),
+    BuiltinPlugin(
+        "examples",
+        "Example dashboard-plugin page (the Examples group)",
+        # The bundled sample-board folder, a demo of the folder format. On by
+        # default; ``extensions.disabled: [builtin.examples]`` removes it.
+        dashboard_plugins=("sample-board",),
+    ),
     # ── Layouts (ADR 0003) ───────────────────────────────────────────
     # App shell frames. Each record is one layout (its frame is the browser
     # descriptor src/frontend/src/builtin/layouts/<id>.ts and the lazy chunk

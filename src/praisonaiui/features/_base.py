@@ -14,6 +14,23 @@ from typing import Any, Dict, List
 from starlette.routing import Route
 
 
+def warn_unwired_hook(name: str) -> None:
+    """Deprecation warning for a hook no built-in route ever calls (R7 shim).
+
+    Raised when the hook is used, not when it is imported, so
+    ``from praisonaiui import *`` stays quiet.
+    """
+    import warnings
+
+    warnings.warn(
+        f"aiui.{name} is deprecated and does nothing: no route delivers "
+        "window messages or microphone audio to it. It will be removed in "
+        "a future release.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
 def sdk_installed(package: str = "praisonaiagents") -> bool:
     """True when *package* can be imported, checked without importing it.
 

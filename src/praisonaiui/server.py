@@ -91,13 +91,6 @@ def _get_data_dir() -> Path:
     return data_dir
 
 
-# Usage tracking (token counts per session/model)
-_usage_stats: dict[str, Any] = {
-    "total_requests": 0,
-    "total_tokens": 0,
-    "by_model": {},
-    "by_session": {},
-}
 # Server config path (set during create_app)
 _config_path: Optional[Path] = None
 _config_cache: Optional[dict] = None
@@ -144,14 +137,6 @@ def reset_state() -> None:
     _logs = sys.modules.get("praisonaiui.features.logs")
     if _logs is not None:  # never import a feature module just to reset it
         _logs.get_log_buffer().clear()
-    _usage_stats.update(
-        {
-            "total_requests": 0,
-            "total_tokens": 0,
-            "by_model": {},
-            "by_session": {},
-        }
-    )
     _style = None
     _branding = {"title": "PraisonAI", "logo": ""}
     _theme = None
@@ -2354,8 +2339,8 @@ async def api_overview(request: Request) -> JSONResponse:
 
         usage_stats = get_usage_aggregates()
         total_requests = int(usage_stats.get("total_requests", 0))
-    except Exception:
-        total_requests = _usage_stats["total_requests"]
+    except Exception:  # usage feature unavailable: no requests counted
+        total_requests = 0
 
     return JSONResponse(
         {
@@ -2422,27 +2407,6 @@ async def api_logs(request: Request) -> JSONResponse:
     from praisonaiui.features.logs import list_logs
 
     return await list_logs(request)
-
-
-async def api_usage(request: Request) -> JSONResponse:
-    """Return usage statistics."""
-    usage_data: dict[str, Any]
-    try:
-        from praisonaiui.features.usage import get_usage_aggregates
-
-        usage_data = get_usage_aggregates()
-    except Exception:
-        usage_data = _usage_stats
-
-    return JSONResponse(
-        {
-            "usage": usage_data,
-            "sessions": {
-                "total": len(await _datastore.list_sessions()),
-                "active": len(_active_tasks),
-            },
-        }
-    )
 
 
 async def api_debug(request: Request) -> JSONResponse:
