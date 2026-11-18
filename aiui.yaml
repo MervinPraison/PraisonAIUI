@@ -134,6 +134,7 @@ navigation:
             - concepts/configuration
             - api/components
             - api/features-api
+            - features/api-reference
             - api/sessions
             - api/health
         - group: "TypeScript"

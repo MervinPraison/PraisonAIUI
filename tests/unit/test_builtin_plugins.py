@@ -521,7 +521,7 @@ DEFAULT_FEATURES = [
     "channels", "chat", "code_execution", "config_hot_reload", "config_runtime",
     "connect", "device_pairing", "eval", "guardrails", "hooks", "i18n", "jobs", "kanban",
     "knowledge", "logs", "marketplace", "media_analysis", "memory", "model_fallback",
-    "nodes", "openai_api", "protocol", "pwa", "realtime", "replay", "schedules",
+    "nodes", "openai_api", "openapi", "protocol", "pwa", "realtime", "replay", "schedules",
     "security", "sessions_ext", "skills", "subagents", "surfaces", "telemetry", "theme",
     "tracing", "training", "tts", "usage", "video", "workflows",
 ]  # fmt: skip
