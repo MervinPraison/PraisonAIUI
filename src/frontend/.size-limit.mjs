@@ -274,7 +274,9 @@ export default [
   // 254,332 B (+1 B, exactly the overage): site.theme.strict in the shared
   // applyStoredThemePreference (themes.ts); no chat code changed.
   // 254,333 B (+1 B, exactly the overage): lazy redirects chunk name in the preload map.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254333 B', gzip: true },
+  // 254,374 B (+41 B, exactly the overage): builtin.api-reference's lazy page
+  // registration in the boot chunk (the page itself is a lazy chunk).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254374 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -364,5 +366,7 @@ export default [
   // 9,597,840 B (measured, raised by exactly the overage, +1,200 B): docs
   // branding (logo per mode, strict mode, background decorations in docs.css).
   // 9,601,062 B (+3,222 B, exactly the overage): not-found redirects + suggestions chunk.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9601062 B', brotli: false },
+  // 9,611,961 B (+10,899 B, exactly the overage): the API Reference page chunk
+  // (app-pages/api-reference).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9611961 B', brotli: false },
 ]

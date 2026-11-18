@@ -318,6 +318,7 @@ test('each page is the browser half of its record and registers only when listed
     ['builtin.config', 'config'],
     ['builtin.cron', 'cron'],
     ['builtin.connect', 'connect'],
+    ['builtin.api-reference', 'api-reference'],
   ])
   const registered: string[] = []
   const sdk = { registerPage: (id: string) => registered.push(id) } as never
@@ -386,4 +387,11 @@ test('Connect renders in any frame and starts with a labelled loading state', as
   const out = html(ConnectPage, 'connect')
   assert.match(out, /aria-busy="true"/)
   assert.match(out, /Loading clients/)
+})
+
+test('API Reference renders in any frame and starts with a labelled loading state', async () => {
+  const { default: ApiReferencePage } = await import('./api-reference/ApiReferencePage')
+  const out = html(ApiReferencePage, 'api-reference')
+  assert.match(out, /aria-busy="true"/)
+  assert.match(out, /Loading the API/)
 })
