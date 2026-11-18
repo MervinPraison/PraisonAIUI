@@ -364,5 +364,7 @@ export default [
   // 9,597,840 B (measured, raised by exactly the overage, +1,200 B): docs
   // branding (logo per mode, strict mode, background decorations in docs.css).
   // 9,601,062 B (+3,222 B, exactly the overage): not-found redirects + suggestions chunk.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9601062 B', brotli: false },
+  // 9,606,477 B (measured, raised by exactly the overage, +5,415 B): changelog
+  // entries and their tag filter (docs/DocsUpdate.tsx, docs.css).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9606477 B', brotli: false },
 ]
