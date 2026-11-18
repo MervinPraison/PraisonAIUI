@@ -19,12 +19,13 @@ The browser copy of :func:`match` is ``src/frontend/src/docs/redirects.ts``.
 from __future__ import annotations
 
 import html
-import json
 import re
 from collections.abc import Callable, Iterable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from praisonaiui.utils import json_for_html
 
 _PARAM = re.compile(r":([A-Za-z_]\w*)(\*)?")
 
@@ -97,7 +98,7 @@ def netlify_lines(rules: Iterable[Any], base: str) -> list[str]:
 def stub_html(href: str, canonical: str) -> str:
     """A page that sends readers (meta refresh, script) and crawlers (canonical) to ``href``."""
     url, link = html.escape(href, quote=True), html.escape(canonical, quote=True)
-    target = json.dumps(href).replace("<", "\\u003c")
+    target = json_for_html(href)
     keep = "" if "?" in href else "+location.search"
     keep += "" if "#" in href else "+location.hash"
     return (
