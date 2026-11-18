@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -3296,10 +3297,14 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             session_id = session["id"]
 
     # Add user message to session
+    # The reply carries this as ``reply_to`` so history lists it after its
+    # own question when two runs share the session (see ``visible_history``).
+    turn_id = uuid.uuid4().hex
     user_msg: dict = {
         "role": "user",
         "content": message,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "turn_id": turn_id,
     }
     if attachment_ids:
         from praisonaiui.features.chat import attachment_refs
@@ -3351,8 +3356,9 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         # ignored here, while the UI showed the file as sent).
         from praisonaiui.features.attachments import current_attachments, prepare_attachments
 
-        augmented_message, image_paths, attachment_files = prepare_attachments(
-            augmented_message, attachment_ids
+        # File reads and PDF extraction block: run them off the event loop.
+        augmented_message, image_paths, attachment_files = await asyncio.to_thread(
+            prepare_attachments, augmented_message, attachment_ids
         )
         current_attachments.set(tuple(attachment_files))
 
@@ -3493,6 +3499,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             "role": "assistant",
             "content": full_response or "",
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "reply_to": turn_id,
         }
         if collected_tool_calls:
             msg_data["toolCalls"] = collected_tool_calls

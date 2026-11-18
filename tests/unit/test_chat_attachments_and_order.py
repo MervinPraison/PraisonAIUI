@@ -102,6 +102,9 @@ def test_http_run_includes_attached_text_and_images(monkeypatch):
     assert len(call["attachments"]) == 1 and call["attachments"][0].endswith(".png")
     (question,) = [m for m in history if m["role"] == "user"]
     assert [a["name"] for a in question["attachments"]] == ["note.txt", "chart.png"]
+    # The /run reply is tied to its question, as over the WebSocket.
+    (answer,) = [m for m in history if m["role"] == "assistant"]
+    assert question["turn_id"] and answer["reply_to"] == question["turn_id"]
 
 
 # ── @reply sees message.attachments ──────────────────────────────────

@@ -905,7 +905,10 @@ async def _run_and_broadcast(
 
     # Text and PDF files go before the message; image paths go to the model;
     # a @reply callback sees every file as ``message.attachments``.
-    content, sdk_attachments, attachment_files = prepare_attachments(content, attachment_ids)
+    # (File reads and PDF extraction block, so they run off the event loop.)
+    content, sdk_attachments, attachment_files = await asyncio.to_thread(
+        prepare_attachments, content, attachment_ids
+    )
     attachments_token = current_attachments.set(tuple(attachment_files))
 
     mgr = get_chat_manager()
