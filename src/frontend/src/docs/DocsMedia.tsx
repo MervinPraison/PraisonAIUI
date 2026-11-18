@@ -91,7 +91,19 @@ export function DocsImage({ node: _node, nozoom, className, alt, ...rest }: Imag
     const theme = THEME_SUFFIX.exec(typeof rest.src === 'string' ? rest.src : '')?.[1]
         ?? (cls.includes(' dark:hidden ') ? 'light' : cls.includes(' dark:block ') ? 'dark' : undefined)
     const noZoom = nozoom === undefined || nozoom === false ? undefined : ''
-    return <img {...rest} alt={alt ?? ''} loading="lazy" decoding="async" data-theme-only={theme} data-nozoom={noZoom} />
+    // The same look as the shared Markdown image (markdown/chatComponents.tsx MarkdownImage), which this
+    // module does not import: it would pull the markdown chunk into the docs boot path.
+    return (
+        <img
+            {...rest}
+            alt={alt ?? ''}
+            loading="lazy"
+            decoding="async"
+            className="inline-block h-auto max-w-full rounded-lg align-middle"
+            data-theme-only={theme}
+            data-nozoom={noZoom}
+        />
+    )
 }
 
 /** Whether the site is in dark mode (the `dark` class on <html>), live when `watch` is set. */
