@@ -193,6 +193,8 @@
   no baseline (Linux CI today) after running their DOM checks, instead of
   passing without comparing anything. ARCHITECTURE §5 and the e2e README now
   list them with legacy-parity as not enforced on Linux yet.
+- Package metadata no longer lists Python 3.9, which `requires-python
+  >=3.10` already refused; ruff and mypy target 3.10 to match.
 - Tests: CI runs all of `tests/integration` (the `aiui build` pipeline, the
   package smoke checklist, attachments, MCP connect security, the feature
   APIs), not 2 of its files, and e2e shard 1 runs the dashboard view
