@@ -387,5 +387,7 @@ export default [
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
   // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9643947 B', brotli: false },
+  // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
+  // (docs/PageActions.tsx, two lucide icons).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9645651 B', brotli: false },
 ]
