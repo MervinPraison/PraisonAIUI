@@ -385,5 +385,7 @@ export default [
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
   // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9643947 B', brotli: false },
+  // 9,663,340 B (+19,393 B, exactly the overage): header link icons, the GitHub star
+  // count, footer social marks (the lazy brandIcons chunk, 12.9 kB) and the banner.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9663340 B', brotli: false },
 ]
