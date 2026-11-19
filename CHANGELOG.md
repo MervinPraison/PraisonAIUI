@@ -500,6 +500,16 @@
   and `Ctrl+C` / `⌘C` with nothing selected copies the page as Markdown. See
   [Page actions](docs/features/writing-docs.md#page-actions).
 
+- **Ask AI over the docs.** `aiui serve` and `aiui dev` answer `POST /api/docs/ask` on a docs build:
+  the server ranks the build's sections for the question, streams (Server-Sent Events) a Markdown
+  answer from the site owner's own model key that cites them as `[1]`, and lists those sections
+  first. Without a key it returns the best sections instead of an error. `GET /api/docs/search`
+  returns the search ranking as JSON. Configure with `content.docs.assistant` (`starters`,
+  `instructions`, `model`, `endpoint` for a static host) or turn it off with `assistant: false`.
+  OpenAI-compatible APIs (including local servers) need no extra package; `provider/model` names use
+  LiteLLM when installed. Guarded by Host and Origin checks, body caps and a per-client rate limit
+  (docs/features/ai-ready-docs.md#ask-ai).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

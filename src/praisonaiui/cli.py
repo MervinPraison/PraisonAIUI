@@ -743,6 +743,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
       ``content.docs.feedback: false``.
     * A docs build answers MCP at ``/mcp`` with its discovery entries
       (docs_mcp.py), unless built with ``content.docs.mcp: false``.
+    * A docs build answers Ask AI at ``/api/docs/ask`` and search at
+      ``/api/docs/search`` (docs_assistant.py), unless built with
+      ``content.docs.assistant: false``.
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
@@ -792,6 +795,12 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     from praisonaiui.docs_mcp import DocsMcp
 
     mcp = DocsMcp.for_site(root, base, cors_origins, feedback)
+    from praisonaiui.docs_assistant import DocsAssistant
+
+    assistant = DocsAssistant.for_site(root, base, cors_origins)
+    if assistant and mcp:  # one ui-config.json carries both entries
+        mcp.extra_config["assistant"] = assistant.config_entry()
+        assistant.patch_config = False
 
     def has_file(rel: str) -> bool:
         names = [rel, f"{rel}.html", f"{rel}/index.html"] if rel else ["index.html"]
@@ -856,7 +865,14 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
                 app=gzip_static(_AssetStaticFiles(directory=str(root / "assets"), frontend_dir=root)),
             )
         )
-    routes.append(Mount("/", app=gzip_static(site_app)))
+    site_gz = gzip_static(site_app)
+
+    async def root_app(scope, receive, send):
+        # Ask AI streams events, so it answers before the gzip wrapper.
+        if not (assistant and scope["type"] == "http" and await assistant.serve(scope, receive, send)):
+            await site_gz(scope, receive, send)
+
+    routes.append(Mount("/", app=root_app))
 
     middleware = []
     if cors_origins:

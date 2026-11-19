@@ -238,6 +238,35 @@ class FeedbackConfig(BaseModel):
         return v
 
 
+class AssistantConfig(BaseModel):
+    """Ask AI over the docs (docs/features/ai-ready-docs.md#ask-ai). ``aiui serve`` and
+    ``aiui dev`` answer with the site owner's model key from the environment and cite
+    the sections they used; ``content.docs.assistant: false`` turns it off."""
+
+    starters: list[str] = Field(default_factory=list, max_length=6,
+                                description="Questions offered before the reader asks anything")
+    model: Optional[str] = Field(default=None, description="The model (default: AIUI_ASSISTANT_MODEL, "
+                                 "OPENAI_MODEL_NAME, else gpt-4o-mini); provider/model names use LiteLLM")
+    instructions: Optional[str] = Field(default=None, max_length=4000,
+                                        description="Extra rules for every answer (tone, product names, scope)")
+    endpoint: Optional[str] = Field(default=None, description="On a static host: the ask URL of an aiui "
+                                    "server, e.g. https://docs-api.example.com/api/docs/ask")
+
+    @field_validator("starters")
+    @classmethod
+    def _short(cls, v: list[str]) -> list[str]:
+        if any(not s.strip() or len(s) > 200 for s in v):
+            raise ValueError("each starter is a question of 1-200 characters")
+        return [s.strip() for s in v]
+
+    @field_validator("endpoint")
+    @classmethod
+    def _endpoint_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.match(r"^https?://\S+$", v):
+            raise ValueError("endpoint must be an http(s) URL")
+        return v
+
+
 #: The built-in page actions (docs/PageActions.tsx), in their default order:
 #: the page itself, the assistants that take a prompt in the URL, the docs MCP server.
 PageActionId = Literal[
@@ -316,6 +345,11 @@ class ContentSourceConfig(BaseModel):
         default=True,
         description="Serve a read-only MCP server at /mcp from aiui serve and aiui dev "
         "(docs/features/ai-ready-docs.md#mcp-server)",
+    )
+    assistant: Union[AssistantConfig, bool] = Field(
+        default=True,
+        description="Ask AI over these docs from aiui serve and aiui dev, with cited answers "
+        "(docs/features/ai-ready-docs.md#ask-ai); false turns it off",
     )
     page_actions: Union[bool, list[PageActionEntry]] = Field(
         default=True,
