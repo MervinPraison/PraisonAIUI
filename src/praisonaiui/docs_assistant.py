@@ -63,7 +63,8 @@ class LlmError(Exception):
 # -- retrieval -----------------------------------------------------------------
 
 
-def retrieve(index: dict, prepared: tuple, query: str, k: int = TOP_K) -> list[dict]:
+def retrieve(index: dict, prepared: tuple, query: str, k: int = TOP_K,
+             keep: Optional[Callable[[str], bool]] = None) -> list[dict]:
     """The ``k`` best sections for a question, numbered from 1.
 
     Sections that hold every word (the search dialog's ranking) come first,
@@ -76,7 +77,7 @@ def retrieve(index: dict, prepared: tuple, query: str, k: int = TOP_K) -> list[d
     for i, (page, _, _, _) in enumerate(docs):
         first.setdefault(page["p"], i)
     picked: list[int] = []
-    for hit in search(index, query, k, prepared):
+    for hit in search(index, query, k, prepared, keep):
         i = where.get((hit["path"], hit["anchor"]), first.get(hit["path"]))
         if i is not None and i not in picked:
             picked.append(i)
@@ -84,7 +85,8 @@ def retrieve(index: dict, prepared: tuple, query: str, k: int = TOP_K) -> list[d
     for term in dict.fromkeys(query_terms(query)):
         for i, score in _bm25(prepared, [term]).items():
             loose[i] = loose.get(i, 0.0) + score
-    picked += [i for i, _ in sorted(loose.items(), key=lambda kv: -kv[1]) if i not in picked]
+    picked += [i for i, _ in sorted(loose.items(), key=lambda kv: -kv[1])
+               if i not in picked and (keep is None or keep(docs[i][0]["p"]))]
     out = []
     for n, i in enumerate(picked[:k], 1):
         page, sec, _, _ = docs[i]
@@ -301,12 +303,12 @@ class DocsAssistant:
         except (OSError, ValueError, AttributeError):
             return "these"
 
-    async def answer(self, ask: dict) -> AsyncIterator[bytes]:
-        """The event stream for one cleaned question."""
+    async def answer(self, ask: dict, keep: Optional[Callable[[str], bool]] = None) -> AsyncIterator[bytes]:
+        """The event stream for one cleaned question (``keep``: the pages the reader may read)."""
         loaded = self._load()
         query = ask["question"] + (" " + " ".join(ask["context"].split()[:30]) if ask["context"] else "")
         # Ranking a long question scans the whole index: off the event loop.
-        sources = await asyncio.to_thread(retrieve, loaded[0], loaded[1], query) if loaded else []
+        sources = await asyncio.to_thread(retrieve, loaded[0], loaded[1], query, TOP_K, keep) if loaded else []
         yield _event("sources", [{k: v for k, v in s.items() if k != "text"} | {"url": self.base + s["path"]}
                                  for s in sources])
         if not self.ai:
@@ -327,8 +329,11 @@ class DocsAssistant:
         from starlette.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 
         from praisonaiui import http_guard as hg
+        from praisonaiui.docs_auth import view
 
         path, method = scope.get("path", "/"), scope.get("method", "GET")
+        reader = view(scope)
+        keep = reader.can if reader else None
         if path not in (ENDPOINT, SEARCH_ENDPOINT) and not (path == "/ui-config.json" and self.patch_config):
             return False
         no_cache = {"Cache-Control": "no-cache"}
@@ -350,7 +355,7 @@ class DocsAssistant:
                 limit = (params.get("limit") or ["10"])[0]
                 loaded = self._load()
                 hits = search(loaded[0], query, min(max(int(limit) if limit.isdigit() else 10, 1), 50),
-                              loaded[1]) if loaded and query.strip() else []
+                              loaded[1], keep) if loaded and query.strip() else []
                 for h in hits:
                     h["url"] = self.base + h["path"] + (f"#{h['anchor']}" if h["anchor"] else "")
                     h.pop("score", None)
@@ -378,7 +383,7 @@ class DocsAssistant:
             if isinstance(ask, str):
                 response = JSONResponse({"error": ask}, status_code=413 if ask == "Request too large" else 400)
             else:
-                response = StreamingResponse(self.answer(ask), media_type="text/event-stream",
+                response = StreamingResponse(self.answer(ask, keep), media_type="text/event-stream",
                                              headers={**no_cache, "X-Accel-Buffering": "no"})
         await response(scope, receive, send)
         return True

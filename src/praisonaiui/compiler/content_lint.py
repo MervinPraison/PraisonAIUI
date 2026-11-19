@@ -50,6 +50,7 @@ FRONTMATTER_TYPES: dict[str, str] = {
     "keywords": "a list of words (or one comma-separated string)",
     "related": "a list of pages or URLs, or false",
     "pageActions": "a list of page actions, or false",
+    "groups": "a list of group names (or one name)",
 }
 
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\(")

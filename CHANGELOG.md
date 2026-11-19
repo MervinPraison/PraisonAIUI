@@ -551,6 +551,12 @@
   true` keep pages open; a signed-out reader's nav, search index and the sitemap list only those. Passwords
   stay in the environment; `aiui build` warns a static host cannot enforce it (7017) (docs/features/docs-auth.md).
 
+- **Docs sign-in: groups, and agents see only what the reader may read.** `users: {alice: {password:
+  env:X, groups: [partners]}}` and front matter `groups: [partners]` limit a page to a group (a 404 for any
+  other reader). `llms.txt` and `llms-full.txt`, the MCP server, Ask AI, `/api/docs/search` and page feedback
+  now answer every reader with the pages they may read, so signed-out readers and AI tools get the open
+  pages (docs/features/docs-auth.md#groups).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
