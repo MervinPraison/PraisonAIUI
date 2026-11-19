@@ -3242,6 +3242,15 @@
       "_index-DTTUKTL7.js"
     ]
   },
+  "src/docs/RelatedPages.tsx": {
+    "file": "assets/RelatedPages-DvLwlJrD.js",
+    "name": "RelatedPages",
+    "src": "src/docs/RelatedPages.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-SCdx8Lck.js"
+    ]
+  },
   "src/docs/TabsSelect.tsx": {
     "file": "assets/TabsSelect-BKovXSqn.js",
     "name": "TabsSelect",
@@ -3548,7 +3557,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-BlJ5CAlm.js",
+    "file": "assets/legacy-app-entry-CU3qAySk.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3586,6 +3595,7 @@
       "src/docs/TabsSelect.tsx",
       "src/docs/DocsFeedback.tsx",
       "src/docs/DocsFeedback.tsx",
+      "src/docs/RelatedPages.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
       "src/layouts/PlaygroundLayout.tsx",
@@ -3593,7 +3603,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-CloZLxv0.css"
+      "assets/legacy-app-entry-CFUQKLIE.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

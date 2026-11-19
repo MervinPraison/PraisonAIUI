@@ -469,6 +469,14 @@
   a list) with Stop and a 10 MB cap. `api.playground.display: auth` shows Try it to signed-in
   readers only; `api.auth` on `api:` pages uses the same inputs. See
   [OpenAPI](docs/features/openapi.md#authentication).
+- **Related pages under each docs page.** `aiui build` suggests the three pages
+  closest to each page from their words (title, keywords, headings, text) with a
+  lift for the same sidebar group, and lists them above the page footer and at the
+  end of the page's agent-ready `.md`. Front matter `related: [guides/setup,
+  {Label: page}, https://…]` picks them, `related: false` hides them;
+  `content.docs.related: N | false` sets the number site-wide. `aiui validate`
+  reports a target that is no page (7013). See
+  [Writing docs pages](docs/features/writing-docs.md#related-pages).
 
 ### Deprecated
 

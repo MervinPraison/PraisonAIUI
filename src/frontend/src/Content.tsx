@@ -1,5 +1,5 @@
 // Content component — markdown rendering and landing page
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SHADCN_THEMES } from './themes'
@@ -20,6 +20,7 @@ import { splitPanels } from './docs/panels'
 import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
 import { FlaggedPre, PageFooter } from './docs/PageFooter'
 import { CodeFeedback } from './docs/feedbackContext'
+import { relatedLinks } from './docs/related'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
@@ -38,6 +39,8 @@ interface ContentProps {
     /** Opens the docs search (the "Page not found" view offers it). */
     onSearch?: () => void
 }
+
+const RelatedPages = lazy(() => import('./docs/RelatedPages').then((m) => ({ default: m.RelatedPages })))
 
 /** Docs-only element overrides (code titles and highlights; light/dark images; the docs components). Module scope: Markdown wants a stable object. */
 // FlaggedPre: DocsPre, with a "Report a problem" flag under `content.docs.feedback.code`.
@@ -172,6 +175,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const contentReady = loadedPath === normalizeDocPath(currentPath) && markdown.length > 0
     // <RequestExample>, <ResponseExample> and <Panel>: a side column (docs/panels.ts).
     const { main, side } = useMemo(() => splitPanels(markdown), [markdown])
+    // "Related pages" under the article (compiler/related.py; docs/RelatedPages.tsx, a lazy chunk).
+    const related = useMemo(() => selectedItem ? relatedLinks(nav, selectedItem, (path) => withBase(canonicalDocPath(path))) : [], [nav, selectedItem])
 
     if (selectedItem) {
         const shownPath = docSourcePath(normalizeDocPath(currentPath), selectedItem.path)
@@ -249,6 +254,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             )}
                         </div>
                         </CodeFeedback.Provider>
+                    )}
+                    {contentReady && !home && !bare && related.length > 0 && (
+                        <Suspense fallback={null}><RelatedPages links={related} onNavigate={navigateTo} /></Suspense>
                     )}
                     {contentReady && !home && !bare && <PageFooter item={selectedItem} path={shownPath ?? currentPath} config={config.pageFooter} />}
                     {contentReady && nav && onNavigate && !bare && !selectedItem.hidePager && (

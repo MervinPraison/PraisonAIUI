@@ -1,9 +1,9 @@
-"""Content checks for ``aiui validate``: codes 7000-7009 and 7101 (listed in docs/api/cli.md).
+"""Content checks for ``aiui validate``: codes 7000-7009, 7013 and 7101 (listed in docs/api/cli.md).
 
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
 variables and snippets (7007, 7008) ``snippets.py``'s; redirects (7010, 7011)
-``redirects.py``'s; endpoint references (7012) ``openapi_pages.py``'s.
+``redirects.py``'s; endpoint references (7012) ``openapi_pages.py``'s; related pages (7013) ``related.py``'s.
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ FRONTMATTER_TYPES: dict[str, str] = {
     "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL, "rss": _BOOL,
     "lastUpdatedDate": _DATE,
     "keywords": "a list of words (or one comma-separated string)",
+    "related": "a list of pages or URLs, or false",
 }
 
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\(")
@@ -66,6 +67,8 @@ def _type_ok(kind: str, value: Any) -> bool:
         return isinstance(value, bool)
     if kind == _DATE:
         return hasattr(value, "isoformat") or bool(isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value))
+    if kind == FRONTMATTER_TYPES["related"]:
+        return value is False or isinstance(value, list)
     return isinstance(value, str) or (isinstance(value, list) and all(isinstance(v, str) for v in value))
 
 
@@ -123,6 +126,8 @@ def _type_hint(key: str, kind: str, value: Any) -> str:
             return f"Write {key}: {float(value):g} without quotes"
         except (TypeError, ValueError):
             return f"Write {key}: and a number, such as {key}: 1"
+    if key == "related":
+        return "Write related: [guides/setup, https://example.com] or related: false"
     return f"Write {key}: [install, setup] (words only)"
 
 

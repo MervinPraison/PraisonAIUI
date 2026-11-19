@@ -118,6 +118,7 @@ under it:
 | 7010 | a redirect loops, or ends at a docs path with no page ([redirects](../features/redirects.md#checks)) |
 | 7011 | a page is published at a redirect's source, so the redirect never runs |
 | 7012 | front matter `openapi:` / `api:` or a navigation `METHOD /path` entry that names no operation in the loaded specs ([OpenAPI](../features/openapi.md#endpoints-on-your-own-pages)) |
+| 7013 | front matter `related` names a page that does not exist ([related pages](../features/writing-docs.md#related-pages)) |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 | 7102 | `logo`, `favicon` or `site.theme.background` image that is not a file in the project folder ([branding](../features/theming.md#branding-a-docs-site)) |
 

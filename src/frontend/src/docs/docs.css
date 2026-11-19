@@ -1576,6 +1576,36 @@ dialog.aiui-zoom img {
 @media (hover: none) { .aiui-code-flag > button { opacity: 1; } }
 .aiui-code-flag[data-open] { margin: -0.5rem 0 1rem; font-size: 0.875rem; }
 
+/* ── Related pages (docs/RelatedPages.tsx) ─────────────────────────────── */
+.aiui-docs-related {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.aiui-docs-related h2 {
+  margin: 0 0 0.5rem;
+  color: var(--ui-text-3);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.aiui-docs-related ul { display: grid; gap: 0.125rem; margin: 0; padding: 0; list-style: none; }
+.aiui-docs-related a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.25rem 0;
+  color: var(--ui-link);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.aiui-docs-related a:hover { text-decoration: underline; }
+.aiui-docs-related a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--radius-sm, 6px); }
+.aiui-docs-related svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+/* The page footer right under it keeps its own rule, closer. */
+.aiui-docs-related + .aiui-docs-pagefoot { margin-top: 1.5rem; }
+
 /* ── Pager (previous / next) ───────────────────────────────────────────── */
 .aiui-docs-pager {
   display: grid;
