@@ -70,11 +70,15 @@ def limit_of(value: Any) -> int:
 @dataclass
 class _Doc:
     path: str
-    title: str
-    group: str
-    section: str
+    group: str  # the sidebar group holding the page
+    section: str  # its top-level section
     candidate: bool
     vector: dict[str, float]
+
+
+def _crumb(trail: list[dict]) -> str:
+    """A group's key (its page, else its title); "" at the top level."""
+    return (trail[0].get("path") or trail[0].get("title", "")) if trail else ""
 
 
 def _counts(entry: dict) -> dict[str, float]:
@@ -189,10 +193,9 @@ def annotate(
         if body is None:
             continue
         trail = trails.get(path, [])
-        crumb = lambda c: c.get("path") or c.get("title", "")  # noqa: E731
         candidate = not (item.get("hidden") or item.get("noindex") or item.get("searchable") is False or path in home)
         entry = page_entry(path, titles[path], item.get("description", ""), body, {"keywords": keywords_of(fm.get("keywords"))})
-        docs.append(_Doc(path, titles[path], crumb(trail[-1]) if trail else "", crumb(trail[0]) if trail else "", candidate, {}))
+        docs.append(_Doc(path, _crumb(trail[-1:]), _crumb(trail[:1]), candidate, {}))
         counts.append(_counts(entry))
     for doc, vector in zip(docs, _vectors(counts)):
         doc.vector = vector
