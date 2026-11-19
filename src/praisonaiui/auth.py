@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hmac
-import secrets
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Callable, Iterable, Optional, Protocol
 
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+from praisonaiui import auth_tokens
 
 # User storage (in-memory for now, can be replaced with database)
 _users: dict[str, dict[str, Any]] = {}
@@ -48,19 +49,17 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 def create_token(user_id: str) -> str:
-    """Create a new authentication token."""
-    token = secrets.token_urlsafe(32)
-    _tokens[token] = {
-        "user_id": user_id,
-        "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS),
-    }
-    return token
+    """A signed session token, valid on every worker and across restarts (:mod:`.auth_tokens`)."""
+    return auth_tokens.issue(user_id)
 
 
 def validate_token(token: str) -> Optional[str]:
     """Validate a token and return user_id if valid."""
-    if token not in _tokens:
+    if auth_tokens.is_signed(token):
+        claims = auth_tokens.verify(token)
+        return claims["sub"] if claims else None
+    # Opaque tokens from older code paths, held in this process.
+    if not token or token not in _tokens:
         return None
     token_data = _tokens[token]
     if datetime.utcnow() > token_data["expires_at"]:
@@ -70,11 +69,36 @@ def validate_token(token: str) -> Optional[str]:
 
 
 def revoke_token(token: str) -> bool:
-    """Revoke a token."""
+    """Revoke a token (signed tokens: until they would have expired, on every worker)."""
+    if auth_tokens.is_signed(token):
+        return auth_tokens.revoke(token)
     if token in _tokens:
         del _tokens[token]
         return True
     return False
+
+
+def session_cookie(scope) -> str:
+    """The session cookie's token on a request or handshake ('' if none)."""
+    from praisonaiui.http_guard import cookie
+
+    return cookie(scope, auth_tokens.settings().cookie_name)
+
+
+#: Apply YAML ``auth.sessionLifetime`` and ``auth.cookie`` (``create_app`` calls it).
+configure_sessions = auth_tokens.configure
+
+
+def request_user(scope) -> Optional[str]:
+    """The signed-in user of a request: ``Authorization: Bearer``, else the session cookie."""
+    from praisonaiui.http_guard import bearer_token
+
+    return validate_token(bearer_token(scope)) or validate_token(session_cookie(scope))
+
+
+def with_session_cookie(response, request: Request, token: str):
+    """Also store *token* in the httpOnly session cookie (API clients keep the JSON token)."""
+    return auth_tokens.set_cookie(response, request.scope, token)
 
 
 def register_user(username: str, password: str, **extra: Any) -> dict[str, Any]:
@@ -167,9 +191,10 @@ class AuthMiddleware:
     never sees them). A request passes when its path is in *exclude_paths*,
     is part of the public surface (the HTML shell, static code, health; see
     :func:`praisonaiui.http_guard.is_public_http`), or carries a valid token
-    (:func:`validate_token`) as ``Authorization: Bearer``. A WebSocket may
-    instead carry a ``?ticket=`` from ``POST /api/auth/ws-ticket`` (or the
-    token as ``?token=``).
+    (:func:`validate_token`) as ``Authorization: Bearer`` or in the httpOnly
+    session cookie (re-issued past half its lifetime: sliding sessions). A
+    WebSocket may instead carry a ``?ticket=`` from ``POST /api/auth/ws-ticket``
+    (or the token as ``?token=``).
 
     *exclude_paths* entries match exactly; an entry ending in ``/`` matches
     that prefix. (Prefix matching of ``"/"`` used to exclude every path.)
@@ -199,7 +224,6 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
         from praisonaiui.http_guard import (
-            bearer_token,
             is_public_http,
             reject_websocket,
             websocket_has_ticket,
@@ -209,7 +233,7 @@ class AuthMiddleware:
         path = scope.get("path", "")
         if kind == "http" and path == "/register":
             state = scope.setdefault("state", {})
-            user_id = validate_token(bearer_token(scope))
+            user_id = request_user(scope)
             if user_id:
                 state["user_id"] = user_id
             elif not self.allow_signup:
@@ -223,7 +247,13 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
         if kind == "websocket":
-            if websocket_has_ticket(scope) or validate_token(websocket_token(scope)):
+            # A same-site handshake carries the session cookie (cross-site
+            # ones never get here: OriginGuardMiddleware refuses them).
+            if (
+                websocket_has_ticket(scope)
+                or validate_token(websocket_token(scope))
+                or validate_token(session_cookie(scope))
+            ):
                 await self.app(scope, receive, send)
                 return
             await reject_websocket(receive, send)
@@ -231,13 +261,28 @@ class AuthMiddleware:
         if is_public_http(scope):
             await self.app(scope, receive, send)
             return
-        user_id = validate_token(bearer_token(scope))
+        user_id = request_user(scope)
         if user_id:
             scope.setdefault("state", {})["user_id"] = user_id
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, _sliding_send(scope, send))
             return
         response = JSONResponse({"error": "Unauthorized"}, status_code=401)
         await response(scope, receive, send)
+
+
+def _sliding_send(scope, send):
+    """Re-issue the session cookie on a response once it is past half its lifetime."""
+    claims = auth_tokens.verify(session_cookie(scope))
+    if not claims or not auth_tokens.needs_refresh(claims):
+        return send
+    value = auth_tokens.cookie_header(scope, auth_tokens.issue(claims["sub"])).encode("latin-1")
+
+    async def wrapped(message):
+        if message["type"] == "http.response.start":
+            message = {**message, "headers": [*message.get("headers", []), (b"set-cookie", value)]}
+        await send(message)
+
+    return wrapped
 
 
 # Auth route handlers
@@ -256,7 +301,7 @@ async def login_handler(request: Request) -> JSONResponse:
 
     result = await handle_login(username, password)
     if result:
-        return JSONResponse(result)
+        return with_session_cookie(JSONResponse(result), request, result["token"])
     return JSONResponse({"error": "Invalid credentials"}, status_code=401)
 
 
@@ -280,34 +325,32 @@ async def register_handler(request: Request) -> JSONResponse:
     try:
         user = register_user(username, password)
         token = create_token(user["id"])
-        return JSONResponse({"user": user, "token": token})
+        return with_session_cookie(JSONResponse({"user": user, "token": token}), request, token)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+def _end_session(request: Request) -> JSONResponse:
+    """Revoke the Bearer token and the session cookie, and delete the cookie."""
+    from praisonaiui.http_guard import bearer_token
+
+    for token in {bearer_token(request.scope), session_cookie(request.scope)} - {""}:
+        revoke_token(token)
+    response = JSONResponse({"status": "logged_out"})
+    return auth_tokens.set_cookie(response, request.scope, "", clear=True)
+
+
 async def logout_handler(request: Request) -> JSONResponse:
     """Handle logout requests."""
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        revoke_token(token)
-    return JSONResponse({"status": "logged_out"})
+    return _end_session(request)
 
 
 async def me_handler(request: Request) -> JSONResponse:
     """Get current user info."""
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        user_id = validate_token(token)
-        if user_id and user_id in _users:
-            user = _users[user_id]
-            return JSONResponse(
-                {
-                    "id": user["id"],
-                    "username": user["username"],
-                }
-            )
+    user_id = request_user(request.scope)
+    if user_id and user_id in _users:
+        user = _users[user_id]
+        return JSONResponse({"id": user["id"], "username": user["username"]})
     return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
 
@@ -352,7 +395,7 @@ class Session:
 
     async def clear_tokens(self) -> None:
         """Clear all tokens for this session."""
-        # Clear JWT tokens from global store efficiently using user mapping
+        auth_tokens.revoke_user(self.user_id)  # every signed token issued so far
         if self.user_id in _user_tokens:
             for token in list(_user_tokens[self.user_id]):
                 _tokens.pop(token, None)
@@ -581,12 +624,7 @@ async def enhanced_login_handler(request: Request) -> JSONResponse:
     user = await authenticate_with_headers(request)
     if user:
         token = create_token(user.identifier)
-        return JSONResponse(
-            {
-                "user": user.to_dict(),
-                "token": token,
-            }
-        )
+        return with_session_cookie(JSONResponse({"user": user.to_dict(), "token": token}), request, token)
 
     # Fall back to password authentication
     return await login_handler(request)
@@ -594,22 +632,15 @@ async def enhanced_login_handler(request: Request) -> JSONResponse:
 
 async def enhanced_logout_handler(request: Request) -> JSONResponse:
     """Enhanced logout handler with callback support."""
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        user_id = validate_token(token)
-        if user_id:
-            # Create User and Session instances for callback
-            user = User(identifier=user_id, display_name=user_id)
-            session = Session(session_id="", user_id=user_id, tokens={token: True})
+    from praisonaiui.http_guard import bearer_token
 
-            # Call logout callback
-            await handle_logout_with_callback(user, session)
-
-            # Revoke token
-            revoke_token(token)
-
-    return JSONResponse({"status": "logged_out"})
+    token = bearer_token(request.scope) or session_cookie(request.scope)
+    user_id = validate_token(token)
+    if user_id:
+        user = User(identifier=user_id, display_name=user_id)
+        session = Session(session_id="", user_id=user_id, tokens={token: True})
+        await handle_logout_with_callback(user, session)
+    return _end_session(request)
 
 
 def _constant_time_eq(a: str, b: str) -> bool:

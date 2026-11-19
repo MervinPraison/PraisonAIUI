@@ -59,6 +59,7 @@ def test_first_user_bootstrap_then_closed():
     r = c.post("/register", json={"username": "admin", "password": "pw-admin-1"})
     assert r.status_code == 200
     assert c.get("/api/sessions", headers=_bearer(r.json()["token"])).status_code == 200
+    c.cookies.clear()  # a stranger's browser, not the admin's session cookie
     assert c.post("/register", json=STRANGER).status_code == 403
 
 

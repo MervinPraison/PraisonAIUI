@@ -120,7 +120,7 @@ def _scope_user(scope: dict) -> Optional[Dict[str, Any]]:
         from praisonaiui.http_guard import websocket_token
 
         if not user_id and scope.get("type") == "websocket":
-            user_id = auth.validate_token(websocket_token(scope))
+            user_id = auth.validate_token(websocket_token(scope)) or auth.request_user(scope)
         record = auth._users.get(user_id) if user_id else None
     except Exception:  # identity is best effort, never block a turn
         record = None
