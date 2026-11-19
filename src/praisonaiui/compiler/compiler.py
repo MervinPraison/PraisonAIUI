@@ -14,8 +14,15 @@ from urllib.parse import urlparse
 
 from praisonaiui.compiler import access as docs_access
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import boot_data
-from praisonaiui.compiler import branding, changelog, code_theme, csp, integrations, site_assets
+from praisonaiui.compiler import (
+    boot_data,
+    branding,
+    changelog,
+    code_theme,
+    csp,
+    integrations,
+    site_assets,
+)
 from praisonaiui.compiler import components as site_components
 from praisonaiui.compiler import languages as lang
 from praisonaiui.compiler import og_image as og
