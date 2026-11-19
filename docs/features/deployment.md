@@ -131,6 +131,9 @@ open server. Page titles and descriptions stay visible: `/docs-nav.json` lists
 them for the sidebar. To keep the folder public in front of a private API, set
 `AIUI_PUBLIC_STATIC_DIR=1`.
 
+A built docs site served by `aiui serve` takes a password, open pages and
+reader groups from `content.docs.auth` instead ([docs sign-in](docs-auth.md)).
+
 WebSocket handshakes are gated too (all of them). Browsers cannot send an
 `Authorization` header on a WebSocket, so the UI first exchanges its key for a
 single-use ticket (`POST /api/auth/ws-ticket`, valid 60 s) and connects with

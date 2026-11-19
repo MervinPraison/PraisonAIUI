@@ -418,6 +418,48 @@ class ReferenceConfig(BaseModel):
     )
 
 
+_ENV_REF = re.compile(r"^env:[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _env_ref(value: Optional[str]) -> Optional[str]:
+    if value is not None and not _ENV_REF.match(value.strip()):
+        raise ValueError("write the password as env:NAME (the environment variable aiui serve reads it from), "
+                         "so it never lands in the build")
+    return value.strip() if value else value
+
+
+class DocsAuthConfig(BaseModel):
+    """Sign-in for the docs when ``aiui serve`` or ``aiui dev`` serves them (docs/features/docs-auth.md)."""
+
+    password: Optional[str] = Field(default=None, description="env:NAME: one shared password for every reader")
+    users: dict[str, str] = Field(default_factory=dict, description="Named readers, each with their own "
+                                  "password: {name: env:NAME}")
+    public: list[str] = Field(default_factory=list, description="Pages anyone may read: '/' (the home "
+                              "page), page paths and patterns such as 'quickstart' or 'guides/*'")
+
+    _password = field_validator("password")(_env_ref)
+
+    @field_validator("users")
+    @classmethod
+    def _users(cls, v: dict) -> dict:
+        for name, password in v.items():
+            if not re.fullmatch(r"[\w.@-]{1,64}", name):
+                raise ValueError(f"reader name {name!r}: letters, digits, . _ @ - (64 at most)")
+            _env_ref(password)
+        return {n: p.strip() for n, p in v.items()}
+
+    @model_validator(mode="after")
+    def _someone(self) -> DocsAuthConfig:
+        if not self.password and not self.users:
+            raise ValueError("set password (env:NAME) or users, or there is no way to sign in")
+        return self
+
+    def readers(self) -> list[tuple[str, str]]:
+        """Each way to sign in: (name, environment variable); the shared password is ``reader``."""
+        shared = [("reader", self.password[4:])] if self.password else []
+        return shared + [(n, p[4:]) for n, p in self.users.items()]
+
+
 class ContentSourceConfig(BaseModel):
     """Configuration for a single content source (docs, blog, etc.)."""
 
@@ -455,6 +497,11 @@ class ContentSourceConfig(BaseModel):
     reference: ReferenceConfig = Field(
         default_factory=ReferenceConfig,
         description="Python API reference from docstrings: where ::: blocks find modules",
+    )
+    auth: Optional[DocsAuthConfig] = Field(
+        default=None,
+        description="Readers sign in with a password under aiui serve and aiui dev; public patterns "
+        "and front matter public: true keep pages open (docs/features/docs-auth.md)",
     )
 
     model_config = ConfigDict(populate_by_name=True)

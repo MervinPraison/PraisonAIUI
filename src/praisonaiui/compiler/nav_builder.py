@@ -39,7 +39,7 @@ PAGE_MODES = ("wide", "center", "custom", "frame", "assistant")
 #: Frontmatter keys the build reads itself; every other scalar key goes to the page's `meta`.
 KNOWN_KEYS = frozenset(
     "title description sidebarTitle nav_title icon iconType tag deprecated mode url hideFooterPagination "
-    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost canonical robots playground related pageActions".split()
+    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost canonical robots playground related pageActions public".split()
 )
 
 

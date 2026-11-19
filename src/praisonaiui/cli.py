@@ -746,6 +746,7 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     * A docs build answers Ask AI at ``/api/docs/ask`` and search at
       ``/api/docs/search`` (docs_assistant.py), unless built with
       ``content.docs.assistant: false``.
+    * A ``content.docs.auth`` build asks for a password for its closed pages (docs_auth.py).
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
@@ -880,6 +881,10 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
             Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
         )
     app = Starlette(routes=routes, middleware=middleware)
+    from praisonaiui.docs_auth import DocsAuth
+
+    auth = DocsAuth.for_site(root, base)  # content.docs.auth: sign-in and open pages
+    app = auth.wrap(app) if auth else app
     app = _under_base(app, base) if base else app
     from praisonaiui.compiler.csp import site_headers
 
