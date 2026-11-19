@@ -69,6 +69,7 @@ tag: NEW
 | `playground` | string | `interactive`, `simple`, `none` or `auth`: the Try-it display of an `openapi:` or `api:` page; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
+| `related` | list of pages or URLs, or `false` | The "Related pages" under this page, instead of the suggested ones; `false` shows none ([Related pages](#related-pages)). |
 | `rss` | `true`/`false` | `true` on a changelog page: the build writes its `<Update>` entries as an RSS feed at `<page>/rss.xml` and links it ([Changelog](#changelog)). |
 | `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
 | any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
@@ -1135,6 +1136,33 @@ content:
   "No" also offers a new issue there with the page's title and address filled in.
 
 The footer of this page shows all three.
+
+### Related pages
+
+Under each page, "Related pages" lists the three pages closest to it. Nothing to
+configure: `aiui build` compares the words of every page (title, `keywords`,
+description and headings count most, then the text) and favours pages in the
+same sidebar group. Hidden, `noindex` and `searchable: false` pages and the home
+page are never suggested. The list is part of `docs-nav.json`, so it works on any
+static host and offline, and each page's [agent-ready `.md`](ai-ready-docs.md)
+ends with it too.
+
+Pick the list for a page in its front matter, or turn it off:
+
+```yaml
+---
+related:
+  - guides/setup                  # a page, by its path under the docs folder
+  - ./deploy#docker               # relative to this page, with an anchor
+  - Upgrade notes: guides/upgrade # a label of your own
+  - https://example.com/blog/v2   # an external link (opens in a new tab)
+---
+```
+
+`related: false` shows none on that page. Site-wide, `content.docs.related: 5`
+shows five (at most 10) and `content.docs.related: false` only the lists pages
+set themselves. `aiui validate` reports a target that is no page (7013). The
+block is left out when the page prints.
 
 ### Page feedback
 

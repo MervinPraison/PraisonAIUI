@@ -65,3 +65,18 @@ test('head tags: the page seo map wins, and the next page drops what it does not
   await expect(head('meta[property="og:type"]')).toHaveCount(1)
   await expect(head('script[type="application/ld+json"]')).toHaveCount(1)
 })
+
+test('related pages: titled links under the article that open in place, external in a new tab', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await withNav(page, { related: ['/docs/guide/second', { title: 'Elsewhere', href: 'https://example.com/a' }] })
+  await page.setViewportSize({ width: 390, height: 800 })
+  await page.goto('/docs/guide/first')
+  const related = page.getByRole('navigation', { name: 'Related pages' })
+  await expect(related.getByRole('link')).toHaveCount(2)
+  await expect(related.getByRole('link', { name: /Elsewhere/ })).toHaveAttribute('target', '_blank')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await related.getByRole('link', { name: 'Second page' }).click()
+  await expect(page).toHaveURL(/\/docs\/guide\/second$/)
+  await expect(page.locator('.aiui-docs-related')).toHaveCount(0)
+  expect(errors.pageErrors).toEqual([])
+})

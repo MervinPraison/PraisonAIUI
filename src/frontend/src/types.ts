@@ -40,6 +40,8 @@ export interface NavItem {
     seo?: Record<string, string>
     /** `card` | `accordion`: the build lists the group's pages on its page. */
     directory?: string
+    /** Related pages under the page (compiler/related.py): a page path, or a labelled page or external link. */
+    related?: (string | { title: string; path?: string; href?: string })[]
     children?: NavItem[]
 }
 

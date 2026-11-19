@@ -151,11 +151,13 @@ content:
       issues: "https://github.com/acme/site/issues/new"  # optional
       code: true                     # optional: a flag on each code block
       endpoint: "https://hooks.example.com/votes"  # optional: static hosting
+    related: 5                       # related pages under each page (default 3; false: none)
     mcp: false                       # no MCP server on aiui serve (default: on)
 ```
 
 `editLink`, `lastUpdated` and `feedback` draw the page footer; see
 [Writing docs pages → Page footer](../features/writing-docs.md#page-footer).
+`related` is the [related pages](../features/writing-docs.md#related-pages) list.
 `mcp` is the [docs MCP server](../features/ai-ready-docs.md#mcp-server).
 
 `indexFiles` and `nav` (`mode`, `sort`, `collapsible`, `maxDepth`) are accepted
