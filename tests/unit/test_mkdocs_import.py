@@ -99,11 +99,13 @@ def test_env_and_python_tags_convert_to_a_valid_config(tmp_path):
     assert result.draft.socials["x"] == "https://x.com/MervinPraison"
     assert result.draft.exclude == ["lazy-loading.md", "snippets/**"]
     assert result.page_count == 5
-    assert [tab.tab for tab in result.draft.tabs] == ["Home", "Getting Started", "Video"]
-    started = result.draft.tabs[1].groups[0]
-    assert started.prefix == "getting-started"
-    assert started.pages == ["getting-started/index", "getting-started/installation"]
-    assert result.draft.tabs[2].groups[1].pages == ["pipeline-overview"]
+    assert [tab.tab for tab in result.draft.tabs] == ["Docs"]
+    groups = {group.group: group.pages for group in result.draft.tabs[0].groups}
+    assert groups["Get started"] == ["index"]
+    assert groups["Getting Started"] == ["getting-started/index", "getting-started/installation"]
+    assert "pipeline-overview" in groups["Pipelines"]
+    assert result.data["content"]["docs"]["nav"]["mode"] == "manual"
+    assert result.data["navbar"]["primary"]["href"] == "/docs/getting-started/installation"
     assert "plugin:mkdocstrings" in _codes(result, "dropped")
     assert "hooks" in _codes(result, "dropped")
     assert "snippets" in _codes(result, "dropped")
@@ -167,7 +169,7 @@ def test_many_loose_pages_stay_in_one_tab(tmp_path):
 
     result = convert_mkdocs(source)
 
-    assert [tab.tab for tab in result.draft.tabs] == ["Documentation"]
+    assert [tab.tab for tab in result.draft.tabs] == ["Docs"]
     assert result.page_count == 9
 
 

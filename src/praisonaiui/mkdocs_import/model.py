@@ -38,6 +38,7 @@ class GroupDraft:
     group: str
     pages: list[str] = field(default_factory=list)
     prefix: Optional[str] = None
+    icon: Optional[str] = None
 
 
 @dataclass
