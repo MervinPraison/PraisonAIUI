@@ -385,5 +385,7 @@ export default [
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
   // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9643947 B', brotli: false },
+  // 9,647,277 B (+3,330 B, exactly the overage): the docs print stylesheet and the
+  // Download as PDF page action.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9647277 B', brotli: false },
 ]
