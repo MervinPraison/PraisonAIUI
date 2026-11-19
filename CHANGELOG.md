@@ -664,6 +664,12 @@
 
 ### Fixed
 
+- Docs sites: a page whose download stalls after it starts is requested again
+  after 5 seconds without a byte, instead of after the 15-second limit on the
+  whole download; a slow download that keeps arriving still gets the 15
+  seconds, and when every attempt fails the page still offers Retry. See
+  [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
+
 - **Phone chat: no stray copy button, no lonely logo.** A table that moved to
   the canvas no longer leaves its copy and download buttons over the reply on
   a touch screen, and a long app name in the new-chat hero wraps below its

@@ -87,6 +87,64 @@ describe('fetchWithRetry', () => {
         await assert.rejects(fetchWithRetry('/docs/a.md', { ...fast, fetchImpl: impl }), DocLoadError)
     })
 
+    /** A body that sends `chunks` pieces `everyMs` apart (Infinity: for ever), then ends. */
+    const trickle = (everyMs: number, chunks: number) => {
+        let timer: ReturnType<typeof setInterval>
+        let sent = 0
+        return new Response(new ReadableStream({
+            start(c) {
+                timer = setInterval(() => {
+                    if (sent++ < chunks) c.enqueue(new TextEncoder().encode('x'))
+                    else {
+                        clearInterval(timer)
+                        c.close()
+                    }
+                }, everyMs)
+            },
+            cancel() {
+                clearInterval(timer)
+            },
+        }))
+    }
+
+    test('a body that sends nothing for the idle limit is retried long before the total limit', async () => {
+        const stalled = new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('# part')) } }))
+        const { impl, calls } = scriptedFetch([stalled, new Response('# Page')])
+        const started = Date.now()
+        const result = await fetchWithRetry('/docs/a.md', { ...fast, bodyTimeoutMs: 5_000, bodyIdleTimeoutMs: 40, fetchImpl: impl })
+        assert.deepEqual(result, { ok: true, status: 200, text: '# Page' })
+        assert.equal(calls[0].aborted, true)
+        assert.ok(Date.now() - started < 1_000, 'cut off by the idle limit, not the 5 s total')
+    })
+
+    test('a slow body that keeps sending bytes is not cut off by the idle limit', async () => {
+        // 8 chunks 15 ms apart: 120 ms in all, past the 40 ms idle limit but never 40 ms without a byte.
+        const { impl, calls } = scriptedFetch([trickle(15, 8)])
+        const result = await fetchWithRetry('/docs/a.md', { ...fast, bodyTimeoutMs: 2_000, bodyIdleTimeoutMs: 40, fetchImpl: impl })
+        assert.deepEqual(result, { ok: true, status: 200, text: 'xxxxxxxx' })
+        assert.equal(calls.length, 1)
+    })
+
+    test('a body that trickles past the total limit is still cut off, then DocLoadError', async () => {
+        const { impl, calls } = scriptedFetch([trickle(5, Infinity), trickle(5, Infinity), trickle(5, Infinity)])
+        await assert.rejects(fetchWithRetry('/docs/a.md', { ...fast, bodyTimeoutMs: 60, bodyIdleTimeoutMs: 40, fetchImpl: impl }), DocLoadError)
+        assert.equal(calls.length, 3)
+        assert.ok(calls.every((c) => c.aborted))
+    })
+
+    test('decodes a multi-byte character split across chunks', async () => {
+        const bytes = new TextEncoder().encode('é ü')
+        const split = new Response(new ReadableStream({
+            start(c) {
+                c.enqueue(bytes.slice(0, 1))
+                c.enqueue(bytes.slice(1))
+                c.close()
+            },
+        }))
+        const { impl } = scriptedFetch([split])
+        assert.equal((await fetchWithRetry('/docs/a.md', { ...fast, fetchImpl: impl })).text, 'é ü')
+    })
+
     test('stops at once, without retrying, when the caller aborts', async () => {
         const { impl, calls } = scriptedFetch(['hang'])
         const nav = new AbortController()
