@@ -219,6 +219,8 @@ export interface UIConfig {
     redirects?: RedirectRule[]
     /** `errors.404` (or `errors.notFound`): the page-not-found view (docs/DocsNotFound.tsx). */
     errors?: { notFound?: NotFoundConfig }
+    /** The docs MCP server `aiui serve` adds (docs_mcp.py); `false` with `content.docs.mcp: false`, absent on a static host. */
+    mcp?: false | { url: string; name: string }
 }
 
 /** One `redirects:` rule: `:name` is one path segment, a final `:name*` the rest of the path. */
