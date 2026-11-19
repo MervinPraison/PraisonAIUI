@@ -21,7 +21,13 @@ from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
 from praisonaiui.compiler.llms import write_llms_files
-from praisonaiui.compiler.nav_builder import NavBuilder, external_url, manual_entries, nav_trails
+from praisonaiui.compiler.nav_builder import (
+    NavBuilder,
+    external_url,
+    manual_entries,
+    nav_divisions,
+    nav_trails,
+)
 from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.openapi import add_spec, endpoint_ref, same_source
@@ -242,7 +248,8 @@ class Compiler:
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
         issues += branding.missing_images(self.config, self.base_path)
         moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
-        return issues + nav_icons(manual_entries(self.config)) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved
+        divisions = [d for d, _ in self.config.navigation.divisions()] if self.config.navigation else []
+        return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved
 
     def _page_routes(self, nav: dict) -> set[str]:
         """Every published page path, and the site root and docs root when there is a home page."""
@@ -425,29 +432,10 @@ class Compiler:
 
         # ── Docs site fields ──
 
-        # Navigation with tabs (endpoint pages added where a spec is named)
+        # Navigation: tabs, anchors, dropdowns (endpoint pages added where a spec is named)
         navigation = (self._api.config if self._api else self.config).navigation
-        if navigation and navigation.tabs:
-            result["navigation"] = {
-                "tabs": [
-                    {
-                        "tab": t.tab,
-                        "url": t.url,
-                        "groups": [
-                            {
-                                "group": g.group,
-                                "icon": g.icon,
-                                "prefix": g.prefix,
-                                "pages": g.page_slugs(),
-                                **({"boost": g.boost} if g.boost is not None else {}),
-                            }
-                            for g in t.groups
-                        ],
-                    }
-                    for t in navigation.tabs
-                    if not t.hidden
-                ],
-            }
+        if navigation and (navigation.tabs or navigation.anchors or navigation.dropdowns or navigation.global_):
+            result["navigation"] = nav_divisions(navigation)
 
         # The line above a docs page title (styling.eyebrows)
         if self.config.styling and "eyebrows" in self.config.styling.model_fields_set:

@@ -1,7 +1,9 @@
 // Docs header: brand, section tabs, links, search, call to action, theme.
 // Styles: docs/docs.css (.aiui-docs-header*), Pro tokens.
 import { Github, Menu, Search } from 'lucide-react'
-import type { NavTabConfig, UIConfig } from './types'
+import type { UIConfig } from './types'
+import type { NavDivisions } from './docs/navDivisions'
+import { HeaderTabs } from './docs/DivisionNav'
 import { LocaleSwitcher } from './i18n'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -13,9 +15,8 @@ interface HeaderProps {
     config: UIConfig
     templateKey?: string
     onMenuClick?: () => void
-    navTabs?: NavTabConfig[]
-    activeTabIndex?: number
-    onTabChange?: (index: number) => void
+    /** Tabs (and tab menus) from ui-config `navigation`; App.tsx builds them (docs/navDivisions.ts). */
+    divisions?: NavDivisions
     /** Shows the search button; App.tsx passes it when search is on. */
     onSearchClick?: () => void
 }
@@ -24,16 +25,13 @@ export function Header({
     config,
     templateKey = 'docs',
     onMenuClick,
-    navTabs,
-    activeTabIndex = 0,
-    onTabChange,
+    divisions,
     onSearchClick,
 }: HeaderProps) {
     const { logoSrc, logoDarkSrc, logoHref, logoText, links, primary } = docsChromeModel(config, templateKey)
     // An app path navigates in place; any other href (another site) is a plain link.
     const inApp = isAppPath(logoHref)
-    const tabs = navTabs ?? config.navigation?.tabs ?? []
-    const hasTabs = tabs.length > 0
+    const hasTabs = (divisions?.tabs.length ?? 0) > 0
     const searchEnabled = Boolean(onSearchClick)
 
     const onLogoClick = (event: React.MouseEvent) => {
@@ -66,21 +64,7 @@ export function Header({
                     <span>{logoText}</span>
                 </a>
 
-                {hasTabs && (
-                    <nav className="aiui-docs-tabs" aria-label="Documentation sections">
-                        {tabs.map((tab, index) => (
-                            <button
-                                key={tab.tab}
-                                type="button"
-                                className="aiui-docs-tab"
-                                aria-pressed={index === activeTabIndex}
-                                onClick={() => onTabChange?.(index)}
-                            >
-                                {tab.tab}
-                            </button>
-                        ))}
-                    </nav>
-                )}
+                {hasTabs && divisions && <HeaderTabs divisions={divisions} />}
 
                 {!hasTabs && links.length > 0 && (
                     <nav className="aiui-docs-links" aria-label="Site">

@@ -431,6 +431,14 @@
   cached by content, so rebuilds only draw changed pages. A page's own `og:image` wins;
   `seo.ogImages: false` keeps `seo.defaultImage`. Without Pillow the build prints one note. See
   [SEO](docs/features/seo.md#social-cards).
+- **Tabs that navigate, tab menus, sidebar anchors and a product switcher.** A docs header tab
+  now opens its first page and takes `icon`, `href` (a link out; the old `url` works), `pages`
+  (no group needed) and `menu` (a small dropdown of items, each with its own sidebar or link).
+  `navigation.anchors` and `navigation.global.anchors` pin links (or sections with their own
+  sidebar) at the top of the sidebar; `navigation.dropdowns` (or `products`) adds a switcher
+  there whose entries each own a sidebar or their own header tabs. On phones all of it sits in
+  the navigation drawer. `aiui validate` warns about one with nothing to open (2102). See
+  [Navigation](docs/features/navigation.md#tab-options).
 
 ### Deprecated
 

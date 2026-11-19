@@ -102,6 +102,7 @@ under it:
 | 1003 | unknown key (ignored); in a `$ref` file the file is named |
 | 1004 | key accepted but has no effect; unknown component tag in a page |
 | 2101 | a nav entry names no docs page |
+| 2102 | a navigation tab, menu item, anchor or dropdown with no pages, groups or `href` |
 | 5001, 51xx, 5201 | theme, layout and search settings that are ignored |
 | 6001, 6002 | broken link or missing image (`aiui docs check-links`); OpenAPI spec problems |
 | 7000 | page front matter is not valid YAML (the page loses its title) |
