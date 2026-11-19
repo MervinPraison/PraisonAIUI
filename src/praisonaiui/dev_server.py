@@ -294,7 +294,7 @@ def run(
     *,
     host: str,
     port: int,
-    open_browser: bool,
+    open_browser: Optional[bool],
     url_base: Optional[str] = None,
 ) -> None:
     """Build, serve on *host*:*port*, watch and reload until Ctrl+C."""
@@ -343,10 +343,9 @@ def run(
     console.print("[dim]Edits rebuild and reload the page. Press Ctrl+C to stop.[/dim]\n")
 
     threading.Thread(target=site.watch, args=(report,), daemon=True).start()
-    if open_browser:
-        import webbrowser
+    from praisonaiui.browser import open_url
 
-        threading.Timer(0.8, webbrowser.open, args=(url,)).start()
+    open_url(url, open_browser, delay=0.8)
     server = uvicorn.Server(
         uvicorn.Config(
             site,

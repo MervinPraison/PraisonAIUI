@@ -955,6 +955,11 @@ def serve(
         "--ssl-keyfile",
         help="Path to SSL private key file for HTTPS",
     ),
+    open_browser: Optional[bool] = typer.Option(
+        None,
+        "--open/--no-open",
+        help="Open the site in a browser (default: only when run from a terminal)",
+    ),
     base_path: Optional[str] = typer.Option(
         None,
         "--base-path",
@@ -997,10 +1002,10 @@ def serve(
         console.print(f"[green]🔒[/green] TLS enabled with {ssl_certfile}")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
-    # Open browser
-    import webbrowser
+    # Open a browser only for a person at a terminal (browser.py)
+    from praisonaiui.browser import open_url
 
-    webbrowser.open(site_url)
+    open_url(site_url, open_browser)
 
     # Start file watcher in background thread if --watch
     if watch and config is not None and config.exists():
@@ -1045,7 +1050,9 @@ def dev(
         "--host",
         help="Host to bind to (default: this machine only)",
     ),
-    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the preview in the browser"),
+    open_browser: Optional[bool] = typer.Option(
+        None, "--open/--no-open", help="Open the preview in a browser (default: only when run from a terminal)"
+    ),
     base_path: Optional[str] = typer.Option(
         None, "--base-path", help="URL path to preview the site under (default: as `aiui build`)"
     ),
@@ -1093,7 +1100,6 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
     import subprocess
     import tempfile
     import urllib.parse
-    import webbrowser
 
     # Find examples
     if not examples_dir.exists():
@@ -1650,7 +1656,9 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
             f"\n[green]🚀[/green] Dev dashboard at [link]http://localhost:{actual_port}[/link]"
         )
         console.print("[dim]Switch examples with the dropdown. Press Ctrl+C to stop.[/dim]\n")
-        webbrowser.open(f"http://localhost:{actual_port}")
+        from praisonaiui.browser import open_url
+
+        open_url(f"http://localhost:{actual_port}")
 
         with socketserver.TCPServer((host, actual_port), DevHandler) as httpd:
             try:
