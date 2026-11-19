@@ -179,7 +179,9 @@ def issue(user_id: str, lifetime: Optional[int] = None) -> str:
     """A signed session token for *user_id*."""
     now = _now()
     exp = int(now + (lifetime or _settings.lifetime))
-    claims = {"sub": str(user_id), "iat": round(now, 3), "exp": exp, "jti": secrets.token_urlsafe(12)}
+    # Strictly after a "sign out everywhere" in the same millisecond, so a new sign-in counts.
+    iat = max(round(now, 3), round(_revocations.signed_out_at(str(user_id)) + 0.001, 3))
+    claims = {"sub": str(user_id), "iat": iat, "exp": exp, "jti": secrets.token_urlsafe(12)}
     body = TOKEN_VERSION + "." + _b64(json.dumps(claims, separators=(",", ":")).encode())
     return body + "." + _sign(signing_keys()[0], body)
 
@@ -231,22 +233,30 @@ class _Revocations:
         self._jtis: set[str] = set()
         self._users: dict[str, float] = {}
 
-    def revoked(self, jti: str, sub: str, iat: float) -> bool:
+    def _refresh(self) -> None:
         path = data_dir() / REVOKED_FILE
+        try:
+            st = path.stat()
+            stamp: Optional[tuple] = (str(path), st.st_ino, st.st_mtime_ns, st.st_size)
+        except FileNotFoundError:
+            stamp = None
+        if stamp != self._stamp:
+            entries = _live_entries(path) if stamp else []
+            self._jtis = {str(e["jti"]) for e in entries if "jti" in e}
+            self._users = {}
+            for e in (e for e in entries if "sub" in e):
+                self._users[str(e["sub"])] = max(self._users.get(str(e["sub"]), 0.0), float(e["at"]))
+            self._stamp = stamp
+
+    def revoked(self, jti: str, sub: str, iat: float) -> bool:
         with self._lock:
-            try:
-                st = path.stat()
-                stamp: Optional[tuple] = (str(path), st.st_ino, st.st_mtime_ns, st.st_size)
-            except FileNotFoundError:
-                stamp = None
-            if stamp != self._stamp:
-                entries = _live_entries(path) if stamp else []
-                self._jtis = {str(e["jti"]) for e in entries if "jti" in e}
-                self._users = {}
-                for e in (e for e in entries if "sub" in e):
-                    self._users[str(e["sub"])] = max(self._users.get(str(e["sub"]), 0.0), float(e["at"]))
-                self._stamp = stamp
+            self._refresh()
             return jti in self._jtis or iat <= self._users.get(sub, -1.0)
+
+    def signed_out_at(self, sub: str) -> float:
+        with self._lock:
+            self._refresh()
+            return self._users.get(sub, -1.0)
 
     def add(self, entry: dict) -> None:
         path = data_dir() / REVOKED_FILE

@@ -241,9 +241,10 @@ def test_logout_revokes_on_every_worker_and_clears_the_cookie():
     assert auth.validate_token(token) is None
 
 
-def test_clear_tokens_signs_a_user_out_everywhere():
+def test_clear_tokens_signs_a_user_out_everywhere(monkeypatch):
     import asyncio
 
+    monkeypatch.setattr(auth_tokens, "_now", lambda: 1_900_000_000.0)  # all in one millisecond
     first, second = auth.create_token("alice"), auth.create_token("alice")
     other = auth.create_token("bob")
     asyncio.run(auth.Session("", "alice", {}).clear_tokens())
