@@ -4527,6 +4527,32 @@ from praisonaiui.cli_docs import docs_app  # noqa: E402  (aiui docs check-links)
 
 app.add_typer(docs_app, name="docs")
 
+# ── Auth ─────────────────────────────────────────────────────────────
+auth_app = typer.Typer(name="auth", help="Session secret and API keys", add_completion=False)
+app.add_typer(auth_app, name="auth")
+
+
+@auth_app.command("create-secret")
+def auth_create_secret() -> None:
+    """Print a new session secret: export AIUI_AUTH_SECRET=$(aiui auth create-secret)"""
+    from praisonaiui.auth_tokens import create_secret
+
+    typer.echo(create_secret())
+
+
+@auth_app.command("create-key")
+def auth_create_key(
+    name: str = typer.Option("CLI Key", "--name", "-n", help="Label for the key"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Create an API key on a running server (shown once)."""
+    try:
+        data = _api_post(server, "/api/auth/keys", {"name": name})
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+    typer.echo(data["key"])
+
 
 if __name__ == "__main__":
     app()

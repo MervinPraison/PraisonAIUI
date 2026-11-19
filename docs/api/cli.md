@@ -368,6 +368,12 @@ aiui surface push [SURFACE_ID] --file messages.json [--replace]
 aiui surface clear [SURFACE_ID]
 ```
 
+### `auth`
+
+`aiui auth create-secret` prints a new session secret (offline; see
+[Sessions](../features/deployment.md#sessions)); `aiui auth create-key --name my-app` creates an
+API key on the running server and prints it once.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -390,6 +396,8 @@ aiui surface clear [SURFACE_ID]
 | `AIUI_ALLOWED_HOSTS` | Extra host names a loopback or private-address server answers |
 | `AIUI_REQUIRE_TOKEN` | Require the URL token on every request |
 | `AUTH_ENFORCE` | `true` gates every route and WebSocket behind auth |
+| `AIUI_AUTH_SECRET` | Session signing secret (comma-separated to rotate: first signs, all verify); default a generated `<data dir>/auth_secret` |
+| `AIUI_SESSION_LIFETIME` | How long a sign-in lasts while unused (`14d` default, `12h`, `3600`); overrides YAML `auth.sessionLifetime` |
 | `AIUI_DISABLE_PLUGIN_AUTOLOAD` | `1` stops loading plugin CLI commands |
 | `PRAISONAI_MODEL` | Default model for built-in agent features (default `gpt-4o-mini`) |
 | `OPENAI_API_KEY` | Used by agent features and examples that call OpenAI |
