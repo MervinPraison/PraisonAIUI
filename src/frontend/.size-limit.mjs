@@ -247,7 +247,10 @@ export default [
   // actions / action_remove, saved segments on reload) and the toast frame through the
   // lazy toaster (sdk notify). Splitting the edits into a lazy chunk measured +137 B
   // more (the loader and holding later frames cost more than the code it moves).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143081 B', gzip: true },
+  // 143,581 B (+500 B, exactly the overage): the reply's steps (step_* events build one
+  // `step` part per top-level step in the reducer, steps saved with the reply rebuild on
+  // reload); the tree itself is the lazy parts/StepTree chunk.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143581 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -311,7 +314,8 @@ export default [
   // site component load them lazily (docs/customBlocks.ts); same code, one more file.
   // 255,578 B (+350 B, exactly the overage): voice input's probe in the chat route (above).
   // 256,385 B (+807 B, exactly the overage): the reply's messages as blocks (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256385 B', gzip: true },
+  // 256,881 B (+496 B, exactly the overage): the reply's steps (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256881 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -443,5 +447,7 @@ export default [
   // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
   // 11,162,854 B (+2,570 B, exactly the overage): the reply's messages as blocks in the chat
   // route (above).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11162854 B', brotli: false },
+  // 11,167,510 B (+4,656 B, exactly the overage): the reply's steps (the lazy StepTree chunk
+  // and the reducer in the chat route, above).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11167510 B', brotli: false },
 ]
