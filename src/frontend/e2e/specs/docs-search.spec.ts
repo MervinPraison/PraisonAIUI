@@ -75,3 +75,37 @@ test('tab chips filter results; an empty tab offers every tab', async ({ page })
   await expect(dialog.getByRole('option', { name: /Usage/ }).first()).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })
+
+test('search downloads the split index a query needs, never the whole file', async ({ page }) => {
+  const asked: string[] = []
+  page.on('request', (r) => {
+    const path = new URL(r.url()).pathname
+    if (path.startsWith('/search-index')) asked.push(path)
+  })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await page.keyboard.press('Control+k')
+  const dialog = page.getByRole('dialog', { name: 'Search documentation' })
+  await expect.poll(() => asked).toEqual(['/search-index/meta.json'])
+  await dialog.getByRole('combobox').fill('quasars')
+  await expect(dialog.getByRole('option').first()).toContainText('the quasar word land here')
+  const words = asked.filter((p) => /^\/search-index\/[0-9a-f]{10}\/w\d+\.json$/.test(p))
+  const texts = asked.filter((p) => /^\/search-index\/[0-9a-f]{10}\/p\d+\.json$/.test(p))
+  expect(words.length).toBeGreaterThan(0)
+  expect(texts.length).toBeGreaterThan(0)
+  expect(asked).not.toContain('/search-index.json')
+})
+
+test('a site without the split index (an older build) searches search-index.json as before', async ({ page }) => {
+  await page.route('**/search-index/meta.json', (route) => route.fulfill({ status: 404, body: 'Not Found' }))
+  const whole = page.waitForRequest((r) => new URL(r.url()).pathname === '/search-index.json')
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await page.keyboard.press('Control+k')
+  await whole
+  const dialog = page.getByRole('dialog', { name: 'Search documentation' })
+  await dialog.getByRole('combobox').fill('quasars')
+  await expect(dialog.getByRole('option').first()).toContainText('the quasar word land here')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/\/docs\/search#deep-text$/)
+})

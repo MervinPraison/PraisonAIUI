@@ -664,6 +664,16 @@
 
 ### Fixed
 
+- Docs sites: search no longer downloads the whole index the first time it
+  opens. `aiui build` also writes it in parts under `search-index/`: the
+  headings and word list on first open, then only the word files a query's
+  words fall in and the text of the pages it lists. Ranking is unchanged
+  (BM25, keywords, boost, tab chips, `?q=` links). On this repository's docs
+  the first open fetches 35 KB gzipped instead of 181 KB, and a first query
+  about 13 KB more. `search-index.json` is still written and read by the MCP
+  server, Ask AI and older pages; a site built before the parts, or a part
+  gone after a deploy, falls back to it. See
+  [Writing docs → Search](docs/features/writing-docs.md#search).
 - Docs sites, first load: each page `aiui build` writes carries `docs-nav.json`
   and `route-manifest.json` (as it already carried the page's Markdown) and
   preloads `ui-config.json`, and the plugin loader's tag names the plugins, so

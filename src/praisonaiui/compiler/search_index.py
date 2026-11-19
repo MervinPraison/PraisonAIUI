@@ -1,4 +1,4 @@
-"""Full-text search index for docs sites (``search-index.json``).
+"""Full-text search index for docs sites (``search-index.json``, ``search-index/``).
 
 ``aiui build`` writes one entry per page: its path, title, description, the
 text under each ``##`` / ``###`` heading with the heading's anchor, and the
@@ -11,11 +11,29 @@ sections and text.
 Anchors use the same rule as the renderer's heading ids
 (``src/frontend/src/markdown/slug.ts``, or the ``{#id}`` an author wrote), so
 a result opens at its section. Comments are not indexed.
+
+The same entries are also written split up (:func:`write_shards`), so the dialog
+downloads a small part of them: ``search-index/meta.json`` holds each page's
+path, keywords, boost and section headings with their word counts, plus the
+sorted list of every word; ``search-index/<key>/w<n>.json`` holds, for a run of
+those words, the sections each appears in and how often; ``.../p<i>.json``
+holds page ``i``'s section text, for the snippets of the results shown. The
+dialog fetches the meta file on first open, the word files a query's words
+match and the text of the pages it lists, and ranks exactly as it would with
+the whole file (``searchIndex.ts`` ``ShardedIndex``). ``<key>`` is a hash of
+the index, so a page cached from an older deploy never mixes its meta file with
+newer parts; a missing part makes the dialog fall back to ``search-index.json``.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import shutil
+import unicodedata
+from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from praisonaiui.compiler.docs_tags import heading_id, strip_comments
@@ -163,3 +181,97 @@ def page_entry(
     if (boost := boost_of(meta.get("boost"))) is not None:
         entry["b"] = boost
     return entry
+
+
+#: Folder of the split index, beside ``search-index.json``.
+SHARDS_DIR = "search-index"
+#: Format of ``search-index/meta.json``.
+SHARDS_VERSION = 2
+#: About this many characters of postings per word file (a few kB gzipped).
+SHARD_CHARS = 16_000
+#: How often a section's heading counts, as ``searchIndex.ts`` HEADING_WEIGHT.
+HEADING_WEIGHT = 2
+_B36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def tokenize(text: str) -> list[str]:
+    """Words exactly as ``searchRank.ts`` ``tokenize`` finds them: lower case, runs of
+    letters and digits in any script (``/[\\p{L}\\p{N}]+/gu``)."""
+    words, word = [], []
+    for ch in text.lower():
+        if unicodedata.category(ch)[0] in "LN":
+            word.append(ch)
+        elif word:
+            words.append("".join(word))
+            word = []
+    if word:
+        words.append("".join(word))
+    return words
+
+
+def _b36(n: int) -> str:
+    out = ""
+    while True:
+        n, r = divmod(n, 36)
+        out = _B36[r] + out
+        if not n:
+            return out
+
+
+def _postings(entries: list[tuple[int, int]]) -> str:
+    """``"<gap>[:<count>],…"``: section ids as gaps from the previous one, counts over 1, base 36."""
+    prev, parts = 0, []
+    for sid, tf in entries:
+        parts.append(_b36(sid - prev) + (f":{_b36(tf)}" if tf > 1 else ""))
+        prev = sid
+    return ",".join(parts)
+
+
+def _dump(path: Path, value: Any) -> None:
+    path.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
+def write_shards(
+    output_dir: Path, pages: list[dict[str, Any]], index_json: str, shard_chars: int = SHARD_CHARS
+) -> list[str]:
+    """Write the split index of ``pages`` (:func:`page_entry` entries) under
+    :data:`SHARDS_DIR`, replacing any earlier one. ``index_json``: the text of
+    ``search-index.json``, hashed into the key; ``shard_chars``: the size of a
+    word file (:data:`SHARD_CHARS`). Returns the files written."""
+    root = output_dir / SHARDS_DIR
+    shutil.rmtree(root, ignore_errors=True)
+    key = hashlib.sha256(index_json.encode("utf-8")).hexdigest()[:10]
+    (root / key).mkdir(parents=True)
+    postings: dict[str, list[tuple[int, int]]] = {}
+    meta_pages, texts, sid = [], [], 0
+    for page in pages:
+        sections = []
+        for sec in page["s"]:
+            words = tokenize(sec["h"]) * HEADING_WEIGHT + tokenize(sec["x"])
+            for word, tf in Counter(words).items():
+                postings.setdefault(word, []).append((sid, tf))
+            sections.append([sec["h"], sec["a"], len(words)])
+            sid += 1
+        meta_pages.append({"p": page["p"], "s": sections,
+                           **{k: page[k] for k in ("k", "b") if k in page}})
+        texts.append([sec["x"] for sec in page["s"]])
+    words = sorted(postings)
+    starts, shard, size = [], [], shard_chars
+    files = [f"{SHARDS_DIR}/meta.json"]
+    for i, word in enumerate(words):
+        if size >= shard_chars:
+            if shard:
+                _dump(root / key / f"w{len(starts) - 1}.json", shard)
+            starts.append(i)
+            shard, size = [], 0
+        shard.append(_postings(postings[word]))
+        size += len(word) + len(shard[-1])
+    if shard:
+        _dump(root / key / f"w{len(starts) - 1}.json", shard)
+    files += [f"{SHARDS_DIR}/{key}/w{n}.json" for n in range(len(starts))]
+    for i, text in enumerate(texts):
+        _dump(root / key / f"p{i}.json", text)
+        files.append(f"{SHARDS_DIR}/{key}/p{i}.json")
+    _dump(root / "meta.json", {"version": SHARDS_VERSION, "key": key, "pages": meta_pages,
+                               "words": words, "shards": starts})
+    return files
