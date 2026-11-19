@@ -35,7 +35,7 @@ _ICON_URL = re.compile(r"(https?://|/)[^\s\"'<>()]{1,300}")
 _META_KEY = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,39}")
 #: Page modes besides the default: wide (no "On this page"), center (no sidebar either),
 #: custom (only the article, full width), frame (custom with the sidebar).
-PAGE_MODES = ("wide", "center", "custom", "frame")
+PAGE_MODES = ("wide", "center", "custom", "frame", "assistant")
 #: Frontmatter keys the build reads itself; every other scalar key goes to the page's `meta`.
 KNOWN_KEYS = frozenset(
     "title description sidebarTitle nav_title icon iconType tag deprecated mode url hideFooterPagination "

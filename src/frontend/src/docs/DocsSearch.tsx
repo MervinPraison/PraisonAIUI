@@ -7,7 +7,7 @@
 // opens search prefilled (App.tsx reads it). A lazy chunk: App.tsx imports it
 // only when the reader first opens search.
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpenText, Hash, Search, TextQuote } from 'lucide-react'
+import { BookOpenText, Hash, Search, Sparkles, TextQuote } from 'lucide-react'
 import {
     CommandDialog,
     CommandEmpty,
@@ -38,6 +38,8 @@ interface DocsSearchProps {
     maxResults?: number
     /** A `?q=` deep link: search opens with it, over every tab. */
     initialQuery?: string
+    /** Ask AI the query (docs/AskAi.tsx), when the site has it: a row under the results. */
+    onAsk?: (question: string) => void
 }
 
 /** Mirror the query to `?q=` in the address bar (removed when empty), keeping the path and hash. */
@@ -77,7 +79,7 @@ function ResultRow({ result, query }: { result: SearchResult; query: string }) {
     )
 }
 
-export default function DocsSearch({ open, onOpenChange, groups, onSelect, indexUrl, tabs = [], activeTab, placeholder, maxResults, initialQuery = '' }: DocsSearchProps) {
+export default function DocsSearch({ open, onOpenChange, groups, onSelect, indexUrl, tabs = [], activeTab, placeholder, maxResults, initialQuery = '', onAsk }: DocsSearchProps) {
     const [query, setQuery] = useState(initialQuery)
     const [index, setIndex] = useState<SearchIndex | null>(null)
     const showTabs = tabs.length > 1
@@ -137,7 +139,7 @@ export default function DocsSearch({ open, onOpenChange, groups, onSelect, index
             description="Find a page, a section or a phrase"
             className="aiui-docs-search-dialog"
             loop
-            filter={(value) => (query.trim() ? rank.get(value) ?? (value === ALL_TABS ? 1 : 0) : 1)}
+            filter={(value) => (query.trim() ? rank.get(value) ?? (value === ALL_TABS ? 1 : value === ASK_AI ? 0.5 : 0) : 1)}
         >
             <CommandInput placeholder={placeholder || 'Search docs'} value={query} onValueChange={setQuery} />
             {showTabs && (
@@ -179,12 +181,25 @@ export default function DocsSearch({ open, onOpenChange, groups, onSelect, index
                         </CommandGroup>
                     ))
                 )}
+                {onAsk && query.trim() && (
+                    <CommandGroup heading="Ask AI">
+                        <CommandItem value={ASK_AI} onSelect={() => {
+                            onOpenChange(false)
+                            setQuery('')
+                            onAsk(query.trim())
+                        }}>
+                            <Sparkles aria-hidden="true" />
+                            <span className="truncate">{`Ask AI: ${query.trim()}`}</span>
+                        </CommandItem>
+                    </CommandGroup>
+                )}
             </CommandList>
         </CommandDialog>
     )
 }
 
 const ALL_TABS = 'aiui:all-tabs'
+const ASK_AI = 'aiui:ask-ai'
 
 function resultKey(r: SearchResult): string {
     return `${r.kind}:${r.page.path}#${r.anchor}`.toLowerCase()

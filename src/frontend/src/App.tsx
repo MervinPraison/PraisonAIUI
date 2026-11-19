@@ -23,7 +23,10 @@ import { useImageZoom } from './docs/imageZoom'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
-import { appPathname, withBase } from './lib/url'
+import { appPathname, stripBase, withBase } from './lib/url'
+import { AskSelection } from './docs/AskSelection'
+import { ASK_EVENT, askEndpoint } from './docs/askEntry'
+import type { AskRequest } from './docs/AskAi'
 import './docs/docs.css'
 
 // The chat, agents and playground styles and the copilot widget load only for
@@ -43,6 +46,7 @@ function StyleLoading() {
 }
 
 const DocsSearch = lazy(() => import('./docs/DocsSearch'))
+const AskAi = lazy(() => import('./docs/AskAi'))
 
 /** Styles that render the docs chrome (header, nav, article, footer). */
 const DOCS_CHROME_STYLES = new Set(['docs', 'custom'])
@@ -142,6 +146,46 @@ export default function App() {
     deepLinkOpened.current = true
     openSearch()
   }, [searchEnabled, deepLinkQuery])
+
+  // Ask AI (docs/AskAi.tsx): the header button, ⌘I / Ctrl+I, `?assistant=<question>`,
+  // "Ask about this" on a selected passage, search's "Ask AI" row and the `aiui:docs-ask`
+  // event ({ question?, context? }) custom JS can send. Shown when `aiui serve` has a model
+  // (`assistant.ai`) or a static host names a server (`assistant.endpoint`).
+  const assistant = docsStyle && config.assistant ? config.assistant : null
+  const askUrl = askEndpoint(assistant)
+  const [askOpen, setAskOpen] = useState(false)
+  const [askMounted, setAskMounted] = useState(false)
+  const [askRequest, setAskRequest] = useState<AskRequest | null>(null)
+  const openAsk = (detail?: { question?: string; context?: string }) => {
+    if (detail?.question || detail?.context) setAskRequest({ ...detail, nonce: Date.now() })
+    setAskMounted(true)
+    setAskOpen(true)
+  }
+  useEffect(() => {
+    if (!askUrl) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'i' && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey) {
+        event.preventDefault()
+        openAsk()
+      }
+    }
+    const onAsk = (event: Event) => openAsk((event as CustomEvent).detail ?? undefined)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener(ASK_EVENT, onAsk)
+    // A `?assistant=<question>` link opens Ask AI and asks it; the parameter leaves the address bar.
+    const url = new URL(window.location.href)
+    const question = url.searchParams.get('assistant')
+    if (question !== null) {
+      url.searchParams.delete('assistant')
+      window.history.replaceState(window.history.state, '', url)
+      openAsk(question.trim() ? { question: question.trim().slice(0, 2000) } : undefined)
+    }
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener(ASK_EVENT, onAsk)
+    }
+  }, [askUrl])
+
   const filteredNav = useMemo<DocsNav>(() => {
     if (!sections.length) return nav
     return { ...nav, items: filterNavByTab(nav.items ?? [], sections[activeTabIndex]) }
@@ -389,16 +433,21 @@ export default function App() {
   // scrolls there once its article renders (useHashScroll); this page at once.
   // The hash goes on with replaceState after the move: the legacy
   // nav-intercept plugin re-navigates a pushState to another page without it.
-  const openSearchResult = (item: NavItem, anchor?: string) => {
-    const path = canonicalDocPath(item.path || '/')
+  const openSearchResult = (item: NavItem, anchor?: string) => openAt(canonicalDocPath(item.path || '/'), anchor, item.title)
+  // A cited section in an Ask AI answer: an app href with the base path.
+  const openHref = (href: string) => {
+    const [path, anchor] = href.split('#')
+    openAt(canonicalDocPath(stripBase(path)), anchor ? decodeURIComponent(anchor) : undefined)
+  }
+  const openAt = (path: string, anchor?: string, title = '') => {
     const samePage = path === currentPath
-    window.history.pushState({ path }, item.title, withBase(path))
+    window.history.pushState({ path }, title, withBase(path))
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
     if (!anchor) {
       window.scrollTo({ top: 0 })
       return
     }
-    window.history.replaceState({ path }, item.title, `${withBase(path)}#${encodeURIComponent(anchor)}`)
+    window.history.replaceState({ path }, title, `${withBase(path)}#${encodeURIComponent(anchor)}`)
     if (samePage) scrollToHash()
   }
 
@@ -446,12 +495,21 @@ export default function App() {
         onMenuClick={() => setMobileNavOpen(true)}
         divisions={divisions}
         onSearchClick={searchEnabled ? openSearch : undefined}
+        onAskClick={askUrl ? () => openAsk() : undefined}
       />
       {searchMounted && (
         <Suspense fallback={null}>
           <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')}
             tabs={searchTabs} activeTab={sections[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
-            placeholder={config.search?.prompt} maxResults={config.search?.maxResults} />
+            placeholder={config.search?.prompt} maxResults={config.search?.maxResults}
+            onAsk={askUrl ? (question) => openAsk({ question }) : undefined} />
+        </Suspense>
+      )}
+      {askUrl && <AskSelection onAsk={(context) => openAsk({ context })} />}
+      {askUrl && askMounted && (
+        <Suspense fallback={null}>
+          <AskAi open={askOpen} onOpenChange={setAskOpen} url={askUrl} starters={assistant?.starters}
+            request={askRequest} onNavigate={openHref} />
         </Suspense>
       )}
     </>

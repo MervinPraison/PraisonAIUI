@@ -2159,6 +2159,53 @@ dialog.aiui-zoom img {
   }
 }
 
+/* ── Ask AI (docs/AskAi.tsx, DESIGN.md "Docs style") ───────────────────── */
+.aiui-docs-ask-button > span { display: none; }
+@media (min-width: 1024px) { .aiui-docs-ask-button > span { display: inline; } }
+.aiui-docs-ask-sheet { width: 100%; gap: 0; font-family: var(--aiui-font-sans); }
+@media (min-width: 640px) { .aiui-docs-ask-sheet { max-width: 30rem; } }
+.aiui-docs-ask { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.aiui-docs-ask-sheet .aiui-docs-ask { padding: 0 1rem 1rem; }
+.aiui-docs-ask-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 1rem; }
+.aiui-docs-ask-starters { display: flex; flex-direction: column; gap: 0.5rem; }
+.aiui-docs-ask-starters button {
+  text-align: left; padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md, 8px);
+  background: var(--card); color: var(--foreground); font: inherit; font-size: 0.875rem; cursor: pointer;
+}
+.aiui-docs-ask-starters button:hover { background: var(--accent); }
+.aiui-docs-ask-turn { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; min-width: 0; }
+.aiui-docs-ask-turn > .aiui-markdown { width: 100%; font-size: 0.9375rem; }
+.aiui-docs-ask-question { align-self: flex-end; max-width: 90%; padding: 0.5rem 0.75rem; border-radius: 12px; background: var(--muted); font-size: 0.9375rem; }
+.aiui-docs-ask-question p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aiui-docs-ask blockquote, .aiui-docs-ask-context span {
+  margin: 0 0 0.375rem; padding-left: 0.625rem; border-left: 2px solid var(--input); color: var(--ui-text-2);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8125rem;
+}
+.aiui-docs-ask-note { margin: 0; color: var(--ui-text-3); font-size: 0.8125rem; }
+.aiui-docs-ask-sources { margin: 0; padding-left: 1.5rem; width: 100%; font-size: 0.8125rem; border-top: 1px solid var(--border); padding-top: 0.625rem; }
+.aiui-docs-ask-sources li { margin: 0.125rem 0; color: var(--ui-text-3); }
+.aiui-docs-ask-sources a { color: var(--ui-link); text-decoration: none; }
+.aiui-docs-ask-sources a:hover { text-decoration: underline; }
+.aiui-docs-ask-sources span { display: block; color: var(--ui-text-3); }
+.aiui-docs-ask-form { display: flex; flex-direction: column; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+.aiui-docs-ask-context { display: flex; align-items: flex-start; gap: 0.5rem; color: var(--ui-text-3); }
+.aiui-docs-ask-context > svg { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: 0.125rem; }
+.aiui-docs-ask-context span { flex: 1; min-width: 0; margin: 0; }
+.aiui-docs-ask-row { display: flex; align-items: flex-end; gap: 0.5rem; }
+.aiui-docs-ask-row textarea { min-height: 2.5rem; max-height: 10rem; resize: vertical; }
+.aiui-docs-ask-row button { flex-shrink: 0; width: 2.5rem; height: 2.5rem; }
+.aiui-docs-main .aiui-docs-ask { margin-top: 2rem; min-height: 24rem; }
+.aiui-docs-ask-chip {
+  position: fixed; z-index: 40; display: inline-flex; align-items: center; gap: 0.375rem; height: 2rem; padding: 0 0.75rem;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--popover); color: var(--popover-foreground);
+  font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; box-shadow: var(--ui-shadow-float);
+}
+.aiui-docs-ask-chip svg { width: 0.875rem; height: 0.875rem; color: var(--primary); }
+.aiui-docs-ask-chip:hover { background: var(--accent); }
+.aiui-docs-ask-chip:focus-visible, .aiui-docs-ask-starters button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (pointer: coarse) { .aiui-docs-ask-chip { height: 2.75rem; } }
+@media print { .aiui-docs-ask-chip, .aiui-docs-ask-button { display: none !important; } }
+
 /* ── The Paper look (preset `paper`, DESIGN.md "Docs style") ─────────────
    A reading face, not a UI face: Newsreader for titles, Source Sans 3 at
    17px on 1.7 for text, a 40rem measure (about 75 characters), JetBrains

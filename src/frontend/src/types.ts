@@ -30,7 +30,7 @@ export interface NavItem {
     /** Frontmatter `deprecated: true`: a sidebar badge, the label struck through and a notice on the page. */
     deprecated?: boolean
     /** Frontmatter `mode`: wide (no "On this page"), center (no sidebar either), custom (only the article), frame (custom with the sidebar). */
-    mode?: 'wide' | 'center' | 'custom' | 'frame'
+    mode?: 'wide' | 'center' | 'custom' | 'frame' | 'assistant'
     /** Frontmatter `hideFooterPagination: true`: no previous / next links under the page. */
     hidePager?: boolean
     /** Frontmatter `noAnchor: true`: no copy-link icon on the headings. */
@@ -240,6 +240,8 @@ export interface UIConfig {
     errors?: { notFound?: NotFoundConfig }
     /** The docs MCP server `aiui serve` adds (docs_mcp.py); `false` with `content.docs.mcp: false`, absent on a static host. */
     mcp?: false | { url: string; name: string }
+    /** Ask AI (docs_assistant.py): `aiui serve` adds `url` and `ai` (false: sections only); a static host shows it only with `endpoint`. False with `content.docs.assistant: false`. */
+    assistant?: false | { url?: string; endpoint?: string; ai?: boolean; starters?: string[] }
     /** `content.docs.pageActions`: the page actions menu, in order; false shows none (absent: the default list). */
     pageActions?: boolean | PageAction[]
 }

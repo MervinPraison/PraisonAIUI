@@ -51,7 +51,7 @@ tag: NEW
 | `icon` | string | Before the sidebar label: a lucide name (`rocket`, `terminal`, `book-open`, …), an emoji, or an image URL (`https://…` or `/icons/x.svg`). |
 | `tag` | string | A badge after the sidebar label, such as `NEW` or `BETA`. |
 | `deprecated` | `true`/`false` | `true`: a `Deprecated` badge, the label struck through, and a notice above the page. |
-| `mode` | string | `wide`: no "On this page", a wider column. `center`: no sidebar either. `custom`: only the article, full width (no breadcrumb, footer or pager). `frame`: `custom` with the sidebar. |
+| `mode` | string | `wide`: no "On this page", a wider column. `center`: no sidebar either. `custom`: only the article, full width (no breadcrumb, footer or pager). `frame`: `custom` with the sidebar. `assistant`: the page's text, then [Ask AI](ai-ready-docs.md#ask-ai) under it. |
 | `url` | string | An `https://` URL makes the page a sidebar link that opens that site in a new tab. The page itself is not published (no route, sitemap, `llms.txt` or search entry). |
 | `hideFooterPagination` | `true`/`false` | `true`: no previous / next links under the page. |
 | `noAnchor` | `true`/`false` | `true`: no copy-link icon on the page's headings. |

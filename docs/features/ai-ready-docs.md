@@ -168,10 +168,30 @@ content:
 | `model` | see above | the model |
 | `endpoint` | none | on a static host, the ask URL of an `aiui serve` running the same build |
 
-The docs site's Ask AI panel (⌘I, starter questions, ask about a selected
-passage, an `assistant` page mode) is **(planned)**; until it lands, call the
-API below. `assistant: false` turns it off. The build writes these settings into
+`assistant: false` turns it off. The build writes these settings into
 `ui-config.json`, which is public: keep secrets out of `instructions`.
+
+### What readers see
+
+When the server has a model, the docs header shows **Ask AI**. It opens a
+side panel with your starter questions; answers stream in, cite their
+sections as `[1]` links that open the page at that section, list the sections
+under the answer, and can be copied or stopped. Follow-up questions keep the
+conversation. Other ways in:
+
+| Entry point | What it does |
+|---|---|
+| ⌘I / Ctrl+I | opens the panel |
+| `?assistant=<question>` on any page URL | opens the panel and asks; the parameter leaves the address bar |
+| select a passage in a page | an **Ask about this** chip quotes it in the question |
+| search (⌘K) | an **Ask AI: <query>** row under the results |
+| a page with `mode: assistant` | the page's text, then the panel inline: a full "Ask the docs" page |
+| `window.dispatchEvent(new CustomEvent('aiui:docs-ask', { detail: { question, context } }))` | from your own JavaScript |
+
+A server without a key shows none of this (the API above still returns the
+best sections). A static host shows it only when `endpoint` names an
+`aiui serve` running the same build; allow the site's origin there with
+`--cors-origins https://docs.acme.dev`.
 
 ### The HTTP API
 

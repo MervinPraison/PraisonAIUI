@@ -1,6 +1,6 @@
 // Docs header: brand, section tabs, links, search, call to action, theme.
 // Styles: docs/docs.css (.aiui-docs-header*), Pro tokens.
-import { Menu, Search } from 'lucide-react'
+import { Menu, Search, Sparkles } from 'lucide-react'
 import type { UIConfig } from './types'
 import type { NavDivisions } from './docs/navDivisions'
 import { HeaderTabs } from './docs/DivisionNav'
@@ -21,6 +21,8 @@ interface HeaderProps {
     divisions?: NavDivisions
     /** Shows the search button; App.tsx passes it when search is on. */
     onSearchClick?: () => void
+    /** Opens Ask AI (docs/AskAi.tsx), when the site has it. */
+    onAskClick?: () => void
 }
 
 /** The navbar links (wide screens; phones list them in the drawer). */
@@ -41,6 +43,7 @@ export function Header({
     onMenuClick,
     divisions,
     onSearchClick,
+    onAskClick,
 }: HeaderProps) {
     const { logoSrc, logoDarkSrc, logoHref, logoText, links, primary } = docsChromeModel(config, templateKey)
     // An app path navigates in place; any other href (another site) is a plain link.
@@ -105,6 +108,14 @@ export function Header({
                             aria-label="Search documentation"
                         >
                             <Search />
+                        </Button>
+                    )}
+
+                    {onAskClick && (
+                        <Button type="button" variant="ghost" size="sm" className="aiui-docs-ask-button" onClick={onAskClick}
+                            aria-label="Ask AI" title="Ask AI (⌘I)">
+                            <Sparkles aria-hidden="true" />
+                            <span>Ask AI</span>
                         </Button>
                     )}
 
