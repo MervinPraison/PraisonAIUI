@@ -124,6 +124,12 @@ export interface NavDivision {
     groups?: NavTabGroupConfig[]
     menu?: NavDivision[]
     tabs?: NavDivision[]
+    /** A version (`navigation.versions`, docs/versions.ts): its name, badge and URL prefix. */
+    version?: string
+    tag?: string
+    default?: boolean
+    prefix?: string
+    hidden?: boolean
 }
 
 export interface NavTabConfig extends NavDivision {
@@ -134,6 +140,7 @@ export interface NavigationConfig {
     tabs?: NavTabConfig[]
     anchors?: NavDivision[]
     dropdowns?: NavDivision[]
+    versions?: NavDivision[]
 }
 
 /** `type`: the network's mark (with no `label`, the mark alone); `icon`: any docsIcon value. */
