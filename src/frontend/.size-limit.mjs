@@ -425,7 +425,7 @@ export default [
   // 11,128,025 B (+4,452 B, exactly the overage): docs content languages (switcher, language-scoped nav).
   // 11,132,290 B (+4,265 B, exactly the overage): site components in docs pages
   // (docs/CustomBlock.tsx, the lazy docs/customBlocks.ts and the SDK chunk split).
-  // 11,153,819 B (+21,529 B, exactly the overage): utility classes on docs pages (the
-  // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11153819 B', brotli: false },
+  // 11,132,753 B (+463 B, exactly the overage): phone fixes in the chat (an artifact table's
+  // actions leave with it; a long app name wraps below the hero's mark).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11132753 B', brotli: false },
 ]
