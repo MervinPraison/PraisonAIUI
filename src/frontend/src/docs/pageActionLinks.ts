@@ -21,6 +21,18 @@ export function promptLinks(prompt: string): { chatgpt: string; claude: string; 
 /** Links that open a new chat in ChatGPT or Claude that reads this page. */
 export const assistantLinks = (markdownUrl: string, title: string) => promptLinks(assistantPrompt(markdownUrl, title))
 
+/**
+ * "Connect to Cursor" and "Connect to VS Code" links that add the docs MCP
+ * server (`url`, served by `aiui serve`, docs_mcp.py) to the editor under `name`.
+ */
+export function mcpLinks(url: string, name: string): { cursor: string; vscode: string } {
+    const config = btoa(JSON.stringify({ url }))
+    return {
+        cursor: `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(name)}&config=${encodeURIComponent(config)}`,
+        vscode: `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name, type: 'http', url }))}`,
+    }
+}
+
 /** Copy text; false when the browser refuses (no clipboard permission, insecure origin). */
 export async function copyText(text: string): Promise<boolean> {
     try {

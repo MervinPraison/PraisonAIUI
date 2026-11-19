@@ -209,7 +209,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                                     </ol>
                                 </nav>
                             ) : <span />}
-                            <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} />
+                            <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} mcp={config.mcp || undefined} />
                         </div>
                     )}
                     {loadingContent && (
