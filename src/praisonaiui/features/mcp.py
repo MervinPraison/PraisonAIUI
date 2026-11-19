@@ -1,10 +1,10 @@
 """Model Context Protocol (MCP) client support.
 
 Provides first-class MCP client functionality with:
-- Auto-discovery of MCP servers from config
+- Servers declared in YAML (``mcp:``, see ``features/mcp_servers.py``) or added at runtime
 - Lifecycle hooks (@on_mcp_connect / @on_mcp_disconnect)
 - Transparent tool injection into agents
-- Multi-transport support (stdio, SSE, HTTP)
+- Transports: Streamable HTTP, SSE and stdio
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Protocol
+from urllib.parse import urlsplit
 
 try:
     from mcp.client.session import ClientSession
@@ -43,7 +44,46 @@ class MCPTransport(Enum):
 
     STDIO = "stdio"
     SSE = "sse"
-    HTTP = "http"
+    STREAMABLE_HTTP = "streamable-http"
+    HTTP = "streamable-http"  # older name of the same member
+
+
+# Spellings accepted for ``transport`` / ``type`` besides the enum values.
+_TRANSPORT_ALIASES = {"http": "streamable-http", "streamable_http": "streamable-http"}
+
+
+def select_transport(config: Dict[str, Any]) -> tuple[MCPTransport, bool]:
+    """``(transport, explicit)`` for a server config.
+
+    ``transport`` (or ``type``) wins. Otherwise ``command`` means stdio and
+    ``url`` means Streamable HTTP, or SSE when the URL path ends in ``/sse``.
+    """
+    name = config.get("transport") or config.get("type")
+    if name:
+        try:
+            transport = MCPTransport(_TRANSPORT_ALIASES.get(str(name), str(name)))
+        except ValueError:
+            raise ValueError(
+                f"Unknown MCP transport {name!r}: use streamable-http, sse or stdio"
+            ) from None
+        if transport is MCPTransport.STDIO and not config.get("command"):
+            raise ValueError("The stdio transport needs a 'command'")
+        if transport is not MCPTransport.STDIO and not config.get("url"):
+            raise ValueError(f"The {transport.value} transport needs a 'url'")
+        return transport, True
+    if config.get("command"):
+        return MCPTransport.STDIO, False
+    if config.get("url"):
+        path = urlsplit(str(config["url"])).path.rstrip("/")
+        return (MCPTransport.SSE if path.endswith("/sse") else MCPTransport.STREAMABLE_HTTP), False
+    raise ValueError("An MCP server needs a 'url' or a 'command'")
+
+
+def url_label(url: str) -> str:
+    """``scheme://host[:port]/path`` of *url*: no credentials, no query."""
+    parts = urlsplit(url)
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{parts.hostname or ''}{port}{parts.path}"
 
 
 class MCPStatus(Enum):
@@ -100,222 +140,184 @@ class MCPClientProtocol(Protocol):
         ...
 
 
-class StdioMCPClient:
-    """MCP client using stdio transport with proper MCP SDK."""
+class _SessionClient:
+    """One MCP session, held open by a task of its own.
 
-    def __init__(self, command: str, args: List[str]):
+    The SDK transports are anyio task groups, which only the task that entered
+    them may exit. A request that connects and a later request that
+    disconnects run in different tasks, so a runner task owns the transport and
+    the session for their whole life; ``disconnect()`` only signals it.
+    """
+
+    def __init__(self) -> None:
         if not HAS_MCP:
             raise ImportError("MCP library not available. Install with: pip install mcp")
-
-        self.command = command
-        self.args = args
         self.session: Optional[ClientSession] = None
+        self.last_error: Optional[str] = None
         self._connected = False
-        self._exit_stack: contextlib.AsyncExitStack | None = None
-        # For test backward compatibility
-        self.process: Optional[subprocess.Popen] = None
+        self._task: Optional[asyncio.Task] = None
+        self._stop: Optional[asyncio.Event] = None
+
+    @property
+    def label(self) -> str:
+        raise NotImplementedError
+
+    def _streams(self) -> Any:
+        """Async context manager yielding ``(read_stream, write_stream, ...)``."""
+        raise NotImplementedError
 
     async def connect(self) -> bool:
-        """Connect via stdio subprocess using official MCP SDK."""
-        # Store the stack on self before entering contexts so that a caller
-        # cancellation (e.g. asyncio.wait_for timeout, which raises the
-        # BaseException CancelledError past the except below) can still find
-        # and close the partially-entered stack via disconnect().
-        exit_stack = contextlib.AsyncExitStack()
-        self._exit_stack = exit_stack
+        ready: asyncio.Future = asyncio.get_running_loop().create_future()
+        self._stop = asyncio.Event()
+        self._task = asyncio.create_task(self._run(ready))
         try:
-            server_params = StdioServerParameters(command=self.command, args=self.args)
-            read_stream, write_stream = await exit_stack.enter_async_context(
-                stdio_client(server_params)
-            )
-            self.session = await exit_stack.enter_async_context(
-                ClientSession(read_stream, write_stream)
-            )
-            await self.session.initialize()
+            ok = await ready
+        except BaseException:  # caller cancelled (e.g. a wait_for timeout)
+            await self.disconnect()
+            raise
+        if ok:
+            logger.info("Connected to MCP server %s", self.label)
+        return ok
 
-            self._connected = True
-            logger.info(f"Connected to MCP stdio server: {self.command}")
-            return True
-
+    async def _run(self, ready: asyncio.Future) -> None:
+        try:
+            async with contextlib.AsyncExitStack() as stack:
+                streams = await stack.enter_async_context(self._streams())
+                self.session = await stack.enter_async_context(
+                    ClientSession(streams[0], streams[1])
+                )
+                await self.session.initialize()
+                self._connected = True
+                if not ready.done():
+                    ready.set_result(True)
+                await self._stop.wait()
         except Exception as e:
-            logger.error(f"Failed to connect to MCP stdio server: {e}")
-            await exit_stack.aclose()
-            self._exit_stack = None
+            while getattr(e, "exceptions", None):  # anyio task group: report the cause
+                e = e.exceptions[0]
+            self.last_error = str(e) or type(e).__name__
+            logger.error("MCP server %s: %s", self.label, self.last_error)
+        finally:
             self._connected = False
             self.session = None
-            return False
+            if not ready.done():
+                ready.set_result(False)
 
     async def disconnect(self) -> None:
-        """Properly disconnect the MCP session."""
-        if self._exit_stack:
-            try:
-                await self._exit_stack.aclose()
-            except Exception as e:
-                logger.warning(f"Error during MCP session close: {e}")
-            finally:
-                self._exit_stack = None
-                self.session = None
-                self._connected = False
-                self.process = None
+        task, self._task = self._task, None
+        if task is None:
+            return
+        if self._stop is not None:
+            self._stop.set()
+        try:
+            await asyncio.wait_for(task, timeout=10.0)
+        except Exception as e:  # timeout: wait_for cancelled the runner
+            logger.warning("Error closing MCP server %s: %s", self.label, e)
+        self._connected = False
+        self.session = None
 
     async def list_tools(self) -> List[ToolInfo]:
-        """List tools via proper MCP protocol."""
         if not self.session or not self._connected:
             return []
-
         try:
             result = await self.session.list_tools()
-            tools = []
-
-            for tool in result.tools:
-                tools.append(
-                    ToolInfo(
-                        name=tool.name,
-                        description=tool.description or "",
-                        input_schema=tool.inputSchema or {},
-                    )
+            return [
+                ToolInfo(
+                    name=tool.name,
+                    description=tool.description or "",
+                    # inputSchema before mcp 2.0, input_schema since
+                    input_schema=getattr(tool, "inputSchema", None)
+                    or getattr(tool, "input_schema", None)
+                    or {},
                 )
-
-            return tools
-
+                for tool in result.tools
+            ]
         except Exception as e:
-            logger.error(f"Failed to list MCP tools: {e}")
+            logger.error("Failed to list tools of MCP server %s: %s", self.label, e)
             return []
 
     async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
-        """Call tool via proper MCP protocol."""
         if not self.session or not self._connected:
             raise RuntimeError("MCP session not connected")
-
-        try:
-            result = await self.session.call_tool(name, arguments)
-            return result.content
-
-        except Exception as e:
-            logger.error(f"Failed to call MCP tool {name}: {e}")
-            raise
+        result = await self.session.call_tool(name, arguments)
+        return result.content
 
 
-class SSEMCPClient:
-    """MCP client using Server-Sent Events transport."""
+class StdioMCPClient(_SessionClient):
+    """MCP client that runs the server as a subprocess (stdio)."""
 
-    def __init__(self, url: str, headers: Optional[Dict[str, str]] = None):
-        if not HAS_MCP:
-            raise ImportError("MCP library not available. Install with: pip install mcp")
+    def __init__(self, command: str, args: List[str], env: Optional[Dict[str, str]] = None):
+        super().__init__()
+        self.command = command
+        self.args = list(args or [])
+        # Merged over the SDK's minimal default environment (HOME, PATH, ...).
+        self.env = dict(env) if env else None
+        self.process: Optional[subprocess.Popen] = None  # kept for older callers
 
-        self.url = url
-        self.headers = headers or {}
-        self.session: Optional[ClientSession] = None
-        self._connected = False
-        self._exit_stack: contextlib.AsyncExitStack | None = None
+    @property
+    def label(self) -> str:
+        return self.command
 
-    async def connect(self) -> bool:
-        """Connect via SSE using official MCP SDK."""
-        # Store the stack on self before entering contexts so a caller
-        # cancellation (e.g. asyncio.wait_for timeout) can still close the
-        # partially-entered stack via disconnect(). See StdioMCPClient.connect.
-        exit_stack = contextlib.AsyncExitStack()
-        self._exit_stack = exit_stack
-        try:
-            read_stream, write_stream = await exit_stack.enter_async_context(
-                sse_client(self.url, headers=self.headers)
-            )
-            self.session = await exit_stack.enter_async_context(
-                ClientSession(read_stream, write_stream)
-            )
-            await self.session.initialize()
-
-            self._connected = True
-            logger.info(f"Connected to MCP SSE server at {self.url}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to connect to MCP SSE server: {e}")
-            await exit_stack.aclose()
-            self._exit_stack = None
-            self._connected = False
-            self.session = None
-            return False
-
-    async def disconnect(self) -> None:
-        """Properly disconnect SSE."""
-        if self._exit_stack:
-            try:
-                await self._exit_stack.aclose()
-            except Exception as e:
-                logger.warning(f"Error during MCP SSE session close: {e}")
-            finally:
-                self._exit_stack = None
-                self.session = None
-                self._connected = False
-
-    async def list_tools(self) -> List[ToolInfo]:
-        """List tools via proper MCP SSE protocol."""
-        if not self.session or not self._connected:
-            return []
-
-        try:
-            result = await self.session.list_tools()
-            tools = []
-
-            for tool in result.tools:
-                tools.append(
-                    ToolInfo(
-                        name=tool.name,
-                        description=tool.description or "",
-                        input_schema=tool.inputSchema or {},
-                    )
-                )
-
-            return tools
-
-        except Exception as e:
-            logger.error(f"Failed to list MCP SSE tools: {e}")
-            return []
-
-    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
-        """Call tool via proper MCP SSE protocol."""
-        if not self.session or not self._connected:
-            raise RuntimeError("MCP SSE session not connected")
-
-        try:
-            result = await self.session.call_tool(name, arguments)
-            return result.content
-
-        except Exception as e:
-            logger.error(f"Failed to call MCP SSE tool {name}: {e}")
-            raise
+    def _streams(self) -> Any:
+        params = StdioServerParameters(command=self.command, args=self.args, env=self.env)
+        return stdio_client(params)
 
 
-class HTTPMCPClient:
-    """MCP client using HTTP transport (not yet supported by MCP SDK)."""
+class SSEMCPClient(_SessionClient):
+    """MCP client using the older HTTP+SSE transport."""
 
     def __init__(self, url: str, headers: Optional[Dict[str, str]] = None):
-        if not HAS_MCP:
-            raise ImportError("MCP library not available. Install with: pip install mcp")
-
+        super().__init__()
         self.url = url
         self.headers = headers or {}
-        self.session: Optional[ClientSession] = None
-        self._connected = False
-        self._session_manager = None
 
-    async def connect(self) -> bool:
-        """Connect via HTTP (not yet implemented in MCP SDK)."""
-        logger.warning("HTTP transport not yet supported by MCP SDK")
-        return False
+    @property
+    def label(self) -> str:
+        return url_label(self.url)
 
-    async def disconnect(self) -> None:
-        """Disconnect HTTP."""
-        pass
+    def _streams(self) -> Any:
+        return sse_client(self.url, headers=self.headers or None)
 
-    async def list_tools(self) -> List[ToolInfo]:
-        """List tools via HTTP (not yet implemented)."""
-        return []
 
-    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
-        """Call tool via HTTP (not yet implemented)."""
-        return {}
+@contextlib.asynccontextmanager
+async def _streamable_http(url: str, headers: Dict[str, str]):
+    from mcp.client import streamable_http as sh
+
+    if hasattr(sh, "streamable_http_client"):  # newer SDKs: headers ride on the client
+        from mcp.shared._httpx_utils import create_mcp_http_client
+
+        async with create_mcp_http_client(headers=headers or None) as http:
+            async with sh.streamable_http_client(url, http_client=http) as streams:
+                yield streams
+    else:
+        async with sh.streamablehttp_client(url, headers=headers or None) as streams:
+            yield streams
+
+
+class HTTPMCPClient(_SessionClient):
+    """MCP client using the Streamable HTTP transport."""
+
+    def __init__(self, url: str, headers: Optional[Dict[str, str]] = None):
+        super().__init__()
+        self.url = url
+        self.headers = headers or {}
+
+    @property
+    def label(self) -> str:
+        return url_label(self.url)
+
+    def _streams(self) -> Any:
+        return _streamable_http(self.url, self.headers)
+
+
+StreamableHTTPMCPClient = HTTPMCPClient
+
+
+def _client_for(transport: MCPTransport, config: Dict[str, Any]) -> MCPClientProtocol:
+    if transport is MCPTransport.STDIO:
+        return StdioMCPClient(config["command"], config.get("args") or [], env=config.get("env"))
+    if transport is MCPTransport.SSE:
+        return SSEMCPClient(url=config["url"], headers=config.get("headers") or {})
+    return HTTPMCPClient(url=config["url"], headers=config.get("headers") or {})
 
 
 # Global registry for MCP servers and lifecycle hooks
@@ -336,23 +338,11 @@ class MCPClientManager:
     ) -> MCPServer:
         """Connect to an MCP server based on configuration."""
         name = server_config["name"]
-
-        # Create server instance
-        if "command" in server_config:
-            transport = MCPTransport.STDIO
-            client = StdioMCPClient(
-                command=server_config["command"], args=server_config.get("args", [])
-            )
-        elif "url" in server_config:
-            url = server_config["url"]
-            if "sse" in url or "stream" in url:
-                transport = MCPTransport.SSE
-                client = SSEMCPClient(url=url, headers=server_config.get("headers", {}))
-            else:
-                transport = MCPTransport.HTTP
-                client = HTTPMCPClient(url=url, headers=server_config.get("headers", {}))
-        else:
-            raise ValueError(f"Invalid MCP server config: {server_config}")
+        # The message never echoes the config: it may hold headers and env.
+        transport, explicit = select_transport(server_config)
+        candidates = [transport]
+        if transport is MCPTransport.STREAMABLE_HTTP and not explicit:
+            candidates.append(MCPTransport.SSE)  # a server that only speaks the older SSE
 
         server = MCPServer(
             name=name,
@@ -370,39 +360,44 @@ class MCPClientManager:
 
         # Register server
         _mcp_servers[name] = server
-        self._clients[name] = client
 
         # Notify status change
         await self._notify_status_change(server)
 
-        try:
-            connected = await asyncio.wait_for(client.connect(), timeout=120.0)
-            if connected:
+        for candidate in candidates:
+            client = _client_for(candidate, server_config)
+            server.transport = candidate
+            self._clients[name] = client
+            error = await self._try_connect(name, client)
+            if error is None:
                 server.status = MCPStatus.CONNECTED
+                server.last_error = None
                 server.tools = await client.list_tools()
                 server._client = client
-
-                # Fire connect hooks
                 await self._fire_connect_hooks(server, session_context)
-            else:
-                server.status = MCPStatus.ERROR
-                server.last_error = "Connection failed"
-                await self._cleanup_failed_client(name, client)
-
-        except asyncio.TimeoutError:
-            logger.error("Timed out connecting MCP server %s", name)
+                break
             server.status = MCPStatus.ERROR
-            server.last_error = "Connection timed out after 120s (check npx/Node and server args)"
-            await client.disconnect()
-        except Exception as e:
-            logger.exception(f"Failed to connect MCP server {name}")
-            server.status = MCPStatus.ERROR
-            server.last_error = str(e)
-            await self._cleanup_failed_client(name, client)
+            server.last_error = error
 
         # Notify final status
         await self._notify_status_change(server)
         return server
+
+    async def _try_connect(self, name: str, client: MCPClientProtocol) -> Optional[str]:
+        """Connect *client*: ``None`` on success, else the error (client released)."""
+        try:
+            if await asyncio.wait_for(client.connect(), timeout=120.0):
+                return None
+            error = getattr(client, "last_error", None)
+            error = error if isinstance(error, str) and error else "Connection failed"
+        except asyncio.TimeoutError:
+            logger.error("Timed out connecting MCP server %s", name)
+            error = "Connection timed out after 120s (check npx/Node and server args)"
+        except Exception as e:
+            logger.exception("Failed to connect MCP server %s", name)
+            error = str(e)
+        await self._cleanup_failed_client(name, client)
+        return error
 
     async def _safe_disconnect(self, name: str, client: MCPClientProtocol) -> None:
         """Disconnect a client, logging (not raising) on failure."""
