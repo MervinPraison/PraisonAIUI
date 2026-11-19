@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -58,6 +59,11 @@ def main() -> None:
     if "--port" not in sys.argv:
         sys.exit("usage: serve.py --port <n>")
     port = sys.argv[sys.argv.index("--port") + 1]
+    # Playwright stops this server with SIGTERM. Python's default action ends the
+    # process without running `finally`, which leaked one work folder per run;
+    # raising SystemExit instead runs the cleanup below.
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, lambda *_: sys.exit(0))
     work = Path(tempfile.mkdtemp(prefix="aiui-e2e-layouts-"))
     try:
         _isolate(work)

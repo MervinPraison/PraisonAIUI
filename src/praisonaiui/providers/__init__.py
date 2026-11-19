@@ -837,6 +837,14 @@ class PraisonAIProvider(BaseProvider):
                 # The reply task's own context: aiui.context.session,
                 # user_session and chat_context resolve to this chat.
                 handler_context.enter(chat_session)
+                if handler_context.begin_chat(chat_session.id):
+                    from praisonaiui.callbacks import _start_chat
+
+                    try:
+                        await _start_chat(msg)  # @on_chat_start, before the first reply
+                    except BaseException:
+                        handler_context.end_chat(chat_session.id)  # retried next turn
+                        raise
                 result = reply_callback(msg)
                 if asyncio.iscoroutine(result):
                     await result

@@ -612,6 +612,12 @@
   is never saved with the reply. Concurrent chats never see each other's data; `aiui.current_user()` now works in web chats
   too (docs/features/handler-context.md).
 
+- **Chat lifecycle handlers and `@aiui.cache`.** `@aiui.on_message` (same as `@aiui.reply`),
+  `@aiui.on_chat_start` (once per chat before its first reply, as that chat), `@aiui.on_stop` (same as
+  `@aiui.cancel`, now run as the stopped chat), `@aiui.on_chat_end` (same as `@aiui.goodbye`, which now
+  runs when the chat's last connection closes) and `@aiui.author_rename` (the name shown for an agent).
+  `@aiui.cache` memoizes setup across chats (sync or async, `ttl=`, `maxsize=`, `fn.cache_clear()`;
+  concurrent first callers share one computation) (docs/api/python.md#chat-lifecycle).
 - **Utility classes in docs pages.** `className="…"` (or `class`) on a component tag or raw HTML
   styles one block with a curated set of theme-token utilities: spacing, width, text size, weight and
   alignment, token colours (`text-muted-foreground`, `bg-muted`), borders, rounding, flex and grid,

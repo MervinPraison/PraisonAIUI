@@ -45,6 +45,12 @@ def __getattr__(name: str):
         "file",
         "action_buttons",
         "notify",
+        # Lifecycle names (aliases share their handler slot)
+        "on_message",
+        "on_chat_start",
+        "on_chat_end",
+        "on_stop",
+        "author_rename",
     }
     _lifecycle_attrs = {
         "on_app_startup",
@@ -88,7 +94,7 @@ def __getattr__(name: str):
         "LocationPrompt",
     }
     _sync_attrs = {"make_async", "run_sync", "AsyncContext"}
-    _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename"}
+    _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename", "cache"}
     _context_attrs = {"context", "user_session", "chat_context", "ChatSession"}
     _elements_attrs = {
         "Plotly",
@@ -482,6 +488,11 @@ __all__ = [
     "page",
     "surface_page",
     "surface_action",
+    "on_message",
+    "on_chat_start",
+    "on_chat_end",
+    "on_stop",
+    "author_rename",
     # Lifecycle hooks
     "on_app_startup",
     "on_app_shutdown",
@@ -576,6 +587,7 @@ __all__ = [
     "format_duration",
     "truncate_text",
     "safe_filename",
+    "cache",
     # Handler context (who is calling, this chat's state and history)
     "context",
     "user_session",

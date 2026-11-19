@@ -564,15 +564,57 @@ starters below it. It is not saved to the conversation. A chat YAML's
 
 ---
 
-### `@aiui.goodbye`
+### `@aiui.goodbye` / `@aiui.on_chat_end`
 
-Registers a session-end handler. The server does not call it yet.
+Runs when a chat's last browser connection closes, after any reply still
+running there finishes, as that chat (`aiui.user_session` is readable): use it
+for clean-up. Nobody is listening any more, so what it sends is dropped.
 
 ```python
-@aiui.goodbye
-async def on_goodbye():
-    await aiui.say("Goodbye! Your session has been saved.")
+@aiui.on_chat_end
+async def end():
+    await close_connection(aiui.user_session.get("db"))
 ```
+
+---
+
+### Chat lifecycle
+
+Each moment of a chat has a handler. The names are aliases: `@aiui.on_message`
+and `@aiui.reply` register the same handler (the last one registered wins).
+
+| Decorator | Runs | Same as |
+|---|---|---|
+| `@aiui.on_message` | For each message the user sends; gets the `MessageContext` (`message.content`). | `@aiui.reply` |
+| `@aiui.on_chat_start` | Once per chat, right before its first reply (again after `on_chat_end` ran for it). | |
+| `@aiui.on_stop` | When the user presses Stop, as the stopped chat. | `@aiui.cancel` |
+| `@aiui.on_chat_end` | When the chat ends (above). | `@aiui.goodbye` |
+| `@aiui.author_rename` | Maps an author (agent) name to the name the chat shows. | |
+| `@aiui.welcome` | The greeting on an empty chat, once per page load (no chat yet). | |
+
+Every handler may be `async def` or a plain `def`.
+
+```python
+@aiui.on_chat_start
+async def start():
+    aiui.user_session["agent"] = build_agent()   # per-chat setup
+    await aiui.say("Ready when you are.")         # opens the first reply
+
+@aiui.on_message
+async def main(message):
+    await aiui.say(await aiui.user_session["agent"].run(message.content))
+
+@aiui.author_rename
+def rename(name: str) -> str:
+    return {"researcher": "Research assistant"}.get(name, name)
+```
+
+`on_chat_start` runs in the reply's task (so `aiui.say` and `aiui.Message`
+work) and needs a reply handler; if it raises, that turn fails with the error
+and the next turn runs it again. `author_rename` is called once per name per
+reply (a failing handler keeps the name); the display name goes on every frame
+of the reply (`agent_name`) and the saved reply, never on the agent the user
+picked. `@aiui.resume` is not called yet (below).
 
 ---
 
