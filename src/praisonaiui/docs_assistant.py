@@ -251,6 +251,8 @@ class DocsAssistant:
         self.llm = llm
         #: Serve the patched ui-config.json here (False when the MCP server already does).
         self.patch_config = True
+        #: Other entries the served ui-config.json carries (where votes go, docs_feedback.py).
+        self.extra_config: dict[str, Any] = {}
         self.hits: dict[str, deque] = {}
         self._index: tuple[int, Any] = (0, None)
 
@@ -345,7 +347,7 @@ class DocsAssistant:
                 config = json.loads((self.root / "ui-config.json").read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 return False
-            response = JSONResponse({**config, "assistant": self.config_entry()}, headers=no_cache)
+            response = JSONResponse({**config, "assistant": self.config_entry(), **self.extra_config}, headers=no_cache)
         elif path == SEARCH_ENDPOINT:
             if method not in ("GET", "HEAD"):
                 response = PlainTextResponse("Method Not Allowed", 405, headers={"Allow": "GET"})

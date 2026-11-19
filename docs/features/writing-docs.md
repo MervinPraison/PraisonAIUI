@@ -1375,9 +1375,11 @@ content:
 ```
 
 A code flag is a `-1` vote with `kind: "code"` and `block`, the block's index
-on the page, plus an optional comment. On a static host with no
-`endpoint`, the page asks the server once whether it keeps votes; when it does
-not, the question is shown only if `issues` is set.
+on the page, plus an optional comment. `aiui serve` and `aiui dev` say in the
+`ui-config.json` they serve where they keep votes (`docsFeedback.url`); a
+static host (GitHub Pages, any CDN) serves the built file, which has no such
+entry, so with no `endpoint` the page sends no request at all and the
+question is shown only if `issues` is set.
 
 `endpoint` receives the vote as JSON, sent as `text/plain` when it is on
 another origin so the browser makes no preflight request: `{"id", "path",

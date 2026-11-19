@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
 import { appPathname, stripBase, withBase } from './lib/url'
 import { AskSelection } from './docs/AskSelection'
+import { DocsErrorBoundary, OptionalPart } from './docs/PartBoundary'
 import { ASK_EVENT, askEndpoint } from './docs/askEntry'
 import type { AskRequest } from './docs/AskAi'
 import './docs/docs.css'
@@ -548,19 +549,19 @@ export default function App() {
         onAskClick={askUrl ? () => openAsk() : undefined}
       />
       {searchMounted && (
-        <Suspense fallback={null}>
+        <OptionalPart name="search">
           <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')}
             tabs={searchTabs} activeTab={sections[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
             placeholder={config.search?.prompt} maxResults={config.search?.maxResults}
             onAsk={askUrl ? (question) => openAsk({ question }) : undefined} />
-        </Suspense>
+        </OptionalPart>
       )}
       {askUrl && <AskSelection onAsk={(context) => openAsk({ context })} />}
       {askUrl && askMounted && (
-        <Suspense fallback={null}>
+        <OptionalPart name="Ask AI">
           <AskAi open={askOpen} onOpenChange={setAskOpen} url={askUrl} starters={assistant?.starters}
             request={askRequest} onNavigate={openHref} />
-        </Suspense>
+        </OptionalPart>
       )}
     </>
   )
@@ -761,7 +762,9 @@ export default function App() {
 
   return (
     <LocaleProvider config={config.i18n}>
-      <Suspense fallback={<StyleLoading />}>{renderByStyle()}</Suspense>
+      <DocsErrorBoundary>
+        <Suspense fallback={<StyleLoading />}>{renderByStyle()}</Suspense>
+      </DocsErrorBoundary>
     </LocaleProvider>
   )
 }

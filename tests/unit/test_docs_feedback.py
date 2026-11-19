@@ -59,12 +59,12 @@ def store(tmp_path, monkeypatch) -> Path:
     return file
 
 
-def _client(tmp_path: Path, page_footer: dict | None = None, docs: bool = True) -> TestClient:
-    """aiui serve on a minimal build (a docs build has docs-nav.json)."""
+def _client(tmp_path: Path, page_footer: dict | None = None, docs: bool = True, **extra) -> TestClient:
+    """aiui serve on a minimal build (a docs build has docs-nav.json); ``extra``: more ui-config.json keys."""
     out = tmp_path / "out"
     out.mkdir(parents=True)
     (out / "index.html").write_text("<!doctype html><title>x</title>", encoding="utf-8")
-    config = {"site": {"title": "Acme Docs"}, **({"pageFooter": page_footer} if page_footer else {})}
+    config = {"site": {"title": "Acme Docs"}, **({"pageFooter": page_footer} if page_footer else {}), **extra}
     (out / "ui-config.json").write_text(json.dumps(config), encoding="utf-8")
     if docs:
         (out / "docs-nav.json").write_text('{"items": []}', encoding="utf-8")
@@ -131,6 +131,33 @@ def test_off_when_turned_off_or_not_a_docs_build(tmp_path, store):
         assert client.get(URL).headers["content-type"].startswith("text/html")  # the SPA page, no endpoint
         client.post(URL, json={"path": "/docs", "value": 1}, headers=SAME_ORIGIN)
     assert not store.exists()
+
+
+@pytest.mark.parametrize("extra", [{}, {"mcp": False}, {"mcp": False, "assistant": False}],
+                         ids=["mcp-serves-config", "assistant-serves-config", "feedback-serves-config"])
+def test_served_config_names_the_endpoint(tmp_path, extra):
+    """Only a server that stores votes says so in its ui-config.json: the page never probes for it,
+    so a static host (GitHub Pages) gets no request and logs no 404."""
+    config = _client(tmp_path, **extra).get("/ui-config.json")
+    assert config.status_code == 200
+    assert config.headers["cache-control"] == "no-cache"
+    assert config.json()["docsFeedback"] == {"url": "/api/docs/feedback"}
+    assert config.json()["site"] == {"title": "Acme Docs"}
+
+
+@pytest.mark.parametrize("page_footer", [{"feedback": False}, {"feedback": {"endpoint": "https://hooks.example.com/v"}}])
+def test_served_config_has_no_endpoint_when_votes_go_elsewhere(tmp_path, page_footer):
+    for i, extra in enumerate([{}, {"mcp": False, "assistant": False}]):
+        config = _client(tmp_path / str(i), page_footer, **extra).get("/ui-config.json").json()
+        assert "docsFeedback" not in config
+        assert config["pageFooter"] == page_footer
+
+
+def test_built_config_has_no_endpoint(tmp_path):
+    """The file a static host serves as is: no vote endpoint, so the page sends nothing."""
+    _site(tmp_path)
+    _, ui = _build(tmp_path)
+    assert "docsFeedback" not in ui
 
 
 def test_csv_export_quotes_formulas(tmp_path, store):

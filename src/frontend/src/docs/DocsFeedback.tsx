@@ -2,13 +2,13 @@
 // block (`content.docs.feedback.code`). A lazy chunk: PageFooter.tsx loads it
 // under a finished page. Where votes go: docs/feedback.ts. It imports nothing
 // from the legacy App chunk (lib/url, PageFooter): PageFooter passes it in.
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { newVoteId, sendVote, voteTarget, type DocsFeedbackConfig, type Vote } from './feedback'
 
-/** The page, its settings and the server's endpoint (withBase applied). */
-export interface FeedbackProps { path: string; cfg: DocsFeedbackConfig; builtin: string }
+/** The page, its settings and the aiui server's vote endpoint, when one served the page (ui-config `docsFeedback.url`). */
+export interface FeedbackProps { path: string; cfg: DocsFeedbackConfig; server?: string | null }
 
 // lucide thumbs-up, drawn here so no icon module is shared with the chat's chunks.
 const THUMB = 'M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z'
@@ -16,18 +16,6 @@ const Thumb = ({ down }: { down?: boolean }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={down ? { transform: 'rotate(180deg)' } : undefined}><path d={THUMB} /></svg>
 )
 const MAX_COMMENT = 1000
-
-/** The vote target, once known (undefined while the server is asked). */
-function useTarget(cfg: DocsFeedbackConfig, builtin: string): string | null | undefined {
-    const [target, setTarget] = useState<string | null>()
-    const { endpoint } = cfg
-    useEffect(() => {
-        let live = true
-        void voteTarget({ endpoint }, builtin).then((t) => live && setTarget(t))
-        return () => { live = false }
-    }, [endpoint, builtin])
-    return target
-}
 
 /** A comment box; with onCancel (a code flag) it may be sent empty. */
 function CommentForm({ label, onSend, onCancel }: { label: string; onSend: (comment: string) => void; onCancel?: () => void }) {
@@ -46,13 +34,13 @@ function CommentForm({ label, onSend, onCancel }: { label: string; onSend: (comm
 }
 
 /** `issueUrl`: a new issue that names the page (content.docs.feedback.issues), offered after a "No". */
-export function PageVote({ path, cfg, builtin, issueUrl }: FeedbackProps & { issueUrl?: string }) {
-    const target = useTarget(cfg, builtin)
+export function PageVote({ path, cfg, server, issueUrl }: FeedbackProps & { issueUrl?: string }) {
+    const target = voteTarget(cfg, server)
     const [vote, setVote] = useState<Vote | null>(null)
     const [commented, setCommented] = useState(false)
     // Votes go somewhere: a stored target, or the browser event alone (endpoint: false).
     const counts = target != null || cfg.endpoint === false
-    if (target === undefined || (!counts && !issueUrl)) return null
+    if (!counts && !issueUrl) return null
 
     const answer = (value: 1 | -1) => {
         const v: Vote = { id: newVoteId(), path, value }
@@ -88,11 +76,11 @@ export function PageVote({ path, cfg, builtin, issueUrl }: FeedbackProps & { iss
 }
 
 /** The flag in a code block's corner; a comment form opens under the block. */
-export function CodeFlag({ path, cfg, builtin }: FeedbackProps) {
-    const target = useTarget(cfg, builtin)
+export function CodeFlag({ path, cfg, server }: FeedbackProps) {
+    const target = voteTarget(cfg, server)
     const ref = useRef<HTMLDivElement>(null)
     const [state, setState] = useState<'idle' | 'open' | 'sent'>('idle')
-    if (target === undefined || (target === null && cfg.endpoint !== false)) return null
+    if (target === null && cfg.endpoint !== false) return null
 
     const send = (comment: string) => {
         const wrap = ref.current?.closest('.aiui-code-fb')

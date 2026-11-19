@@ -14,7 +14,8 @@
  * headers in about 2 s, so 5 s only fires after two or three lost packets in
  * a row, when starting over is faster than waiting. The last attempt allows
  * 10 s so a link that is merely very slow still gets the page. The body has
- * its own, longer limit (it can be large and arrives in pieces).
+ * its own, longer limit (it can be large and arrives in pieces); a body that
+ * stalls past it is cut off and requested again, so no attempt waits for ever.
  */
 import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath } from './docSource'
@@ -73,18 +74,15 @@ function anySignal(signals: AbortSignal[]): AbortSignal {
     return controller.signal
 }
 
-/** Run `work` with a signal that also aborts after `ms`; a timeout rejects with TimeoutError. */
-async function withTimeout<T>(ms: number, parent: AbortSignal, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
-    const timer = new AbortController()
-    const id = setTimeout(() => timer.abort(new DOMException('Timed out', 'TimeoutError')), ms)
-    try {
-        return await work(anySignal([parent, timer.signal]))
-    } catch (e) {
-        if (timer.signal.aborted && !parent.aborted) throw timer.signal.reason
-        throw e
-    } finally {
-        clearTimeout(id)
-    }
+/** A promise that rejects with the signal's reason once it aborts (never resolves). */
+function whenAborted(signal: AbortSignal): Promise<never> {
+    const p = new Promise<never>((_resolve, reject) => {
+        const fail = () => reject(signal.reason ?? abortError())
+        if (signal.aborted) fail()
+        else signal.addEventListener('abort', fail, { once: true })
+    })
+    p.catch(() => {}) // observed through Promise.race; never an unhandled rejection
+    return p
 }
 
 export interface RetryOptions {
@@ -113,16 +111,29 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
     let lastError: unknown = null
     for (let attempt = 0; attempt < timeouts.length; attempt++) {
         if (signal.aborted) throw abortError()
+        // One controller per attempt: a time limit (headers, then body) aborts
+        // this request, which also cancels its stalled connection or body.
+        const request = new AbortController()
+        const timedOut = () => request.abort(new DOMException('Timed out', 'TimeoutError'))
+        let timer = setTimeout(timedOut, timeouts[attempt])
+        const s = anySignal([signal, request.signal])
+        // Raced, not only passed to fetch: a body that stalls after the headers
+        // would otherwise leave response.text() pending for ever.
+        const aborted = whenAborted(s)
         try {
-            const response = await withTimeout(timeouts[attempt], signal, (s) => fetchImpl(withBase(url), { signal: s }))
+            const response = await Promise.race([fetchImpl(withBase(url), { signal: s }), aborted])
+            clearTimeout(timer)
             if (response.status < 500) {
-                const text = response.ok ? await withTimeout(bodyTimeoutMs, signal, () => response.text()) : ''
+                timer = setTimeout(timedOut, bodyTimeoutMs)
+                const text = response.ok ? await Promise.race([response.text(), aborted]) : ''
                 return { ok: response.ok, status: response.status, text }
             }
             lastError = new Error(`HTTP ${response.status}`)
         } catch (e) {
             if (signal.aborted) throw abortError()
             lastError = e
+        } finally {
+            clearTimeout(timer)
         }
         if (attempt < timeouts.length - 1) await sleep(backoff(attempt), signal)
     }

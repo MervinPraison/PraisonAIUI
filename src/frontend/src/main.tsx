@@ -1,11 +1,15 @@
 import './index.css'
-import { createChunkErrorHandler } from './chunkReload'
+import { cacheBustUrl, createChunkErrorHandler, stripCacheBust } from './chunkReload'
 
 // Boot entry (assets/index.js). It stays tiny: it only decides which UI to
 // load, and both choices are lazy chunks.
 //   <html data-aiui-shell="react">  (style: app)  -> shell/mount
 //   anything else (chat, docs, agents, playground, custom) -> legacy-app-entry
 // The vanilla `dashboard` style never loads this script at all.
+
+// A cache-busting reload (chunkReload.ts) arrives with ?aiui-build=: drop it from the address bar.
+const unbusted = stripCacheBust(window.location.href)
+if (unbusted) window.history.replaceState(window.history.state, '', unbusted)
 
 // A failed lazy chunk: reload once only when the server now serves another
 // build (a deploy), never because the network is down (chunkReload.ts). The
@@ -28,7 +32,7 @@ window.addEventListener(
       ),
     onOnline: (cb) => window.addEventListener('online', cb, { once: true }),
     storage: sessionStore(),
-    reload: () => window.location.reload(),
+    reload: (build) => window.location.replace(cacheBustUrl(window.location.href, build)),
   }),
 )
 
@@ -36,13 +40,16 @@ const rootEl = document.getElementById('root')
 
 function bootFailed(err: unknown) {
   console.error('[aiui] failed to load the UI bundle', err)
-  if (rootEl && !rootEl.hasChildNodes()) {
-    const msg = document.createElement('div')
-    msg.setAttribute('role', 'alert')
-    msg.style.cssText = 'padding:24px;font:14px system-ui,sans-serif'
-    msg.textContent = 'The interface failed to load. Reload the page to try again.'
-    rootEl.appendChild(msg)
-  }
+  // `aiui build` pages keep a <noscript> nav in #root: show the message all the same.
+  if (!rootEl || [...rootEl.children].some((el) => el.tagName !== 'NOSCRIPT')) return
+  const msg = document.createElement('div')
+  msg.setAttribute('role', 'alert')
+  msg.style.cssText = 'padding:24px;font:14px system-ui,sans-serif'
+  msg.textContent = 'The interface failed to load. '
+  const again = msg.appendChild(document.createElement('button'))
+  again.textContent = 'Reload'
+  again.onclick = () => window.location.replace(cacheBustUrl(window.location.href, String(Date.now())))
+  rootEl.appendChild(msg)
 }
 
 // The preloadError handler never calls preventDefault, so a failed import

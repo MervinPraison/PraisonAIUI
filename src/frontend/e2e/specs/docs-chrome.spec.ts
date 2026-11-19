@@ -566,6 +566,27 @@ test('page footer: was this page helpful, edit this page', async ({ page }) => {
   expect(errors.pageErrors).toEqual([])
 })
 
+test('page footer on a static host: no vote endpoint, so no request and no 404', async ({ page }) => {
+  // GitHub Pages serves the built ui-config.json as is: it names no docsFeedback endpoint.
+  await page.route('**/ui-config.json', async (route) => {
+    const res = await route.fetch()
+    const json = await res.json()
+    expect(json.docsFeedback).toEqual({ url: '/api/docs/feedback' }) // what aiui serve adds
+    delete json.docsFeedback
+    await route.fulfill({ response: res, json })
+  })
+  const asked: string[] = []
+  page.on('request', (r) => { if (r.url().includes('/api/docs/feedback')) asked.push(`${r.method()} ${r.url()}`) })
+  await page.goto('/docs/guide/first')
+  const foot = page.locator('footer.aiui-docs-pagefoot')
+  // `issues` is set in the fixture: the question stays, a "No" offers a new issue.
+  await expect(foot.getByText('Was this page helpful?')).toBeVisible()
+  await foot.getByRole('button', { name: 'No' }).click()
+  await expect(foot.getByRole('link', { name: 'Tell us what was missing' })).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  expect(asked).toEqual([])
+})
+
 test('code block feedback: a flag on each block posts the block and a comment', async ({ page }) => {
   const errors = collectPageErrors(page)
   // content.docs.feedback.code: true, without changing the shared fixture's code blocks.

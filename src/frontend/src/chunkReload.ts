@@ -12,8 +12,30 @@
  *
  * At most one reload per running build (sessionStorage), so a chunk that is
  * missing in the current build can never cause a reload loop.
+ *
+ * The reload goes past every cache: it opens the same URL with
+ * `?aiui-build=<served build>`, a URL neither the browser nor a CDN has
+ * cached (a static host such as GitHub Pages lets both keep the old HTML for
+ * minutes), and the boot strips the parameter again (stripCacheBust).
  */
 export const RELOAD_KEY = 'aiuiReloadedFor'
+/** The query parameter of a cache-busting reload. */
+export const CACHE_BUST_PARAM = 'aiui-build'
+
+/** `href` with `?aiui-build=<build>`: the same page under a URL no cache holds. */
+export function cacheBustUrl(href: string, build: string): string {
+  const url = new URL(href)
+  url.searchParams.set(CACHE_BUST_PARAM, build)
+  return url.toString()
+}
+
+/** `href` without the cache-busting parameter, or null when it has none. */
+export function stripCacheBust(href: string): string | null {
+  const url = new URL(href)
+  if (!url.searchParams.has(CACHE_BUST_PARAM)) return null
+  url.searchParams.delete(CACHE_BUST_PARAM)
+  return url.toString()
+}
 
 /** The `?v=` build id of `/assets/index.js` in a URL or an HTML document, or null. */
 export function entryBuild(text: string): string | null {
@@ -29,7 +51,8 @@ export interface ChunkReloadDeps {
   fetchPage(): Promise<string>
   onOnline(cb: () => void): void
   storage: Pick<Storage, 'getItem' | 'setItem'> | null
-  reload(): void
+  /** Load the page again, past the caches; `build` is the one the server now serves. */
+  reload(build: string): void
 }
 
 /**
@@ -74,7 +97,7 @@ export function createChunkErrorHandler(deps: ChunkReloadDeps): () => Promise<vo
     } catch {
       return
     }
-    deps.reload()
+    deps.reload(served)
   }
 
   const handle = () => {

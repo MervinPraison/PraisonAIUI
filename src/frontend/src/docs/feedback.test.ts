@@ -16,17 +16,15 @@ function fakeFetch(reply: () => Response | Error) {
 }
 const json = (body: unknown) => () => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
 
-test('the target: the aiui server (asked once per page load), a configured endpoint, or none', async () => {
-    const f = fakeFetch(json({ enabled: true }))
-    assert.equal(await voteTarget({}, '/api/docs/feedback', f.impl), '/api/docs/feedback')
-    assert.equal(await voteTarget({}, '/api/docs/feedback', f.impl), '/api/docs/feedback')
-    assert.equal(await voteTarget({ endpoint: 'https://hooks.example.com/v' }, '/x', f.impl), 'https://hooks.example.com/v')
-    assert.equal(await voteTarget({ endpoint: false }, '/x', f.impl), null)
-    assert.equal(f.calls.length, 1)
-    // A static host answers 404, or its HTML page for any path; offline is no server either.
-    assert.equal(await voteTarget({}, '/a', fakeFetch(() => new Response('nope', { status: 404 })).impl), null)
-    assert.equal(await voteTarget({}, '/b', fakeFetch(() => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })).impl), null)
-    assert.equal(await voteTarget({}, '/c', fakeFetch(() => new Error('offline')).impl), null)
+test('the target: a configured endpoint, the serving aiui server, or none, with no request', () => {
+    // `server`: ui-config.json `docsFeedback.url`, sent only by aiui serve / aiui dev (docs_feedback.py).
+    assert.equal(voteTarget({}, '/api/docs/feedback'), '/api/docs/feedback')
+    assert.equal(voteTarget({ endpoint: 'https://hooks.example.com/v' }, '/api/docs/feedback'), 'https://hooks.example.com/v')
+    assert.equal(voteTarget({ endpoint: 'https://hooks.example.com/v' }), 'https://hooks.example.com/v')
+    assert.equal(voteTarget({ endpoint: false }, '/api/docs/feedback'), null)
+    // A static host (GitHub Pages): no endpoint named, so nothing is asked and nothing 404s.
+    assert.equal(voteTarget({}), null)
+    assert.equal(voteTarget({}, null), null)
 })
 
 test('a vote is POSTed as JSON with keepalive; no target posts nothing', async () => {

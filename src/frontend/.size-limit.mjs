@@ -311,7 +311,9 @@ export default [
   // site component load them lazily (docs/customBlocks.ts); same code, one more file.
   // 255,578 B (+350 B, exactly the overage): voice input's probe in the chat route (above).
   // 256,385 B (+807 B, exactly the overage): the reply's messages as blocks (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256385 B', gzip: true },
+  // 256,562 B (+177 B, exactly the overage): the entry's boot-failure message with Reload and
+  // the cache-busting reload after a deploy (main.tsx, chunkReload.ts).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256562 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -443,5 +445,7 @@ export default [
   // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
   // 11,162,854 B (+2,570 B, exactly the overage): the reply's messages as blocks in the chat
   // route (above).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11162854 B', brotli: false },
+  // 11,164,096 B (+1,242 B, exactly the overage): docs pages that never stay on the skeleton
+  // (docLoader body limit, error boundaries for lazy parts, boot-failure Reload).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164096 B', brotli: false },
 ]
