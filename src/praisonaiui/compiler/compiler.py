@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import branding, changelog
+from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
@@ -65,6 +67,8 @@ class CompileResult:
     excluded: list[str] = field(default_factory=list)
     #: Problems that did not stop the build, e.g. ``docs/a.md:3: <Gadget> is not a docs component …``.
     warnings: list[str] = field(default_factory=list)
+    #: Things the build skipped that the author can turn on, e.g. social cards without Pillow.
+    notes: list[str] = field(default_factory=list)
 
 
 class Compiler:
@@ -86,6 +90,7 @@ class Compiler:
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
         self._feeds: dict[str, str] = {}  # page path -> its RSS feed URL (changelog.py)
+        self._og_cards: dict[str, og.Card] = {}  # page path -> its social card (og_image.py)
         # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
         self.git_dates: dict[Path, str | None] | None = None
 
@@ -142,9 +147,11 @@ class Compiler:
 
         # Generate docs-nav.json if docs exist
         nav: dict = {}
+        notes: list[str] = []
         if self.config.content and self.config.content.docs:
             nav = self._generate_docs_nav()
             self._annotate_page_footer(nav)
+            notes = self._plan_og_cards(nav)
             self._write_json(output_dir / "docs-nav.json", nav, indent)
             files.append("docs-nav.json")
 
@@ -195,6 +202,9 @@ class Compiler:
             files.extend(copied)
             warnings.extend(self.lint_docs())
         files.extend(branding.publish(self._brand_files, output_dir))  # after docs/ is rewritten
+        if self._og_cards:
+            fonts = [output_dir / "assets", Path(__file__).parent.parent / "templates" / "frontend" / "assets"]
+            files.extend(og.write(self._og_cards, output_dir, og.cache_dir(), fonts))
 
         # Generate per-route HTML pages (SPA fallback + SEO)
         if self.config.content and self.config.content.docs:
@@ -211,7 +221,7 @@ class Compiler:
         # After every page, so a stub never takes a page's file
         files.extend(rd.write_redirects(output_dir, redirects, self.url_base, self._page_url))
 
-        return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings)
+        return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings, notes=notes)
 
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
@@ -1499,12 +1509,40 @@ class Compiler:
         return head.merge(tags, overrides, self._absolute_url)
 
     def _og_image(self, path: str, page: dict) -> str | None:
-        """The page's ``og:image`` before overrides: ``seo.defaultImage`` (absolute).
-        The hook for generated per-page cards."""
+        """The page's ``og:image`` before overrides: its generated social card, else
+        ``seo.defaultImage`` (absolute)."""
+        if path in self._og_cards:
+            return self._absolute_url("/" + og.card_path(path))
         image = self.config.seo.default_image if self.config.seo else None
         if image and not image.startswith(("http://", "https://")):
             image = self._absolute_url(image)
         return image
+
+    def _plan_og_cards(self, nav: dict) -> list[str]:
+        """A social card (og_image.py) for each page whose og:image no tag layer sets; its
+        URL goes into the page's ``seo`` map, so the docs app sets it on navigation too.
+        Returns the build note when Pillow is missing."""
+        seo = self.config.seo
+        if (seo and not seo.og_images) or "og:image" in head.clean(seo.metatags if seo else None):
+            return []
+        if not og.available():
+            return [og.NOTE]
+        dark = self._color_mode() != "light"
+        site = urlparse(self._site_url() or "")
+        base = og.Card(title="", site=self.config.site.title, host=(site.netloc + site.path).rstrip("/"),
+                       logo=og.logo_file(self.config, self.base_path, dark), **og.style(self.config.site.theme, dark))
+        trails = nav_trails(nav)
+        for item in walk_nav(nav.get("items", [])):
+            path, tags = item.get("path"), item.get("seo") or {}
+            if not path or item.get("href") or "og:image" in tags:
+                continue
+            crumbs = trails.get(path) or []
+            self._og_cards[path] = replace(
+                base, title=item.get("pageTitle") or item.get("title", ""), description=item.get("description", ""),
+                eyebrow=crumbs[-1]["title"] if crumbs else "",
+            )
+            item["seo"] = {**tags, "og:image": "/" + og.card_path(path)}
+        return []
 
     def _markdown_link(self, path: str) -> str:
         """``<link rel="alternate" type="text/markdown">``: where an agent finds the page as Markdown."""

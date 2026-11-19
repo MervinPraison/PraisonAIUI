@@ -431,6 +431,13 @@
   server URL**, **Connect to Cursor** and **Connect to VS Code**. Host and Origin are checked
   (DNS rebinding). On by default; `content.docs.mcp: false` turns it off. A static host serves
   none of it. See [AI-ready docs](docs/features/ai-ready-docs.md#mcp-server).
+- **A social card for every docs page.** With Pillow installed (`pip install pillow`), `aiui build`
+  draws a 1200x630 PNG per page (title, sidebar group, description, site name and logo, theme
+  accent and colour mode) at `/og/<route>.png` and sets it as the page's `og:image`,
+  `twitter:image` and large Twitter card, in the built HTML and on client navigation. Cards are
+  cached by content, so rebuilds only draw changed pages. A page's own `og:image` wins;
+  `seo.ogImages: false` keeps `seo.defaultImage`. Without Pillow the build prints one note. See
+  [SEO](docs/features/seo.md#social-cards).
 - **Tabs that navigate, tab menus, sidebar anchors and a product switcher.** A docs header tab
   now opens its first page and takes `icon`, `href` (a link out; the old `url` works), `pages`
   (no group needed) and `menu` (a small dropdown of items, each with its own sidebar or link).

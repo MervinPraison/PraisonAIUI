@@ -111,3 +111,10 @@ def _isolate_shell_env(monkeypatch):
     from praisonaiui.layouts import set_run_default
 
     set_run_default(None)
+
+
+@pytest.fixture(autouse=True)
+def _no_social_cards(monkeypatch):
+    """Build as if Pillow were absent, so docs-build tests give the same output
+    whether or not it is installed (test_og_image.py turns the cards on)."""
+    monkeypatch.setattr("praisonaiui.compiler.og_image.available", lambda: False)
