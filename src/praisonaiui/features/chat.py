@@ -520,22 +520,14 @@ class ChatManager(ChatProtocol):
         """Abort a running agent execution."""
         task = self._active_runs.get(run_id)
         if task and not task.done():
+            session_id = self._run_sessions.get(run_id)
             task.cancel()
             self._active_runs.pop(run_id, None)
 
-            # Invoke registered @aiui.cancel callback
-            try:
-                from praisonaiui.server import _callbacks
+            # @aiui.on_stop / @aiui.cancel, run as the stopped chat
+            from praisonaiui.callbacks import _fire
 
-                cancel_cb = _callbacks.get("cancel")
-                if cancel_cb:
-                    import asyncio
-
-                    r = cancel_cb()
-                    if asyncio.iscoroutine(r):
-                        await r
-            except Exception:
-                pass
+            await _fire("cancel", session_id=session_id)
 
             return {"status": "aborted", "run_id": run_id}
         return {"status": "no_active_run", "run_id": run_id}
@@ -1036,12 +1028,18 @@ async def _run_and_broadcast(
     run_token = current_run_id.set(run_id)
     session_token = handler_context._session_var.set(chat_session) if chat_session is not None else None
 
+    from praisonaiui.callbacks import _shown_name
+
+    shown_names: Dict[str, str] = {}  # @aiui.author_rename answers for this run
+
     async def _emit(event: Dict[str, Any]) -> None:
         # Every event of the run names the sender's turn, so a client with
         # several tabs on this session can tell its run from another's even
         # when it never saw that run's run_started.
         if client_turn_id:
             event["client_turn_id"] = client_turn_id
+        if event.get("agent_name"):
+            event["agent_name"] = await _shown_name(event["agent_name"], shown_names)
         if event.get("run_id") == run_id:
             mgr.record_run_event(run_id, event)
         await mgr.broadcast(session_id, event)
@@ -1374,6 +1372,7 @@ async def _run_and_broadcast(
 
     # Save assistant response. A failed run is saved even with no text, so
     # a reload still shows the error instead of an unanswered question.
+    resolved_agent_name = shown_names.get(resolved_agent_name or "", resolved_agent_name)
     if full_response or collected_elements or run_error is not None:
         assistant_msg = ChatMessage(
             role="assistant",
@@ -2029,7 +2028,37 @@ async def _chat_ws(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error(f"Chat WS error: {e}")
     finally:
+        chatted = list(mgr._ws_sent_sessions.get(client_id, ()))
         mgr.remove_ws_client(client_id)
+        from praisonaiui.server import _callbacks
+
+        if chatted and "goodbye" in _callbacks:
+            task = asyncio.create_task(_end_chats(mgr, chatted))
+            _lifecycle_tasks.add(task)
+            task.add_done_callback(_lifecycle_tasks.discard)
+
+
+_lifecycle_tasks: "set[asyncio.Task]" = set()
+
+
+async def _end_chats(mgr: ChatManager, session_ids: List[str]) -> None:
+    """Run ``@aiui.on_chat_end`` for each chat no connected client still chats in.
+
+    Waits for replies still running there first, so clean-up never pulls
+    state from under a live reply.
+    """
+    from praisonaiui.callbacks import _fire
+
+    for sid in session_ids:
+        if mgr.session_has_connected_owner(sid):
+            continue
+        runs = [mgr._active_runs[r] for r in mgr.live_runs_in_session(sid) if r in mgr._active_runs]
+        if runs:
+            await asyncio.wait(runs)
+        if mgr.session_has_connected_owner(sid):
+            continue  # a client came back while the reply finished
+        handler_context.end_chat(sid)
+        await _fire("goodbye", session_id=sid)
 
 
 # ── Feature Protocol Implementation ─────────────────────────────────

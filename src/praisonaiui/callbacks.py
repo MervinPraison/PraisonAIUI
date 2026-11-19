@@ -5,12 +5,16 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
+import logging
 from functools import wraps
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar
 
+from praisonaiui import context as handler_context
+from praisonaiui import server as _server
 from praisonaiui.server import MessageContext, register_callback
 
 F = TypeVar("F", bound=Callable[..., Any])
+logger = logging.getLogger(__name__)
 
 # Per-task context for the current message being processed.
 # Using contextvars ensures concurrent async handlers don't clobber each other.
@@ -146,6 +150,104 @@ def cancel(func: F) -> F:
 
     register_callback("cancel", wrapper)
     return func
+
+
+def _as_async(func: Callable[..., Any]) -> Callable[..., Any]:
+    """*func* as a coroutine function (a sync function is called directly)."""
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return await result if inspect.isawaitable(result) else result
+
+    return wrapper
+
+
+def on_message(func: F) -> F:
+    """Handle each message the user sends (``message.content``): same as :func:`reply`."""
+    return reply(func)
+
+
+def on_chat_start(func: F) -> F:
+    """Run once when a chat starts, right before its first reply, as that chat.
+
+    ``aiui.user_session`` and ``aiui.say`` work (what it sends opens the first
+    reply). It runs again after :func:`on_chat_end`; if it raises, the turn
+    fails and the next turn retries it. Needs a reply handler.
+    """
+    register_callback("chat_start", _as_async(func))
+    return func
+
+
+def on_chat_end(func: F) -> F:
+    """Run when a chat ends: the same handler as :func:`goodbye`.
+
+    That is when the chat's last browser connection closes, after a reply
+    still running there finishes. It runs as that chat (for clean-up).
+    """
+    return goodbye(func)
+
+
+def on_stop(func: F) -> F:
+    """Run when the user stops a reply: the same handler as :func:`cancel`."""
+    return cancel(func)
+
+
+def author_rename(func: Callable[[str], Any]) -> Callable[[str], Any]:
+    """Map an author (agent) name to the name the chat shows.
+
+    Called once per name per reply; return the name unchanged to keep it.
+    Applies to every frame of the reply and to the saved reply.
+    """
+    register_callback("author_rename", _as_async(func))
+    return func
+
+
+async def _fire(event: str, *args: Any, session_id: Optional[str] = None) -> bool:
+    """Run *event*'s handler (as chat *session_id*, if given); failures are logged, not raised."""
+    cb = _server._callbacks.get(event)
+    if cb is None:
+        return False
+    token = None
+    if session_id:
+        token = handler_context._session_var.set(handler_context.session_for(session_id))
+    try:
+        result = cb(*args)
+        if inspect.isawaitable(result):
+            await result
+    except Exception:
+        logger.exception("The %s handler failed", event)
+    finally:
+        if token is not None:
+            handler_context._session_var.reset(token)
+    return True
+
+
+async def _start_chat(msg: MessageContext) -> None:
+    """Run the chat-start handler inside *msg*'s reply (what it sends joins the reply)."""
+    cb = _server._callbacks.get("chat_start")
+    if cb is None:
+        return
+    _set_context(msg)
+    try:
+        await cb()
+    finally:
+        _set_context(None)
+
+
+async def _shown_name(name: Optional[str], names: Dict[str, str]) -> Optional[str]:
+    """*name* as the chat shows it (``@author_rename``), memoized in *names*."""
+    cb = _server._callbacks.get("author_rename")
+    if cb is None or not isinstance(name, str) or not name:
+        return name
+    if name not in names:
+        shown: Any = name
+        try:
+            shown = await cb(name)
+        except Exception:
+            logger.exception("The author_rename handler failed for %r", name)
+        names[name] = shown if isinstance(shown, str) and shown else name
+    return names[name]
 
 
 def button(name: str) -> Callable[[F], F]:
