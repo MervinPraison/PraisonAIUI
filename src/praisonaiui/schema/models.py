@@ -859,6 +859,132 @@ class ErrorsConfig(BaseModel):
         return data
 
 
+# ── integrations: analytics, support chat, cookie consent (docs/features/analytics.md) ──
+
+_HTTPS_ORIGIN = r"^https://[A-Za-z0-9.-]+(:\d{1,5})?/?$"
+_HTTPS_URL = r"^https://[A-Za-z0-9.-]+(:\d{1,5})?(/[A-Za-z0-9._~%/-]*)?$"
+_UUID = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+
+class _Integration(BaseModel):
+    """One provider. ``ga4: G-XXXX`` (a bare value) sets its first field, the main id."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _bare_id(cls, data: Any) -> Any:
+        if isinstance(data, (str, int)):
+            name, info = next(iter(cls.model_fields.items()))
+            return {info.alias or name: data}
+        return data
+
+
+class Ga4Integration(_Integration):
+    measurement_id: str = Field(alias="measurementId", pattern=r"^G-[A-Z0-9]{4,16}$")
+
+
+class GtmIntegration(_Integration):
+    tag_id: str = Field(alias="tagId", pattern=r"^GTM-[A-Z0-9]{4,12}$")
+
+
+class PostHogIntegration(_Integration):
+    api_key: str = Field(alias="apiKey", pattern=r"^phc_[A-Za-z0-9_-]{8,80}$")
+    api_host: str = Field(default="https://us.i.posthog.com", alias="apiHost", pattern=_HTTPS_ORIGIN)
+    session_recording: bool = Field(default=False, alias="sessionRecording")
+
+
+class PlausibleIntegration(_Integration):
+    domain: str = Field(pattern=r"^[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*$")
+    server: str = Field(default="https://plausible.io", pattern=_HTTPS_ORIGIN)
+
+
+class FathomIntegration(_Integration):
+    site_id: str = Field(alias="siteId", pattern=r"^[A-Z0-9]{4,16}$")
+
+
+class UmamiIntegration(_Integration):
+    website_id: str = Field(alias="websiteId", pattern=_UUID)
+    src: str = Field(default="https://cloud.umami.is/script.js", pattern=_HTTPS_URL)
+
+
+class SegmentIntegration(_Integration):
+    key: str = Field(pattern=r"^[A-Za-z0-9]{8,64}$")
+
+
+class MixpanelIntegration(_Integration):
+    project_token: str = Field(alias="projectToken", pattern=r"^[A-Za-z0-9]{16,64}$")
+    region: Literal["us", "eu", "in"] = "us"
+
+
+class IntercomIntegration(_Integration):
+    app_id: str = Field(alias="appId", pattern=r"^[a-z0-9]{4,16}$")
+
+
+class CrispIntegration(_Integration):
+    website_id: str = Field(alias="websiteId", pattern=_UUID)
+
+
+class FrontIntegration(_Integration):
+    chat_id: str = Field(alias="chatId", pattern=r"^[a-f0-9]{16,64}$")
+
+
+class ConsentConfig(BaseModel):
+    """``integrations.consent``: load nothing until the reader accepts."""
+
+    required: bool = True
+    banner: bool = Field(default=True, description="false: your own consent tool sends the aiui:consent event")
+    text: str = Field(default="We use cookies to measure how these docs are used.", max_length=500)
+    accept: str = Field(default="Accept", max_length=40)
+    decline: str = Field(default="Decline", max_length=40)
+    policy: Optional[str] = Field(default=None, pattern=r"^(https?://|/)[^\s\"'<>]*$")
+    policy_label: str = Field(default="Privacy policy", alias="policyLabel", max_length=60)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class IntegrationsConfig(BaseModel):
+    """Analytics and support chat on every built page, gated by cookie consent."""
+
+    ga4: Optional[Ga4Integration] = None
+    gtm: Optional[GtmIntegration] = None
+    posthog: Optional[PostHogIntegration] = None
+    plausible: Optional[PlausibleIntegration] = None
+    fathom: Optional[FathomIntegration] = None
+    umami: Optional[UmamiIntegration] = None
+    segment: Optional[SegmentIntegration] = None
+    mixpanel: Optional[MixpanelIntegration] = None
+    intercom: Optional[IntercomIntegration] = None
+    crisp: Optional[CrispIntegration] = None
+    front: Optional[FrontIntegration] = None
+    scripts: list[str] = Field(
+        default_factory=list, description="Other tracker scripts (https URLs), loaded under the same consent"
+    )
+    consent: Optional[ConsentConfig] = None
+    respect_do_not_track: bool = Field(
+        default=True, alias="respectDoNotTrack",
+        description="Skip analytics for readers who send Global Privacy Control or Do Not Track",
+    )
+    dev: bool = Field(default=False, description="Also load them in `aiui dev` (off: previews do not count)")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("consent", mode="before")
+    @classmethod
+    def _consent_flag(cls, value: Any) -> Any:
+        """``consent: true`` asks first with the default banner; ``false`` does not ask."""
+        return {"required": value} if isinstance(value, bool) else value
+
+    @field_validator("scripts", mode="before")
+    @classmethod
+    def _script_urls(cls, value: Any) -> Any:
+        items = [value] if isinstance(value, str) else value or []
+        for url in items:
+            if not isinstance(url, str) or not re.match(r"^https://[^\s\"'<>]+$", url):
+                raise ValueError(f"integrations.scripts: {url!r} is not an https URL")
+        return items
+
+
 class ChatProfileConfig(BaseModel):
     """Chat profile configuration for agent selection."""
 
@@ -1216,6 +1342,9 @@ class Config(BaseModel):
         default_factory=list, description="Moved pages (docs/features/redirects.md)"
     )
     errors: Optional[ErrorsConfig] = None
+    integrations: Optional[IntegrationsConfig] = Field(
+        default=None, description="Analytics, support chat and cookie consent (docs/features/analytics.md)"
+    )
     variables: dict[str, Union[str, int, float, bool]] = Field(
         default_factory=dict,
         description="Values for {{name}} in docs pages (docs/features/writing-docs.md#reusable-snippets-and-variables)",

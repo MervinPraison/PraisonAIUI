@@ -499,6 +499,14 @@
   own list or none. **Listen to page** reads the article aloud in the browser (pause, stop),
   and `Ctrl+C` / `⌘C` with nothing selected copies the page as Markdown. See
   [Page actions](docs/features/writing-docs.md#page-actions).
+- **Analytics, support chat and cookie consent, one line each.** `integrations:` adds GA4, Tag
+  Manager, PostHog, Plausible, Fathom, Umami, Segment, Mixpanel or any script URL, and Intercom,
+  Crisp or Front chat (idle-loaded), to every built page (`ga4: G-ABC1234`); client-side page
+  changes count as page views. `consent: true` loads nothing until the reader accepts a themed
+  banner (Decline as easy as Accept, remembered, `#cookie-settings` reopens it, or your own tool
+  sends `aiui:consent`). Global Privacy Control / Do Not Track skip analytics, `aiui dev` leaves
+  them out, ids and URLs are checked, no inline script is emitted, and
+  `Compiler.external_origins()` lists provider hosts for a CSP. See [Analytics](docs/features/analytics.md).
 
 ### Deprecated
 

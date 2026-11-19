@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import branding, changelog, site_assets
+from praisonaiui.compiler import branding, changelog, integrations, site_assets
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
@@ -92,6 +92,8 @@ class Compiler:
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
         self._site_assets: site_assets.SiteAssets | None = None  # fonts, custom CSS/JS (site_assets.py)
+        # `aiui dev` sets it: analytics and chat widgets stay off unless integrations.dev
+        self.dev = False
         self._feeds: dict[str, str] = {}  # page path -> its RSS feed URL (changelog.py)
         self._og_cards: dict[str, og.Card] = {}  # page path -> its social card (og_image.py)
         # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
@@ -199,6 +201,13 @@ class Compiler:
         if extras.css:  # site.theme.fonts
             with (output_dir / "assets" / "theme.css").open("a", encoding="utf-8") as f:
                 f.write(f"\n{extras.css}")
+        found = self._integrations()
+        if found:  # integrations: the loader beside the pages, the consent banner's CSS
+            (output_dir / integrations.SCRIPT).write_text(found.script, encoding="utf-8")
+            files.append(integrations.SCRIPT)
+            if found.css:
+                with (output_dir / "assets" / "theme.css").open("a", encoding="utf-8") as f:
+                    f.write(found.css)
         if extras.inline_css:  # site.customCss as CSS text
             (output_dir / site_assets.CUSTOM_CSS).write_text(extras.inline_css, encoding="utf-8")
             files.append(site_assets.CUSTOM_CSS)
@@ -857,6 +866,8 @@ class Compiler:
             page = output_dir / "index.html"
             page.write_text(site_assets.patch_page(page.read_text(encoding="utf-8"), self._assets()),
                             encoding="utf-8")
+            page.write_text(integrations.patch_page(page.read_text(encoding="utf-8"), self._integrations()),
+                            encoding="utf-8")
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -950,10 +961,24 @@ class Compiler:
             self._site_assets = site_assets.collect(self.config.site, self.base_path, self._brand_files, self.url_base)
         return self._site_assets
 
+    def _integrations(self) -> integrations.Integrations | None:
+        """Analytics, chat widgets and consent (``integrations:``); off in ``aiui dev``
+        unless ``integrations.dev``."""
+        cfg = self.config.integrations
+        if cfg is None or (self.dev and not cfg.dev):
+            return None
+        return integrations.collect(cfg, self.url_base)
+
     def external_origins(self) -> dict[str, list[str]]:
         """Other hosts the built pages load from, per CSP directive (``font-src``,
-        ``style-src``, ``script-src``): Google Fonts and customCss/customJs/font URLs."""
-        return self._assets().origins
+        ``style-src``, ``script-src``, ``connect-src``, ...): Google Fonts,
+        customCss/customJs/font URLs and each ``integrations:`` provider."""
+        merged: dict[str, set[str]] = {}
+        found = self._integrations()
+        for origins in (self._assets().origins, found.origins if found else {}):
+            for directive, hosts in origins.items():
+                merged.setdefault(directive, set()).update(hosts)
+        return {k: sorted(v) for k, v in sorted(merged.items())}
 
     def _color_mode(self) -> str:
         """``site.theme.mode`` (light, dark or system), else from ``darkMode``."""

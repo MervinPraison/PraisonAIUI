@@ -160,6 +160,7 @@ class DevSite:
         try:
             compiler = Compiler(self._load_config(), base_path=self.project, url_base=self.url_base)
             compiler.git_dates = self._git_dates
+            compiler.dev = True  # previews send no analytics (integrations.dev opts in)
             result = compiler.compile(output_dir=out)
             if not result.success:
                 raise BuildError(result.error or "The build failed.")
