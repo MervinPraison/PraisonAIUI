@@ -45,13 +45,10 @@ def _mcp_stdio_connect_allowed(request: Request) -> bool:
                 return True
         except ImportError:
             pass
-        try:
-            from praisonaiui.auth import validate_token
+        from praisonaiui.auth import validate_token  # core module: always importable
 
-            if validate_token(token):
-                return True
-        except ImportError:
-            pass
+        if validate_token(token):
+            return True
     return False
 
 

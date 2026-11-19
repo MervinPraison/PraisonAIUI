@@ -170,6 +170,44 @@ again until someone registers; create the admin in your app at startup
 `AUTH_ENFORCE` and URL-token mode `/register` already needs the API key or URL
 token, as before; with no auth mode it stays open.
 
+### Sessions
+
+Signing in (`POST /login`, `POST /register`, OAuth) returns a session token in
+the JSON body and also sets it as an httpOnly cookie. The token is signed
+(HMAC-SHA256), not held in server memory, so a session survives a restart and
+works on every worker that shares the secret. With no config the first sign-in
+generates one into `<data dir>/auth_secret` (mode 0600, never logged). For
+several hosts set the same secret everywhere:
+`export AIUI_AUTH_SECRET=$(aiui auth create-secret)`.
+
+```yaml
+auth:
+  sessionLifetime: 14d   # default; 12h, 90m or seconds. Env AIUI_SESSION_LIFETIME wins
+  cookie:                # all optional
+    name: aiui_session
+    sameSite: lax        # lax, strict or none (none adds Secure)
+    path: /              # default: the app's root path
+    secure: true         # default: on https (or X-Forwarded-Proto: https)
+```
+
+- **Sliding.** Under `requireAuth` the cookie signs in HTTP and WebSockets, and
+  a request past half its lifetime gets a fresh one: active users stay signed
+  in, idle ones are signed out after `sessionLifetime`. A Bearer token lasts
+  `sessionLifetime` from sign-in. `SameSite` and the cross-site guard keep other
+  sites from riding the cookie.
+- **Sign-out.** `POST /logout` revokes the Bearer token and the cookie and
+  deletes the cookie. Revoked token ids stay in `<data dir>/auth_revoked.jsonl`
+  until they would have expired, so every worker on that data directory honours
+  them. `Session.clear_tokens()` (in `@aiui.on_logout`) signs the user out on
+  every device.
+- **Rotation.** `AIUI_AUTH_SECRET=new,old`: the first secret signs, all verify.
+  Drop `old` after `sessionLifetime`. A single new secret (or deleting
+  `auth_secret`) signs everyone out.
+
+Trade-off: hosts that do not share the data directory verify sessions but do
+not see each other's sign-outs, so a signed-out token stays valid there until
+it expires. Keep `sessionLifetime` short in that setup, or rotate the secret.
+
 ### OAuth sign-in
 
 With a provider configured (`AIUI_OAUTH_<PROVIDER>_CLIENT_ID` and
@@ -315,8 +353,8 @@ AIUI supports multiple authentication modes:
 ### API Key Management
 
 ```bash
-# Create an API key (via CLI)
-aiui auth create-key --name "my-app"
+# Create an API key on a running server (or POST /api/auth/keys)
+aiui auth create-key --name "my-app" --server http://localhost:8082
 
 # Use the key
 curl -H "X-API-Key: <key>" http://localhost:8082/api/config

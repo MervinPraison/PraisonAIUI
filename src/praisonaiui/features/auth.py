@@ -100,7 +100,10 @@ def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
             else:
                 # Expired
                 del _active_sessions[token]
-    return None
+    from praisonaiui.auth import validate_token  # signed sessions from /login
+
+    user_id = validate_token(token)
+    return {"user": user_id} if user_id else None
 
 
 def check_auth(request: Request) -> Optional[Dict[str, Any]]:
