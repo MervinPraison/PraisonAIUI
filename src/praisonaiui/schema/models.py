@@ -1382,6 +1382,17 @@ class AuthProviderConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class SessionCookieConfig(BaseModel):
+    """The httpOnly session cookie set by sign-in (``auth.cookie``)."""
+
+    name: str = "aiui_session"
+    same_site: Literal["lax", "strict", "none"] = Field(default="lax", alias="sameSite")
+    path: Optional[str] = None  # default: the app's root path
+    secure: Optional[bool] = None  # default: when the request came over https
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class AuthConfig(BaseModel):
     """Authentication configuration."""
 
@@ -1397,6 +1408,9 @@ class AuthConfig(BaseModel):
     url_token_env: Optional[str] = Field(
         default="AIUI_URL_TOKEN", alias="urlTokenEnv"
     )
+    # How long a sign-in lasts while unused ("14d", "12h", 3600); sliding.
+    session_lifetime: Optional[Union[int, str]] = Field(default=None, alias="sessionLifetime")
+    cookie: Optional[SessionCookieConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

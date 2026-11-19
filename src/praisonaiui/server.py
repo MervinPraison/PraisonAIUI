@@ -2690,7 +2690,7 @@ async def oauth_callback_handler(request: Request) -> Response:
     """Handle OAuth callback from provider."""
     provider_name = request.path_params["provider"]
     try:
-        from praisonaiui.auth import User, _oauth_callbacks, create_token
+        from praisonaiui.auth import User, _oauth_callbacks, create_token, with_session_cookie
         from praisonaiui.oauth_providers import (
             create_oauth_provider,
             get_oauth_config_from_env,
@@ -2779,7 +2779,8 @@ async def oauth_callback_handler(request: Request) -> Response:
         from praisonaiui.oauth_providers import safe_return_url
 
         return_url = safe_return_url(state_data.get("return_url", "/"))
-        return RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
+        redirect = RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
+        return with_session_cookie(redirect, request, token)  # and the httpOnly cookie
     except ImportError:
         return JSONResponse({"error": "OAuth providers not available"}, status_code=500)
     except Exception as e:
@@ -3737,6 +3738,7 @@ def create_app(
     from praisonaiui.auth import (
         AuthMiddleware,
         allow_signup_from_config,
+        configure_sessions,
         login_handler,
         logout_handler,
         me_handler,
@@ -3755,6 +3757,7 @@ def create_app(
             require_auth = True
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             _config_requires_token = True
+    configure_sessions(config)  # auth.sessionLifetime, auth.cookie
 
     from praisonaiui.http_guard import (
         BodySizeLimitMiddleware,
