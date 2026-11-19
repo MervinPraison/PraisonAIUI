@@ -676,6 +676,10 @@
 
 ### Fixed
 
+- **Fewer requests on a first docs visit.** The docs App's icons used to come
+  as one tiny file each when the app shell shared them (chevrons, check, copy,
+  external link, play, sparkles): they are now part of the docs App's own
+  chunk, 8 fewer requests per page (43 to 35 on this site's installation page).
 - Docs sites: search no longer downloads the whole index the first time it
   opens. `aiui build` also writes it in parts under `search-index/`: the
   headings and word list on first open, then only the word files a query's

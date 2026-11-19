@@ -379,7 +379,7 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | `cmdk` | ^1.1.1 | Command palette (`shell/CommandPalette.tsx`) | Add commands with `registerCommand`, never a second palette |
 | `sonner` | 2.0.8 | Toasts | Through `notify()` from `@aiui/sdk`, never a direct `toast()` in feature code or a second toaster |
 | `next-themes` | 0.4.6 | Light/dark (`attribute="class"`, `storageKey="aiui-theme-preference"`) | Read and set mode through it in React code; only the server's anti-flicker script writes the class before boot |
-| `lucide-react` | ^0.563.0 | Icons, static imports | Never a dynamic lucide lookup (boot budget); page icons belong in the manifest (G5) |
+| `lucide-react` | ^0.563.0 | Icons, static imports; the docs App's first-screen files import the same icons from `virtual:aiui-icons/inline` (drawn into the docs chunk, `scripts/lib/lucide-icons.mjs`; ESLint enforces it) | Never a dynamic lucide lookup (boot budget); page icons belong in the manifest (G5) |
 | `@assistant-ui/react` | 0.15.36 | Chat runtime (`useExternalStoreRuntime`) and Thread primitives | Only `chat-engine/` imports it, and only `useAiuiRuntime.ts` touches the runtime API. Not `@assistant-ui/react-streamdown` |
 | `streamdown` | 2.7.1 | The one markdown renderer (`markdown/Markdown.tsx`), always behind `React.lazy` | Never react-markdown, react-syntax-highlighter or a second renderer; keep `rehype-sanitize`; never `allowedTags` |
 | `shiki` | 4.6.0 | Code highlighting via the curated `markdown/shikiPlugin.ts` (74 languages, each its own lazy chunk; docs code themes in `virtual:aiui-code-themes`, JS regex engine) | Never `@streamdown/code` or a full Shiki import |
