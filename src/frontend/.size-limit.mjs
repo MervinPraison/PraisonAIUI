@@ -291,7 +291,9 @@ export default [
   // printed tab titles) in the shared MkdocsTabs.
   // 254,412 B (+1 B, exactly the overage): the lazy brandIcons chunk name in the
   // entry's preload map; no boot or chat code changed.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254412 B', gzip: true },
+  // 254,460 B (+48 B, exactly the overage): the lazy Ask AI chunk names in the entry's
+  // preload map (docs/AskAi.tsx); no boot or chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254460 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -404,5 +406,7 @@ export default [
   // RelatedPages chunk, its styles and the link helper in the legacy App chunk).
   // 9,682,765 B (+4,421 B, exactly the overage): page actions you choose (AI targets, links
   // of your own, per-page lists, the Ctrl+C copy) and the lazy listen-to-page chunk.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9682765 B', brotli: false },
+  // 9,697,885 B (+15,120 B, exactly the overage): Ask AI in the docs site (the lazy panel
+  // chunk, its styles, the header button, selection chip and search row).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9697885 B', brotli: false },
 ]

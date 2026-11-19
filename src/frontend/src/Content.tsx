@@ -24,6 +24,7 @@ import { relatedLinks } from './docs/related'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { askEndpoint } from './docs/askEntry'
 import { pageActionList } from './docs/pageActionLinks'
 import { printLight } from './docs/print'
 import { metaAttributes, modeHidesToc, modeIsBare, withPageHead } from './docs/pageHead'
@@ -42,6 +43,7 @@ interface ContentProps {
 }
 
 const RelatedPages = lazy(() => import('./docs/RelatedPages').then((m) => ({ default: m.RelatedPages })))
+const AskPage = lazy(() => import('./docs/AskAi').then((m) => ({ default: m.AskPage })))
 
 /** Docs-only element overrides (code titles and highlights; light/dark images; the docs components). Module scope: Markdown wants a stable object. */
 // FlaggedPre: DocsPre, with a "Report a problem" flag under `content.docs.feedback.code`.
@@ -187,6 +189,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const trail = nav && !home ? docTrail(nav, currentPath) : []
         const crumbs = config.styling?.eyebrows === 'breadcrumbs' ? trail : trail.slice(-1)
         const bare = modeIsBare(selectedItem.mode)
+        // `mode: assistant`: Ask AI under the page's own text (docs/AskAi.tsx).
+        const assistant = config.assistant || null, askUrl = askEndpoint(assistant)
         const fb = config.pageFooter?.feedback, codeFeedback = fb && fb.code ? { path: shownPath ?? currentPath, cfg: fb } : null
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
@@ -257,6 +261,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         </div>
                         </CodeFeedback.Provider>
                     )}
+                    {contentReady && selectedItem.mode === 'assistant' && (askUrl ? (
+                        <Suspense fallback={null}><AskPage url={askUrl} starters={assistant ? assistant.starters : undefined} onNavigate={navigateTo} /></Suspense>
+                    ) : <p className="aiui-docs-notice">Ask AI is not available on this copy of the docs.</p>)}
                     {contentReady && !home && !bare && related.length > 0 && (
                         <Suspense fallback={null}><RelatedPages links={related} onNavigate={navigateTo} /></Suspense>
                     )}

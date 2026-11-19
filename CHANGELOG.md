@@ -518,6 +518,14 @@
   LiteLLM when installed. Guarded by Host and Origin checks, body caps and a per-client rate limit
   (docs/features/ai-ready-docs.md#ask-ai).
 
+- **Ask AI in the docs site.** When `aiui serve` has a model key, the docs header shows **Ask AI**:
+  a side panel with `content.docs.assistant.starters`, streamed answers whose `[n]` citations open
+  the cited section, a sources list, follow-up questions, Stop and Copy answer. Also opened by
+  ⌘I / Ctrl+I, a `?assistant=<question>` link, an **Ask about this** chip on a selected passage,
+  an **Ask AI** row in search and the `aiui:docs-ask` window event; a page with `mode: assistant`
+  shows the panel inline. A static host shows it when `assistant.endpoint` is set
+  (docs/features/ai-ready-docs.md#what-readers-see).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
