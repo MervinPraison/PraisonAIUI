@@ -127,15 +127,28 @@ export interface NavigationConfig {
     dropdowns?: NavDivision[]
 }
 
+/** `type`: the network's mark (with no `label`, the mark alone); `icon`: any docsIcon value. */
 export interface NavbarLinkConfig {
-    label: string
+    label?: string
     href: string
+    icon?: string
+    type?: 'github' | 'discord'
 }
 
 export interface NavbarPrimaryConfig {
-    type?: 'button' | 'github'
+    /** `github` draws the mark and the repository's star count. */
+    type?: 'button' | 'github' | 'discord'
     label?: string
     href: string
+    icon?: string
+}
+
+/** `banner:` the strip above the docs header (docs/DocsBanner.tsx); `content` is Markdown, `id` a hash of it. */
+export interface BannerConfig {
+    content: string
+    dismissible?: boolean
+    type?: 'info' | 'warning' | 'success'
+    id: string
 }
 
 export interface NavbarConfig {
@@ -213,8 +226,9 @@ export interface UIConfig {
     styling?: { eyebrows?: 'section' | 'breadcrumbs' }
     footer?: {
         socials?: Record<string, string>
-        links?: { header: string; items: NavbarLinkConfig[] }[]
+        links?: { header?: string; items: { label: string; href: string }[] }[]
     }
+    banner?: BannerConfig
     /** `redirects:` the build publishes (a page at an exact source hides its rule); docs/redirects.ts follows them. */
     redirects?: RedirectRule[]
     /** `errors.404` (or `errors.notFound`): the page-not-found view (docs/DocsNotFound.tsx). */

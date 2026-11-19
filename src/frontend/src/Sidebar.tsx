@@ -17,6 +17,8 @@ import { SidebarDivisions } from './docs/DivisionNav'
 import { BrandMark } from './docs/BrandMark'
 import { docPages, navItemHolds, navItemShown, rememberedOpen, rememberOpen } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
+import { ChromeLinkAnchor, PrimaryContent } from './docs/ChromeLinks'
+import { linkTarget } from './docs/socials'
 import { withBase } from './lib/url'
 import { docsIcon } from './docs/docsHomeIcons'
 
@@ -243,19 +245,13 @@ export function MobileNavSheet({
                 {chrome && (chrome.primary || chrome.links.length > 0) && (
                     <div className="aiui-docs-drawer-foot">
                         {chrome.links.map((link) => (
-                            <a
-                                key={link.href}
-                                href={link.href}
-                                className="aiui-docs-navlink"
-                                target={isExternal(link.href) ? '_blank' : undefined}
-                                rel={isExternal(link.href) ? 'noopener noreferrer' : undefined}
-                            >
-                                {link.label}
-                            </a>
+                            <ChromeLinkAnchor key={link.href + link.label} link={link} />
                         ))}
                         {chrome.primary && (
                             <Button asChild size="sm" className="ml-auto">
-                                <a href={chrome.primary.href}>{chrome.primary.label ?? 'Get started'}</a>
+                                <a href={chrome.primary.href} {...linkTarget(chrome.primary.href)}>
+                                    <PrimaryContent link={chrome.primary} stars={chrome.primary.stars} />
+                                </a>
                             </Button>
                         )}
                     </div>

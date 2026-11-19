@@ -3261,6 +3261,12 @@
       "_index-BVEjVxRM.js"
     ]
   },
+  "src/docs/brandIcons.ts": {
+    "file": "assets/brandIcons-CLrIKMAu.js",
+    "name": "brandIcons",
+    "src": "src/docs/brandIcons.ts",
+    "isDynamicEntry": true
+  },
   "src/docs/redirects.ts": {
     "file": "assets/redirects-6p4lTREI.js",
     "name": "redirects",
@@ -3542,7 +3548,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-DeqbuSSq.js",
+    "file": "assets/legacy-app-entry-C9gJj5ed.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3553,6 +3559,7 @@
       "_chevron-down-DK95vGT2.js",
       "_TokenGate-CEQz-4Pc.js",
       "_dropdown-menu-1p_r4zHs.js",
+      "_x-CdGk7QXP.js",
       "_sheet-BOmD6lRr.js",
       "_card-BOm87-PD.js",
       "_chevron-up-CF5bD79v.js",
@@ -3568,12 +3575,12 @@
       "_index-BK5zSRhl.js",
       "_index-BVEjVxRM.js",
       "_index-CBcyoHC-.js",
-      "_x-CdGk7QXP.js",
       "_index-B9bkrU9C.js"
     ],
     "dynamicImports": [
       "aiui-icons",
       "src/docs/NavMenu.tsx",
+      "src/docs/brandIcons.ts",
       "src/docs/redirects.ts",
       "src/docs/ApiPlayground.tsx",
       "src/docs/TabsSelect.tsx",
@@ -3586,7 +3593,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-BppX-1-Z.css"
+      "assets/legacy-app-entry-BzWj_r3t.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
