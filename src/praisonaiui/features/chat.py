@@ -987,7 +987,7 @@ async def _run_and_broadcast(
     ``visible_history``).
     """
     from praisonaiui.features.attachments import current_attachments, prepare_attachments
-    from praisonaiui.provider import ReplyText, RunEventType
+    from praisonaiui.provider import STEP_EVENTS, ReplySteps, ReplyText, RunEventType, step_fields
     from praisonaiui.server import _datastore, get_provider
 
     # Text and PDF files go before the message; image paths go to the model;
@@ -1000,6 +1000,7 @@ async def _run_and_broadcast(
     provider = get_provider()
     full_response = ""
     reply = ReplyText()  # the reply's text per message (a run can send several)
+    steps = ReplySteps()  # its steps (aiui.Step), saved with it
     run_id = str(uuid.uuid4())
     tool_step_counter = 0  # Step numbering (resets per user message)
     # Dedup: both stream deltas AND hook events fire for the same tool call.
@@ -1305,6 +1306,12 @@ async def _run_and_broadcast(
                 RunEventType.REASONING_COMPLETED,
             ):
                 payload["step"] = event.step
+            elif event.type in STEP_EVENTS:
+                fields = step_fields(event.extra_data or {})
+                if not fields.get("step_id"):
+                    continue
+                payload.update(fields)
+                steps.apply(fields)
             elif event.type == RunEventType.RUN_PAUSED:
                 extra = getattr(event, "extra_data", None) or {}
                 if not isinstance(extra, dict):
@@ -1400,7 +1407,7 @@ async def _run_and_broadcast(
     # Save assistant response. A failed run is saved even with no text, so
     # a reload still shows the error instead of an unanswered question.
     resolved_agent_name = shown_names.get(resolved_agent_name or "", resolved_agent_name)
-    if full_response or collected_elements or run_error is not None:
+    if full_response or collected_elements or steps or run_error is not None:
         assistant_msg = ChatMessage(
             role="assistant",
             content=full_response or "",
@@ -1430,6 +1437,8 @@ async def _run_and_broadcast(
                 msg_data["toolCalls"] = list(collected_tool_calls.values())
             if collected_elements:
                 msg_data["elements"] = collected_elements
+            if steps:
+                msg_data["steps"] = steps.saved()  # a reload shows the same step tree
             segments = reply.segments() if reply.text == full_response else []
             if segments:
                 # Each message the reply sent, so a reload shows them apart.

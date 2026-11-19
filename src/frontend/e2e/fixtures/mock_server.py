@@ -24,6 +24,9 @@ Keywords in the user's message select what the scripted run does:
     cbmulti   a real ``@reply`` callback pops a toast (``aiui.notify``) and
               sends three messages: one plain, one by "Helper" with an
               image (``add_image``), one streamed and then finalized
+    cbsteps   a real ``@reply`` callback runs nested steps: ``Plan`` holds
+              ``search`` (a sync ``@aiui.step`` in a ``make_async`` thread)
+              and ``Rank`` (fails), then answers
 
 The exact message ``Compare sorting algorithms`` (or one containing
 ``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
@@ -42,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -268,9 +272,35 @@ async def callback_messages(text: str, session_id):
         yield event
 
 
+async def callback_steps(text: str, session_id):
+    """A ``@reply`` app whose answer runs a small step tree, through the real callback mode."""
+    from praisonaiui.callbacks import _set_context
+    from praisonaiui.providers import PraisonAIProvider
+
+    @aiui.step(type="tool")
+    def search(query: str):
+        return f"3 results for {query}"
+
+    async def with_steps(msg):
+        _set_context(msg)
+        async with aiui.Step("Plan", type="run") as plan:
+            await plan.stream_token("Looking it up")
+            await aiui.make_async(search)("rust")
+            with contextlib.suppress(RuntimeError), aiui.Step("Rank", type="llm"):
+                raise RuntimeError("ranker offline")
+        await aiui.say("Here is the answer")
+
+    async for event in PraisonAIProvider()._run_callback_mode(text, with_steps, session_id, "Mock"):
+        yield event
+
+
 class MockProvider(BaseProvider):
     async def run(self, message, *, session_id=None, agent_name=None, **kw):
         text = str(message)
+        if "cbsteps" in text:
+            async for event in callback_steps(text, session_id):
+                yield event
+            return
         if "cbmulti" in text:
             async for event in callback_messages(text, session_id):
                 yield event

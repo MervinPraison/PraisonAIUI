@@ -84,6 +84,11 @@ class RunEventType(str, Enum):
     MESSAGE_REMOVE = "message_remove"
     ACTION_REMOVE = "action_remove"
 
+    # --- A step of the reply (aiui.Step / @aiui.step), by ``step_id`` ---
+    STEP_START = "step_start"
+    STEP_UPDATE = "step_update"
+    STEP_END = "step_end"
+
     # --- Team variants ---
     TEAM_RUN_STARTED = "team_run_started"
     TEAM_RUN_CONTENT = "team_run_content"
@@ -350,7 +355,49 @@ class RunEvent:
             elements = self.extra_data.get("elements")
             if elements is not None and "elements" not in d:
                 d["elements"] = elements
+            if self.type in STEP_EVENTS:
+                d.update({k: v for k, v in step_fields(self.extra_data).items() if k not in d})
         return d
+
+
+STEP_EVENTS = (RunEventType.STEP_START, RunEventType.STEP_UPDATE, RunEventType.STEP_END)
+
+# The fields a step event carries: start/end are epoch ms, ``token`` appends
+# to the output, ``input``/``output`` (text) replace it.
+STEP_KEYS = (
+    "step_id", "parent_id", "name", "step_type", "start", "end", "status",
+    "input", "output", "token", "error", "duration", "metadata",
+)
+MAX_STEP_OUTPUT = 1024 * 1024  # characters of streamed output kept per saved step
+
+
+def step_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+    """The step fields of an event dict (``None`` left out)."""
+    return {k: data[k] for k in STEP_KEYS if data.get(k) is not None}
+
+
+class ReplySteps:
+    """The steps of one reply by id, merged from their events, as saved with it."""
+
+    def __init__(self) -> None:
+        self._steps: Dict[str, Dict[str, Any]] = {}
+
+    def apply(self, fields: Dict[str, Any]) -> None:
+        sid = fields.get("step_id")
+        if not sid:
+            return
+        saved = self._steps.setdefault(sid, {"step_id": sid, "status": "running"})
+        saved.update({k: v for k, v in fields.items() if k not in ("token", "duration")})
+        token = fields.get("token")
+        if token and "output" not in fields:
+            saved["output"] = (saved.get("output") or "") + str(token)
+            saved["output"] = saved["output"][:MAX_STEP_OUTPUT]
+
+    def __bool__(self) -> bool:
+        return bool(self._steps)
+
+    def saved(self) -> List[Dict[str, Any]]:
+        return [dict(s) for s in self._steps.values()]
 
 
 class ReplyText:

@@ -249,7 +249,9 @@ export default [
   // more (the loader and holding later frames cost more than the code it moves).
   // 143,082 B (+1 B, exactly the overage): CommandDialog passes cmdk's controlled `value`
   // through (the docs search keeps a row highlighted when results arrive late).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143082 B', gzip: true },
+  // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
+  // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143579 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -318,7 +320,8 @@ export default [
   // 256,563 B (+1 B, exactly the overage): docLoader's reader for the manifests aiui build
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256565 B', gzip: true },
+  // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257066 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -464,5 +467,7 @@ export default [
   // 11,168,707 B (+492 B, exactly the overage): the HTML parser as a lazy chunk of its own
   // (markdown/rehypeRawGate.ts, the needsRaw hint, the chunk's import/export glue). No
   // loaded chunk grows: the renderer chunk is 49.6 kB gzip smaller.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11168707 B', brotli: false },
+  // 11,173,363 B (+4,656 B, exactly the overage): the reply's steps (the lazy StepTree chunk
+  // and the reducer in the chat route, above), on top of the parser split.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11173363 B', brotli: false },
 ]

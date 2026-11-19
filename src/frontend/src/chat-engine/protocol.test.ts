@@ -2,7 +2,7 @@
 // Fixtures are REAL frames captured from the mock provider (SSE /run and WS /api/chat/ws).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyEvent, fromHistory, newAssistant, reconcileFromHistory, type AiuiMessage, type WireEvent } from './protocol'
+import { applyEvent, fromHistory, newAssistant, reconcileFromHistory, STEP, type AiuiMessage, type AiuiStep, type WireEvent } from './protocol'
 import { convertMessage } from './convert'
 
 const run = (events: WireEvent[]) => events.reduce<AiuiMessage>((m, ev) => applyEvent(m, ev).message, newAssistant())
@@ -339,4 +339,57 @@ test('a saved reply with segments reloads as the same blocks, elements under the
   // A stream cut short (reconnect) takes the saved messages, not one merged text.
   const live = run([{ type: 'run_content', token: 'on', message_id: 'm1' }])
   assert.deepEqual(shape(reconcileFromHistory(live, raw)), ['text:one', 'segment:m2', 'text:two', 'element:m2', 'element:'])
+})
+
+/** Step trees of a message: `name:status[duration]`, children prefixed by '>'. */
+function trees(m: AiuiMessage): string[][] {
+  return m.parts.flatMap((p) => {
+    if (p.type !== 'data' || p.name !== STEP) return []
+    const steps = (p.data as { steps: AiuiStep[] }).steps
+    const depth = (x?: AiuiStep): number => (x?.parent_id ? 1 + depth(steps.find((y) => y.step_id === x.parent_id)) : 0)
+    return [steps.map((x) => `${'>'.repeat(depth(x))}${x.name}:${x.status}${x.end === undefined ? '' : `[${x.end - x.start!}]`}`)]
+  })
+}
+const stepData = (m: AiuiMessage, i: number) => (m.parts[i] as { data: { steps: AiuiStep[] } }).data.steps
+
+const STEPS: WireEvent[] = [
+  { type: 'step_start', step_id: 'p', name: 'plan', start: 1000 },
+  { type: 'step_start', step_id: 'c', parent_id: 'p', name: 'search', start: 1010, input: '{"q": "x"}' },
+  { type: 'step_update', step_id: 'c', token: '3 ' },
+  { type: 'step_update', step_id: 'c', token: 'hits' },
+  { type: 'step_start', step_id: 'g', parent_id: 'c', name: 'rank', start: 1020 },
+  { type: 'step_end', step_id: 'g', end: 1030, status: 'error', error: 'timeout' },
+  { type: 'step_end', step_id: 'c', end: 1250, status: 'done' },
+  { type: 'step_end', step_id: 'p', end: 1400, status: 'done', output: 'ok' },
+  { type: 'run_content', token: 'Answer' },
+  { type: 'step_start', step_id: 'q', name: 'check', start: 1500 },
+  { type: 'step_end', step_id: 'q', end: 1600 },
+  { type: 'run_completed', content: 'Answer' },
+]
+
+test('step events build a nested tree per top-level step, in reply order, with server timing', () => {
+  const m = run(STEPS)
+  assert.deepEqual(trees(m), [['plan:done[400]', '>search:done[240]', '>>rank:error[10]'], ['check:done[100]']])
+  assert.deepEqual(m.parts.map((p) => (p.type === 'data' ? p.name : p.type)), [STEP, 'text', STEP])
+  const [plan, search, rank] = stepData(m, 0)
+  assert.deepEqual([search.output, search.input, rank.error, plan.output], ['3 hits', '{"q": "x"}', 'timeout', 'ok'])
+  // Still running when the reply ends: stopped. Without server times the client clocks it.
+  const cut = run([{ type: 'step_start', step_id: 's', name: 'slow' }])
+  assert.ok(stepData(cut, 0)[0].start! > 0)
+  assert.deepEqual(trees(applyEvent(cut, { type: 'run_cancelled' }).message), [['slow:stopped']])
+})
+
+test('a saved reply rebuilds the same step tree on reload and after a reconnect', () => {
+  const raw = {
+    role: 'assistant',
+    content: 'Answer',
+    steps: [
+      { step_id: 'p', name: 'plan', status: 'done', start: 1000, end: 1400 },
+      { step_id: 'c', parent_id: 'p', name: 'search', status: 'error', start: 1010, end: 1250 },
+      { step_id: 'cut', name: 'cut short', status: 'running', start: 1500 },
+    ],
+  }
+  const want = [['plan:done[400]', '>search:error[240]'], ['cut short:stopped']]
+  assert.deepEqual(trees(fromHistory(raw, 0)), want)
+  assert.deepEqual(trees(reconcileFromHistory(run(STEPS.slice(0, 4)), raw)), want)
 })

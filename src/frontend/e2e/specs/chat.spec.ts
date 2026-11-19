@@ -235,6 +235,39 @@ test('WebSocket: a reply sent as several messages shows each on its own, with it
   expect(errors.pageErrors).toEqual([])
 })
 
+test('WebSocket: the nested steps of a reply show as a tree with status and duration, also after a reload', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await openChat(page, 'ws')
+  await send(page, 'cbsteps please')
+  await waitForRunEnd(page)
+  const check = async (reply: Locator) => {
+    await expect(reply).toContainText('Here is the answer')
+    const tree = reply.locator('[data-step-tree]')
+    await expect(tree).toHaveCount(1)
+    const plan = tree.locator(':scope > [data-part="step"]')
+    await expect(plan.locator('[data-step-name]').first()).toHaveText('Plan')
+    await expect(plan).toHaveAttribute('data-step-status', 'done')
+    await expect(plan.locator('[data-step-duration]').first()).toHaveText(/\d+(\.\d)?s/)
+    // Collapsed: the children show once the step is opened.
+    await expect(reply.locator('[data-step-name]')).toHaveCount(1)
+    await plan.getByRole('button', { name: /Plan/ }).click()
+    await expect(plan.locator('[data-step-output]').first()).toHaveText('Looking it up')
+    const children = plan.locator('ul [data-part="step"]')
+    await expect(children.locator('[data-step-name]')).toHaveText(['search', 'Rank'])
+    await expect(children.nth(1)).toHaveAttribute('data-step-status', 'error')
+    await children.nth(0).getByRole('button', { name: /search/ }).click()
+    await expect(children.nth(0).locator('[data-step-input]')).toContainText('"query": "rust"')
+    await expect(children.nth(0).locator('[data-step-output]')).toHaveText('3 results for rust')
+    await children.nth(1).getByRole('button', { name: /Rank/ }).click()
+    await expect(children.nth(1).locator('[data-step-error]')).toHaveText('ranker offline')
+  }
+  await check(assistant(page).last())
+  await expect(page).toHaveURL(/[?&]session=/)
+  await page.reload()
+  await check(assistant(page).last())
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('SSE: a question explains that answering needs a live connection', async ({ page }) => {
   const errors = collectPageErrors(page)
   await openChat(page, 'sse')

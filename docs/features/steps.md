@@ -1,119 +1,56 @@
-# Steps / Chain-of-Thought
+# Steps
 
-`aiui.Step` wraps a piece of work (a tool call, a reasoning pass, a sub-agent)
-in a named step with streamed content, nesting and timing.
-
-!!! warning "Steps from `@aiui.reply` do not render yet"
-    On the current release the chat's WebSocket path forwards the
-    `reasoning_started`, `reasoning_step` and `reasoning_completed` events of an
-    `aiui.Step` as empty content events, so the step name and its streamed text
-    do not reach the browser. Until that is fixed, send reasoning text with
-    `await aiui.think("...")`, which arrives as a `reasoning_step` event and is
-    shown in the chat's thinking area. Agent runs through the PraisonAI provider
-    show their own reasoning and tool calls.
-
-## Basic Usage
+A step is a named piece of work inside a reply: a tool call, an LLM call, a
+retrieval, a sub-run. The chat shows the reply's steps as a collapsible tree
+with each step's name, status (running, done, failed, stopped) and duration;
+opening a step shows its input, output and child steps. Steps are saved with
+the reply, so a reload shows the same tree with the same durations.
 
 ```python
 import praisonaiui as aiui
 
+@aiui.step(type="tool")
+def web_search(query: str):
+    return f"3 results for {query}"
+
 @aiui.reply
-async def agent_response(message):
-    # Tool call step
-    async with aiui.Step(name="🔧 Tool: web_search", type="tool_call") as step:
-        await step.stream_token("Input: { query: 'rust async ecosystem 2026' }")
-        # ... perform actual tool call
-        await step.stream_token("Output: [ 10 search results ]")
-    
-    # Reasoning step  
-    async with aiui.Step(name="🧠 Reasoning: Synthesizing results", type="reasoning") as step:
-        await step.stream_token("I see three major async runtimes...")
-
-    # The reply itself: a callback's return value is not sent
-    await aiui.say("Rust's async ecosystem in 2026 is dominated by...")
+async def answer(message):
+    async with aiui.Step("Plan", type="run") as plan:
+        await plan.stream_token("Looking it up")   # streamed into the step's output
+        results = web_search(message.text)          # the step "web_search", nested under "Plan"
+    await aiui.say(f"Found: {results}")
 ```
 
-## Nested Steps
+**`@aiui.step`** works bare, with `()` or with arguments
+(`@aiui.step("Search the web", type="tool")`), on sync and async functions. The
+step is named after the function unless named; its input is the call's
+arguments (`self`/`cls` left out), its output the return value, and an
+exception marks it failed (and is raised as usual).
 
-Steps can be nested to show hierarchical reasoning:
+**`aiui.Step`** is used as `async with` or `with` (sync code and worker threads
+too); in sync code `step.stream_token(t)` sends without `await`.
 
-```python
-async with aiui.Step(name="Multi-agent research", type="reasoning") as parent:
-    await parent.stream_token("Starting research task...")
-    
-    # Sub-agent step
-    async with aiui.Step(name="🤖 Sub-agent: Technical Analysis", type="sub_agent", parent=parent) as sub:
-        await sub.stream_token("Analyzing technical details...")
-        
-        # Tool called by sub-agent
-        async with aiui.Step(name="🔧 Tool: code_search", type="tool_call", parent=sub) as tool:
-            await tool.stream_token("Searching codebase...")
-```
+**Nesting** is automatic: a step opened while another runs becomes its child,
+across `await`s, in tasks started from it (`asyncio.gather`, `create_task`) and
+in `aiui.make_async` threads. `parent=` sets the parent explicitly.
 
-## Step Types
+## Reference
 
-Common step patterns:
+`aiui.Step(name, type="reasoning", parent=None, metadata={}, input=None, output=None)`
 
-```python
-# Tool calls
-async with aiui.Step(name="🔧 Tool: database_query", type="tool_call") as step:
-    await step.stream_token("Querying user database...")
+| Field | Meaning |
+|---|---|
+| `type` | `run`, `tool`, `llm`, `embedding`, `retrieval`, `rerank`, `undefined`, `tool_call`, `reasoning`, `sub_agent`, `custom` |
+| `input`, `output` | Shown when the step is opened; data as JSON, text as is, each at most 1 MB |
+| `metadata` | Extra data sent with the step's start and end |
+| `id`, `start`, `end`, `duration`, `status`, `error` | Read-only: epoch ms, seconds, `running`/`done`/`error`/`stopped`, the exception text |
 
-# Reasoning/thinking  
-async with aiui.Step(name="🧠 Reasoning: Plan evaluation", type="reasoning") as step:
-    await step.stream_token("Evaluating different approaches...")
+`@aiui.step(name=None, type="reasoning", **metadata)` wraps each call in a `Step`.
 
-# Sub-agents
-async with aiui.Step(name="🤖 Sub-agent: Code reviewer", type="sub_agent") as step:
-    await step.stream_token("Reviewing code quality...")
-
-# Retrieval
-async with aiui.Step(name="📚 Retrieval: Knowledge search", type="retrieval") as step:
-    await step.stream_token("Searching knowledge base...")
-
-# Custom
-async with aiui.Step(name="⚡ Custom: Data processing", type="custom") as step:
-    await step.stream_token("Processing large dataset...")
-```
-
-## API Reference
-
-### `aiui.Step(name, type="reasoning", parent=None, metadata={})`
-
-**Parameters:**
-- `name` (str): Display name for the step
-- `type` (StepType, optional): Step type - one of `"tool_call"`, `"reasoning"`, `"sub_agent"`, `"retrieval"`, `"custom"` (default: `"reasoning"`)
-- `parent` (Step, optional): Parent step for nesting
-- `metadata` (dict, optional): Additional step metadata
-
-**Methods:**
-- `async stream_token(token)`: Stream content to the step
-- Context manager protocol: `async with step: ...`
-
-### `@aiui.step(name, type="reasoning", **metadata)`
-
-**Decorator Parameters:**
-- `name` (str): Display name for the step
-- `type` (StepType, optional): Step type (default: `"reasoning"`)
-- `**metadata`: Additional metadata to include with the step
-
-**Usage:**
-```python
-@aiui.step("🔧 Tool: web_search", type="tool_call")
-async def web_search(query: str):
-    # Function will be wrapped in Step context
-    result = await search_web(query)
-    return result
-```
-
-### Events
-
-A step puts these events on the reply's stream; each carries `step_id`,
-`name` (start and end) and `step_type`:
-
-- `reasoning_started`: the step begins (`parent_id`, `metadata`)
-- `reasoning_step`: streamed content (`step`)
-- `reasoning_completed`: the step ends (`duration` in seconds, `error` if the
-  block raised, `metadata`)
-
-A step created outside a reply callback has no stream and emits nothing.
+**Events** (WebSocket and `/run` SSE, protocol 1.2), each with `step_id`:
+`step_start` (`name`, `step_type`, `parent_id`, `start` in epoch ms, `input`),
+`step_update` (`token` to append) and `step_end` (`end`, `status`, `duration`
+in seconds, `error`, and `input`/`output` when changed). The saved reply keeps
+`steps: [{step_id, parent_id, name, step_type, status, start, end, input,
+output, error}]`. A step outside a reply sends nothing but still times itself.
+`await aiui.think("...")` still shows unnamed reasoning text.

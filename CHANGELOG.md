@@ -651,6 +651,12 @@
   URL, and a path ending in `/sse` still means SSE. Each session runs in a task of its own, so a
   disconnect from another request closes it cleanly. The MCP page offers Streamable HTTP, SSE and
   stdio. See `docs/features/mcp.md`.
+- **Steps show in the chat.** `aiui.Step` works as `async with` and `with`, `@aiui.step` bare or with arguments on
+  sync and async functions (input from the arguments, output from the return value), and a step opened inside another
+  nests under it on its own, across awaits, tasks and `aiui.make_async` threads. The React chat shows the steps as a
+  collapsible tree with name, status and duration (server times), saved with the reply so a reload shows the same
+  tree; the dashboard chat lists them. New types `run`, `tool`, `llm`, `embedding`, `rerank`, `undefined`. Wire:
+  `step_start` / `step_update` / `step_end`; protocol 1.2.0 (docs/features/steps.md).
 - MCP servers in the config: `mcp: {servers: {name: {url|command, args, env, headers, transport}}}`
   connect in the background at startup (`${NAME}` reads an environment variable) and disconnect
   on shutdown; `mcp.enabled: false` turns MCP off. The MCP page marks declared servers and can
