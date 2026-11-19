@@ -20,7 +20,7 @@ def build_document(draft: AiuiDraft) -> dict[str, Any]:
     site: dict[str, Any] = {
         "title": draft.site_title,
         "ui": "shadcn",
-        "theme": {"preset": draft.preset, "darkMode": draft.dark_mode},
+        "theme": _theme(draft),
     }
     if draft.site_description:
         site["description"] = draft.site_description
@@ -91,6 +91,16 @@ def render_yaml(
     )
     header = _header(findings, source_name)
     return header + body, document
+
+
+def _theme(draft: AiuiDraft) -> dict[str, Any]:
+    """Paper is the PraisonAI UI docs default. ``mode`` wins over ``darkMode``."""
+    theme: dict[str, Any] = {"preset": draft.preset, "radius": "md"}
+    if draft.mode:
+        theme["mode"] = draft.mode
+    else:
+        theme["darkMode"] = draft.dark_mode
+    return theme
 
 
 def _navigation(draft: AiuiDraft) -> Optional[dict[str, Any]]:

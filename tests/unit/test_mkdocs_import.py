@@ -92,7 +92,8 @@ def test_env_and_python_tags_convert_to_a_valid_config(tmp_path):
     Config.model_validate(result.data)
     assert result.draft.site_title == "PraisonAIWP"
     assert result.draft.docs_dir == "mkdocs-docs"
-    assert result.draft.preset == "purple"
+    assert result.draft.preset == "paper"
+    assert result.draft.mode == "system"
     assert result.draft.site_url == "https://wpcli.praison.ai"
     assert result.draft.copyright == "Copyright © 2024 Mervin Praison"
     assert result.draft.socials["x"] == "https://x.com/MervinPraison"
@@ -108,7 +109,8 @@ def test_env_and_python_tags_convert_to_a_valid_config(tmp_path):
     assert "snippets" in _codes(result, "dropped")
     assert "python_tag" in _codes(result, "dropped")
     loaded = yaml.safe_load(result.yaml_text)
-    assert loaded["site"]["theme"]["preset"] == "purple"
+    assert loaded["site"]["theme"]["preset"] == "paper"
+    assert loaded["site"]["theme"]["mode"] == "system"
     assert "mkdocstrings" in result.yaml_text
 
 

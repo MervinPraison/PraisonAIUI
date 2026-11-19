@@ -64,7 +64,8 @@ class AiuiDraft:
     copyright: Optional[str] = None
     docs_dir: str = "docs"
     exclude: list[str] = field(default_factory=list)
-    preset: str = "zinc"
+    preset: str = "paper"
+    mode: Optional[str] = "system"
     dark_mode: bool = True
     tabs: list[TabDraft] = field(default_factory=list)
     search_enabled: bool = True

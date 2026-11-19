@@ -19,31 +19,6 @@ from praisonaiui.mkdocs_import.model import (
     TabDraft,
 )
 
-# Material palette names that match a Tailwind preset. Others fall back to zinc.
-_MATERIAL_PRESETS = {
-    "red": "red",
-    "pink": "pink",
-    "purple": "purple",
-    "deep purple": "purple",
-    "indigo": "indigo",
-    "blue": "blue",
-    "light blue": "sky",
-    "cyan": "cyan",
-    "teal": "teal",
-    "green": "green",
-    "light green": "lime",
-    "lime": "lime",
-    "yellow": "yellow",
-    "amber": "amber",
-    "orange": "orange",
-    "deep orange": "orange",
-    "brown": "stone",
-    "grey": "gray",
-    "gray": "gray",
-    "blue grey": "slate",
-    "blue gray": "slate",
-}
-
 _DROPPED_PLUGINS = {
     "mkdocstrings": "API pages are not generated from docstrings",
     "redirects": "redirect rules are not copied",
@@ -124,41 +99,34 @@ class ContentHandler:
 
 
 class ThemeHandler:
-    """Material primary colour → theme preset. Shared MkDocs themes are not loaded."""
+    """PraisonAI UI Paper theme. MkDocs palette colours are not copied."""
 
     name = "theme"
 
     def apply(self, doc: MkDocsDocument, draft: AiuiDraft, findings: list[Finding]) -> None:
+        draft.preset = "paper"
+        draft.mode = "system"
         theme = doc.raw.get("theme")
-        if not isinstance(theme, dict):
-            return
-
-        for note in doc.loader_notes:
-            if note.startswith("!ENV"):
+        if isinstance(theme, dict):
+            for note in doc.loader_notes:
+                if note.startswith("!ENV"):
+                    findings.append(
+                        Finding(
+                            "note",
+                            "theme_env",
+                            "theme.name used !ENV. The shared praisonai-docs-theme package is not applied.",
+                        )
+                    )
+                    break
+            primary = _primary_colour(theme.get("palette"))
+            if primary:
                 findings.append(
                     Finding(
                         "note",
-                        "theme_env",
-                        "theme.name used !ENV. The shared praisonai-docs-theme package is not applied.",
+                        "theme",
+                        f"MkDocs primary colour {primary!r} is not copied. The site uses the PraisonAI UI Paper theme.",
                     )
                 )
-                break
-
-        primary = _primary_colour(theme.get("palette"))
-        if not primary:
-            return
-        preset = _MATERIAL_PRESETS.get(primary.strip().lower())
-        if preset:
-            draft.preset = preset
-            findings.append(Finding("transferred", "theme", f"Theme preset: {preset}"))
-        else:
-            findings.append(
-                Finding(
-                    "note",
-                    "theme",
-                    f"Primary colour {primary!r} has no preset; using zinc.",
-                )
-            )
 
 
 class NavHandler:
