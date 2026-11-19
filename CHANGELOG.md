@@ -446,6 +446,14 @@
   there whose entries each own a sidebar or their own header tabs. On phones all of it sits in
   the navigation drawer. `aiui validate` warns about one with nothing to open (2102). See
   [Navigation](docs/features/navigation.md#tab-options).
+- **Docs pages print and save as PDF.** The page actions menu has
+  **Download as PDF** (the browser's Print). A printed page, from there or from
+  `Ctrl+P`, is the article alone on light paper: no header, sidebar, "On this
+  page", pager or footer; accordions, expandables and file trees open, every tab
+  under its own title, long code in full and wrapped, blocks kept whole across
+  pages and external links followed by their address. `data-print="hide"`
+  leaves any other element out. See
+  [Writing docs → Printing and PDF](docs/features/writing-docs.md#printing-and-pdf).
 - **Try it: authentication, file uploads and streams.** An operation's `security` becomes an
   Authorization section on its endpoint page and inputs in Try it: API key (header, query or
   cookie), bearer and other HTTP schemes, basic (username and password), OAuth2 and OpenID
