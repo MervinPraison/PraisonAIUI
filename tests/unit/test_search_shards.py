@@ -37,7 +37,9 @@ def test_the_frontend_fixture_is_this_writers_output(tmp_path):
     write_shards(tmp_path, fixture["full"]["pages"], _compact(fixture["full"]), fixture["shardChars"])
     files = _written(tmp_path / SHARDS_DIR)
     if os.environ.get("AIUI_REGEN_FIXTURES"):
-        FIXTURE.write_text(json.dumps({**fixture, "files": files}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        out = {**fixture, "files": files}  # one line per key: a generated file, not for reading
+        FIXTURE.write_text("{\n" + ",\n".join(f" {json.dumps(k)}: {_compact(v)}" for k, v in out.items()) + "\n}\n",
+                           encoding="utf-8")
     assert files == fixture["files"], "regenerate: AIUI_REGEN_FIXTURES=1 pytest tests/unit/test_search_shards.py"
     assert len(fixture["files"]["meta.json"]["shards"]) > 3  # several word files, as on a real site
 
