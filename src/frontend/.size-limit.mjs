@@ -392,7 +392,8 @@ export default [
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
   // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
   // (docs/PageActions.tsx, two lucide icons).
-  // 9,648,980 B (+3,329 B, exactly the overage): the docs print stylesheet and the
-  // Download as PDF page action.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9648980 B', brotli: false },
+  // 9,656,431 B (+7,451 B, exactly the overage): Try it authentication, file inputs and
+  // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth
+  // mode), on top of the docs print stylesheet and Download as PDF (+3,329 B).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9656431 B', brotli: false },
 ]
