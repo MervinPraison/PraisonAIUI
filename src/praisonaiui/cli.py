@@ -663,6 +663,8 @@ def build(
                 console.print(f"  - {path}", markup=False)
         for warning in result.warnings:
             console.print(f"[yellow]Warning:[/yellow] {escape(warning)}")
+        for note in result.notes:
+            console.print(f"[dim]Note:[/dim] {escape(note)}")
     else:
         console.print(f"[red]Error:[/red] Build failed: {result.error}")
         raise typer.Exit(code=3)

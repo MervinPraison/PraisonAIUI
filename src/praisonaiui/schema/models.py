@@ -323,6 +323,12 @@ class SEOConfig(BaseModel):
         "all: every page that is not noindex is indexed",
     )
     trailing_slash: bool = Field(default=False, alias="trailingSlash")
+    og_images: bool = Field(
+        default=True,
+        alias="ogImages",
+        description="Draw a 1200x630 social card per docs page as its og:image (needs Pillow); "
+        "false keeps defaultImage",
+    )
     content_signals: Optional[ContentSignalsConfig] = Field(default=None, alias="contentSignals")
     metatags: dict[str, Union[str, int, float]] = Field(
         default_factory=dict,
