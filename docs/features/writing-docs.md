@@ -72,6 +72,7 @@ tag: NEW
 | `related` | list of pages or URLs, or `false` | The "Related pages" under this page, instead of the suggested ones; `false` shows none ([Related pages](#related-pages)). |
 | `pageActions` | list of page actions, or `false` | This page's page actions menu, in order, instead of the site's; `false` shows none ([Page actions](#page-actions)). |
 | `rss` | `true`/`false` | `true` on a changelog page: the build writes its `<Update>` entries as an RSS feed at `<page>/rss.xml` and links it ([Changelog](#changelog)). |
+| `public` | `true`/`false` | On a site with [sign-in](docs-auth.md): `true` opens the page to everyone, `false` keeps it behind sign-in when a `public` pattern would open it. |
 | `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
 | any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
 

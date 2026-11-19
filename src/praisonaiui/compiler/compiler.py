@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
+from praisonaiui.compiler import access as docs_access
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import branding, changelog, code_theme, csp, integrations, site_assets
 from praisonaiui.compiler import og_image as og
@@ -231,6 +232,7 @@ class Compiler:
                 return CompileResult(success=False, files=files, error="; ".join(self._snippets.errors()))
             files.extend(copied)
             warnings.extend(self.lint_docs())
+            warnings.extend(docs_access.build_warning(self))
         files.extend(branding.publish(self._brand_files, output_dir))  # after docs/ is rewritten
         if self._og_cards:
             fonts = [output_dir / "assets", Path(__file__).parent.parent / "templates" / "frontend" / "assets"]
@@ -247,6 +249,7 @@ class Compiler:
             files.extend(self._generate_robots(output_dir))
             files.extend(write_llms_files(self, output_dir, nav))
             files.extend(self._generate_search_index(output_dir, nav))
+            files.extend(docs_access.write(self, output_dir))
             self._patch_homepage_seo(output_dir, nav)
         # After every page, so a stub never takes a page's file
         files.extend(rd.write_redirects(output_dir, redirects, self.url_base, self._page_url))
@@ -286,7 +289,7 @@ class Compiler:
                                 lambda p: Path(os.path.relpath(p.path, self.base_path)).as_posix(),
                                 lambda p: self._snippets.read(p.path))
         issues += version_issues(self.config.navigation, base)
-        return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved + related
+        return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved + related + docs_access.issues(self, config_file)
 
     def _page_routes(self, nav: dict) -> set[str]:
         """Every published page path, and the site root and docs root when there is a home page."""
@@ -1441,9 +1444,10 @@ class Compiler:
             return []
 
         urls = []
-        pages = self._collect_nav_pages(nav)
+        rules = docs_access.page_rules(self)  # with content.docs.auth: open pages only
+        pages = [p for p in self._collect_nav_pages(nav) if docs_access.is_public(rules, p["path"])]
         home = self._docs_home_path(nav)
-        if not any(p["noindex"] and p["path"].rstrip("/") == home for p in pages):
+        if docs_access.is_public(rules, "/") and not any(p["noindex"] and p["path"].rstrip("/") == home for p in pages):
             root_lastmod = self._format_lastmod(self.base_path / "docs" / "index.md")
             urls.append(self._sitemap_url_entry(self._absolute_url("/"), root_lastmod))
         for page in pages:
