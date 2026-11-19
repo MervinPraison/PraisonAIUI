@@ -42,6 +42,22 @@ export function tableIsArtifact(header: readonly string[], shown: readonly Shown
   return shown.some((a) => a.kind === 'table' && !!a.columns?.length && sig(a.columns) === s)
 }
 
+// The renderer frames a table with its copy and download actions, drawn over
+// the table's corner; hiding only the table would leave them over the reply.
+const TABLE_WRAPPER = '[data-streamdown="table-wrapper"]'
+
+/** `el` is inside `root` (and is not `root`). */
+function within(el: Element, root: Element): boolean {
+  for (let p = el.parentElement; p; p = p.parentElement) if (p === root) return true
+  return false
+}
+
+/** A table's block: the renderer's frame around it (with the actions), when it has one inside `root`. */
+function tableBlock(table: Element, root: Element): Element {
+  const wrapper = table.closest(TABLE_WRAPPER)
+  return wrapper && within(wrapper, root) ? wrapper : table
+}
+
 /** The element to hide for a block: it, or the wrapper it is the only child of (up to the markdown root). */
 function hideTarget(el: Element, root: Element): Element {
   let cur = el
@@ -59,7 +75,7 @@ export function markInCanvas(message: Element, shown: readonly Shown[], streamin
     }
     for (const table of root.querySelectorAll('table')) {
       const header = [...table.querySelectorAll('thead th')].map((th) => th.textContent ?? '')
-      if (tableIsArtifact(header, shown)) want.add(hideTarget(table, root))
+      if (tableIsArtifact(header, shown)) want.add(hideTarget(tableBlock(table, root), root))
     }
   }
   for (const el of message.querySelectorAll(`[${IN_CANVAS}]`)) if (!want.has(el)) el.removeAttribute(IN_CANVAS)

@@ -23,19 +23,29 @@ test('heroMark: an image path or URL, plain text letters, else the PraisonAI gly
   assert.deepEqual(heroMark('\u{1F680}'), { kind: 'glyph' })
 })
 
-test('the hero: a 44px wordmark, the promise line, then the starters', () => {
+test('the hero: a 44px wordmark (smaller on a phone), the promise line, then the starters', () => {
   const html = renderToStaticMarkup(createElement(EmptyHero, null, createElement('div', { id: 'starters' })))
   assert.match(html, /data-chat-hero=""/)
-  assert.match(html, /<h2[^>]*text-\[44px\][^>]*>PraisonAI<\/h2>/)
+  assert.match(html, /<h2[^>]*text-\[length:clamp\(2rem,9vw,2\.75rem\)\][^>]*>\s*PraisonAI\s*<\/h2>/)
   assert.ok(html.includes(HERO_PROMISE))
   assert.ok(html.indexOf('data-chat-hero') < html.indexOf('id="starters"'))
+})
+
+test('the hero: a name too long for one row wraps below the mark, centred, instead of beside it', () => {
+  const html = renderToStaticMarkup(createElement(EmptyHero, null, createElement('div', { id: 'starters' })))
+  const brand = /<div class="([^"]*)" data-chat-hero-brand="">/.exec(html)
+  assert.ok(brand, 'the mark and the name share one brand row')
+  for (const c of ['flex-wrap', 'justify-center', 'max-w-full']) assert.ok(brand[1].split(' ').includes(c), `brand row has ${c}`)
+  const h2 = /<h2 class="([^"]*)"/.exec(html)?.[1].split(' ') ?? []
+  for (const c of ['text-center', 'text-balance', 'min-w-0']) assert.ok(h2.includes(c), `the name has ${c}`)
+  assert.match(html, /data-brand-tile="" class="[^"]*shrink-0/, 'the mark keeps its size')
 })
 
 test('the hero with the app greeting (@aiui.welcome): the greeting replaces the promise line, as text', () => {
   const html = renderToStaticMarkup(createElement(EmptyHero, { welcome: 'Hi <b>there</b>', children: createElement('div', { id: 'starters' }) }))
   assert.match(html, /<p[^>]*data-welcome=""[^>]*>Hi &lt;b&gt;there&lt;\/b&gt;<\/p>/)
   assert.ok(!html.includes(HERO_PROMISE))
-  assert.match(html, /<h2[^>]*>PraisonAI<\/h2>/, 'the wordmark stays')
+  assert.match(html, /<h2[^>]*>\s*PraisonAI\s*<\/h2>/, 'the wordmark stays')
   assert.ok(html.indexOf('data-welcome') < html.indexOf('id="starters"'), 'the starters stay, under the greeting')
 })
 
