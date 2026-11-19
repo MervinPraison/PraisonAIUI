@@ -56,21 +56,16 @@ def _replay_pages() -> tuple[PageSpec, ...]:
     )
 
 
-# Routes whose handlers live in praisonaiui.server. Imported at call time
-# (inside create_app), so no handler moves and ``from praisonaiui.server
-# import api_mcp_connect`` keeps working.
-
-
 def _mcp_routes() -> list:
-    from starlette.routing import Route
+    # The handlers live in features/mcp_servers.py (server.py re-exports
+    # their names). Imported only while builtin.mcp is on.
+    from praisonaiui.features.mcp_servers import routes
 
-    from praisonaiui.server import api_mcp_connect, api_mcp_disconnect, api_mcp_servers
+    return routes()
 
-    return [
-        Route("/api/mcp/servers", api_mcp_servers, methods=["GET"]),
-        Route("/api/mcp/connect", api_mcp_connect, methods=["POST"]),
-        Route("/api/mcp/disconnect/{server_id}", api_mcp_disconnect, methods=["POST"]),
-    ]
+
+# Routes whose handlers live in praisonaiui.server. Imported at call time
+# (inside create_app), so no handler moves.
 
 
 def _debug_routes() -> list:

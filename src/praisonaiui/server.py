@@ -2643,136 +2643,14 @@ async def api_features(request: Request) -> JSONResponse:
     return JSONResponse({"features": list(infos), "count": len(infos)})
 
 
-def _mcp_stdio_connect_allowed(request: Request) -> bool:
-    """Allow stdio MCP only from localhost, with auth, or explicit dev override."""
-    if os.environ.get("PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO", "").lower() in ("true", "1", "yes"):
-        return True
-    client = request.client
-    if client and client.host in ("127.0.0.1", "::1", "localhost"):
-        return True
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        token = auth[7:]
-        try:
-            from praisonaiui.features.auth import verify_api_key
-
-            if verify_api_key(token):
-                return True
-        except ImportError:
-            pass
-        try:
-            from praisonaiui.auth import validate_token
-
-            if validate_token(token):
-                return True
-        except ImportError:
-            pass
-    return False
-
-
-async def api_mcp_servers(request: Request) -> JSONResponse:
-    """GET /api/mcp/servers — List all MCP servers with their status."""
-    try:
-        from praisonaiui.features.mcp import list_mcp_servers
-
-        servers = await list_mcp_servers()
-        servers_data = []
-        for server in servers:
-            servers_data.append(
-                {
-                    "name": server.name,
-                    "transport": server.transport.value,
-                    "status": server.status.value,
-                    "tools": [
-                        {
-                            "name": tool.name,
-                            "description": tool.description,
-                            "input_schema": tool.input_schema,
-                        }
-                        for tool in server.tools
-                    ],
-                    "last_error": server.last_error,
-                    "connection_data": server.connection_data,
-                }
-            )
-        return JSONResponse({"servers": servers_data})
-    except ImportError:
-        return JSONResponse(
-            {
-                "servers": [],
-                "error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'",
-            }
-        )
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-async def api_mcp_connect(request: Request) -> JSONResponse:
-    """POST /api/mcp/connect — Connect to an MCP server."""
-    try:
-        from praisonaiui.features.mcp import connect_mcp_server
-
-        body = await request.json()
-        if "name" not in body:
-            return JSONResponse({"error": "Missing required field: name"}, status_code=400)
-        if "command" not in body and "url" not in body:
-            return JSONResponse(
-                {"error": "Either 'command' (for stdio) or 'url' (for SSE/HTTP) is required"},
-                status_code=400,
-            )
-        if "command" in body and not _mcp_stdio_connect_allowed(request):
-            return JSONResponse(
-                {
-                    "error": "Remote stdio MCP connections are not permitted",
-                    "hint": "Use localhost, provide Authorization, or set PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO=true",
-                },
-                status_code=403,
-            )
-        session_id = body.get("session_id") or request.query_params.get("session_id")
-        server = await connect_mcp_server(body, session_context={"session_id": session_id})
-        server_data = {
-            "name": server.name,
-            "transport": server.transport.value,
-            "status": server.status.value,
-            "tools": [
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "input_schema": tool.input_schema,
-                }
-                for tool in server.tools
-            ],
-            "last_error": server.last_error,
-        }
-        return JSONResponse({"server": server_data})
-    except ImportError:
-        return JSONResponse(
-            {"error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'"},
-            status_code=400,
-        )
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-async def api_mcp_disconnect(request: Request) -> JSONResponse:
-    """POST /api/mcp/disconnect/{server_id} — Disconnect an MCP server."""
-    try:
-        from praisonaiui.features.mcp import disconnect_mcp_server
-
-        server_id = request.path_params["server_id"]
-        session_id = request.query_params.get("session_id")
-        success = await disconnect_mcp_server(server_id, session_context={"session_id": session_id})
-        if success:
-            return JSONResponse({"success": True, "message": f"Disconnected from {server_id}"})
-        return JSONResponse({"error": f"Server '{server_id}' not found"}, status_code=404)
-    except ImportError:
-        return JSONResponse(
-            {"error": "MCP feature not installed. Install with: pip install 'aiui[mcp]'"},
-            status_code=400,
-        )
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
+# The /api/mcp/* handlers live in features/mcp_servers.py (builtin.mcp);
+# the names stay importable from here.
+from praisonaiui.features.mcp_servers import (  # noqa: E402, F401
+    _mcp_stdio_connect_allowed,
+    api_mcp_connect,
+    api_mcp_disconnect,
+    api_mcp_servers,
+)
 
 # ── OAuth / thread-sharing handlers (issue #22) ─────────────────────
 
@@ -2813,7 +2691,7 @@ async def oauth_callback_handler(request: Request) -> Response:
     """Handle OAuth callback from provider."""
     provider_name = request.path_params["provider"]
     try:
-        from praisonaiui.auth import User, _oauth_callbacks, create_token
+        from praisonaiui.auth import User, _oauth_callbacks, create_token, with_session_cookie
         from praisonaiui.oauth_providers import (
             create_oauth_provider,
             get_oauth_config_from_env,
@@ -2902,7 +2780,8 @@ async def oauth_callback_handler(request: Request) -> Response:
         from praisonaiui.oauth_providers import safe_return_url
 
         return_url = safe_return_url(state_data.get("return_url", "/"))
-        return RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
+        redirect = RedirectResponse(url=f"{return_url}#token={token}", status_code=302)
+        return with_session_cookie(redirect, request, token)  # and the httpOnly cookie
     except ImportError:
         return JSONResponse({"error": "OAuth providers not available"}, status_code=500)
     except Exception as e:
@@ -3860,6 +3739,7 @@ def create_app(
     from praisonaiui.auth import (
         AuthMiddleware,
         allow_signup_from_config,
+        configure_sessions,
         login_handler,
         logout_handler,
         me_handler,
@@ -3878,6 +3758,7 @@ def create_app(
             require_auth = True
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             _config_requires_token = True
+    configure_sessions(config)  # auth.sessionLifetime, auth.cookie
 
     from praisonaiui.http_guard import (
         BodySizeLimitMiddleware,

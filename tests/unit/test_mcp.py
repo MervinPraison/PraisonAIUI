@@ -1,6 +1,7 @@
 """Tests for MCP (Model Context Protocol) client functionality."""
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -94,101 +95,87 @@ class TestMCPDataClasses:
         assert server.tools[0].name == "test_tool"
 
 
+def _fake_streams(*_args, **_kwargs):
+    """Stand-in for an SDK transport: an async context manager of two streams."""
+
+    @contextlib.asynccontextmanager
+    async def cm():
+        yield (MagicMock(), MagicMock())
+
+    return cm()
+
+
+class _FakeSession:
+    """Stand-in for mcp ClientSession."""
+
+    instances: list = []
+
+    def __init__(self, read, write):
+        self.initialize = AsyncMock()
+        self.list_tools = AsyncMock()
+        self.call_tool = AsyncMock()
+        self.closed = False
+        _FakeSession.instances.append(self)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        self.closed = True
+
+
 class TestStdioMCPClient:
     """Test stdio MCP client."""
 
     @pytest.mark.asyncio
     async def test_stdio_client_creation(self):
-        """Test stdio client creation."""
         client = StdioMCPClient("test_command", ["arg1", "arg2"])
         assert client.command == "test_command"
         assert client.args == ["arg1", "arg2"]
+        assert client.env is None
         assert client.process is None
 
     @pytest.mark.asyncio
-    async def test_stdio_connect_success(self):
-        """Test successful stdio connection."""
-        client = StdioMCPClient("echo", ["test"])
-
+    async def test_stdio_connect_success_and_disconnect_from_another_task(self):
+        """The session lives in its own task, so any task may close it."""
+        client = StdioMCPClient("echo", ["test"], env={"API_KEY": "k"})
         with (
-            patch("praisonaiui.features.mcp.stdio_client") as mock_stdio_client,
-            patch("praisonaiui.features.mcp.ClientSession") as mock_client_session,
-            patch("praisonaiui.features.mcp.contextlib.AsyncExitStack") as mock_stack_cls,
+            patch("praisonaiui.features.mcp.stdio_client", side_effect=_fake_streams) as stdio,
+            patch("praisonaiui.features.mcp.ClientSession", _FakeSession),
         ):
-            mock_read = MagicMock()
-            mock_write = MagicMock()
-            mock_session = AsyncMock()
-            mock_stack = AsyncMock()
-            mock_stack.enter_async_context = AsyncMock(
-                side_effect=[(mock_read, mock_write), mock_session]
-            )
-            mock_stack_cls.return_value = mock_stack
-            mock_stdio_client.return_value = MagicMock()
-            mock_client_session.return_value = mock_session
-
-            result = await client.connect()
-
-            assert result is True
-            assert client.session == mock_session
-            assert mock_stack.enter_async_context.await_count == 2
-            mock_session.initialize.assert_called_once()
+            assert await client.connect() is True
+            params = stdio.call_args.args[0]
+            assert (params.command, params.args, params.env) == ("echo", ["test"], {"API_KEY": "k"})
+            session = client.session
+            session.initialize.assert_awaited_once()
+            await asyncio.create_task(client.disconnect())
+        assert session.closed is True
+        assert client.session is None
 
     @pytest.mark.asyncio
     async def test_stdio_connect_failure(self):
-        """Test failed stdio connection."""
         client = StdioMCPClient("nonexistent_command", [])
-
-        with patch("subprocess.Popen", side_effect=FileNotFoundError):
-            result = await client.connect()
-            assert result is False
-
-    @pytest.mark.asyncio
-    async def test_stdio_disconnect(self):
-        """Test stdio disconnect."""
-        client = StdioMCPClient("echo", ["test"])
-
-        mock_stack = AsyncMock()
-        client._exit_stack = mock_stack
-        client._connected = True
-
-        await client.disconnect()
-
-        mock_stack.aclose.assert_called_once()
-        assert client.session is None
-        assert client.process is None
+        with patch("praisonaiui.features.mcp.stdio_client", side_effect=FileNotFoundError("nope")):
+            assert await client.connect() is False
+        assert client.last_error == "nope"
 
     @pytest.mark.asyncio
-    async def test_stdio_disconnect_with_kill(self):
-        """Test stdio disconnect with exception handling."""
+    async def test_stdio_disconnect_without_connect(self):
         client = StdioMCPClient("echo", ["test"])
-
-        mock_stack = AsyncMock()
-        mock_stack.aclose.side_effect = Exception("Disconnect failed")
-        client._exit_stack = mock_stack
-        client._connected = True
-
         await client.disconnect()
-
-        mock_stack.aclose.assert_called_once()
         assert client.session is None
-        assert client.process is None
 
     @pytest.mark.asyncio
     async def test_stdio_list_tools(self):
-        """Test listing tools from stdio client."""
         client = StdioMCPClient("echo", ["test"])
-
-        # Mock session with list_tools response
         mock_session = AsyncMock()
         mock_tool = MagicMock()
         mock_tool.name = "filesystem_read"
         mock_tool.description = "Read file contents"
         mock_tool.inputSchema = {"type": "object", "properties": {"path": {"type": "string"}}}
-
         mock_result = MagicMock()
         mock_result.tools = [mock_tool]
         mock_session.list_tools.return_value = mock_result
-
         client.session = mock_session
         client._connected = True
 
@@ -200,22 +187,17 @@ class TestStdioMCPClient:
 
     @pytest.mark.asyncio
     async def test_stdio_call_tool(self):
-        """Test calling a tool via stdio client."""
         client = StdioMCPClient("echo", ["test"])
-
-        # Mock session with call_tool response
         mock_session = AsyncMock()
         mock_result = MagicMock()
-        mock_result.content = [{"type": "text", "text": "Tool executed successfully for test_tool"}]
+        mock_result.content = [{"type": "text", "text": "ok"}]
         mock_session.call_tool.return_value = mock_result
-
         client.session = mock_session
         client._connected = True
 
         result = await client.call_tool("test_tool", {"arg": "value"})
 
-        assert result is not None
-        assert len(result) > 0
+        assert result == [{"type": "text", "text": "ok"}]
         mock_session.call_tool.assert_called_once_with("test_tool", {"arg": "value"})
 
 
@@ -224,42 +206,49 @@ class TestSSEMCPClient:
 
     @pytest.mark.asyncio
     async def test_sse_client_creation(self):
-        """Test SSE client creation."""
         client = SSEMCPClient("https://example.com/sse", {"Auth": "token"})
         assert client.url == "https://example.com/sse"
         assert client.headers == {"Auth": "token"}
 
     @pytest.mark.asyncio
-    async def test_sse_connect_not_implemented(self):
-        """Test SSE connect returns False (not implemented)."""
-        client = SSEMCPClient("https://example.com/sse")
-        result = await client.connect()
-        assert result is False
+    async def test_sse_connect_passes_headers(self):
+        client = SSEMCPClient("https://example.com/events", {"Authorization": "Bearer t"})
+        with (
+            patch("praisonaiui.features.mcp.sse_client", side_effect=_fake_streams) as sse,
+            patch("praisonaiui.features.mcp.ClientSession", _FakeSession),
+        ):
+            assert await client.connect() is True
+            await client.disconnect()
+        sse.assert_called_once_with(
+            "https://example.com/events", headers={"Authorization": "Bearer t"}
+        )
 
     @pytest.mark.asyncio
     async def test_sse_list_tools_empty(self):
-        """Test SSE list_tools returns empty list."""
         client = SSEMCPClient("https://example.com/sse")
-        tools = await client.list_tools()
-        assert tools == []
+        assert await client.list_tools() == []
 
 
 class TestHTTPMCPClient:
-    """Test HTTP MCP client."""
+    """Test the Streamable HTTP client."""
 
     @pytest.mark.asyncio
     async def test_http_client_creation(self):
-        """Test HTTP client creation."""
         client = HTTPMCPClient("https://example.com", {"Auth": "token"})
         assert client.url == "https://example.com"
         assert client.headers == {"Auth": "token"}
 
     @pytest.mark.asyncio
-    async def test_http_connect_not_implemented(self):
-        """Test HTTP connect returns False (not implemented)."""
-        client = HTTPMCPClient("https://example.com")
-        result = await client.connect()
-        assert result is False
+    async def test_http_connect_uses_streamable_http(self):
+        client = HTTPMCPClient("https://example.com/mcp", {"Authorization": "Bearer t"})
+        with (
+            patch("praisonaiui.features.mcp._streamable_http", side_effect=_fake_streams) as http,
+            patch("praisonaiui.features.mcp.ClientSession", _FakeSession),
+        ):
+            assert await client.connect() is True
+            assert client.session is not None
+            await client.disconnect()
+        http.assert_called_once_with("https://example.com/mcp", {"Authorization": "Bearer t"})
 
 
 class TestMCPClientManager:
@@ -319,23 +308,41 @@ class TestMCPClientManager:
 
     @pytest.mark.asyncio
     async def test_connect_http_server(self):
-        """Test connecting to HTTP server."""
+        """A url defaults to Streamable HTTP, then falls back to SSE."""
         manager = MCPClientManager()
-        config = {
-            "name": "http_server",
-            "url": "https://example.com/api"
-        }
+        config = {"name": "http_server", "url": "https://example.com/api"}
 
-        with patch("praisonaiui.features.mcp.HTTPMCPClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.connect.return_value = False  # Not implemented yet
-            mock_client_class.return_value = mock_client
+        with (
+            patch("praisonaiui.features.mcp.HTTPMCPClient") as http_cls,
+            patch("praisonaiui.features.mcp.SSEMCPClient") as sse_cls,
+        ):
+            http_cls.return_value = AsyncMock(**{"connect.return_value": False})
+            sse_client = AsyncMock(**{"connect.return_value": True, "list_tools.return_value": []})
+            sse_cls.return_value = sse_client
 
             server = await manager.connect_server(config)
 
-            assert server.name == "http_server"
-            assert server.transport == MCPTransport.HTTP
-            assert server.status == MCPStatus.ERROR
+            http_cls.assert_called_once()
+            assert server.transport == MCPTransport.SSE
+            assert server.status == MCPStatus.CONNECTED
+            assert manager._clients["http_server"] is sse_client
+
+    @pytest.mark.asyncio
+    async def test_explicit_transport_has_no_fallback(self):
+        manager = MCPClientManager()
+        config = {"name": "h", "url": "https://example.com/api", "transport": "streamable-http"}
+
+        with (
+            patch("praisonaiui.features.mcp.HTTPMCPClient") as http_cls,
+            patch("praisonaiui.features.mcp.SSEMCPClient") as sse_cls,
+        ):
+            http_cls.return_value = AsyncMock(**{"connect.return_value": False})
+            server = await manager.connect_server(config)
+
+        sse_cls.assert_not_called()
+        assert server.transport is MCPTransport.HTTP  # older name, same member
+        assert server.status == MCPStatus.ERROR
+        assert server.last_error == "Connection failed"
 
     @pytest.mark.asyncio
     async def test_connect_server_invalid_config(self):
@@ -346,7 +353,7 @@ class TestMCPClientManager:
             # Missing command or url
         }
 
-        with pytest.raises(ValueError, match="Invalid MCP server config"):
+        with pytest.raises(ValueError, match="needs a 'url' or a 'command'"):
             await manager.connect_server(config)
 
     @pytest.mark.asyncio

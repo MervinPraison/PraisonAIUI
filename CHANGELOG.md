@@ -110,6 +110,10 @@
   The OAuth routes now answer without credentials in every auth mode, so
   sign-in can start under `require_auth`. See
   [Deployment → OAuth sign-in](docs/features/deployment.md#oauth-sign-in).
+- MCP: `GET /api/mcp/servers` no longer sends header values, stdio `env` values, URL credentials
+  or query values to the browser (they show as `***`), and connect errors no longer echo the
+  server config. MCP header and env values and any `Bearer` token are redacted from logs and
+  tracebacks (`http_guard.register_secret`).
 
 ### New
 
@@ -634,6 +638,19 @@
   `aiui.notify` shows a toast in both built-in chats. Wire: `run_content.message_id` / `author`, new
   `message_actions`, `message_update`, `message_remove`, `action_remove`; protocol 1.1.0
   (docs/features/message-elements.md#several-messages-in-one-reply).
+- MCP: Streamable HTTP servers connect (they used to fail with "Connection failed"). A `url`
+  uses Streamable HTTP and falls back to SSE; `"transport": "sse"` (or `type`) picks SSE for any
+  URL, and a path ending in `/sse` still means SSE. Each session runs in a task of its own, so a
+  disconnect from another request closes it cleanly. The MCP page offers Streamable HTTP, SSE and
+  stdio. See `docs/features/mcp.md`.
+
+- **Sign-ins survive restarts and work on every worker.** Session tokens are signed (HMAC-SHA256)
+  instead of held in memory. Zero config: a secret is generated into `<data dir>/auth_secret` (0600);
+  `AIUI_AUTH_SECRET` (`aiui auth create-secret`) shares one across hosts and rotates as `new,old`.
+  Sign-in also sets an httpOnly cookie (`SameSite=Lax`, `Secure` on https, root path; YAML
+  `auth.cookie`) that signs in HTTP and WebSockets and slides while in use. Lifetime: YAML
+  `auth.sessionLifetime` (default `14d`, was 24 h). `POST /logout` revokes on every worker sharing the
+  data directory. `aiui auth create-key` now exists (docs/features/deployment.md#sessions).
 
 ### Deprecated
 
