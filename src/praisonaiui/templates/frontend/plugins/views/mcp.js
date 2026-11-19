@@ -17,10 +17,14 @@ export async function render(container) {
 
   let servers = [];
   let loadError = null;
+  let allow = { urls: [], commands: [] };
+  let enabled = true;
   try {
     const r = await fetch('/api/mcp/servers');
     const d = await r.json();
     servers = d.servers || [];
+    if (d.allow) allow = d.allow;
+    if (d.enabled === false) enabled = false;
     if (d.error) loadError = d.error;
   } catch (e) {
     loadError = e.message;
@@ -41,8 +45,9 @@ export async function render(container) {
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h3 style="margin:0;font-size:15px;font-weight:600">${shell ? 'MCP servers' : 'MCP Servers'}</h3>
-      <button id="mcp-add" class="db-btn db-btn-primary">${shell ? '+ Connect server' : '+ Connect Server'}</button>
+      <button id="mcp-add" class="db-btn db-btn-primary"${enabled ? '' : ' disabled'}>${shell ? '+ Connect server' : '+ Connect Server'}</button>
     </div>
+    ${enabled ? '' : `<div class="db-alert db-alert-warning"><span>${glyph('⚠️', 'info')}</span><span>MCP is turned off (mcp.enabled: false).</span></div>`}
     ${loadError ? `<div class="db-alert db-alert-warning"><span>${glyph('⚠️', 'info')}</span><span>${esc(loadError)}</span></div>` : ''}
     <div id="mcp-list"></div>
     <div id="mcp-form-host"></div>
@@ -62,11 +67,12 @@ export async function render(container) {
           <span style="font-size:20px">${glyph('🔌', 'plug')}</span>
           <div style="min-width:0">
             <div style="font-weight:500;font-size:14px">${esc(s.name)}</div>
-            <div style="font-size:12px;color:var(--db-text-dim)">${esc(s.transport || '')} · ${tools.length} tool${tools.length !== 1 ? 's' : ''}</div>
+            <div style="font-size:12px;color:var(--db-text-dim)">${esc(s.transport || '')} · ${tools.length} tool${tools.length !== 1 ? 's' : ''}${s.source === 'config' ? ' · from config' : ''}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           ${shell ? statusChip(humanize(s.status || 'unknown'), toneOf[s.status] || 'neutral') : `<span style="font-size:11px;padding:3px 10px;border-radius:12px;${statusStyle}">${esc(s.status || 'unknown')}</span>`}
+          ${!isConnected && s.source === 'config' && enabled ? `<button class="mcp-reconnect db-btn" data-name="${esc(s.name)}" style="padding:4px 12px;font-size:11px">Connect</button>` : ''}
           ${isConnected ? `<button class="mcp-disconnect db-btn db-btn-destructive" data-name="${esc(s.name)}" style="padding:4px 12px;font-size:11px">Disconnect</button>` : ''}
         </div>
       </div>
@@ -106,12 +112,47 @@ export async function render(container) {
     })
   );
 
+  container.querySelectorAll('.mcp-reconnect').forEach((b) =>
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      await connect({ name: b.dataset.name }, container);
+      b.disabled = false;
+    })
+  );
+
   const addBtn = container.querySelector('#mcp-add');
   const formHost = container.querySelector('#mcp-form-host');
-  addBtn.addEventListener('click', () => openConnectForm(formHost, container));
+  addBtn.addEventListener('click', () => openConnectForm(formHost, container, allow));
 }
 
-function openConnectForm(host, container) {
+// POST /api/mcp/connect; true on success. Errors (e.g. not in mcp.allow.*) become a toast.
+async function connect(body, container) {
+  try {
+    const r = await fetch('/api/mcp/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (r.ok && d.server && d.server.status === 'connected') {
+      showToast(`Connected to ${d.server.name}`, 'success');
+      render(container);
+      return true;
+    }
+    showToast((d.server && d.server.last_error) || d.error || 'Connection failed', 'error');
+    if (d.server) render(container);
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+  return false;
+}
+
+function allowHint(list, what) {
+  if (!list || !list.length) return `Not allowed: add ${what} to mcp.allow.${what} in the config.`;
+  return `Allowed: ${list.map(esc).join(', ')}`;
+}
+
+function openConnectForm(host, container, allow) {
   host.innerHTML = `
     <div class="db-card" style="margin-top:16px;padding:20px">
       <h3 style="margin:0 0 16px;font-size:14px;font-weight:600">Connect MCP Server</h3>
@@ -128,6 +169,7 @@ function openConnectForm(host, container) {
         </select>
       </div>
       <div id="mcp-f-stdio" style="display:none">
+        <div class="db-form-hint" style="font-size:12px;color:var(--db-text-dim);margin-bottom:8px">${allowHint(allow.commands, 'commands')}</div>
         <div class="db-form-group">
           <label class="db-form-label">Command</label>
           <input id="mcp-f-command" class="db-form-input" value="npx" placeholder="npx" required>
@@ -138,6 +180,7 @@ function openConnectForm(host, container) {
         </div>
       </div>
       <div id="mcp-f-url">
+        <div class="db-form-hint" style="font-size:12px;color:var(--db-text-dim);margin-bottom:8px">${allowHint(allow.urls, 'urls')}</div>
         <div class="db-form-group">
           <label class="db-form-label">URL</label>
           <input id="mcp-f-urlval" class="db-form-input" placeholder="https://example.com/mcp">
@@ -192,26 +235,8 @@ function openConnectForm(host, container) {
     const submitBtn = host.querySelector('#mcp-f-submit');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Connecting…';
-    try {
-      const r = await fetch('/api/mcp/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const d = await r.json();
-      if (r.ok && d.server && d.server.status === 'connected') {
-        showToast(`Connected to ${d.server.name}`, 'success');
-        host.innerHTML = '';
-        render(container);
-      } else {
-        showToast((d.server && d.server.last_error) || d.error || d.hint || 'Connection failed', 'error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Connect';
-      }
-    } catch (e) {
-      showToast(e.message, 'error');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Connect';
-    }
+    if (await connect(body, container)) return;
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Connect';
   });
 }

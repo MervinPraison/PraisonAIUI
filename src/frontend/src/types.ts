@@ -253,6 +253,8 @@ export interface UIConfig {
     docsHome?: DocsHomeConfig
     /** Page footer settings (`content.docs.editLink.text`, `content.docs.feedback`; false: no feedback). */
     pageFooter?: { editText?: string; feedback?: false | DocsFeedbackConfig }
+    /** Added by `aiui serve` / `aiui dev` (docs_feedback.py): the endpoint that stores votes. A static host has none. */
+    docsFeedback?: { url: string }
     /** `styling.eyebrows`: the line above a docs page title (default `section`). */
     styling?: { eyebrows?: 'section' | 'breadcrumbs' }
     footer?: {

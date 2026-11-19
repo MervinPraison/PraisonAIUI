@@ -1,5 +1,5 @@
 // Content component — markdown rendering and landing page
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SHADCN_THEMES } from './themes'
@@ -25,6 +25,7 @@ import { relatedLinks } from './docs/related'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { OptionalPart } from './docs/PartBoundary'
 import { askEndpoint } from './docs/askEntry'
 import { pageActionList } from './docs/pageActionLinks'
 import { printLight } from './docs/print'
@@ -154,8 +155,11 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                 new Promise((resolve) => setTimeout(resolve, PAINT_WAIT_MS)),
             ])
             if (!controller.signal.aborted) show(result, content)
-        }, () => {
+        }).catch((err: unknown) => {
+            // Any failure, the request's or this page's own, ends on "Couldn't
+            // load this page" with Retry: never a skeleton left up for good.
             if (controller.signal.aborted) return
+            console.warn('[aiui docs] page failed to load', err)
             setLoadError(true)
             setLoadingContent(false)
         })
@@ -198,7 +202,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const bare = modeIsBare(selectedItem.mode)
         // `mode: assistant`: Ask AI under the page's own text (docs/AskAi.tsx).
         const assistant = config.assistant || null, askUrl = askEndpoint(assistant)
-        const fb = config.pageFooter?.feedback, codeFeedback = fb && fb.code ? { path: shownPath ?? currentPath, cfg: fb } : null
+        const fb = config.pageFooter?.feedback, server = config.docsFeedback?.url
+        const codeFeedback = fb && fb.code ? { path: shownPath ?? currentPath, cfg: fb, server } : null
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
@@ -269,12 +274,12 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         </CodeFeedback.Provider>
                     )}
                     {contentReady && selectedItem.mode === 'assistant' && (askUrl ? (
-                        <Suspense fallback={null}><AskPage url={askUrl} starters={assistant ? assistant.starters : undefined} onNavigate={navigateTo} /></Suspense>
+                        <OptionalPart name="Ask AI"><AskPage url={askUrl} starters={assistant ? assistant.starters : undefined} onNavigate={navigateTo} /></OptionalPart>
                     ) : <p className="aiui-docs-notice">Ask AI is not available on this copy of the docs.</p>)}
                     {contentReady && !home && !bare && related.length > 0 && (
-                        <Suspense fallback={null}><RelatedPages links={related} onNavigate={navigateTo} /></Suspense>
+                        <OptionalPart name="related pages"><RelatedPages links={related} onNavigate={navigateTo} /></OptionalPart>
                     )}
-                    {contentReady && !home && !bare && <PageFooter item={selectedItem} path={shownPath ?? currentPath} config={config.pageFooter} />}
+                    {contentReady && !home && !bare && <PageFooter item={selectedItem} path={shownPath ?? currentPath} config={config.pageFooter} server={server} />}
                     {contentReady && nav && onNavigate && !bare && !selectedItem.hidePager && (
                         <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}

@@ -24,9 +24,10 @@ import { useHeadingAnchors } from './docs/headingAnchors'
 import { useImageZoom } from './docs/imageZoom'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
-import { fetchWithRetry, prefetchInitialDoc } from './docs/docLoader'
+import { fetchWithRetry, inlinedManifest, prefetchInitialDoc } from './docs/docLoader'
 import { appPathname, stripBase, withBase } from './lib/url'
 import { AskSelection } from './docs/AskSelection'
+import { DocsErrorBoundary, OptionalPart } from './docs/PartBoundary'
 import { ASK_EVENT, askEndpoint } from './docs/askEntry'
 import type { AskRequest } from './docs/AskAi'
 import './docs/docs.css'
@@ -376,20 +377,23 @@ export default function App() {
       // A deep link's page starts loading now, alongside the manifests (one round trip saved).
       prefetchInitialDoc()
       try {
-        // Time limit per attempt and a fresh request on timeout (docs/docLoader.ts).
-        const [configRes, navRes, routesRes] = await Promise.all(
-          ['/ui-config.json', '/docs-nav.json', '/route-manifest.json'].map((url) => fetchWithRetry(url)),
-        )
-
-        if (!configRes.ok || !navRes.ok || !routesRes.ok) {
-          throw new Error('Failed to load manifests')
+        // The nav and route manifest `aiui build` inlined in the page, else a request with a
+        // time limit per attempt and a fresh request on timeout (docs/docLoader.ts).
+        const manifest = async <T,>(url: string): Promise<T> => {
+          const inlined = inlinedManifest(url)
+          if (inlined !== undefined) return inlined as T
+          const res = await fetchWithRetry(url)
+          if (!res.ok) throw new Error('Failed to load manifests')
+          return JSON.parse(res.text) as T
         }
-
-        const configData = JSON.parse(configRes.text)
-        const navData = JSON.parse(navRes.text)
+        const [configData, navData, routesData] = await Promise.all([
+          manifest<UIConfig>('/ui-config.json'),
+          manifest<DocsNav>('/docs-nav.json'),
+          manifest<RouteManifest>('/route-manifest.json'),
+        ])
         setConfig(configData)
         setNav(navData)
-        setRoutes(JSON.parse(routesRes.text))
+        setRoutes(routesData)
 
         // Apply theme from config. Colour mode: the viewer's stored choice,
         // else the app's (set_theme / YAML), else the OS (mode 'system').
@@ -548,19 +552,19 @@ export default function App() {
         onAskClick={askUrl ? () => openAsk() : undefined}
       />
       {searchMounted && (
-        <Suspense fallback={null}>
+        <OptionalPart name="search">
           <DocsSearch open={searchOpen} onOpenChange={setSearchOpen} groups={searchGroups} onSelect={openSearchResult} indexUrl={withBase('/search-index.json')}
             tabs={searchTabs} activeTab={sections[activeTabIndex]?.tab} initialQuery={deepLinkQuery}
             placeholder={config.search?.prompt} maxResults={config.search?.maxResults}
             onAsk={askUrl ? (question) => openAsk({ question }) : undefined} />
-        </Suspense>
+        </OptionalPart>
       )}
       {askUrl && <AskSelection onAsk={(context) => openAsk({ context })} />}
       {askUrl && askMounted && (
-        <Suspense fallback={null}>
+        <OptionalPart name="Ask AI">
           <AskAi open={askOpen} onOpenChange={setAskOpen} url={askUrl} starters={assistant?.starters}
             request={askRequest} onNavigate={openHref} />
-        </Suspense>
+        </OptionalPart>
       )}
     </>
   )
@@ -761,7 +765,9 @@ export default function App() {
 
   return (
     <LocaleProvider config={config.i18n}>
-      <Suspense fallback={<StyleLoading />}>{renderByStyle()}</Suspense>
+      <DocsErrorBoundary>
+        <Suspense fallback={<StyleLoading />}>{renderByStyle()}</Suspense>
+      </DocsErrorBoundary>
     </LocaleProvider>
   )
 }

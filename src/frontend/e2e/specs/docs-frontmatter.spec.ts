@@ -2,7 +2,7 @@
 // with docs-nav.json replaced per test: the description under the title, badges, an
 // external sidebar link, `mode` and `hideFooterPagination`.
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, withoutInlinedManifests } from './support'
 
 const FIRST = { title: 'First page', path: '/docs/guide/first', description: 'The first guide page.', lede: true }
 
@@ -13,6 +13,7 @@ async function withNav(page: Page, first: Record<string, unknown>) {
     { title: 'Second page', path: '/docs/guide/second', deprecated: true },
     { title: 'GitHub', href: 'https://github.com/acme/site', tag: 'OSS' },
   ]
+  await withoutInlinedManifests(page)
   await page.route('**/docs-nav.json', (route) => route.fulfill({ json: { items } }))
 }
 

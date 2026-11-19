@@ -446,8 +446,6 @@ function injectStyles() {
     .chat-tool-running { border-left-color:#f59e0b; }
     .chat-tool-done .chat-tool-badge { background:rgba(34,197,94,.12); color:#22c55e; }
     .chat-tool-done { border-left-color:#22c55e; }
-    .chat-tool-error .chat-tool-badge { background:var(--db-error-bg, rgba(239,68,68,.12)); color:var(--db-error, #ef4444); }
-    .chat-tool-error { border-left-color:var(--db-error, #ef4444); }
     .chat-tool-badge .tool-spinner { width:10px; height:10px; border:2px solid rgba(245,158,11,.25); border-top-color:#f59e0b; border-radius:50%; animation:spin .7s linear infinite; }
     .chat-tool-details { display:none; margin-top:8px; padding:8px 12px; background:rgba(0,0,0,.12); border-radius:8px; font-size:12px; max-height:600px; overflow-y:auto; }
     .chat-tool-call.expanded .chat-tool-details { display:block; }
@@ -1650,12 +1648,6 @@ function handleWsMessage(data) {
       appendReasoning(data.step);
       break;
 
-    case 'step_start':
-    case 'step_update':
-    case 'step_end':
-      stepRow(data);
-      break;
-
     case 'run_paused':
       appendAskWidget(data.question, data.options, data.session_id, data.run_id);
       setStatus('paused');
@@ -2168,26 +2160,6 @@ function updateToolCall(data, status) {
     // Update detail panel with completed data (args + result)
     _updateToolDetails(el, data);
   }
-}
-
-// aiui.Step: one tool-style row per step (a child indented under its parent).
-function stepRow(data) {
-  const idOf = (sid) => 'tc-' + ('step-' + sid).replace(/[^a-zA-Z0-9_-]/g, '_');
-  let el = document.getElementById(idOf(data.step_id));
-  if (!el && data.type === 'step_start') {
-    appendToolCall({ tool_call_id: 'step-' + data.step_id, description: data.name || 'Step', args: data.input }, 'running');
-    el = document.getElementById(idOf(data.step_id));
-    const parent = data.parent_id && document.getElementById(idOf(data.parent_id));
-    if (el && parent) el.style.marginLeft = ((parseInt(parent.style.marginLeft, 10) || 0) + 16) + 'px';
-  }
-  if (!el) return;
-  el._stepIn = data.input != null ? data.input : el._stepIn;
-  el._stepOut = data.output != null ? data.output : (el._stepOut || '') + (data.token || '');
-  if (data.type !== 'step_end') return;
-  const failed = data.status === 'error';
-  el.className = 'chat-tool-call chat-tool-' + (failed ? 'error' : 'done');
-  el.querySelector('.chat-tool-badge').textContent = failed ? 'failed' : (data.duration != null ? data.duration.toFixed(1) + 's' : 'done');
-  _updateToolDetails(el, { args: el._stepIn, result: data.error || el._stepOut || undefined });
 }
 
 function appendReasoning(step) {

@@ -2,7 +2,7 @@
 // the nav and ui-config replaced per test: a group's own page, folding remembered
 // across reloads, drilldown, and breadcrumbs (styling.eyebrows).
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, withoutInlinedManifests } from './support'
 
 const NAV = {
   items: [
@@ -15,6 +15,7 @@ const NAV = {
 }
 
 async function withNav(page: Page, extra: Record<string, unknown> = {}, ui: Record<string, unknown> = {}) {
+  await withoutInlinedManifests(page)
   await page.route('**/docs-nav.json', (route) => route.fulfill({ json: { ...NAV, ...extra } }))
   await page.route('**/ui-config.json', async (route) => {
     const response = await route.fetch()

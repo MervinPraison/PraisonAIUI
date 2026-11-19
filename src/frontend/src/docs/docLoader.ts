@@ -13,8 +13,12 @@
  * link (400 ms RTT, 400 kbit/s) a request on a new TLS connection has its
  * headers in about 2 s, so 5 s only fires after two or three lost packets in
  * a row, when starting over is faster than waiting. The last attempt allows
- * 10 s so a link that is merely very slow still gets the page. The body has
- * its own, longer limit (it can be large and arrives in pieces).
+ * 10 s so a link that is merely very slow still gets the page.
+ *
+ * The body has two limits of its own. A body that sends nothing for 5 s has
+ * stalled (a dropped connection the browser has not noticed) and is cut off
+ * and requested again; a body that keeps arriving, however slowly, gets up to
+ * 15 s in all. So a stall costs 5 s, not 15, and no attempt waits for ever.
  */
 import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath } from './docSource'
@@ -30,6 +34,8 @@ export interface DocResult {
 export const ATTEMPT_TIMEOUTS_MS = [5_000, 5_000, 10_000]
 /** Time to read the body once the headers are in. */
 export const BODY_TIMEOUT_MS = 15_000
+/** Time the body may go without a byte before the attempt counts as stalled. */
+export const BODY_IDLE_TIMEOUT_MS = 5_000
 const CACHE_LIMIT = 100
 const PREFETCH_LIMIT = 4
 const HOVER_DELAY_MS = 80
@@ -73,17 +79,40 @@ function anySignal(signals: AbortSignal[]): AbortSignal {
     return controller.signal
 }
 
-/** Run `work` with a signal that also aborts after `ms`; a timeout rejects with TimeoutError. */
-async function withTimeout<T>(ms: number, parent: AbortSignal, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
-    const timer = new AbortController()
-    const id = setTimeout(() => timer.abort(new DOMException('Timed out', 'TimeoutError')), ms)
+/** A promise that rejects with the signal's reason once it aborts (never resolves). */
+function whenAborted(signal: AbortSignal): Promise<never> {
+    const p = new Promise<never>((_resolve, reject) => {
+        const fail = () => reject(signal.reason ?? abortError())
+        if (signal.aborted) fail()
+        else signal.addEventListener('abort', fail, { once: true })
+    })
+    p.catch(() => {}) // observed through Promise.race; never an unhandled rejection
+    return p
+}
+
+/**
+ * The body as text, read chunk by chunk so `onBytes` sees every chunk arrive
+ * (the idle limit). Aborting `signal` cancels the stream. Without a readable
+ * body (an old browser, a test double) it falls back to `response.text()`.
+ */
+async function readText(response: Response, onBytes: () => void, signal: AbortSignal): Promise<string> {
+    const reader = response.body?.getReader()
+    if (!reader) return response.text()
+    const cancel = () => void reader.cancel(signal.reason).catch(() => {})
+    signal.addEventListener('abort', cancel, { once: true })
+    const decoder = new TextDecoder()
+    let text = ''
     try {
-        return await work(anySignal([parent, timer.signal]))
-    } catch (e) {
-        if (timer.signal.aborted && !parent.aborted) throw timer.signal.reason
-        throw e
+        for (;;) {
+            const { done, value } = await reader.read()
+            // A cancelled stream ends "done": never hand back a cut-off page as a whole one.
+            if (signal.aborted) throw signal.reason ?? abortError()
+            if (done) return text + decoder.decode()
+            onBytes()
+            text += decoder.decode(value, { stream: true })
+        }
     } finally {
-        clearTimeout(id)
+        signal.removeEventListener('abort', cancel)
     }
 }
 
@@ -91,6 +120,7 @@ export interface RetryOptions {
     signal?: AbortSignal
     timeouts?: number[]
     bodyTimeoutMs?: number
+    bodyIdleTimeoutMs?: number
     fetchImpl?: typeof fetch
     /** Pause before a retry (default 100-400 ms of jitter). */
     backoff?: (attempt: number) => number
@@ -107,22 +137,44 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         signal = new AbortController().signal,
         timeouts = ATTEMPT_TIMEOUTS_MS,
         bodyTimeoutMs = BODY_TIMEOUT_MS,
+        bodyIdleTimeoutMs = BODY_IDLE_TIMEOUT_MS,
         fetchImpl = (...args) => fetch(...args),
         backoff = () => 100 + Math.random() * 300,
     } = opts
     let lastError: unknown = null
     for (let attempt = 0; attempt < timeouts.length; attempt++) {
         if (signal.aborted) throw abortError()
+        // One controller per attempt: a time limit (headers, then body) aborts
+        // this request, which also cancels its stalled connection or body.
+        const request = new AbortController()
+        const timedOut = () => request.abort(new DOMException('Timed out', 'TimeoutError'))
+        let timer = setTimeout(timedOut, timeouts[attempt])
+        let idle: ReturnType<typeof setTimeout> | undefined
+        const s = anySignal([signal, request.signal])
+        // Raced, not only passed to fetch: a body that stalls after the headers
+        // would otherwise leave response.text() pending for ever.
+        const aborted = whenAborted(s)
         try {
-            const response = await withTimeout(timeouts[attempt], signal, (s) => fetchImpl(withBase(url), { signal: s }))
+            const response = await Promise.race([fetchImpl(withBase(url), { signal: s }), aborted])
+            clearTimeout(timer)
             if (response.status < 500) {
-                const text = response.ok ? await withTimeout(bodyTimeoutMs, signal, () => response.text()) : ''
+                timer = setTimeout(timedOut, bodyTimeoutMs)
+                // Each chunk restarts the idle limit; the total limit keeps running.
+                const progress = () => {
+                    clearTimeout(idle)
+                    idle = setTimeout(timedOut, bodyIdleTimeoutMs)
+                }
+                progress()
+                const text = response.ok ? await Promise.race([readText(response, progress, s), aborted]) : ''
                 return { ok: response.ok, status: response.status, text }
             }
             lastError = new Error(`HTTP ${response.status}`)
         } catch (e) {
             if (signal.aborted) throw abortError()
             lastError = e
+        } finally {
+            clearTimeout(timer)
+            clearTimeout(idle)
         }
         if (attempt < timeouts.length - 1) await sleep(backoff(attempt), signal)
     }
@@ -241,6 +293,37 @@ export function adoptInlinedDoc(root: InlinedDocSource | undefined = typeof docu
     } catch {
         return null
     }
+}
+
+/** The JSON script `aiui build` writes into each page: `{"/docs-nav.json": {...}, "/route-manifest.json": {...}}`. */
+export const BOOT_DATA_ID = 'aiui-boot-data'
+
+const bootData = new WeakMap<object, Record<string, unknown>>()
+
+/**
+ * A site manifest `aiui build` inlined in the page (compiler/boot_data.py), so
+ * the first render needs no request for it; undefined when the page has none
+ * (a server, an older build, a docs-auth site's nav, a file too big to inline)
+ * and the caller fetches it as before. The block stays in the page: the legacy
+ * nav-intercept plugin reads the nav from it too.
+ */
+export function inlinedManifest(
+    url: string,
+    root: InlinedDocSource | undefined = typeof document === 'undefined' ? undefined : document,
+): unknown {
+    const el = root?.getElementById(BOOT_DATA_ID)
+    if (!el) return undefined
+    let data = bootData.get(el)
+    if (!data) {
+        try {
+            const parsed: unknown = JSON.parse(el.textContent ?? '')
+            data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+        } catch {
+            data = {}
+        }
+        bootData.set(el, data)
+    }
+    return Object.hasOwn(data, url) ? data[url] : undefined
 }
 
 /**

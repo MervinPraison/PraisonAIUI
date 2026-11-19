@@ -1,7 +1,7 @@
 // chunkReload.ts: reload on a failed chunk only for a real redeploy.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createChunkErrorHandler, entryBuild, RELOAD_KEY, type ChunkReloadDeps } from './chunkReload'
+import { cacheBustUrl, createChunkErrorHandler, entryBuild, RELOAD_KEY, stripCacheBust, type ChunkReloadDeps } from './chunkReload'
 
 const ENTRY = 'http://app.test/assets/index.js?v=abc123'
 const page = (build: string) =>
@@ -10,7 +10,7 @@ const page = (build: string) =>
 
 function harness(over: Partial<ChunkReloadDeps> = {}) {
   const store = new Map<string, string>()
-  const calls = { reloads: 0, fetches: 0 }
+  const calls = { reloads: 0, fetches: 0, builds: [] as string[] }
   let online = true
   let onlineCb: (() => void) | null = null
   let html = page('abc123')
@@ -26,8 +26,9 @@ function harness(over: Partial<ChunkReloadDeps> = {}) {
       onlineCb = cb
     },
     storage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v) },
-    reload: () => {
+    reload: (build) => {
       calls.reloads += 1
+      calls.builds.push(build)
     },
     ...over,
   }
@@ -83,6 +84,7 @@ test('a redeploy (the HTML names another build) reloads once per running build',
   h.serve('new999')
   await h.handle()
   assert.equal(h.calls.reloads, 1)
+  assert.deepEqual(h.calls.builds, ['new999'], 'the reload names the served build (cache-busting URL)')
   assert.equal(h.store.get(RELOAD_KEY), ENTRY)
   await h.handle()
   assert.equal(h.calls.reloads, 1, 'never a second reload for the same build')
@@ -121,4 +123,12 @@ test('several failures at once make one check', async () => {
   await Promise.all([h.handle(), h.handle(), h.handle()])
   assert.equal(h.calls.fetches, 1)
   assert.equal(h.calls.reloads, 1)
+})
+
+test('the reload URL bypasses cached HTML, and the boot strips it again', () => {
+  const busted = cacheBustUrl('https://docs.test/docs/a?lang=en#install', 'new999')
+  assert.equal(busted, 'https://docs.test/docs/a?lang=en&aiui-build=new999#install')
+  assert.equal(stripCacheBust(busted), 'https://docs.test/docs/a?lang=en#install')
+  assert.equal(stripCacheBust(cacheBustUrl('https://docs.test/', 'b1')), 'https://docs.test/')
+  assert.equal(stripCacheBust('https://docs.test/docs/a?lang=en'), null, 'nothing to strip')
 })

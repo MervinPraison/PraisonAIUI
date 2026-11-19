@@ -227,8 +227,8 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 143,581 B |
-| `/chat` first-screen JS (boot + chat route) | 256,881 B |
+| Chat route (added by `/chat`) | 143,082 B |
+| `/chat` first-screen JS (boot + chat route) | 256,565 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
@@ -241,7 +241,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,167,510 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,168,215 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
@@ -417,8 +417,8 @@ of the plugin files), never a per-load timestamp; `dashboard.js` imports its
 registry, a second theme store.
 
 **Docs markdown loading:** the React docs app loads every page's `.md`
-through `src/frontend/src/docs/docLoader.ts` (time limit per attempt, a fresh
-request on timeout, an in-memory cache, prefetch on hover / focus / press and
+through `src/frontend/src/docs/docLoader.ts` (time limits per attempt for the
+headers and for the body, a fresh request on timeout, an in-memory cache, prefetch on hover / focus / press and
 of the previous / next page), and `App.tsx` loads the three manifests with
 its `fetchWithRetry` and starts a deep link's `.md` alongside them. The legacy
 `fetch-retry.js` skips markdown and any request with an abort signal. Do not

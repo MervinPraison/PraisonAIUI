@@ -5,7 +5,15 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 
 
 class ModeImages(BaseModel):
@@ -267,9 +275,11 @@ class SiteConfig(BaseModel):
     # code-copy, toc, mkdocs-compat, content-loader, homepage, topnav) skip
     # React docs pages, and the first two pulled ~40 files from two CDNs per
     # page. nav-intercept keeps in-article /docs links on SPA navigation.
+    # fetch-retry retried the site manifests, which the app now fetches with
+    # its own retry or reads from the page (compiler/boot_data.py).
     # A site can still list any of them here.
     plugins: list[str] = Field(
-        default_factory=lambda: ["fetch-retry", "nav-intercept"],
+        default_factory=lambda: ["nav-intercept"],
         description="List of frontend plugin names to enable",
     )
     csp: Union[bool, Literal["report-only"], dict[str, Union[str, list[str], bool]], None] = Field(
@@ -1560,6 +1570,83 @@ class ExtensionsConfig(BaseModel):
         return data
 
 
+McpTransportName = Literal["streamable-http", "sse", "stdio"]
+
+
+class McpServerConfig(BaseModel):
+    """One MCP server the app connects to at startup (docs/features/mcp.md).
+
+    ``${NAME}`` in ``url``, ``args``, ``env`` and ``headers`` reads the
+    environment variable, so a token never has to live in the YAML file.
+    """
+
+    url: Optional[str] = Field(default=None, description="Streamable HTTP or SSE endpoint")
+    command: Optional[str] = Field(default=None, description="stdio: the executable to run")
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict, description="stdio: extra environment (never sent to browsers)")
+    headers: dict[str, str] = Field(default_factory=dict, description="HTTP headers (never sent to browsers)")
+    transport: Optional[McpTransportName] = Field(
+        default=None,
+        validation_alias=AliasChoices("transport", "type"),
+        description="Default: stdio for command; Streamable HTTP for url (SSE when the path ends in /sse, or as a fallback)",
+    )
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    @field_validator("transport", mode="before")
+    @classmethod
+    def _http_alias(cls, value: Any) -> Any:
+        return "streamable-http" if value in ("http", "streamable_http") else value
+
+    @model_validator(mode="after")
+    def _one_target(self) -> "McpServerConfig":
+        if bool(self.url) == bool(self.command):
+            raise ValueError("give exactly one of 'url' or 'command'")
+        if self.transport == "stdio" and not self.command:
+            raise ValueError("transport 'stdio' needs a 'command'")
+        if self.transport in ("sse", "streamable-http") and not self.url:
+            raise ValueError(f"transport '{self.transport}' needs a 'url'")
+        return self
+
+
+class McpAllowConfig(BaseModel):
+    """What users may add from the UI. Servers in ``mcp.servers`` are always allowed."""
+
+    urls: list[str] = Field(
+        default_factory=list,
+        description="URL or host patterns, e.g. https://mcp.example.com/, *.example.com, or * for any public host",
+    )
+    commands: list[str] = Field(
+        default_factory=list,
+        description="stdio executables, matched exactly (npx does not allow /tmp/npx); * allows any",
+    )
+
+
+class McpConfig(BaseModel):
+    """``mcp:``: Model Context Protocol servers (docs/features/mcp.md)."""
+
+    enabled: bool = Field(default=True, description="false turns MCP off: no startup connections, no connect route")
+    servers: dict[str, McpServerConfig] = Field(default_factory=dict)
+    allow: McpAllowConfig = Field(default_factory=McpAllowConfig)
+
+    @field_validator("servers", mode="before")
+    @classmethod
+    def _list_of_named(cls, value: Any) -> Any:
+        """``servers: [{name: x, ...}]`` works too; names must be unique."""
+        if not isinstance(value, list):
+            return value
+        out: dict[str, Any] = {}
+        for item in value:
+            if not isinstance(item, dict) or not item.get("name"):
+                raise ValueError("each server in a list needs a 'name'")
+            item = dict(item)
+            name = str(item.pop("name"))
+            if name in out:
+                raise ValueError(f"duplicate MCP server name {name!r}")
+            out[name] = item
+        return out
+
+
 class Config(BaseModel):
     """Root configuration model for aiui.yaml."""
 
@@ -1576,6 +1663,7 @@ class Config(BaseModel):
     widgets: list[InputWidgetConfig] = Field(default_factory=list)
     dashboard: Optional[DashboardConfig] = None
     extensions: Optional[ExtensionsConfig] = None
+    mcp: Optional[McpConfig] = Field(default=None, description="MCP servers and what users may add (docs/features/mcp.md)")
     seo: Optional[SEOConfig] = None
     markdown: Optional[MarkdownConfig] = None
     i18n: Optional[I18nConfig] = None
