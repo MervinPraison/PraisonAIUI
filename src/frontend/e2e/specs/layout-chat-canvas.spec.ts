@@ -284,6 +284,64 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
   })
 }
 
+test.describe('a touch phone (no hover: overlay actions always show)', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+
+  test('phone: a table that moved to the canvas takes its copy and download actions with it', async ({ page }) => {
+    test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
+    const errors = collectPageErrors(page)
+    await page.goto('/chat')
+    await expect(page.locator('[data-connection="open"]')).toBeVisible()
+    await send(page, 'markdown table actions')
+    const reply = assistant(page).last()
+    await expect(reply.locator(TABLE_CARD)).toBeVisible()
+    await waitForRunEnd(page)
+    await expect(reply.locator('table')).toBeHidden()
+    // The renderer draws the table's actions over its corner: left behind,
+    // they sat on top of the reply's next line (a touch screen has no hover to hide them).
+    const actions = reply.locator('.aiui-markdown [data-streamdown="table-wrapper"] button')
+    expect(await actions.count()).toBeGreaterThan(0)
+    for (const button of await actions.all()) await expect(button).toBeHidden()
+    expect(await hasHorizontalOverflow(page)).toBe(false)
+    expect(errors.pageErrors).toEqual([])
+  })
+})
+
+test('phone: a long app name wraps below its mark, centred, instead of beside it', async ({ page }) => {
+  const LONG = 'PraisonAI Realtime Voice Assistant'
+  // The app name comes from the manifest (inline in the page and at /api/shell/manifest).
+  const rename = (manifest: { site?: { title?: string } }) => ({ ...manifest, site: { ...manifest.site, title: LONG } })
+  await page.route('**/api/shell/manifest', async (route) => {
+    const res = await route.fetch()
+    await route.fulfill({ response: res, json: rename(await res.json()) })
+  })
+  await page.route(/^https?:\/\/[^/]+\/chat$/, async (route) => {
+    const res = await route.fetch()
+    const html = (await res.text()).replace(/(<script id="aiui-boot"[^>]*>)([\s\S]*?)(<\/script>)/, (_m, open: string, json: string, close: string) =>
+      open + JSON.stringify(rename(JSON.parse(json))).replace(/</g, '\\u003c') + close,
+    )
+    await route.fulfill({ response: res, body: html })
+  })
+  const errors = collectPageErrors(page)
+  await page.setViewportSize(PHONE)
+  await page.goto('/chat')
+  const name = page.locator('[data-chat-hero] h2')
+  await expect(name).toHaveText(LONG)
+  // The brand row: the mark, then the name.
+  const mark = name.locator('xpath=preceding-sibling::*[1]')
+  const [m, n] = [await mark.boundingBox(), await name.boundingBox()]
+  expect(m && n).toBeTruthy()
+  if (!m || !n) return
+  const lineHeight = await name.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
+  expect(n.height, 'the long name takes more than one line at 390 px').toBeGreaterThan(lineHeight * 1.5)
+  expect(m.y + m.height, 'the mark sits above the name, not beside it').toBeLessThanOrEqual(n.y + 1)
+  expect(Math.abs(m.x + m.width / 2 - (n.x + n.width / 2)), 'the mark is centred over the name').toBeLessThan(4)
+  expect(n.x).toBeGreaterThanOrEqual(0)
+  expect(n.x + n.width).toBeLessThanOrEqual(PHONE.width)
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+  expect(errors.pageErrors).toEqual([])
+})
+
 /**
  * Voice input (features/realtime.py): the composer's microphone. The server
  * here has no realtime manager, so voice is off; the "on" tests answer
