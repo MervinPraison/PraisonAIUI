@@ -415,5 +415,7 @@ export default [
   // 11,123,573 B (+1,650 B, exactly the overage): docs versions (the switcher, version-scoped
   // sidebar, tabs and search in the legacy App chunk).
   // 11,128,025 B (+4,452 B, exactly the overage): docs content languages (switcher, language-scoped nav).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11128025 B', brotli: false },
+  // 11,128,488 B (+463 B, exactly the overage): phone fixes in the chat (an artifact table's
+  // actions leave with it; a long app name wraps below the hero's mark).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11128488 B', brotli: false },
 ]
