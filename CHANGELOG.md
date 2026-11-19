@@ -545,6 +545,16 @@
   `aiui validate` names the nearest theme for a typo (7015) and reports a missing or broken grammar
   (7014, 7015) (docs/features/theming.md#code-blocks).
 
+- **Python API reference from docstrings.** A `::: mypkg.client` line in a docs page becomes
+  that module's reference at build time: headings with stable anchors, signatures with type
+  hints and defaults, parameters and attributes as `<ParamField>` / `<ResponseField>` rows,
+  returns, raises, examples and notes, from Google, NumPy or reST docstrings. `__all__` and
+  re-exports are followed; `members`, `private`, `show_source` and `heading_level` options go
+  on indented lines under the block. The source is read without importing it, and
+  `content.docs.reference.paths` (default `src`, then the project folder) says where modules
+  live. Search, the agent `.md` and `llms-full.txt` see the text; a block that names nothing
+  is 7016 and fails the build (docs/features/api-reference-python.md).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
