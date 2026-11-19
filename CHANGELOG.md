@@ -424,6 +424,13 @@
   readable over HTTP) and `aiui docs feedback` lists them per page or exports CSV / JSON. Also
   `feedback.endpoint` (static hosts), `feedback.code` (a flag per code block), the
   `aiui:docs-feedback` event and `feedback: false`. See [Writing docs](docs/features/writing-docs.md#page-feedback).
+- **A social card for every docs page.** With Pillow installed (`pip install pillow`), `aiui build`
+  draws a 1200x630 PNG per page (title, sidebar group, description, site name and logo, theme
+  accent and colour mode) at `/og/<route>.png` and sets it as the page's `og:image`,
+  `twitter:image` and large Twitter card, in the built HTML and on client navigation. Cards are
+  cached by content, so rebuilds only draw changed pages. A page's own `og:image` wins;
+  `seo.ogImages: false` keeps `seo.defaultImage`. Without Pillow the build prints one note. See
+  [SEO](docs/features/seo.md#social-cards).
 
 ### Deprecated
 

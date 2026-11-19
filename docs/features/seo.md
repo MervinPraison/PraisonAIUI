@@ -16,6 +16,7 @@ seo:
     follow: true
   indexing: navigable    # or `all`: index hidden pages too
   trailingSlash: false   # true: canonical, og:url, sitemap and llms URLs end in /
+  ogImages: true         # a generated social card per page (needs Pillow); false: defaultImage
   contentSignals:        # optional robots.txt Content-Signal line
     search: true
     aiInput: true
@@ -160,13 +161,50 @@ Open Graph keys (`og:`, `article:`) are written as `property=`, the rest as
 `name=`; every value is HTML-escaped. `aiui validate` rejects a
 `seo.metatags` key that is not a tag name.
 
+## Social cards
+
+Install Pillow and every docs page gets its own share image, with no config:
+
+```bash
+pip install pillow
+aiui build
+```
+
+The build draws a 1200x630 PNG per page and publishes it at
+`/og/<page route>.png` (`/og/docs/guide/install.png`). Each card shows the
+page title (sized to fit, up to three lines), its sidebar group, as much of
+the description as fits, the site name with its logo and the site's host,
+in the theme's accent and colour mode (`site.theme.preset`, `accent`,
+`accentDark`, `mode`; preset `paper` gets the paper colours). A PNG, JPEG,
+WebP or GIF `logo` is drawn as is; an SVG or emoji logo becomes the site's
+initial on an accent tile. Latin text uses the UI's own font; other scripts
+use a system font (Noto Sans CJK, Arial Unicode, Noto Sans or DejaVu Sans).
+
+The card becomes the page's `og:image` and `twitter:image`, with a
+`summary_large_image` card, in the built HTML and when the docs app moves
+between pages, and the site root shares the docs home's card.
+
+Which image a page gets, first match wins:
+
+| Set by | Image |
+|--------|-------|
+| `'og:image'` in the page's frontmatter or a `seo.paths` folder | that image, no card drawn |
+| `og:image` in `seo.metatags` | that image on every page, no cards drawn |
+| `seo.ogImages: false`, or Pillow not installed | `seo.defaultImage` |
+| otherwise | the page's generated card |
+
+Cards are cached by a hash of what they show (in `$AIUI_DATA_DIR/og-cards`,
+else `~/.praisonaiui/cache/og-cards`), so `aiui dev` and repeat builds only
+draw the pages that changed, and new cards are drawn in parallel. Without
+Pillow, `aiui build` prints one note saying how to turn them on.
+
 ## Per-page HTML includes
 
 Each route HTML file contains:
 
 - `<link rel="canonical">` (absolute HTTPS)
 - `<meta name="description">`
-- Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`, `og:site_name`, `og:image`), each once
+- Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`, `og:site_name`, `og:image`: the page's [social card](#social-cards) by default), each once
 - Twitter Card tags (`summary_large_image` with an image)
 - Your `seo.metatags`, `seo.paths` and frontmatter tags
 - One JSON-LD `@graph`: `Organization`, `WebSite` (with a `SearchAction`: `?q=` opens site search),
