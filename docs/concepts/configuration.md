@@ -151,10 +151,12 @@ content:
       issues: "https://github.com/acme/site/issues/new"  # optional
       code: true                     # optional: a flag on each code block
       endpoint: "https://hooks.example.com/votes"  # optional: static hosting
+    mcp: false                       # no MCP server on aiui serve (default: on)
 ```
 
-The last three draw the page footer; see
+`editLink`, `lastUpdated` and `feedback` draw the page footer; see
 [Writing docs pages → Page footer](../features/writing-docs.md#page-footer).
+`mcp` is the [docs MCP server](../features/ai-ready-docs.md#mcp-server).
 
 `indexFiles` and `nav` (`mode`, `sort`, `collapsible`, `maxDepth`) are accepted
 but not read by the build yet; see [Navigation](../features/navigation.md).

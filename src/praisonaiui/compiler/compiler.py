@@ -453,6 +453,10 @@ class Compiler:
                 **({"feedback": fb} if fb is False or fb else {}),
             }
 
+        # `content.docs.mcp: false`: aiui serve answers no MCP (docs_mcp.py)
+        if docs and not docs.mcp:
+            result["mcp"] = False
+
         # Docs home page layout (frontmatter `layout: home` on the docs index)
         docs_home = self._docs_home()
         if docs_home is not None:
