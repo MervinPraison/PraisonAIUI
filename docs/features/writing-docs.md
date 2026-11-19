@@ -1084,9 +1084,29 @@ paste into an assistant. Its menu also has:
 | View as Markdown | Opens `/docs/<page>.md`, the page as plain Markdown for assistants |
 | Open in ChatGPT | A new ChatGPT chat that reads the page and takes questions |
 | Open in Claude | The same, in Claude |
+| Download as PDF | The browser's Print dialog; pick **Save as PDF** |
 
 Nothing to configure: they use the Markdown `aiui build` already publishes.
 Try it on this page.
+
+### Printing and PDF
+
+A printed page (Download as PDF, or the browser's own Print, `Ctrl+P` / `⌘P`)
+is the article alone, on light paper even when the reader uses dark mode:
+
+- The header, sidebar, "On this page", page actions, previous / next, footer
+  and feedback are left out. Breadcrumbs and "Last updated" stay.
+- Everything a click would reveal is shown: accordions, `<Expandable>` field
+  lists and file trees open, every tab of `<Tabs>` and `<CodeGroup>` prints
+  under its own title, and `expandable` code blocks print every line.
+- Code wraps instead of running off the page; code blocks, callouts, cards,
+  steps, table rows and images are not split across pages.
+- External links print their address after the link text:
+  `link (https://example.com/docs)`.
+
+Site chrome added by custom JS (`site.custom_js`) or a plugin can opt out of
+print with `data-print="hide"`. The PDF comes from the reader's browser: no
+build step, no server-side renderer.
 
 ## Page footer
 

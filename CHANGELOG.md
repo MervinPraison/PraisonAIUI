@@ -451,6 +451,14 @@
   count (cached). `footer.socials` draws marks for 21 networks (by key or URL) instead of text;
   column `header` is optional. `banner:` adds a Markdown strip above the docs header (`type`,
   `dismissible`; a closed one returns when its content changes). See [Navigation](docs/features/navigation.md#banner).
+- **Docs pages print and save as PDF.** The page actions menu has
+  **Download as PDF** (the browser's Print). A printed page, from there or from
+  `Ctrl+P`, is the article alone on light paper: no header, sidebar, "On this
+  page", pager or footer; accordions, expandables and file trees open, every tab
+  under its own title, long code in full and wrapped, blocks kept whole across
+  pages and external links followed by their address. `data-print="hide"`
+  leaves any other element out. See
+  [Writing docs → Printing and PDF](docs/features/writing-docs.md#printing-and-pdf).
 
 ### Deprecated
 

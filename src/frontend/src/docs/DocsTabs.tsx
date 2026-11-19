@@ -52,7 +52,7 @@ export function DocsTabs({ children, sync, initial, rule, variant }: TabsProps) 
                     </Suspense>
                 </div>
                 {tabs.map((t, i) => (
-                    <div key={i} className="aiui-tabs-panel" hidden={i !== active}>{t.props.children}</div>
+                    <div key={i} className="aiui-tabs-panel" data-title={t.props.title} hidden={i !== active}>{t.props.children}</div>
                 ))}
             </div>
         )

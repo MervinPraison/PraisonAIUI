@@ -119,6 +119,7 @@ export function MkdocsTabs({ children, value, onValueChange, label, className }:
                     id={`${base}-panel-${i}`}
                     role="tabpanel"
                     aria-labelledby={`${base}-tab-${i}`}
+                    data-title={t.props.title}
                     hidden={i !== active}
                     className="min-w-0 pt-3 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                 >
