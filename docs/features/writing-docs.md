@@ -1180,6 +1180,8 @@ Votes are lines of `docs-feedback/feedback.jsonl` in the data directory
 same-origin requests only (plus `--cors-origins`, `AIUI_ALLOWED_ORIGINS`),
 checks the Host header, takes 4 KiB and 20 posts a minute per client, and
 stops at 20 MB. Nothing is readable over HTTP; the export is the CLI.
+Agents report through the docs MCP server's `submit_feedback` tool into the
+same store and limits ([MCP server](ai-ready-docs.md#mcp-server)).
 
 ```yaml
 content:

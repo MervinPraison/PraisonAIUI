@@ -5,6 +5,8 @@ are kept, ``POST`` appends one (page or code block, 1 or -1, optional comment) t
 ``<data dir>/docs-feedback/feedback.jsonl``; a comment repeats its vote's ``id``. Public by
 design, so guarded: Host and Origin checks, JSON or text/plain, 4 KiB, a per-client rate limit
 and a size cap. Nothing is readable over HTTP: ``aiui docs feedback`` lists and exports.
+Agents report through the docs MCP server's ``submit_feedback`` tool (docs_mcp.py), which calls
+``DocsFeedback.submit`` and so shares the store, rate limit and caps (``source: agent``).
 """
 
 from __future__ import annotations
@@ -124,12 +126,15 @@ def to_csv(records: list[dict]) -> str:
 class DocsFeedback:
     """The feedback endpoint of one built docs site."""
 
-    def __init__(self, site: str = "", origins: Optional[list[str]] = None, file: Optional[Path] = None):
+    def __init__(self, site: str = "", origins: Optional[list[str]] = None, file: Optional[Path] = None,
+                 local: bool = True):
         self.site, self.origins, self.file = site, list(origins or []), file
+        #: False when the site posts votes to its own ``endpoint``: then agents get no feedback tool.
+        self.local = local
         self.hits: dict[str, deque] = {}
 
-    def _allow(self, client: str) -> bool:
-        """At most RATE_LIMIT posts per client in RATE_WINDOW_S."""
+    def allow(self, client: str) -> bool:
+        """At most RATE_LIMIT posts per client in RATE_WINDOW_S (the HTTP endpoint and the MCP tool share it)."""
         now = time.monotonic()
         if len(self.hits) > 10_000:
             self.hits.clear()
@@ -149,9 +154,22 @@ class DocsFeedback:
         except (OSError, ValueError):
             config = {}
         config = config if isinstance(config, dict) else {}
-        if not (root / "docs-nav.json").is_file() or (config.get("pageFooter") or {}).get("feedback") is False:
+        feedback = (config.get("pageFooter") or {}).get("feedback")
+        if not (root / "docs-nav.json").is_file() or feedback is False:
             return None
-        return cls(str((config.get("site") or {}).get("title") or ""), origins)
+        local = not (isinstance(feedback, dict) and "endpoint" in feedback)
+        return cls(str((config.get("site") or {}).get("title") or ""), origins, local=local)
+
+    def submit(self, body: dict, client: str, source: str = "agent") -> Union[dict, str]:
+        """Store one record under the endpoint's rate limit and caps: the record, or why it is refused."""
+        if not self.allow(client):
+            return "Too many reports; try again in a minute."
+        if len(json.dumps(body, ensure_ascii=False).encode()) > MAX_BODY_BYTES:
+            return "Feedback too large (4 KiB at most)."
+        record = clean(body, self.site, source)
+        if isinstance(record, str) or append(record, self.file):
+            return record
+        return "The feedback store is full."
 
     async def serve(self, scope: dict, receive, send) -> bool:
         """Answer ``/api/docs/feedback``; ``False`` for any other path."""
@@ -173,7 +191,7 @@ class DocsFeedback:
             response = PlainTextResponse("Origin not allowed", status_code=403)
         elif not hg.header(scope, b"content-type").lower().startswith(("application/json", "text/plain")):
             response = PlainTextResponse("Send application/json", status_code=415)
-        elif not self._allow((scope.get("client") or ("?",))[0]):
+        elif not self.allow((scope.get("client") or ("?",))[0]):
             response = PlainTextResponse("Too many votes; try again in a minute", 429, headers={"Retry-After": "60"})
         else:
             response = await self._post(receive)

@@ -791,7 +791,7 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     feedback = DocsFeedback.for_site(root, cors_origins)
     from praisonaiui.docs_mcp import DocsMcp
 
-    mcp = DocsMcp.for_site(root, base, cors_origins)
+    mcp = DocsMcp.for_site(root, base, cors_origins, feedback)
 
     def has_file(rel: str) -> bool:
         names = [rel, f"{rel}.html", f"{rel}/index.html"] if rel else ["index.html"]

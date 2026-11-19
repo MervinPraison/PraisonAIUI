@@ -218,7 +218,7 @@ test('page actions: aiui serve adds the docs MCP server (copy its URL, connect a
   await expect(copy).toContainText('Copied')
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url)
   const res = await page.request.post('/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } })
-  expect((await res.json()).result.tools.map((t: { name: string }) => t.name)).toEqual(['search_docs', 'read_page', 'list_pages'])
+  expect((await res.json()).result.tools.map((t: { name: string }) => t.name)).toEqual(['search_docs', 'read_page', 'list_pages', 'submit_feedback'])
 })
 
 test('phone: page actions fit beside the section and the page never scrolls sideways', async ({ page }) => {

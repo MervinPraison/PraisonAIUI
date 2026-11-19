@@ -477,6 +477,12 @@
   `content.docs.related: N | false` sets the number site-wide. `aiui validate`
   reports a target that is no page (7013). See
   [Writing docs pages](docs/features/writing-docs.md#related-pages).
+- **Agents can report a docs problem.** The docs MCP server at `/mcp` gains a
+  `submit_feedback(path, helpful, comment?)` tool: an agent that found a page wrong, outdated
+  or missing something says so, and the report is stored with readers' votes (`source: agent`)
+  for `aiui docs feedback`, under the same rate limit and size caps as the page's vote button.
+  Not listed when page feedback is off or posted to an `endpoint`. See
+  [MCP server](docs/features/ai-ready-docs.md#mcp-server).
 
 ### Deprecated
 
