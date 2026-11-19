@@ -124,6 +124,7 @@ under it:
 | 7016 | a `::: module` block names no module or member, or has an unknown option (fails `aiui build`; [Python API reference](../features/api-reference-python.md#checks)) |
 | 7017 | `content.docs.auth` is set, and only `aiui serve` / `aiui dev` enforce it (`aiui build`); front matter `public` / `groups` without `content.docs.auth`, or a group no reader is in ([docs sign-in](../features/docs-auth.md)) |
 | 7018 | two `navigation.versions` with the same name, more than one marked `default: true`, or a version that lists a page of another version's folder ([versions](../features/navigation.md#versions)) |
+| 7019 | raw HTML a page shows differently than written: an `<iframe>` that is not a YouTube, Vimeo or Loom video (shown as a link; the host is named), or `<script>`, `<style>`, `<link>`, `<form>`, `<audio>`, `<object>`, `<embed>` (removed). Also an `aiui build` warning ([raw HTML](../features/writing-docs.md#raw-html)) |
 | 7020 | two `navigation.languages` with the same code, more than one marked `default: true`, or a version folder inside a language folder (`docs/fr/v1/`; [languages](../features/navigation.md#languages)) |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 | 7102 | `logo`, `favicon` or `site.theme.background` image that is not a file in the project folder ([branding](../features/theming.md#branding-a-docs-site)) |

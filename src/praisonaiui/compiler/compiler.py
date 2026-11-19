@@ -19,7 +19,13 @@ from praisonaiui.compiler import languages as lang
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
-from praisonaiui.compiler.content_lint import ContentIssue, accent_contrast, check_pages, nav_icons
+from praisonaiui.compiler.content_lint import (
+    ContentIssue,
+    accent_contrast,
+    check_pages,
+    check_raw_html,
+    nav_icons,
+)
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
 from praisonaiui.compiler.docs_tags import lint_pages
@@ -232,6 +238,7 @@ class Compiler:
                 return CompileResult(success=False, files=files, error="; ".join(self._snippets.errors()))
             files.extend(copied)
             warnings.extend(self.lint_docs())
+            warnings.extend(self.lint_raw_html())
             warnings.extend(docs_access.build_warning(self))
         files.extend(branding.publish(self._brand_files, output_dir))  # after docs/ is rewritten
         if self._og_cards:
@@ -260,6 +267,14 @@ class Compiler:
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
         return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text)
+
+    def lint_raw_html(self) -> list[str]:
+        """``aiui build``'s warnings for raw HTML a page shows differently than written (7019)."""
+        out = []
+        for page in self._published_pages():
+            shown = page.path.relative_to(self.base_path).as_posix() if page.path.is_relative_to(self.base_path) else page.path.as_posix()
+            out += [f"7019: {i.file}:{i.line}: {i.message}" for i in check_raw_html(self._page_text(page.path), shown)]
+        return out
 
     def lint_content(self, config_file: str = "aiui.yaml", specs: dict | None = None) -> list[ContentIssue]:
         """``aiui validate``'s content checks (content_lint.py): front matter, alt text, headings, …

@@ -987,6 +987,25 @@ Paste a YouTube, Vimeo or Loom URL (watch, share or embed form) in an
   controls.
 - In the page's `.md` copy for assistants, each video is a link.
 
+### Raw HTML
+
+Pages may use plain HTML for layout and text (`<div>`, `<details>`,
+`<kbd>`, `<sup>`, tables, `<img>`, `<picture>`), plus the `<iframe>` and
+`<video>` above. Anything that could run code or send the reader's data
+elsewhere is not rendered, so a page can never become a way to attack its
+readers:
+
+| You write | The reader sees | Instead |
+|-----------|-----------------|---------|
+| `<iframe>` from a site other than YouTube, Vimeo or Loom | a link to it | a link, or a screenshot with a link |
+| `<script>` | nothing | `site.customJs` |
+| `<style>`, `<link rel="stylesheet">` | nothing | `site.customCss` |
+| `<form>`, `<audio>`, `<object>`, `<embed>` | nothing | a link |
+
+`aiui validate` and `aiui build` name each one with its file and line
+(finding 7019). HTML inside code fences and inline code is shown as code and
+never flagged.
+
 `<Frame>` sets an image on a mat, with an optional `caption` under it and a `hint` above
 it (both Markdown, links included):
 
