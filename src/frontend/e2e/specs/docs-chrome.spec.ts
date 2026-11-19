@@ -4,7 +4,7 @@
  * page", previous / next, search, focus ring and the phone drawer.
  * DESIGN.md "Docs style" is the contract.
  */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Response } from '@playwright/test'
 import { collectPageErrors, contrastRatio, hasHorizontalOverflow, setColorMode, toRgb } from './support'
 
 const PRO_INDIGO_LIGHT = '#4f46e5'
@@ -522,15 +522,55 @@ test('page footer: was this page helpful, edit this page', async ({ page }) => {
   if (await time.count()) await expect(time).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}$/)
 
   await expect(foot.getByText('Was this page helpful?')).toBeVisible()
-  await foot.getByRole('button', { name: 'No' }).click()
+  // aiui serve stores the vote; the page also fires aiui:docs-feedback for a site's analytics.
+  await page.evaluate(() => window.addEventListener('aiui:docs-feedback', () => { document.body.dataset.votes = String(Number(document.body.dataset.votes ?? 0) + 1) }))
+  const isVote = (r: Response) => r.url().endsWith('/api/docs/feedback') && r.request().method() === 'POST'
+  const [voted] = await Promise.all([page.waitForResponse(isVote), foot.getByRole('button', { name: 'No' }).click()])
+  expect(voted.status()).toBe(200)
+  const vote = voted.request().postDataJSON()
+  expect(vote).toMatchObject({ path: '/docs/guide/first', value: -1 })
   const issue = foot.getByRole('link', { name: 'Tell us what was missing' })
   const href = new URL((await issue.getAttribute('href'))!)
   expect(href.origin + href.pathname).toBe('https://github.com/acme/site/issues/new')
   expect(href.searchParams.get('title')).toBe('Docs: First page')
   await expect(issue).toHaveAttribute('target', '_blank')
   await expect(foot.getByRole('status')).toContainText('Thanks.')
+  // The optional comment replaces the vote (same id).
+  await foot.getByLabel('What was missing or wrong? (optional)').fill('The install step is missing')
+  const [commented] = await Promise.all([page.waitForResponse(isVote), foot.getByRole('button', { name: 'Send' }).click()])
+  expect(commented.request().postDataJSON()).toMatchObject({ id: vote.id, comment: 'The install step is missing' })
+  await expect(foot.getByRole('status')).toHaveText('Thanks for the details.')
+  await expect(page.locator('body')).toHaveAttribute('data-votes', '2')
 
   await page.goto('/')
   await expect(page.locator('.aiui-docs-pagefoot')).toHaveCount(1) // the fixture home is a plain page
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('code block feedback: a flag on each block posts the block and a comment', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  // content.docs.feedback.code: true, without changing the shared fixture's code blocks.
+  await page.route('**/ui-config.json', async (route) => {
+    const res = await route.fetch()
+    const json = await res.json()
+    json.pageFooter = { ...json.pageFooter, feedback: { ...json.pageFooter?.feedback, code: true } }
+    await route.fulfill({ response: res, json })
+  })
+  await page.setViewportSize({ width: 390, height: 800 })
+  await page.goto('/docs/markdown')
+  const flags = page.getByRole('button', { name: 'Report a problem with this code' })
+  await expect(flags.first()).toBeAttached()
+  expect(await flags.count()).toBeGreaterThan(1)
+  await flags.nth(1).focus()
+  await flags.nth(1).click()
+  await page.getByLabel('What is wrong with this code? (optional)').fill('This fails on Windows')
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+  const [res] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/docs/feedback') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Send' }).click(),
+  ])
+  expect(res.status()).toBe(200)
+  expect(res.request().postDataJSON()).toMatchObject({ path: '/docs/markdown', kind: 'code', block: 1, value: -1, comment: 'This fails on Windows' })
+  await expect(page.getByRole('status').filter({ hasText: 'Thanks for flagging this code.' })).toBeVisible()
   expect(errors.pageErrors).toEqual([])
 })

@@ -419,6 +419,11 @@
   operation's `x-aiui` sets its page's front matter (`metadata`), Markdown above the generated
   part (`content`) and URL (`href`). `aiui validate` names an operation no spec has (7012). See
   [OpenAPI](docs/features/openapi.md#endpoints-on-your-own-pages).
+- **Docs page feedback that is kept.** "Was this page helpful?" shows under every docs page with
+  no config; `aiui serve` / `aiui dev` store each vote and optional comment (guarded, nothing
+  readable over HTTP) and `aiui docs feedback` lists them per page or exports CSV / JSON. Also
+  `feedback.endpoint` (static hosts), `feedback.code` (a flag per code block), the
+  `aiui:docs-feedback` event and `feedback: false`. See [Writing docs](docs/features/writing-docs.md#page-feedback).
 - **Tabs that navigate, tab menus, sidebar anchors and a product switcher.** A docs header tab
   now opens its first page and takes `icon`, `href` (a link out; the old `url` works), `pages`
   (no group needed) and `menu` (a small dropdown of items, each with its own sidebar or link).

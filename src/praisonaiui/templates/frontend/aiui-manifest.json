@@ -3196,6 +3196,18 @@
       "assets/ApiPlayground-BpURsa4u.css"
     ]
   },
+  "src/docs/DocsFeedback.tsx": {
+    "file": "assets/DocsFeedback-aivypct5.js",
+    "name": "DocsFeedback",
+    "src": "src/docs/DocsFeedback.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-SCdx8Lck.js",
+      "_TokenGate-CEQz-4Pc.js",
+      "_textarea-Lg3i6EIh.js",
+      "_preload-helper-PPVm8Dsz.js"
+    ]
+  },
   "src/docs/DocsSearch.tsx": {
     "file": "assets/DocsSearch-Chf6Z5Ye.js",
     "name": "DocsSearch",
@@ -3211,23 +3223,6 @@
       "_dialog-CXBKGgT2.js",
       "_x-CdGk7QXP.js",
       "_preload-helper-PPVm8Dsz.js"
-    ]
-  },
-  "src/docs/NavMenu.tsx": {
-    "file": "assets/NavMenu-kQV9TTjx.js",
-    "name": "NavMenu",
-    "src": "src/docs/NavMenu.tsx",
-    "isDynamicEntry": true,
-    "imports": [
-      "_vendor-react-SCdx8Lck.js",
-      "_dropdown-menu-1p_r4zHs.js",
-      "_TokenGate-CEQz-4Pc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_index-CFYySb3s.js",
-      "_index-DA_lz4EM.js",
-      "_index-BK5zSRhl.js",
-      "_index-BVEjVxRM.js",
-      "_index-CBcyoHC-.js"
     ]
   },
   "src/docs/TabsSelect.tsx": {
@@ -3530,24 +3525,24 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-BbtTrmHv.js",
+    "file": "assets/legacy-app-entry-BW3Ma7R6.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-react-SCdx8Lck.js",
       "_preload-helper-PPVm8Dsz.js",
-      "_slug-BdI8ivId.js",
-      "_chevron-down-DK95vGT2.js",
       "_TokenGate-CEQz-4Pc.js",
       "_dropdown-menu-1p_r4zHs.js",
       "_sheet-BOmD6lRr.js",
+      "_slug-BdI8ivId.js",
       "_card-BOm87-PD.js",
       "_chevron-up-CF5bD79v.js",
       "_chevron-left-yccUO5rS.js",
       "_check-Bivg28yt.js",
       "_clipboard-copy-CATYgmM5.js",
       "_play-zdPDn07r.js",
+      "_chevron-down-DK95vGT2.js",
       "_external-link-Du31DRNL.js",
       "_pluginLoaders-5vuZn1CC.js",
       "_spinner-DrtwAcuZ.js",
@@ -3561,10 +3556,11 @@
     ],
     "dynamicImports": [
       "aiui-icons",
-      "src/docs/NavMenu.tsx",
       "src/docs/redirects.ts",
       "src/docs/ApiPlayground.tsx",
       "src/docs/TabsSelect.tsx",
+      "src/docs/DocsFeedback.tsx",
+      "src/docs/DocsFeedback.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
       "src/layouts/PlaygroundLayout.tsx",
@@ -3572,7 +3568,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-CjRcyYUr.css"
+      "assets/legacy-app-entry-B0CrfFn0.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

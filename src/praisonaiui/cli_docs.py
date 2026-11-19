@@ -1,4 +1,4 @@
-"""``aiui docs`` commands for docs sites: ``check-links``.
+"""``aiui docs`` commands for docs sites: ``check-links``, ``feedback``.
 
 The checker is ``compiler/links.py``; ``aiui validate`` and ``aiui build
 --strict`` run it too (``print_broken_links``).
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from praisonaiui.compiler.links import LinkReport
 
-docs_app = typer.Typer(name="docs", help="Docs site tools (check-links)", add_completion=False)
+docs_app = typer.Typer(name="docs", help="Docs site tools (check-links, feedback)", add_completion=False)
 
 
 def print_broken_links(report: LinkReport, console: Console, *, style: str = "red") -> None:
@@ -63,3 +63,37 @@ def check_links_command(
         )
     if not report.ok:
         raise typer.Exit(code=1)
+
+
+@docs_app.command("feedback")
+def feedback_command(
+    fmt: str = typer.Option("table", "--format", "-f", help="table (per page), csv or json (every vote)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write to this file instead of the terminal"),
+    site: Optional[str] = typer.Option(None, "--site", help="Only the votes of this site (its site.title)"),
+) -> None:
+    """The "Was this page helpful?" votes aiui serve / aiui dev stored: per page, or every vote (csv, json)."""
+    from rich.table import Table
+
+    from praisonaiui import docs_feedback as df
+    from praisonaiui.cli import console
+
+    if fmt not in ("table", "csv", "json"):
+        raise typer.BadParameter("--format is table, csv or json")
+    records = df.load(site=site)
+    if fmt == "table":
+        if not records:
+            console.print(f"No feedback yet ({df.store_path()})")
+            return
+        table = Table(title=f"{len(records)} vote{'' if len(records) == 1 else 's'}")
+        for col in ("Page", "Helpful", "Not helpful", "Code flags", "Comments"):
+            table.add_column(col, justify="left" if col == "Page" else "right")
+        for p in df.by_page(records):
+            table.add_row(escape(p["path"]), str(p["yes"]), str(p["no"]), str(p["code"]), str(p["comments"]))
+        console.print(table)
+        return
+    text = df.to_csv(records) if fmt == "csv" else json.dumps(records, indent=2, ensure_ascii=False) + "\n"
+    if output:
+        output.write_text(text, encoding="utf-8")
+        console.print(f"Wrote {len(records)} votes to {output}")
+    else:
+        typer.echo(text, nl=False)
