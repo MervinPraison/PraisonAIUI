@@ -367,29 +367,35 @@ def _is_leaf(entry: NavEntry) -> bool:
 
 
 def _tabs_from_entries(entries: list[NavEntry]) -> list[TabDraft]:
-    leaves = [entry for entry in entries if _is_leaf(entry)]
-    # A long list of loose pages would become one tab per page. Keep those together.
-    collapse_leaves = len(leaves) > 8
-    tabs: list[TabDraft] = []
+    """One Docs tab, with every MkDocs section as a sidebar group.
 
-    if collapse_leaves and leaves:
-        tabs.append(TabDraft(tab="Documentation", groups=_groups_from_leaves(leaves)))
-
+    A separate tab per section leaves the home tab with a single link. The
+    PraisonAI UI docs design keeps the sections in the sidebar.
+    """
+    loose = [entry.slug for entry in entries if _is_leaf(entry) and entry.slug]
+    groups: list[GroupDraft] = []
     for entry in entries:
-        if collapse_leaves and _is_leaf(entry):
+        if _is_leaf(entry):
             continue
-        if _is_leaf(entry) and entry.slug:
-            tabs.append(
-                TabDraft(
-                    tab=entry.title,
-                    groups=[GroupDraft(group=entry.title, pages=[entry.slug])],
-                )
-            )
-            continue
-        groups = _groups_from_section(entry)
-        if groups:
-            tabs.append(TabDraft(tab=entry.title, groups=groups))
-    return tabs
+        groups.extend(_groups_from_section(entry))
+    if loose:
+        groups.insert(0, GroupDraft(group="Get started", pages=loose))
+    for group in groups:
+        group.icon = _group_icon(group.group)
+    if not groups:
+        return []
+    return [TabDraft(tab="Docs", groups=groups)]
+
+
+def _group_icon(name: str) -> str:
+    label = name.lower()
+    if any(word in label for word in ("start", "home", "install")):
+        return "rocket"
+    if "example" in label:
+        return "code"
+    if any(word in label for word in ("reference", "api", "command")):
+        return "terminal"
+    return "book-open"
 
 
 def _groups_from_leaves(leaves: list[NavEntry]) -> list[GroupDraft]:

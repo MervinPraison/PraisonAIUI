@@ -34,8 +34,9 @@ def build_document(draft: AiuiDraft) -> dict[str, Any]:
     if navigation:
         document["navigation"] = navigation
 
-    if draft.repo_url:
-        document["navbar"] = {"links": [{"label": "GitHub", "href": draft.repo_url}]}
+    navbar = _navbar(draft)
+    if navbar:
+        document["navbar"] = navbar
 
     if draft.socials:
         document["footer"] = {"socials": dict(draft.socials)}
@@ -46,6 +47,8 @@ def build_document(draft: AiuiDraft) -> dict[str, Any]:
     }
 
     docs: dict[str, Any] = {"dir": draft.docs_dir, "include": list(_INCLUDE)}
+    if draft.tabs:
+        docs["nav"] = {"mode": "manual"}
     if draft.exclude:
         docs["exclude"] = list(draft.exclude)
     document["content"] = {"docs": docs}
@@ -103,6 +106,31 @@ def _theme(draft: AiuiDraft) -> dict[str, Any]:
     return theme
 
 
+def _navbar(draft: AiuiDraft) -> Optional[dict[str, Any]]:
+    navbar: dict[str, Any] = {}
+    href = _quickstart_href(draft)
+    if href:
+        navbar["primary"] = {"type": "button", "label": "Quick start", "href": href}
+    if draft.repo_url:
+        navbar["links"] = [{"label": "GitHub", "href": draft.repo_url}]
+    return navbar or None
+
+
+def _quickstart_href(draft: AiuiDraft) -> Optional[str]:
+    first: Optional[str] = None
+    for tab in draft.tabs:
+        for group in tab.groups:
+            for page in group.pages:
+                if page in {"", "index"}:
+                    continue
+                if first is None:
+                    first = page
+                lowered = page.lower()
+                if any(word in lowered for word in ("quickstart", "quick-start", "installation", "install", "usage")):
+                    return f"/docs/{page}"
+    return f"/docs/{first}" if first else None
+
+
 def _navigation(draft: AiuiDraft) -> Optional[dict[str, Any]]:
     if not draft.tabs:
         return None
@@ -111,6 +139,8 @@ def _navigation(draft: AiuiDraft) -> Optional[dict[str, Any]]:
         groups: list[dict[str, Any]] = []
         for group in tab.groups:
             item: dict[str, Any] = {"group": group.group, "pages": list(group.pages)}
+            if group.icon:
+                item["icon"] = group.icon
             if group.prefix:
                 item["prefix"] = group.prefix
             groups.append(item)
