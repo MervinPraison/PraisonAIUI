@@ -75,6 +75,9 @@ class RunEventType(str, Enum):
     # --- Rich message elements (images, video, etc.) ---
     MESSAGE_ELEMENT = "message_element"
 
+    # --- A short notice that is not part of the transcript (aiui.notify) ---
+    TOAST = "toast"
+
     # --- Team variants ---
     TEAM_RUN_STARTED = "team_run_started"
     TEAM_RUN_CONTENT = "team_run_content"

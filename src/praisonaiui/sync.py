@@ -7,6 +7,9 @@ code, enabling smooth integration in mixed codebases.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import contextvars
+import functools
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
@@ -49,32 +52,16 @@ def make_async(
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> T:
         loop = asyncio.get_running_loop()
-
-        # Use custom executor or default thread pool
-        if executor:
-            future = executor.submit(func, *args, **kwargs)
-        else:
-            # Use asyncio's default thread pool
-            # run_in_executor doesn't support kwargs directly, so wrap the call
-            if kwargs:
-                import functools
-
-                partial_func = functools.partial(func, **kwargs)
-                future = loop.run_in_executor(None, partial_func, *args)
-            else:
-                future = loop.run_in_executor(None, func, *args)
-
-        if cancellable and hasattr(future, "cancel"):
-            # Create a cancellable task that wraps the future
-            try:
-                return await future
-            except asyncio.CancelledError:
-                # Best-effort cancellation of the underlying thread
-                if hasattr(future, "cancel"):
-                    future.cancel()
-                raise
-        else:
+        # The thread gets a copy of this task's context: aiui.context.session,
+        # user_session and aiui.run_sync(aiui.say(...)) work inside it.
+        ctx = contextvars.copy_context()
+        future = loop.run_in_executor(executor, functools.partial(ctx.run, func, *args, **kwargs))
+        try:
             return await future
+        except asyncio.CancelledError:
+            if cancellable:
+                future.cancel()  # best effort: a started thread runs to its end
+            raise
 
     return wrapper
 
@@ -115,6 +102,27 @@ def run_sync(coro: Awaitable[T], *, timeout: Optional[float] = None) -> T:
         if "no running event loop" not in str(e).lower():
             # Re-raise if it's the "already running" error
             raise
+
+    # In a worker thread started by make_async() inside a handler: run on the
+    # handler's loop, in the handler's context, so UI calls reach its chat.
+    from praisonaiui.context import current_session
+
+    session = current_session()
+    loop = session.loop if session is not None else None
+    if loop is not None and loop.is_running() and not loop.is_closed():
+        ctx = contextvars.copy_context()
+
+        async def _in_handler_context() -> T:
+            for var, value in ctx.items():
+                var.set(value)
+            return await coro
+
+        future = asyncio.run_coroutine_threadsafe(_in_handler_context(), loop)
+        try:
+            return future.result(timeout)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            raise asyncio.TimeoutError() from None
 
     # Safe to create new event loop
     if timeout is not None:

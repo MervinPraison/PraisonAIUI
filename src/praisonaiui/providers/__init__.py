@@ -827,10 +827,16 @@ class PraisonAIProvider(BaseProvider):
             run_key = current_run_id.get() or str(uuid.uuid4())
         except ImportError:
             run_key = str(uuid.uuid4())
+        from praisonaiui import context as handler_context
+
+        chat_session = await handler_context.prepare_run(session_id, message)
         _live_reply_contexts[run_key] = msg
 
         async def _run_cb():
             try:
+                # The reply task's own context: aiui.context.session,
+                # user_session and chat_context resolve to this chat.
+                handler_context.enter(chat_session)
                 result = reply_callback(msg)
                 if asyncio.iscoroutine(result):
                     await result
@@ -935,6 +941,11 @@ class PraisonAIProvider(BaseProvider):
                     ended = True
                     yield RunEvent(type=RunEventType.RUN_ERROR, error=event.get("error", "Unknown"))
                     break
+                elif evt_type == "toast":
+                    yield RunEvent(
+                        type=RunEventType.TOAST,
+                        extra_data={k: event[k] for k in ("message", "variant", "duration") if k in event},
+                    )
                 elif evt_type == "memory_start":
                     yield RunEvent(type=RunEventType.MEMORY_UPDATE_STARTED)
                 elif evt_type == "memory_done":
@@ -947,6 +958,8 @@ class PraisonAIProvider(BaseProvider):
                         yield RunEvent(type=mapped, extra_data=event)
                     else:
                         yield RunEvent(type=RunEventType.RUN_CONTENT, extra_data=event)
+            if drained:
+                handler_context.record_reply(chat_session, full_response)
         finally:
             _live_reply_contexts.pop(run_key, None)
             if session_id and _active_tasks.get(session_id) is task:

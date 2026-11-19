@@ -593,6 +593,15 @@
   unknown-tag warning; a module that is missing or names no tag is 7021
   (docs/features/writing-docs.md#your-own-components).
 
+- **Handler context: who is calling, this chat's state and its history.** Inside `@aiui.reply`,
+  `aiui.context.session` gives the chat id, signed-in user, `client_type` (`webapp`, `api`,
+  `copilot` or the bot platform), chat profile, settings, `language` (from Accept-Language) and the
+  request headers without credentials. `aiui.user_session` is a key/value store private to the chat;
+  `aiui.chat_context` is its message history (reloaded from the datastore after a restart) with
+  `to_openai(system=...)`. `await aiui.notify("Saved", type="success")` sends a `toast` event that
+  is never saved with the reply. Concurrent chats never see each other's data; `aiui.current_user()` now works in web chats
+  too (docs/features/handler-context.md).
+
 - **Utility classes in docs pages.** `className="…"` (or `class`) on a component tag or raw HTML
   styles one block with a curated set of theme-token utilities: spacing, width, text size, weight and
   alignment, token colours (`text-muted-foreground`, `bg-muted`), borders, rounding, flex and grid,
@@ -954,3 +963,6 @@
   host is named), and `<script>`, `<style>`, `<link>`, `<form>`, `<audio>`,
   `<object>` and `<embed>` are removed. Code fences and inline code are
   skipped. Before, these disappeared without a word.
+
+- `aiui.run_sync(aiui.say(...))` in a thread started by `aiui.make_async` reaches the chat (it was
+  dropped), and `make_async(fn, executor=pool)` no longer fails with `TypeError`.

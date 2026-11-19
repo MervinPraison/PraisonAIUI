@@ -29,6 +29,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from praisonaiui import context as handler_context
+
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
@@ -906,7 +908,12 @@ async def _chat_send(request: Request) -> JSONResponse:
     # Also run the provider and stream results to WS clients
     asyncio.create_task(
         _run_and_broadcast(
-            content, session_id, agent_name, attachment_ids or None, reply_to=turn_id
+            content,
+            session_id,
+            agent_name,
+            attachment_ids or None,
+            reply_to=turn_id,
+            chat_session=handler_context.session_from_scope(request.scope, session_id, body),
         )
     )
 
@@ -967,8 +974,12 @@ async def _run_and_broadcast(
     regenerate: bool = False,
     owner_client_id: Optional[str] = None,
     reply_to: Optional[str] = None,
+    chat_session: Any = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients.
+
+    *chat_session* (``context.ChatSession``): who sent the turn, from where;
+    a ``@reply`` handler reads it as ``aiui.context.session``.
 
     *reply_to* is the ``turn_id`` of the question this run answers; the saved
     reply carries it so history shows it after that question.
@@ -1023,6 +1034,7 @@ async def _run_and_broadcast(
     first_event: Optional["asyncio.Future[Any]"] = None
     # Code the provider runs inherits the run id (tasks copy the context).
     run_token = current_run_id.set(run_id)
+    session_token = handler_context._session_var.set(chat_session) if chat_session is not None else None
 
     async def _emit(event: Dict[str, Any]) -> None:
         # Every event of the run names the sender's turn, so a client with
@@ -1299,6 +1311,13 @@ async def _run_and_broadcast(
             elif event.type == RunEventType.LLM_CONTENT:
                 # Intermediate narrative text between tool calls
                 payload["content"] = event.content or ""
+            elif event.type == RunEventType.TOAST:
+                # A notice only: never saved with the reply.
+                extra = getattr(event, "extra_data", None) or {}
+                payload["message"] = str(extra.get("message", ""))
+                payload["variant"] = extra.get("variant", "info")
+                if extra.get("duration"):
+                    payload["duration"] = extra["duration"]
             elif event.type == RunEventType.MESSAGE_ELEMENT:
                 extra = getattr(event, "extra_data", None) or {}
                 element = extra.get("element")
@@ -1344,6 +1363,8 @@ async def _run_and_broadcast(
         _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
         current_attachments.reset(attachments_token)
+        if session_token is not None:
+            handler_context._session_var.reset(session_token)
         if _event_observers:
             status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")
             _notify_observers(
@@ -1904,6 +1925,9 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             regenerate=regenerate,
                             owner_client_id=client_id,
                             reply_to=turn_id,
+                            chat_session=handler_context.session_from_scope(
+                                websocket.scope, session_id, data
+                            ),
                         )
                     )
 

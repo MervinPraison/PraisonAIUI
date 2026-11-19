@@ -44,6 +44,7 @@ def __getattr__(name: str):
         "video",
         "file",
         "action_buttons",
+        "notify",
     }
     _lifecycle_attrs = {
         "on_app_startup",
@@ -88,6 +89,7 @@ def __getattr__(name: str):
     }
     _sync_attrs = {"make_async", "run_sync", "AsyncContext"}
     _utils_attrs = {"sleep", "format_duration", "truncate_text", "safe_filename"}
+    _context_attrs = {"context", "user_session", "chat_context", "ChatSession"}
     _elements_attrs = {
         "Plotly",
         "Pyplot",
@@ -379,6 +381,11 @@ def __getattr__(name: str):
         from praisonaiui import sync
 
         return getattr(sync, name)
+    if name in _context_attrs:
+        import importlib
+
+        context = importlib.import_module("praisonaiui.context")
+        return context if name == "context" else getattr(context, name)
     if name in _utils_attrs:
         from praisonaiui import utils
 
@@ -569,6 +576,12 @@ __all__ = [
     "format_duration",
     "truncate_text",
     "safe_filename",
+    # Handler context (who is calling, this chat's state and history)
+    "context",
+    "user_session",
+    "chat_context",
+    "ChatSession",
+    "notify",
     # Element constructors
     "Plotly",
     "Pyplot",
