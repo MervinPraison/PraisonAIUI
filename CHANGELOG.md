@@ -42,6 +42,10 @@
   publishable and `build:lib` is removed; import UI components from the
   in-repo barrel `src/frontend/src/components/index.ts`, and write app-shell
   plugins against `@aiui/sdk`.
+- MCP: a request from 127.0.0.1 or with an API key can no longer start any stdio command or
+  connect any URL from the MCP page (behind a local reverse proxy every visitor looks local).
+  List them in `mcp.allow.commands` / `mcp.allow.urls`, or declare the server under
+  `mcp.servers`. `PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO=true` still admits any command.
 
 ### Security
 
@@ -114,6 +118,10 @@
   or query values to the browser (they show as `***`), and connect errors no longer echo the
   server config. MCP header and env values and any `Bearer` token are redacted from logs and
   tracebacks (`http_guard.register_secret`).
+- MCP: users may add only the URLs in `mcp.allow.urls` (a wildcard never reaches a private,
+  loopback or link-local address) and the stdio executables in `mcp.allow.commands`, matched
+  exactly; a user-added stdio server cannot set `env`, and a user cannot redirect a declared
+  server's name.
 
 ### New
 
@@ -643,6 +651,10 @@
   URL, and a path ending in `/sse` still means SSE. Each session runs in a task of its own, so a
   disconnect from another request closes it cleanly. The MCP page offers Streamable HTTP, SSE and
   stdio. See `docs/features/mcp.md`.
+- MCP servers in the config: `mcp: {servers: {name: {url|command, args, env, headers, transport}}}`
+  connect in the background at startup (`${NAME}` reads an environment variable) and disconnect
+  on shutdown; `mcp.enabled: false` turns MCP off. The MCP page marks declared servers and can
+  connect them again. See `docs/features/mcp.md`.
 
 ### Deprecated
 
