@@ -8,6 +8,7 @@ from pathlib import Path
 
 from praisonaiui.compiler.docs_scanner import DocPage
 from praisonaiui.compiler.seo import frontmatter_tags
+from praisonaiui.schema.models import page_action_list
 
 
 @dataclass
@@ -38,7 +39,7 @@ PAGE_MODES = ("wide", "center", "custom", "frame")
 #: Frontmatter keys the build reads itself; every other scalar key goes to the page's `meta`.
 KNOWN_KEYS = frozenset(
     "title description sidebarTitle nav_title icon iconType tag deprecated mode url hideFooterPagination "
-    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost canonical robots playground related".split()
+    "hidden noindex searchable order date timestamp lastUpdatedDate noAnchor layout hero features keywords boost canonical robots playground related pageActions".split()
 )
 
 
@@ -140,7 +141,7 @@ def page_fields(page: DocPage) -> dict:
 
     ``lede``: the frontmatter ``description`` shows under the title. ``deprecated``,
     ``mode`` (PAGE_MODES), ``hidePager`` (``hideFooterPagination``), ``noAnchor``,
-    ``href`` (an external ``url:``) and ``meta``: the page's other scalar keys, for
+    ``href`` (an external ``url:``), ``pageActions`` (the page's own menu, or false) and ``meta``: the page's other scalar keys, for
     custom JS and CSS (``aiui:content-loaded`` detail, ``data-fm-*`` on the article);
     ``seo``: the head tags it sets (compiler/seo.py).
     """
@@ -158,6 +159,9 @@ def page_fields(page: DocPage) -> dict:
         out["noAnchor"] = True
     if external_url(fm):
         out["href"] = external_url(fm)
+    actions = page_action_list(fm.get("pageActions"))
+    if actions is not None and actions is not True:
+        out["pageActions"] = actions  # the page's own page actions (false: none)
     meta = {
         k: v[:200] if isinstance(v, str) else v
         for k, v in fm.items()

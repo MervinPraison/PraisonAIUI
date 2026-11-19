@@ -1,5 +1,6 @@
 // Shared type definitions for PraisonAIUI frontend
 import type { DocsFeedbackConfig } from './docs/feedback'
+import type { PageAction } from './docs/pageActionLinks'
 
 export interface NavItem {
     title: string
@@ -42,6 +43,8 @@ export interface NavItem {
     directory?: string
     /** Related pages under the page (compiler/related.py): a page path, or a labelled page or external link. */
     related?: (string | { title: string; path?: string; href?: string })[]
+    /** Frontmatter `pageActions`: this page's page actions, in order; false shows none (docs/pageActionLinks.ts). */
+    pageActions?: boolean | PageAction[]
     children?: NavItem[]
 }
 
@@ -237,6 +240,8 @@ export interface UIConfig {
     errors?: { notFound?: NotFoundConfig }
     /** The docs MCP server `aiui serve` adds (docs_mcp.py); `false` with `content.docs.mcp: false`, absent on a static host. */
     mcp?: false | { url: string; name: string }
+    /** `content.docs.pageActions`: the page actions menu, in order; false shows none (absent: the default list). */
+    pageActions?: boolean | PageAction[]
 }
 
 /** One `redirects:` rule: `:name` is one path segment, a final `:name*` the rest of the path. */

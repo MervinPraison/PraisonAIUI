@@ -50,7 +50,7 @@ from praisonaiui.compiler.publish import (
     with_slash,
 )
 from praisonaiui.compiler.snippets import Snippets
-from praisonaiui.schema.models import LogoConfig, NavConfig
+from praisonaiui.schema.models import LogoConfig, NavConfig, page_action_list
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
 
@@ -466,6 +466,13 @@ class Compiler:
         # `content.docs.mcp: false`: aiui serve answers no MCP (docs_mcp.py)
         if docs and not docs.mcp:
             result["mcp"] = False
+
+        # `content.docs.pageActions`: the page actions menu (docs/PageActions.tsx); unset keeps the default list
+        if docs and "page_actions" in docs.model_fields_set and docs.page_actions is not True:
+            result["pageActions"] = page_action_list(
+                [a if isinstance(a, str) else a.model_dump(exclude_none=True) for a in docs.page_actions]
+                if isinstance(docs.page_actions, list) else docs.page_actions
+            )
 
         # Docs home page layout (frontmatter `layout: home` on the docs index)
         docs_home = self._docs_home()

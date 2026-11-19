@@ -22,6 +22,7 @@ from praisonaiui.compiler.docs_scanner import DocPage
 from praisonaiui.compiler.docs_tags import strip_comments
 from praisonaiui.compiler.links import _ATX, _CODE_SPAN, _outside_code
 from praisonaiui.compiler.nav_builder import icon_name, icon_value, sidebar_title
+from praisonaiui.schema.models import PAGE_ACTIONS, page_action_list
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ FRONTMATTER_TYPES: dict[str, str] = {
     "lastUpdatedDate": _DATE,
     "keywords": "a list of words (or one comma-separated string)",
     "related": "a list of pages or URLs, or false",
+    "pageActions": "a list of page actions, or false",
 }
 
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\(")
@@ -69,6 +71,8 @@ def _type_ok(kind: str, value: Any) -> bool:
         return hasattr(value, "isoformat") or bool(isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value))
     if kind == FRONTMATTER_TYPES["related"]:
         return value is False or isinstance(value, list)
+    if kind == FRONTMATTER_TYPES["pageActions"]:
+        return page_action_list(value) is not None
     return isinstance(value, str) or (isinstance(value, list) and all(isinstance(v, str) for v in value))
 
 
@@ -128,6 +132,9 @@ def _type_hint(key: str, kind: str, value: Any) -> str:
             return f"Write {key}: and a number, such as {key}: 1"
     if key == "related":
         return "Write related: [guides/setup, https://example.com] or related: false"
+    if key == "pageActions":
+        return (f"Write pageActions: [copy, chatgpt] or pageActions: false; the actions are {', '.join(PAGE_ACTIONS)}, "
+                "or {label, href} for a link of your own")
     return f"Write {key}: [install, setup] (words only)"
 
 
