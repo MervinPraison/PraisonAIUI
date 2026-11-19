@@ -545,6 +545,12 @@
   `aiui validate` names the nearest theme for a typo (7015) and reports a missing or broken grammar
   (7014, 7015) (docs/features/theming.md#code-blocks).
 
+- **Docs sign-in on `aiui serve`.** `content.docs.auth: {password: env:DOCS_PASSWORD}` (or `users:` with a
+  password each) puts a built docs site behind a sign-in page in its own theme: signed `HttpOnly` cookie,
+  constant-time checks, a limit on wrong passwords. `public: ["/", "guides/*"]` and front matter `public:
+  true` keep pages open; a signed-out reader's nav, search index and the sitemap list only those. Passwords
+  stay in the environment; `aiui build` warns a static host cannot enforce it (7017) (docs/features/docs-auth.md).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

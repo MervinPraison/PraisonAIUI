@@ -45,6 +45,7 @@ FRONTMATTER_TYPES: dict[str, str] = {
     "order": _NUM, "boost": _NUM,
     "hidden": _BOOL, "noindex": _BOOL, "searchable": _BOOL,
     "deprecated": _BOOL, "hideFooterPagination": _BOOL, "noAnchor": _BOOL, "timestamp": _BOOL, "rss": _BOOL,
+    "public": _BOOL,
     "lastUpdatedDate": _DATE,
     "keywords": "a list of words (or one comma-separated string)",
     "related": "a list of pages or URLs, or false",

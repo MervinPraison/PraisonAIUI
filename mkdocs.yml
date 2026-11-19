@@ -131,6 +131,7 @@ nav:
     - Content Security Policy: features/content-security-policy.md
     - Analytics and consent: features/analytics.md
     - AI-ready docs: features/ai-ready-docs.md
+    - Docs sign-in: features/docs-auth.md
     - Hot Reload: features/hot-reload.md
     - Widget Zones: features/widget-zones.md
     - Code Execution: features/code-execution.md
