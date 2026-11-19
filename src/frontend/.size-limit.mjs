@@ -433,5 +433,7 @@ export default [
   // actions leave with it; a long app name wraps below the hero's mark).
   // 11,138,755 B (+6,002 B, exactly the overage): voice input (the lazy VoiceInput chunk
   // with its recorder rules, and the probe in the chat route).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11138755 B', brotli: false },
+  // 11,160,284 B (+21,529 B, exactly the overage): utility classes on docs pages (the
+  // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11160284 B', brotli: false },
 ]
