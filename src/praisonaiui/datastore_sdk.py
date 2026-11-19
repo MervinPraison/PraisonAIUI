@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 from praisonaiui.datastore import BaseDataStore, SummaryCache
@@ -192,6 +193,10 @@ class SDKFileDataStore(BaseDataStore):
 
     async def close(self) -> None:
         pass
+
+    def feedback_file(self) -> Path:
+        """Thumbs feedback is appended next to the sessions it rates."""
+        return Path(self._session_dir) / "feedback" / "feedback.jsonl"
 
     # ── Internal helpers ─────────────────────────────────────────────
 
