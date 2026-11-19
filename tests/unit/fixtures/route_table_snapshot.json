@@ -196,6 +196,8 @@
  ["Route", "/api/pwa/config", ["GET", "HEAD"]],
  ["Route", "/api/realtime/session", ["POST"]],
  ["Route", "/api/realtime/session/{session_id}", ["DELETE"]],
+ ["Route", "/api/realtime/transcribe", ["POST"]],
+ ["Route", "/api/realtime/voice", ["GET", "HEAD"]],
  ["Route", "/api/replay/runs", ["GET", "HEAD"]],
  ["Route", "/api/replay/runs/{run_id}/events", ["GET", "HEAD"]],
  ["Route", "/api/replay/runs/{run_id}/stream", ["GET", "HEAD"]],
