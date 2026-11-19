@@ -400,5 +400,7 @@ export default [
   // count, footer social marks (the lazy brandIcons chunk, 12.9 kB) and the banner.
   // 9,675,842 B (+7,451 B, exactly the overage): Try it authentication, file inputs and
   // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth mode).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9675842 B', brotli: false },
+  // 9,678,344 B (+2,502 B, exactly the overage): related pages under docs pages (the lazy
+  // RelatedPages chunk, its styles and the link helper in the legacy App chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9678344 B', brotli: false },
 ]
