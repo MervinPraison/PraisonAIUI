@@ -209,6 +209,26 @@ class ThemeConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class SiteComponentsConfig(BaseModel):
+    """``site.components``: the site's own React components, used in pages as tags."""
+
+    src: str = Field(description="An ES module beside aiui.yaml that registers the components")
+    tags: list[str] = Field(
+        default_factory=list,
+        description="The tag names it registers (default: found in the module)",
+    )
+
+    @field_validator("tags")
+    @classmethod
+    def _tag_names(cls, v: list[str]) -> list[str]:
+        bad = [t for t in v if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", t) or not re.search("[a-z]", t)]
+        if bad:
+            raise ValueError(f"site.components.tags: {', '.join(bad)} is not a component name (Pricing, ApiStatus)")
+        return v
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class SiteConfig(BaseModel):
     """Site-level configuration."""
 
@@ -236,6 +256,11 @@ class SiteConfig(BaseModel):
         default=None,
         alias="customJs",
         description="Docs build: .js files (beside aiui.yaml) or URLs that every page loads",
+    )
+    components: Optional[Union[str, SiteComponentsConfig]] = Field(
+        default=None,
+        description="Docs build: an ES module of your own React components, used in pages as "
+        "tags (<Pricing plan=\"pro\" />); a path, or {src, tags}",
     )
     # The React docs app renders code (Shiki), mermaid, tabs, the TOC and the
     # header tabs itself; the other legacy plugins (mermaid, syntax-highlight,

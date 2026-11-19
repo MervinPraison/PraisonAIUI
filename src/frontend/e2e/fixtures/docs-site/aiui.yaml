@@ -5,6 +5,7 @@ site:
   theme:
     code: { light: github-light, dark: github-dark-dimmed }   # docs-code.spec.ts
     codeLanguages: [grammars/greet.tmLanguage.json]
+  components: ./components/index.js   # docs-components.spec.ts
 content:
   docs:
     dir: "./docs"

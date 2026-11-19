@@ -75,21 +75,25 @@ def heading_id(title: str) -> tuple[str, str | None]:
     return (title[: m.start()], m.group(1)) if m else (title, None)
 
 
-def unknown_tags(text: str) -> list[tuple[int, str]]:
-    """``(line, tag)`` for the first use of each PascalCase tag not in ``KNOWN_DOCS_TAGS``."""
+def unknown_tags(text: str, known: Iterable[str] = ()) -> list[tuple[int, str]]:
+    """``(line, tag)`` for the first use of each PascalCase tag not in ``KNOWN_DOCS_TAGS``
+    (nor in ``known``: the site's own components, compiler/components.py)."""
+    known = KNOWN_DOCS_TAGS.union(known)
     seen: dict[str, int] = {}
     line_no = 1
     for code, chunk in _prose_segments(strip_comments(text)):
         if not code:
             for offset, line in enumerate(chunk.splitlines()):
                 for name in _TAG.findall(_CODE_SPAN.sub("", line)):
-                    if re.search(r"[a-z]", name) and name not in KNOWN_DOCS_TAGS:
+                    if re.search(r"[a-z]", name) and name not in known:
                         seen.setdefault(name, line_no + offset)
         line_no += chunk.count("\n")
     return sorted(((line, name) for name, line in seen.items()))
 
 
-def lint_pages(paths: Iterable[Path], root: Path, read: Callable[[Path], str] | None = None) -> list[str]:
+def lint_pages(
+    paths: Iterable[Path], root: Path, read: Callable[[Path], str] | None = None, known: Iterable[str] = ()
+) -> list[str]:
     """One warning per unknown tag per page: ``docs/a.md:12: <Gadget> is not a docs component …``.
 
     ``read``: the page text (``Compiler._page_text``: snippets expanded)."""
@@ -100,7 +104,7 @@ def lint_pages(paths: Iterable[Path], root: Path, read: Callable[[Path], str] | 
             shown = path.relative_to(root)
         except ValueError:
             shown = path
-        for line, name in unknown_tags(text):
+        for line, name in unknown_tags(text, known):
             warnings.append(
                 f"{shown.as_posix()}:{line}: <{name}> is not a docs component; "
                 "its content shows as plain Markdown"

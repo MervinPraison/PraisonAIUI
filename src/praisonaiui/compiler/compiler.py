@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from praisonaiui.compiler import access as docs_access
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import branding, changelog, code_theme, csp, integrations, site_assets
+from praisonaiui.compiler import components as site_components
 from praisonaiui.compiler import languages as lang
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
@@ -28,7 +29,7 @@ from praisonaiui.compiler.content_lint import (
 )
 from praisonaiui.compiler.docs_home import docs_home_from_frontmatter
 from praisonaiui.compiler.docs_scanner import SNIPPETS_EXCLUDE, DocPage, DocsScanner
-from praisonaiui.compiler.docs_tags import lint_pages
+from praisonaiui.compiler.docs_tags import lint_pages, unknown_tags
 from praisonaiui.compiler.llms import write_llms_files
 from praisonaiui.compiler.nav_builder import (
     NavBuilder,
@@ -103,6 +104,7 @@ class Compiler:
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
         self._site_assets: site_assets.SiteAssets | None = None  # fonts, custom CSS/JS (site_assets.py)
+        self._site_components: site_components.Components | None = None  # site.components (components.py)
         self._code_theme: code_theme.CodeTheme | None = None  # code block theme, grammars (code_theme.py)
         # `aiui dev` sets it: analytics and chat widgets stay off unless integrations.dev
         self.dev = False
@@ -178,6 +180,9 @@ class Compiler:
         # Generate ui-config.json (its redirects leave out those a page hides)
         self._code_theme = None  # resolved with this build's base path
         ui_config = self._generate_ui_config()
+        self._site_components = None
+        if self._components().tags:  # tag -> module URL (docs/CustomBlock.tsx)
+            ui_config["site"]["components"] = self._components().tags
         redirects = rd.active_rules(self.config.redirects, self._page_routes(nav))
         if redirects:
             ui_config["redirects"] = [r.model_dump() for r in redirects]
@@ -231,7 +236,7 @@ class Compiler:
 
         # Copy docs markdown files for content loading
         warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
-        warnings += [f"{i.file}: {i.message}" for i in extras.issues + self._code().issues]
+        warnings += [f"{i.file}: {i.message}" for i in extras.issues + self._code().issues + self._components().issues]
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             if self._snippets.errors():  # a missing snippet, or one that includes itself
@@ -241,6 +246,9 @@ class Compiler:
             warnings.extend(self.lint_raw_html())
             warnings.extend(docs_access.build_warning(self))
         files.extend(branding.publish(self._brand_files, output_dir))  # after docs/ is rewritten
+        if self._components().tags:
+            files.extend(branding.publish(self._components().files, output_dir))
+            files.extend(site_components.write(self._components(), output_dir))
         if self._og_cards:
             fonts = [output_dir / "assets", Path(__file__).parent.parent / "templates" / "frontend" / "assets"]
             files.extend(og.write(self._og_cards, output_dir, og.cache_dir(), fonts))
@@ -266,7 +274,8 @@ class Compiler:
 
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
-        return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text)
+        return lint_pages((page.path for page in self._published_pages()), self.base_path, self._page_text,
+                          self._components().tags)
 
     def lint_raw_html(self) -> list[str]:
         """``aiui build``'s warnings for raw HTML a page shows differently than written (7019)."""
@@ -296,6 +305,7 @@ class Compiler:
         items = walk_nav(nav.get("items", []))
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
         issues += branding.missing_images(self.config, self.base_path) + self._assets().issues + self._code().issues
+        issues += self._components().issues
         moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
         divisions = [d for d, _ in self.config.navigation.divisions()] if self.config.navigation else []
         from praisonaiui.compiler.related import issues as related_issues
@@ -909,6 +919,9 @@ class Compiler:
                             encoding="utf-8")
             page.write_text(integrations.patch_page(page.read_text(encoding="utf-8"), self._integrations()),
                             encoding="utf-8")
+            if self._components().tags:  # the import map for the shims the components' module imports
+                script = site_components.import_map(self.url_base)
+                page.write_text(site_components.patch_page(page.read_text(encoding="utf-8"), script), encoding="utf-8")
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -1001,6 +1014,18 @@ class Compiler:
         if self._site_assets is None:
             self._site_assets = site_assets.collect(self.config.site, self.base_path, self._brand_files, self.url_base)
         return self._site_assets
+
+    def _components(self) -> site_components.Components:
+        """The site's own component tags (components.py), once per build; a plugin is asked
+        only for a tag a page uses that nothing else knows."""
+        if self._site_components is None:
+            found = site_components.collect(self.config.site, self.base_path)
+            used = {name for page in self._published_pages() for _, name in unknown_tags(self._page_text(page.path))}
+            wanted = {n for n in used if n not in found.tags and site_components.is_tag(n)}
+            if wanted:
+                site_components.add_plugins(found, wanted)
+            self._site_components = found
+        return self._site_components
 
     def _code(self) -> code_theme.CodeTheme:
         """Code block theme and grammars (code_theme.collect), once per build."""

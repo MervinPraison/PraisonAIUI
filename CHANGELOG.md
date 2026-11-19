@@ -584,6 +584,15 @@
   now answer every reader with the pages they may read, so signed-out readers and AI tools get the open
   pages (docs/features/docs-auth.md#groups).
 
+- **Your own React components in docs pages.** `site.components: ./components/index.js` names one ES
+  module that registers components with `registerBlock` from `@aiui/sdk` (or exports them by name);
+  pages then use them as tags, `<Pricing plan="pro" seats={3}>Markdown body</Pricing>`, with `{…}`
+  props as numbers, booleans, arrays and objects. The module loads only on a page that uses one of its
+  tags, under the site's Content-Security-Policy; a component that fails shows the tag's body. A UI
+  plugin's PascalCase block types work as tags too, with no config. Declared tags no longer trigger the
+  unknown-tag warning; a module that is missing or names no tag is 7021
+  (docs/features/writing-docs.md#your-own-components).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

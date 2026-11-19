@@ -619,6 +619,13 @@ error, no component to register), the shell logs it, shows a toast, fires an
 "unavailable" instead of crashing. A block that throws while rendering is
 replaced by an inline error; the rest of the page still renders.
 
+### Blocks in docs pages
+
+A docs site can use a block whose type is named like a component
+(`HelloCard`): `<HelloCard title="Hi" />` in a page of an `aiui build` site
+renders it, and the build publishes the plugin's static folder with the site
+([your own components](writing-docs.md#your-own-components)).
+
 ## Block pages
 
 A `blocks` page is data, not code: its endpoint returns a component tree and

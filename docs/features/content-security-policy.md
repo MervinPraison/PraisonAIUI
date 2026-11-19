@@ -11,7 +11,7 @@ can show the docs in a frame.
 
 | Source | Directive |
 |--------|-----------|
-| The site's own files (app, chunks, fonts, `customCss`/`customJs` files) | `'self'` |
+| The site's own files (app, chunks, fonts, `customCss`/`customJs` files, the `site.components` module and its import map's hash) | `'self'` |
 | The small inline scripts the build writes (theme, URL, redirect stubs) | `script-src 'sha256-…'`, one hash each |
 | Google Fonts and font, stylesheet and script URLs in `site.theme.fonts`, `customCss`, `customJs` | `style-src`, `font-src`, `script-src` |
 | [Integrations](analytics.md) (analytics, support chat) | each provider's hosts |
