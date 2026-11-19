@@ -211,9 +211,12 @@ test('a page whose body stalls after its headers is fetched again: never a skele
   await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
 
   await sidebarLink(page, '/docs/guide/second').click()
+  const clicked = Date.now()
   await expect(page.locator('.aiui-docs-skeleton')).toBeVisible()
-  // The body's time limit (docLoader BODY_TIMEOUT_MS, 15 s) cuts it off and a fresh request gets the page.
+  // No byte for 5 s (docLoader BODY_IDLE_TIMEOUT_MS) cuts it off and a fresh request gets the page,
+  // well inside the 15 s total limit (BODY_TIMEOUT_MS) it used to wait for.
   await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible({ timeout: 25_000 })
+  expect(Date.now() - clicked).toBeLessThan(11_000)
   await expect(page.locator('.aiui-docs-skeleton')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { __stalled: () => number }).__stalled())).toBe(1)
 })
