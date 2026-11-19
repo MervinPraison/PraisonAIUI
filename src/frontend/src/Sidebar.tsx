@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { canonicalDocPath } from './docs/docSource'
-import type { DocsNav, NavItem, NavTabConfig, UIConfig } from './types'
+import type { DocsNav, NavItem, UIConfig } from './types'
+import type { NavDivisions } from './docs/navDivisions'
+import { SidebarDivisions } from './docs/DivisionNav'
 import { BrandMark } from './docs/BrandMark'
 import { docPages, navItemHolds, navItemShown, rememberedOpen, rememberOpen } from './docs/docNav'
 import { docsChromeModel, isExternal } from './docs/chrome'
@@ -180,11 +182,12 @@ function useActiveInView(activeItem: string) {
     return ref
 }
 
-export function Sidebar({ nav, activeItem, onItemClick }: NavTreeProps) {
+export function Sidebar({ nav, activeItem, onItemClick, divisions }: NavTreeProps & { divisions?: NavDivisions }) {
     const scrollRef = useActiveInView(activeItem)
     return (
         <aside className="aiui-docs-sidebar docs-sidebar">
             <div ref={scrollRef} className="aiui-docs-sidebar-scroll">
+                {divisions && <SidebarDivisions divisions={divisions} />}
                 <NavTree nav={nav} activeItem={activeItem} onItemClick={onItemClick} />
             </div>
         </aside>
@@ -197,9 +200,7 @@ interface MobileNavSheetProps extends NavTreeProps {
     title?: string
     config?: UIConfig
     templateKey?: string
-    navTabs?: NavTabConfig[]
-    activeTabIndex?: number
-    onTabChange?: (index: number) => void
+    divisions?: NavDivisions
 }
 
 export function MobileNavSheet({
@@ -211,9 +212,7 @@ export function MobileNavSheet({
     title = 'Navigation',
     config,
     templateKey,
-    navTabs = [],
-    activeTabIndex = 0,
-    onTabChange,
+    divisions,
 }: MobileNavSheetProps) {
     const chrome = config ? docsChromeModel(config, templateKey) : null
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -231,20 +230,7 @@ export function MobileNavSheet({
                     <SheetDescription className="sr-only">Documentation pages</SheetDescription>
                 </SheetHeader>
                 <div ref={scrollRef} className="aiui-docs-drawer-body">
-                    {navTabs.length > 1 && (
-                        <div className="aiui-docs-drawer-tabs" role="group" aria-label="Documentation sections">
-                            {navTabs.map((tab, index) => (
-                                <button
-                                    key={tab.tab}
-                                    type="button"
-                                    aria-pressed={index === activeTabIndex}
-                                    onClick={() => onTabChange?.(index)}
-                                >
-                                    {tab.tab}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    {divisions && <SidebarDivisions divisions={divisions} drawer />}
                     <NavTree
                         nav={nav}
                         activeItem={activeItem}

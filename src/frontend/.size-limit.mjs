@@ -385,7 +385,7 @@ export default [
   // filter (docs/DocsUpdate.tsx, docs.css).
   // 9,637,745 B (+4,947 B, exactly the overage): docs page feedback (the lazy
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
-  // 9,639,450 B (+1,705 B, exactly the overage): the docs MCP items in the page menu
-  // (docs/PageActions.tsx, two lucide icons).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9639450 B', brotli: false },
+  // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
+  // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9643947 B', brotli: false },
 ]

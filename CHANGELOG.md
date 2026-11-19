@@ -431,6 +431,14 @@
   server URL**, **Connect to Cursor** and **Connect to VS Code**. Host and Origin are checked
   (DNS rebinding). On by default; `content.docs.mcp: false` turns it off. A static host serves
   none of it. See [AI-ready docs](docs/features/ai-ready-docs.md#mcp-server).
+- **Tabs that navigate, tab menus, sidebar anchors and a product switcher.** A docs header tab
+  now opens its first page and takes `icon`, `href` (a link out; the old `url` works), `pages`
+  (no group needed) and `menu` (a small dropdown of items, each with its own sidebar or link).
+  `navigation.anchors` and `navigation.global.anchors` pin links (or sections with their own
+  sidebar) at the top of the sidebar; `navigation.dropdowns` (or `products`) adds a switcher
+  there whose entries each own a sidebar or their own header tabs. On phones all of it sits in
+  the navigation drawer. `aiui validate` warns about one with nothing to open (2102). See
+  [Navigation](docs/features/navigation.md#tab-options).
 
 ### Deprecated
 

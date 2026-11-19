@@ -106,7 +106,8 @@ styling:
 ## Checks
 
 `aiui validate` and `aiui build` warn about a listed page name that matches no
-page (code 2101, with the closest name; `aiui validate --strict` fails) and about keys that
+page (code 2101, with the closest name; `aiui validate --strict` fails), a tab,
+anchor or dropdown with nothing to open (2102) and about keys that
 do nothing yet (1004: `nav.maxDepth`, `i18n.fallbackLocale`, `translationsDir`).
 
 ## A Sidebar You List (`mode: manual`)
@@ -223,6 +224,95 @@ navigation:
 
 A section that no group of any tab claims is not shown while tabs are set.
 In manual mode the groups are the sections, so each one belongs to its tab.
+
+Clicking a tab opens its first page; the active tab follows the page you
+are on. On phones the tabs move into the navigation drawer, where tapping
+one shows its sidebar without leaving the page.
+
+### Tab options
+
+```yaml
+navigation:
+  tabs:
+    - tab: "Guides"
+      icon: book-open                  # any icon (see Sidebar Icons)
+      pages: [index, quickstart]       # pages straight in the tab, no group needed
+    - tab: "Blog"
+      href: "https://example.com/blog" # a link out (opens in a new tab)
+    - tab: "API"
+      menu:                            # a small dropdown under the tab
+        - item: "REST"
+          description: "HTTP endpoints"
+          icon: globe
+          groups:
+            - group: "REST"
+              pages: [api/rest/users]
+        - item: "SDKs"
+          pages: [api/sdk/python, api/sdk/node]
+        - item: "Status"
+          href: "https://status.example.com"
+```
+
+| Key | On | Does |
+|-----|----|------|
+| `icon` | tab, menu item, anchor, dropdown | an icon before the name |
+| `href` | tab, menu item, anchor, dropdown | a link instead of a sidebar (`url` still works on a tab) |
+| `pages` | tab, menu item, anchor, dropdown | pages listed straight in it (before its `groups`) |
+| `groups` | tab, menu item, anchor, dropdown | its sidebar sections |
+| `hidden` | tab, menu item, anchor, dropdown | leaves the header and sidebar; its pages stay routable |
+| `menu` | tab | items, each with its own sidebar or `href`; the tab opens the list |
+| `description` | menu item, dropdown | a second line under the name |
+| `tabs` | dropdown | header tabs shown while that dropdown is open |
+
+## Anchors
+
+Anchors are links pinned at the top of the sidebar on every page. An anchor
+with `href` links out; one with `pages` or `groups` opens its own sidebar,
+like a tab. `navigation.global.anchors` takes the same entries and lists
+them first.
+
+```yaml
+navigation:
+  global:
+    anchors:
+      - anchor: "Community"
+        icon: users
+        href: "https://example.com/forum"
+  anchors:
+    - anchor: "Changelog"
+      icon: newspaper
+      pages: [changelog]
+```
+
+## Dropdowns (Product Switcher)
+
+`navigation.dropdowns` (also spelled `products`, with `product:` names) puts
+a switcher at the top of the sidebar. Each entry opens its own sidebar, or
+brings its own header `tabs`, so one site can hold several products.
+
+```yaml
+navigation:
+  dropdowns:
+    - dropdown: "Cloud"
+      description: "Hosted service"
+      icon: cloud
+      tabs:
+        - tab: "Guides"
+          groups: [{ group: "Cloud", pages: [cloud/start, cloud/deploy] }]
+        - tab: "API"
+          pages: [cloud/api]
+    - dropdown: "Self-hosted"
+      description: "Run it yourself"
+      icon: server
+      groups:
+        - group: "Install"
+          pages: [self/install]
+```
+
+Tabs, menu items, anchors and dropdowns share one rule: each part with
+pages or groups gets its own sidebar, and the page you are on decides which
+one is open. `aiui validate` warns about one with no pages, groups or
+`href` (code 2102) and about a listed page that does not exist (2101).
 
 ## Header Links
 
