@@ -2646,7 +2646,6 @@ async def api_features(request: Request) -> JSONResponse:
 # The /api/mcp/* handlers live in features/mcp_servers.py (builtin.mcp);
 # the names stay importable from here.
 from praisonaiui.features.mcp_servers import (  # noqa: E402, F401
-    _mcp_stdio_connect_allowed,
     api_mcp_connect,
     api_mcp_disconnect,
     api_mcp_servers,

@@ -247,7 +247,9 @@ export default [
   // actions / action_remove, saved segments on reload) and the toast frame through the
   // lazy toaster (sdk notify). Splitting the edits into a lazy chunk measured +137 B
   // more (the loader and holding later frames cost more than the code it moves).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143081 B', gzip: true },
+  // 143,082 B (+1 B, exactly the overage): CommandDialog passes cmdk's controlled `value`
+  // through (the docs search keeps a row highlighted when results arrive late).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143082 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -315,7 +317,8 @@ export default [
   // the cache-busting reload after a deploy (main.tsx, chunkReload.ts).
   // 256,563 B (+1 B, exactly the overage): docLoader's reader for the manifests aiui build
   // inlines in each page (inlinedManifest).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256563 B', gzip: true },
+  // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256565 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -456,8 +459,7 @@ export default [
   // 5 s without a byte (docLoader reads the body chunk by chunk).
   // 11,164,896 B (+322 B, exactly the overage): the manifests inlined in each built page
   // (docLoader inlinedManifest, App.tsx reads them before fetching).
-  // 11,165,388 B (+492 B, exactly the overage): the HTML parser as a lazy chunk of its own
-  // (markdown/rehypeRawGate.ts, the needsRaw hint, the chunk's import/export glue). No
-  // loaded chunk grows: the renderer chunk is 49.6 kB gzip smaller.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11165388 B', brotli: false },
+  // 11,168,215 B (+3,319 B, exactly the overage): the split search index reader
+  // (docs/searchShards.ts in the lazy search chunk) and CommandDialog's controlled `value`.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11168215 B', brotli: false },
 ]

@@ -1619,11 +1619,16 @@ class Compiler:
 
     def _generate_search_index(self, output_dir: Path, nav: dict) -> list[str]:
         """Write ``search-index.json``: every page's headings and text for the
-        docs search dialog (compiler/search_index.py). ``noindex`` pages (and
-        hidden ones, see publish.apply_indexing) are left out, as from the sitemap,
-        and so are ``searchable: false`` pages."""
-        from praisonaiui.compiler.search_index import page_entry
+        docs search dialog (compiler/search_index.py), and the same split up
+        under ``search-index/`` so the dialog downloads only what a query needs
+        (not for a site with sign-in: docs_auth.py cuts the whole file per
+        reader). ``noindex`` pages (and hidden ones, see publish.apply_indexing)
+        are left out, as from the sitemap, and so are ``searchable: false`` pages."""
+        import shutil
 
+        from praisonaiui.compiler.search_index import SHARDS_DIR, page_entry, write_shards
+
+        shutil.rmtree(output_dir / SHARDS_DIR, ignore_errors=True)  # an earlier build's
         if self.config.search and self.config.search.enabled is False:
             return []
         scanner = DocsScanner(docs_dir=self.base_path)
@@ -1638,12 +1643,13 @@ class Compiler:
             pages.append(page_entry(page["path"], page["title"], page["description"], body, meta))
         if not pages:
             return []
-        # Compact: the dialog downloads it once, on first open.
-        (output_dir / "search-index.json").write_text(
-            json.dumps({"version": 1, "pages": pages}, ensure_ascii=False, separators=(",", ":")),
-            encoding="utf-8",
-        )
-        return ["search-index.json"]
+        # Compact: older dialogs, the MCP server and Ask AI read it whole.
+        text = json.dumps({"version": 1, "pages": pages}, ensure_ascii=False, separators=(",", ":"))
+        (output_dir / "search-index.json").write_text(text, encoding="utf-8")
+        docs = self.config.content.docs if self.config.content else None
+        if docs and docs.auth:
+            return ["search-index.json"]
+        return ["search-index.json", *write_shards(output_dir, pages, text)]
 
     @staticmethod
     def _strip_frontmatter(content: str) -> str:
