@@ -233,15 +233,15 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
-| Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,162 B |
-| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.372 / 10.5 / 15.2 / 18.6 / 13.2 kB |
+| Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,570 B |
+| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.387 / 10.5 / 15.211 / 18.6 / 13.221 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,168,215 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,170,373 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).

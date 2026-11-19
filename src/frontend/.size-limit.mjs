@@ -71,7 +71,8 @@ const LAYOUT_BUDGETS = {
   // 12.362 kB (+2 B, exactly the overage): chunk hashes renamed by the docs
   // component tags change; no layout code changed.
   // 12.372 kB (+10 B, exactly the overage): chunk hashes renamed; no layout code changed.
-  'layout-chat-canvas': '12.372 kB',
+  // 12.387 kB (+15 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
+  'layout-chat-canvas': '12.387 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -81,7 +82,8 @@ const LAYOUT_BUDGETS = {
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
-  'layout-command': '15.2 kB',
+  // 15.211 kB (+11 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
+  'layout-command': '15.211 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -91,7 +93,8 @@ const LAYOUT_BUDGETS = {
   // 9.52 kB on its branch; integrated with kit v2 (5.85 kB of kit chunks in
   // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
   // lf-mission-board.
-  'layout-mission': '13.2 kB',
+  // 13.221 kB (+21 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
+  'layout-mission': '13.221 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -329,7 +332,11 @@ export default [
   { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7162 B', gzip: true },
+  // 7,570 B (+408 B, exactly the overage): the Check, ClipboardCopy and X icons Try it
+  // imports were shared with the docs App before; the docs App now draws its own
+  // (virtual:aiui-icons/inline), so they count here. They load with Try it instead of on
+  // every docs page.
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7570 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -458,5 +465,7 @@ export default [
   // (docLoader inlinedManifest, App.tsx reads them before fetching).
   // 11,168,215 B (+3,319 B, exactly the overage): the split search index reader
   // (docs/searchShards.ts in the lazy search chunk) and CommandDialog's controlled `value`.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11168215 B', brotli: false },
+  // 11,170,373 B (+2,158 B, exactly the overage): the docs App's first-screen icons drawn
+  // into its chunk (virtual:aiui-icons/inline) next to lucide-react's own for the shell.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11170373 B', brotli: false },
 ]
