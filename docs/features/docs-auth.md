@@ -1,8 +1,8 @@
 # Docs sign-in
 
-Put a docs site behind a password and keep some pages open to everyone. `aiui
-serve` and `aiui dev` enforce it; there is nothing to install and no account
-system to run.
+Put a docs site behind a password, keep some pages open to everyone, and limit
+others to a group of readers. `aiui serve` and `aiui dev` enforce it; there is
+nothing to install and no account system to run.
 
 ## A password for the whole site
 
@@ -64,18 +64,39 @@ auth:
 
 Readers sign in with their password alone; it tells the server who they are.
 
+## Groups
+
+Give readers groups, then name the groups a page is for:
+
+```yaml
+auth:
+  users:
+    alice: {password: env:ALICE_PASSWORD, groups: [partners]}
+```
+
+```markdown
+---
+title: Partner API
+groups: [partners]
+---
+```
+
+A page with `groups` is for readers in at least one of them. To any other
+signed-in reader it does not exist: a 404, and it is missing from their sidebar,
+search, `llms.txt`, MCP and Ask AI. A signed-out reader who opens it gets the
+sign-in page (they may be a member).
+
 ## What is protected
 
 A page's rule covers everything made from it: its HTML (including the copy
 inside `<noscript>`), its `.md` and `.source.md` files and `Accept:
 text/markdown` answer, its social card under `/og/`, its Try it data and its RSS
-feed. For a signed-out reader, `docs-nav.json` and `search-index.json` hold only
-the open pages, so the sidebar and search show nothing else. The sitemap lists
-only open pages.
-
-`llms.txt`, `llms-full.txt`, the [MCP server](ai-ready-docs.md#mcp-server), [Ask
-AI](ai-ready-docs.md#ask-ai), `/api/docs/search` and page feedback hold every
-page, so on a site with sign-in they answer signed-in readers only.
+feed. `docs-nav.json`, `search-index.json`, `llms.txt` and `llms-full.txt` (and
+their `/.well-known/` copies) hold only the pages the reader may read, and the
+[MCP server](ai-ready-docs.md#mcp-server), [Ask AI](ai-ready-docs.md#ask-ai),
+`/api/docs/search` and page feedback see only those pages. An AI tool that
+connects to `/mcp` without the browser's cookie reads the open pages. The
+sitemap lists only open pages.
 
 Code, styles, fonts, images and `ui-config.json` are open to anyone, so open
 pages render (do not put a secret in an image). Any other file (OpenAPI specs, a
@@ -100,6 +121,6 @@ nav group's generated page, files you copied in) needs sign-in.
 Sign-in needs the aiui server. A static host (GitHub Pages, a CDN) serves every
 file of the build, so `aiui build` warns (7017) on a site with
 `content.docs.auth`; serve it with `aiui serve` ([deployment](deployment.md)).
-`aiui validate` reports front matter `public` on a site without
-`content.docs.auth` (7017). A docs folder served by `aiui run` uses the app's own
+`aiui validate` reports front matter `public` or `groups` on a site without
+`content.docs.auth`, and a group no reader is in (7017). A docs folder served by `aiui run` uses the app's own
 sign-in instead ([deployment](deployment.md#auth-enforcement)).

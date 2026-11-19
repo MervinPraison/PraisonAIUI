@@ -194,11 +194,13 @@ class DocsFeedback:
         elif not self.allow((scope.get("client") or ("?",))[0]):
             response = PlainTextResponse("Too many votes; try again in a minute", 429, headers={"Retry-After": "60"})
         else:
-            response = await self._post(receive)
+            from praisonaiui.docs_auth import view
+
+            response = await self._post(receive, view(scope))
         await response(scope, receive, send)
         return True
 
-    async def _post(self, receive):
+    async def _post(self, receive, reader: Any = None):
         from starlette.responses import JSONResponse, PlainTextResponse
 
         body = b""
@@ -215,6 +217,8 @@ class DocsFeedback:
             record = "Send a JSON object"
         if isinstance(record, str):
             return JSONResponse({"error": record}, status_code=400)
+        if reader and not reader.may(record["path"].split("#")[0]):  # a page this reader may not read
+            return JSONResponse({"error": "No such page"}, status_code=404)
         if not append(record, self.file):
             return JSONResponse({"error": "The feedback store is full"}, status_code=507)
         return JSONResponse({"ok": True, "id": record["id"]})

@@ -59,19 +59,17 @@ def test_signed_out_reader_gets_open_pages_and_the_sign_in_page(site):
     assert page.status_code == 401 and "Secret plans" not in page.text
     assert 'name="password"' in page.text and 'value="/docs/secret"' in page.text
     for path in ("/docs/secret.md", "/docs/secret.source.md", "/docs/secret.html", "/docs/secret/index.html",
-                 "/docs/Secret.md", "/docs//secret.md", "/docs/no-such-page", "/llms-full.txt", "/llms.txt",
+                 "/docs/Secret.md", "/docs//secret.md", "/docs/no-such-page",
                  "/aiui-access.json", "/AIUI-access.json"):
         r = site.get(path)
         assert r.status_code in (401, 404) and "Secret plans" not in r.text and "ALICE" not in r.text, path
-    mcp = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "list_pages", "arguments": {}}}
-    assert site.post("/mcp", json=mcp).status_code == 401
     assert site.get("/ui-config.json").status_code == 200
 
 
 def test_indexes_hold_only_open_pages_for_a_signed_out_reader(site):
     pages = {p["p"] for p in site.get("/search-index.json").json()["pages"]}
     assert pages == {"/docs/index", "/docs/open", "/docs/guides/start"}
-    assert pages == {p["p"] for p in site.get("/Search-Index.json").json()["pages"]}
+    assert "/docs/secret" not in site.get("/Search-Index.json").text  # a 404 on a case-sensitive disk
     nav = site.get("/docs-nav.json")
     assert "/docs/open" in nav.text and "/docs/secret" not in nav.text
     assert nav.headers["cache-control"] == "private, no-cache"
@@ -157,11 +155,11 @@ def test_config_and_build_checks(tmp_path, monkeypatch):
         DocsAuthConfig()
     with pytest.raises(ValidationError, match="env:NAME"):
         DocsAuthConfig(users={"bob": "hunter2"})
-    assert DocsAuthConfig(users={"bob": "env:BOB_PW"}).readers() == [("bob", "BOB_PW")]
+    assert DocsAuthConfig(users={"bob": "env:BOB_PW"}).readers() == [("bob", "BOB_PW", [])]
     out, compiler = _build(tmp_path, auth={**AUTH, "users": {}})
     access = json.loads((out / "aiui-access.json").read_text())
     assert "shared-pass" not in json.dumps(access) and "auth" not in json.loads((out / "ui-config.json").read_text())
     assert access["pages"]["/docs/secret"] is False and access["pages"]["/"] is True
-    assert access["users"] == [{"name": "reader", "env": "DOCS_PASSWORD"}]
+    assert access["users"] == [{"name": "reader", "env": "DOCS_PASSWORD", "groups": []}]
     result = compiler.compile(output_dir=out)
     assert any(w.startswith("7017:") for w in result.warnings)

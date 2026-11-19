@@ -23,7 +23,7 @@ import json
 import math
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
 
 from praisonaiui.__version__ import __version__
@@ -202,8 +202,10 @@ def _snippet(text: str, terms: list[str], width: int = 200) -> str:
     return ("… " if start else "") + text[start:end] + (" …" if end < len(text) else "")
 
 
-def search(index: dict, query: str, limit: int = 10, prepared: Optional[tuple] = None) -> list[dict]:
-    """Pages whose title matches first, then sections whose heading holds every word, then text."""
+def search(index: dict, query: str, limit: int = 10, prepared: Optional[tuple] = None,
+           keep: Optional[Callable[[str], bool]] = None) -> list[dict]:
+    """Pages whose title matches first, then sections whose heading holds every word, then text.
+    ``keep(route)``: only the pages a signed-in reader may read (docs_auth.py)."""
     terms = query_terms(query)
     if not terms:
         return []
@@ -225,6 +227,7 @@ def search(index: dict, query: str, limit: int = 10, prepared: Optional[tuple] =
                     "snippet": _snippet(sec["x"], terms),
                     "score": (2 if in_heading else 1) + inner(score * page.get("b", 1))})
     out.sort(key=lambda r: -r["score"])
+    out = [r for r in out if keep(r["path"])] if keep else out
     results, seen = [], set()
     for r in out:
         if (r["path"], r["anchor"]) not in seen:
@@ -339,14 +342,14 @@ class DocsMcp:
         page = self._page(path)
         return page[1].read_text(encoding="utf-8") if page else None
 
-    def _submit_feedback(self, args: dict, client: str) -> tuple[str, bool]:
+    def _submit_feedback(self, args: dict, client: str, view: Any = None) -> tuple[str, bool]:
         path, helpful = args.get("path"), args.get("helpful")
         if not isinstance(path, str) or not path.strip():
             return "submit_feedback needs the page's path, e.g. /docs/guide/install.", True
         if not isinstance(helpful, bool):
             return "helpful must be true or false.", True
         page = self._page(path)
-        if not page:
+        if not page or (view and not view.can(page[0])):
             return f"No page at {path}; search_docs or list_pages give page paths.", True
         assert self.feedback
         saved = self.feedback.submit({"path": page[0], "value": 1 if helpful else -1,
@@ -355,18 +358,22 @@ class DocsMcp:
             return saved, True
         return f"Thanks: your feedback on {page[0]} is saved for the docs owners.", False
 
-    def call_tool(self, name: str, args: dict, site_url: str, client: str = "?") -> tuple[str, bool]:
-        """Run a tool: its text and whether it is an error the model should see."""
+    def call_tool(self, name: str, args: dict, site_url: str, client: str = "?",
+                  view: Any = None) -> tuple[str, bool]:
+        """Run a tool: its text and whether it is an error the model should see.
+        ``view``: on a site with sign-in, the pages this reader may read (docs_auth.View)."""
         if name == "submit_feedback":
-            return self._submit_feedback(args, client)
+            return self._submit_feedback(args, client, view)
         if name == "list_pages":
             text = self._load("llms.txt")
+            text = view.llms(text) if view and text else text
             return (text, False) if text else ("This site publishes no page list.", True)
         if name == "read_page":
             path = args.get("path")
             if not isinstance(path, str) or not path.strip():
                 return "read_page needs a path, e.g. /docs/guide/install.", True
-            text = self.page_markdown(path)
+            page = self._page(path)
+            text = page[1].read_text(encoding="utf-8") if page and (not view or view.can(page[0])) else None
             return (text, False) if text is not None else (f"No page at {path}; search_docs or list_pages give page paths.", True)
         query, limit = args.get("query"), args.get("limit", 10)
         if not isinstance(query, str) or not query.strip():
@@ -376,7 +383,7 @@ class DocsMcp:
         loaded = self._load("search-index.json")
         if not loaded:
             return "This site has no search index; list_pages lists every page.", True
-        hits = search(loaded[0], query, min(max(limit, 1), MAX_RESULTS), loaded[1])
+        hits = search(loaded[0], query, min(max(limit, 1), MAX_RESULTS), loaded[1], view.can if view else None)
         if not hits:
             return f"No pages match {query!r}. Try other words, or list_pages.", False
         lines = []
@@ -387,7 +394,7 @@ class DocsMcp:
             lines += [f"   {r['snippet']}"] if r["snippet"] else []
         return "\n".join(lines) + "\n\nread_page(path) returns a page as Markdown.", False
 
-    def answer(self, msg: Any, site_url: str, client: str = "?") -> Optional[dict]:
+    def answer(self, msg: Any, site_url: str, client: str = "?", view: Any = None) -> Optional[dict]:
         """The JSON-RPC reply to one message; ``None`` for a notification or a response."""
         if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0":
             return _error(None, -32600, "Invalid Request: one JSON-RPC 2.0 message per POST")
@@ -412,7 +419,7 @@ class DocsMcp:
             name, args = params.get("name"), params.get("arguments") or {}
             if name not in {t["name"] for t in self.tools}:
                 return _error(rid, -32602, f"Unknown tool: {name}")
-            text, failed = self.call_tool(name, args if isinstance(args, dict) else {}, site_url, client)
+            text, failed = self.call_tool(name, args if isinstance(args, dict) else {}, site_url, client, view)
             return _result(rid, {"content": [{"type": "text", "text": text}], "isError": failed})
         return _error(rid, -32601, f"Method not found: {method}")
 
@@ -462,7 +469,9 @@ class DocsMcp:
                         response = JSONResponse(_error(None, -32700, "Parse error"), status_code=400)
                     else:
                         client = (scope.get("client") or ("?",))[0]
-                        reply = self.answer(msg, self._site_url(scope), client)
+                        from praisonaiui.docs_auth import view
+
+                        reply = self.answer(msg, self._site_url(scope), client, view(scope))
                         response = JSONResponse(reply) if reply else Response(status_code=202)
         elif method not in ("GET", "HEAD"):
             return False

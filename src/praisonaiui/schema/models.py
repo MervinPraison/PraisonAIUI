@@ -428,12 +428,21 @@ def _env_ref(value: Optional[str]) -> Optional[str]:
     return value.strip() if value else value
 
 
+class DocsUserConfig(BaseModel):
+    """A named reader: their password and the groups front matter ``groups`` names."""
+
+    password: str = Field(description="env:NAME: the environment variable that holds this reader's password")
+    groups: list[str] = Field(default_factory=list, description="Groups this reader belongs to")
+
+    _password = field_validator("password")(_env_ref)
+
+
 class DocsAuthConfig(BaseModel):
     """Sign-in for the docs when ``aiui serve`` or ``aiui dev`` serves them (docs/features/docs-auth.md)."""
 
     password: Optional[str] = Field(default=None, description="env:NAME: one shared password for every reader")
-    users: dict[str, str] = Field(default_factory=dict, description="Named readers, each with their own "
-                                  "password: {name: env:NAME}")
+    users: dict[str, Union[str, DocsUserConfig]] = Field(
+        default_factory=dict, description="Named readers: {name: env:NAME} or {name: {password, groups}}")
     public: list[str] = Field(default_factory=list, description="Pages anyone may read: '/' (the home "
                               "page), page paths and patterns such as 'quickstart' or 'guides/*'")
 
@@ -442,11 +451,10 @@ class DocsAuthConfig(BaseModel):
     @field_validator("users")
     @classmethod
     def _users(cls, v: dict) -> dict:
-        for name, password in v.items():
+        for name in v:
             if not re.fullmatch(r"[\w.@-]{1,64}", name):
                 raise ValueError(f"reader name {name!r}: letters, digits, . _ @ - (64 at most)")
-            _env_ref(password)
-        return {n: p.strip() for n, p in v.items()}
+        return {n: DocsUserConfig(password=u) if isinstance(u, str) else u for n, u in v.items()}
 
     @model_validator(mode="after")
     def _someone(self) -> DocsAuthConfig:
@@ -454,10 +462,10 @@ class DocsAuthConfig(BaseModel):
             raise ValueError("set password (env:NAME) or users, or there is no way to sign in")
         return self
 
-    def readers(self) -> list[tuple[str, str]]:
-        """Each way to sign in: (name, environment variable); the shared password is ``reader``."""
-        shared = [("reader", self.password[4:])] if self.password else []
-        return shared + [(n, p[4:]) for n, p in self.users.items()]
+    def readers(self) -> list[tuple[str, str, list[str]]]:
+        """Each way to sign in: (name, environment variable, groups); the shared password is ``reader``."""
+        shared = [("reader", self.password[4:], [])] if self.password else []
+        return shared + [(n, u.password[4:], u.groups) for n, u in self.users.items() if isinstance(u, DocsUserConfig)]
 
 
 class ContentSourceConfig(BaseModel):
@@ -500,8 +508,8 @@ class ContentSourceConfig(BaseModel):
     )
     auth: Optional[DocsAuthConfig] = Field(
         default=None,
-        description="Readers sign in with a password under aiui serve and aiui dev; public patterns "
-        "and front matter public: true keep pages open (docs/features/docs-auth.md)",
+        description="Readers sign in with a password under aiui serve and aiui dev; public patterns, "
+        "front matter public and groups open or limit pages (docs/features/docs-auth.md)",
     )
 
     model_config = ConfigDict(populate_by_name=True)

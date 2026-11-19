@@ -122,7 +122,7 @@ under it:
 | 7014 | a `site.customCss`, `site.customJs`, `site.theme.fonts` or `site.theme.codeLanguages` file that is not in the project folder ([fonts and custom files](../features/theming.md#fonts)) |
 | 7015 | `site.theme.code` names a theme that is not bundled (with the nearest name), or a `site.theme.codeLanguages` file is not a TextMate grammar ([code blocks](../features/theming.md#code-blocks)) |
 | 7016 | a `::: module` block names no module or member, or has an unknown option (fails `aiui build`; [Python API reference](../features/api-reference-python.md#checks)) |
-| 7017 | `content.docs.auth` is set, and only `aiui serve` / `aiui dev` enforce it (`aiui build`); front matter `public` without `content.docs.auth` ([docs sign-in](../features/docs-auth.md)) |
+| 7017 | `content.docs.auth` is set, and only `aiui serve` / `aiui dev` enforce it (`aiui build`); front matter `public` / `groups` without `content.docs.auth`, or a group no reader is in ([docs sign-in](../features/docs-auth.md)) |
 | 7018 | two `navigation.versions` with the same name, more than one marked `default: true`, or a version that lists a page of another version's folder ([versions](../features/navigation.md#versions)) |
 | 7101 | `site.theme.accent` under WCAG AA 3:1 contrast on the light or dark background, with a shade that passes |
 | 7102 | `logo`, `favicon` or `site.theme.background` image that is not a file in the project folder ([branding](../features/theming.md#branding-a-docs-site)) |

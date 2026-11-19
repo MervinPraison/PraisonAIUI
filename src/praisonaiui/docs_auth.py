@@ -1,17 +1,18 @@
 """Sign-in for a built docs site on ``aiui serve`` and ``aiui dev`` (docs/features/docs-auth.md).
 
 A build with ``content.docs.auth`` writes ``aiui-access.json`` (compiler/access.py):
-which pages are open to anyone, and the environment variable holding each reader's
-password. :meth:`DocsAuth.wrap` enforces it:
+each page's rule (anyone, any signed-in reader, or readers in named groups) and the
+environment variable holding each reader's password. :meth:`DocsAuth.wrap` enforces it:
 
 * a page and every file made from it (its HTML, ``.md`` twins, ``og/`` card, Try it
-  data, feed) answers a signed-out reader only when the page is open; a signed-out
-  browser gets the sign-in page (401) instead;
-* ``docs-nav.json`` and ``search-index.json`` are cut to the open pages for a
-  signed-out reader (:class:`View`);
+  data, feed) answers only readers its rule lets in. A signed-out browser gets the
+  sign-in page (401), a signed-in reader outside the page's groups a 404;
+* ``docs-nav.json``, ``search-index.json`` and the ``llms`` files are cut to what the
+  reader may read; MCP, Ask AI, search and feedback see only those pages
+  (:func:`view`, a :class:`View`);
 * code, styles, fonts, images and the site config are open to anyone; any other file
-  (``llms.txt``, MCP, Ask AI) needs sign-in. A signed-out ``GET`` that the site
-  answers with a redirect still gets it.
+  needs sign-in. A signed-out ``GET`` that the site answers with a redirect still
+  gets it.
 
 The session is a signed, ``HttpOnly``, ``SameSite=Lax`` cookie. Its key comes from
 the reader's password, so changing a password signs that reader out everywhere.
@@ -30,9 +31,10 @@ import posixpath
 import re
 import time
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 from praisonaiui import http_guard as hg
 from praisonaiui.compiler.access import ACCESS_FILE
@@ -43,32 +45,70 @@ LOGIN, LOGOUT = "/__aiui/login", "/__aiui/logout"
 COOKIE = "aiui_docs"
 SESSION_S = 7 * 24 * 3600
 MAX_FAILS, FAIL_WINDOW_S = 10, 600  # wrong passwords per client per window
+SCOPE_KEY = "aiui.docs_view"
 #: Files built from every page: cut to what the reader may read.
-FILTERED = frozenset({"/search-index.json", "/docs-nav.json"})
-#: Open to anyone: the site's config and discovery files.
+FILTERED = frozenset({"/search-index.json", "/docs-nav.json", "/llms.txt", "/llms-full.txt",
+                      "/.well-known/llms.txt", "/.well-known/llms-full.txt"})
+#: Open to anyone: the site's config and discovery files, and the endpoints that filter by reader.
 OPEN = frozenset({"/ui-config.json", "/aiui-manifest.json", "/route-manifest.json", "/robots.txt",
-                  "/sitemap.xml", "/404.html", "/LICENSE-fonts.txt"})
+                  "/sitemap.xml", "/404.html", "/LICENSE-fonts.txt", "/mcp", "/.well-known/mcp",
+                  "/.well-known/mcp.json", "/.well-known/mcp/server-card.json", "/api/docs/ask",
+                  "/api/docs/search", "/api/docs/feedback"})
 OPEN_PREFIXES = ("/assets/", "/plugins/", "/grammars/")
 _OPEN = frozenset(p.casefold() for p in OPEN)
 _PAGE_SUFFIXES = (".source.md", ".md", "/index.html", ".html", "/rss.xml")
+_LINK = re.compile(r"^- \[[^\]]*\]\(([^)\s]+)\)")
+_SOURCE = re.compile(r"^Source: (\S+)$", re.M)
+
+
+@dataclass(frozen=True)
+class Reader:
+    name: str
+    groups: frozenset
 
 
 class View:
-    """What one reader (``reader``: their name, ``None`` when signed out) may read."""
+    """What one reader (``None``: signed out) may read."""
 
-    def __init__(self, auth: DocsAuth, reader: Optional[str]):
+    def __init__(self, auth: DocsAuth, reader: Optional[Reader]):
         self.auth, self.reader = auth, reader
-        self.full = reader is not None
+        self.full = reader is not None and all(self.can(r) for r in auth.pages)
 
     def can(self, route: str) -> bool:
         """May the reader read the page at ``route`` (a route with no rule needs sign-in)?"""
-        return self.full or self.auth.pages.get(route.rstrip("/").casefold() or "/") is True
+        rule = self.auth.pages.get(route.rstrip("/").casefold() or "/")
+        if rule is True:
+            return True
+        return self.reader is not None and (not rule or bool(self.reader.groups & rule))
+
+    def may(self, path: str) -> bool:
+        """May the reader fetch ``path`` (relative to the site, or a URL with the base path)?"""
+        kind, route = self.auth.classify(self.auth.relative(path))
+        return self.can(route) if kind == "page" else kind in ("open", "filtered") or self.reader is not None
+
+    def llms(self, text: str) -> str:
+        """``llms.txt`` without the links the reader may not follow, and sections left empty."""
+        lines = [ln for ln in text.split("\n") if not (m := _LINK.match(ln)) or self.may(m.group(1))]
+        out: list[str] = []
+        for i, line in enumerate(lines):
+            if line.startswith("## ") and not next((ln for ln in lines[i + 1:] if ln.strip()), "").startswith("- "):
+                continue
+            if not (line == "" and out and out[-1] == ""):
+                out.append(line)
+        return "\n".join(out)
 
     def filter(self, path: str, body: bytes) -> bytes:
         """One of :data:`FILTERED` cut to what the reader may read."""
         if self.full:
             return body
-        data = json.loads(body.decode("utf-8", "replace"))
+        text = body.decode("utf-8", "replace")
+        if path.endswith("llms-full.txt"):
+            parts = text.split("\n\n---\n\n")
+            keep = [p for p in parts[1:] if (m := _SOURCE.search(p)) and self.may(m.group(1))]
+            return ("\n\n---\n\n".join(parts[:1] + keep).rstrip("\n") + "\n").encode()
+        if path.endswith(".txt"):
+            return self.llms(text).encode()
+        data = json.loads(text)
         if path == "/search-index.json":
             data["pages"] = [p for p in data.get("pages", []) if self.can(p.get("p", ""))]
         else:
@@ -89,6 +129,12 @@ class View:
         return out
 
 
+def view(scope: dict) -> Optional[View]:
+    """The reader's :class:`View` on a site with sign-in, else ``None`` (read everything)."""
+    found = scope.get(SCOPE_KEY)
+    return found if isinstance(found, View) and not found.full else None
+
+
 def _b64(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
@@ -100,8 +146,9 @@ class DocsAuth:
         env = os.environ if env is None else env
         self.root, self.base = root, base
         self.docs = str(data.get("docs") or "").casefold()
-        self.pages: dict[str, bool] = {r.casefold(): v is True for r, v in (data.get("pages") or {}).items()}
-        self.users: list[tuple[str, bytes, bytes]] = []
+        self.pages: dict[str, Any] = {
+            r.casefold(): v if isinstance(v, bool) else frozenset(v) for r, v in (data.get("pages") or {}).items()}
+        self.users: list[tuple[str, bytes, bytes, frozenset]] = []
         for user in data.get("users") or []:
             secret = str(env.get(user.get("env", ""), "")).encode()
             if not secret:
@@ -109,7 +156,7 @@ class DocsAuth:
                 continue
             name = str(user["name"])
             key = hashlib.pbkdf2_hmac("sha256", secret, f"aiui-docs:{name}".encode(), 100_000)
-            self.users.append((name, hashlib.sha256(secret).digest(), key))
+            self.users.append((name, hashlib.sha256(secret).digest(), key, frozenset(user.get("groups") or [])))
         if not self.users:
             log.warning("Docs sign-in: no password is set; only open pages are served")
         self.fails: dict[str, deque] = {}
@@ -122,6 +169,10 @@ class DocsAuth:
         except (OSError, ValueError):
             return None
         return cls(root, base, data) if isinstance(data, dict) else None
+
+    def relative(self, url: str) -> str:
+        path = urlsplit(url).path or "/"
+        return path[len(self.base):] or "/" if self.base and path.startswith(self.base + "/") else path
 
     def classify(self, path: str) -> tuple[str, str]:
         """``(kind, route)``: kind ``page``, ``filtered`` (route: the file), ``open``, ``hidden`` or
@@ -155,8 +206,8 @@ class DocsAuth:
         expires = int(time.time()) + SESSION_S
         return f"{_b64(user[0].encode())}.{expires}.{self._sign(user[2], user[0], expires)}"
 
-    def reader(self, scope: dict) -> Optional[str]:
-        """The signed-in reader's name, from a valid, unexpired session cookie."""
+    def reader(self, scope: dict) -> Optional[Reader]:
+        """The signed-in reader, from a valid, unexpired session cookie."""
         parts = hg.cookie(scope, COOKIE).split(".")
         if len(parts) != 3 or not parts[1].isdigit() or int(parts[1]) < time.time():
             return None
@@ -164,9 +215,9 @@ class DocsAuth:
             name = base64.urlsafe_b64decode(parts[0] + "=" * (-len(parts[0]) % 4)).decode()
         except ValueError:
             return None
-        for uname, _, key in self.users:
+        for uname, _, key, groups in self.users:
             if uname == name and hmac.compare_digest(self._sign(key, name, int(parts[1])), parts[2]):
-                return name
+                return Reader(name, groups)
         return None
 
     def check(self, password: str) -> Optional[tuple]:
@@ -195,7 +246,7 @@ class DocsAuth:
                 return
             path = scope.get("path", "/")
             current = View(self, self.reader(scope))
-            scope = dict(scope)
+            scope = {**scope, SCOPE_KEY: current}
             if path in (LOGIN, LOGOUT):
                 await (await self._login(scope, receive, current))(scope, receive, send)
                 return
@@ -226,17 +277,33 @@ class DocsAuth:
         return gated
 
     async def _filtered(self, app, scope, receive, send, current: View, name: str) -> None:
-        from starlette.responses import Response
-
         if current.full:
             await app(scope, receive, _private(send))
             return
-        try:
-            body = current.filter(name, (self.root / name.lstrip("/")).read_bytes())
-        except (OSError, ValueError, AttributeError, TypeError):
-            await self._not_found(scope, receive, send)
-            return
-        await Response(body, media_type="application/json", headers=_PRIVATE)(scope, receive, send)
+        drop = {b"accept-encoding", b"if-none-match", b"if-modified-since", b"range"}
+        scope["headers"] = [(k, v) for k, v in scope.get("headers") or () if k.lower() not in drop]
+        start: dict = {}
+        chunks: list[bytes] = []
+
+        async def capture(message):  # the file, or what MCP serves for it (llms.txt with its own section)
+            if message["type"] == "http.response.start":
+                start.update(message)
+            elif message["type"] == "http.response.body":
+                chunks.append(message.get("body", b""))
+
+        await app(scope, receive, capture)
+        body, status = b"".join(chunks), start.get("status", 500)
+        if status == 200:
+            try:
+                body = current.filter(name, body)
+            except (ValueError, AttributeError, TypeError):
+                body, status = b"", 500
+        gone = {b"etag", b"last-modified", b"cache-control", b"content-encoding", b"vary", b"content-length"}
+        headers = [(k, v) for k, v in start.get("headers", []) if k.lower() not in gone]
+        headers += [(b"content-length", str(len(body)).encode())] + [(k.lower().encode(), v.encode())
+                                                                    for k, v in _PRIVATE.items()]
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await send({"type": "http.response.body", "body": body})
 
     async def _not_found(self, scope, receive, send) -> None:
         from starlette.responses import HTMLResponse, PlainTextResponse
@@ -249,9 +316,12 @@ class DocsAuth:
         await response(scope, receive, send)
 
     async def _deny(self, scope, receive, send, current: View) -> None:
-        """The sign-in page (401) for a browser, a plain 401 for anything else."""
+        """A signed-in reader outside the page's groups: 404. Signed out: the sign-in page (401)."""
         from starlette.responses import HTMLResponse, PlainTextResponse
 
+        if current.reader is not None:
+            await self._not_found(scope, receive, send)
+            return
         if hg.is_browser_navigation(scope):
             query = scope.get("query_string", b"").decode("latin-1")
             target = scope.get("path", "/") + (f"?{query}" if query else "")
@@ -314,7 +384,7 @@ class DocsAuth:
         e, base = html.escape, self.base
         if current.reader is not None:
             form = (f'<form method="post" action="{e(base + LOGOUT)}"><h1>{e(str(title))}</h1>'
-                    f"<p>Signed in as {e(current.reader)}.</p>"
+                    f"<p>Signed in as {e(current.reader.name)}.</p>"
                     f'<a href="{e(base + target)}">Back to the docs</a><button type="submit">Sign out</button></form>')
         else:
             alert = f'<p role="alert">{e(error)}</p>' if error else ""
