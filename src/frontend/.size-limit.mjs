@@ -412,5 +412,7 @@ export default [
   // bundled themes, each a lazy chunk trimmed to what highlighting reads, 707,638 B) and
   // 46 more lazily loaded grammars with their embedded languages; about 250 kB in the
   // compressed wheel. No loaded chunk grows.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11121923 B', brotli: false },
+  // 11,123,573 B (+1,650 B, exactly the overage): docs versions (the switcher, version-scoped
+  // sidebar, tabs and search in the legacy App chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11123573 B', brotli: false },
 ]

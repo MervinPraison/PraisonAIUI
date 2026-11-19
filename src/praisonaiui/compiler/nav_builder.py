@@ -66,9 +66,10 @@ def manual_entries(config) -> list | None:
     return entries or None
 
 
-def nav_divisions(nav) -> dict:
-    """``navigation`` in ui-config.json: tabs, anchors and dropdowns with their groups' page
-    lists (a division's loose ``pages`` as a first untitled group); hidden ones left out."""
+def nav_divisions(nav, base: str = "/docs") -> dict:
+    """``navigation`` in ui-config.json: tabs, anchors, dropdowns and versions with their groups' page
+    lists (a division's loose ``pages`` as a first untitled group); hidden ones left out (a hidden
+    version stays, flagged, so its pages still find their version)."""
 
     def group(g) -> dict:
         return {"group": g.group, "icon": g.icon, "prefix": g.prefix, "pages": g.page_slugs(),
@@ -89,6 +90,14 @@ def nav_divisions(nav) -> dict:
                             ("dropdowns", "dropdown", nav.dropdowns)):
         if items:
             out[k] = [division(d, child) for d in items if not d.hidden]
+    from praisonaiui.compiler.versions import prefix, resolved
+
+    if nav.versions:  # compiler/versions.py; the browser's docs/versions.ts
+        out["versions"] = [
+            {**division(v, "version"), "prefix": prefix(sub, base), **({"default": True} if not sub else {}),
+             **({"tag": v.tag} if v.tag else {}), **({"hidden": True} if v.hidden else {})}
+            for v, sub in resolved(nav)
+        ]
     return out
 
 
@@ -195,10 +204,12 @@ def _page_nav_item(page: DocPage, path: str, hidden: bool = False) -> NavItem:
 class NavBuilder:
     """Builds navigation tree from discovered docs pages."""
 
-    def __init__(self, pages: list[DocPage], base_path: str = "/docs", directory: str | None = None):
+    def __init__(self, pages: list[DocPage], base_path: str = "/docs", directory: str | None = None,
+                 roots: tuple[str, ...] = ()):
         self.pages = pages
         self.base_path = base_path.rstrip("/")
         self.directory = directory or ""  # content.docs.nav.directory (auto mode)
+        self.roots = roots  # version folders (compiler/versions.py): their pages are top-level entries
         self.unresolved: list[str] = []  # names a manual nav lists that match no page
 
     def build(self) -> list[NavItem]:
@@ -227,7 +238,7 @@ class NavBuilder:
             # Determine parent path
             parts = page.slug.split("/")
 
-            if len(parts) == 1 or page.slug == "index":
+            if len(parts) == 1 or page.slug == "index" or "/".join(parts[:-1]) in self.roots:
                 # Root level page
                 root_items.append(item)
                 tree[page.slug] = item

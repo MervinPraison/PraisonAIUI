@@ -52,6 +52,9 @@ from praisonaiui.compiler.publish import (
 )
 from praisonaiui.compiler.python_api import PythonApi
 from praisonaiui.compiler.snippets import Snippets
+from praisonaiui.compiler.versions import apply as apply_versions
+from praisonaiui.compiler.versions import issues as version_issues
+from praisonaiui.compiler.versions import resolved as resolved_versions
 from praisonaiui.schema.models import LogoConfig, NavConfig, page_action_list
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
@@ -285,6 +288,7 @@ class Compiler:
         related = related_issues(pages, base.rstrip("/"), self._page_routes(nav),
                                 lambda p: Path(os.path.relpath(p.path, self.base_path)).as_posix(),
                                 lambda p: self._snippets.read(p.path))
+        issues += version_issues(self.config.navigation, base)
         return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved + related + docs_access.issues(self, config_file)
 
     def _page_routes(self, nav: dict) -> set[str]:
@@ -470,10 +474,11 @@ class Compiler:
 
         # ── Docs site fields ──
 
-        # Navigation: tabs, anchors, dropdowns (endpoint pages added where a spec is named)
+        # Navigation: tabs, anchors, dropdowns, versions (endpoint pages added where a spec is named)
         navigation = (self._api.config if self._api else self.config).navigation
-        if navigation and (navigation.tabs or navigation.anchors or navigation.dropdowns or navigation.global_):
-            result["navigation"] = nav_divisions(navigation)
+        if navigation and (navigation.tabs or navigation.anchors or navigation.dropdowns or navigation.versions
+                           or navigation.global_):
+            result["navigation"] = nav_divisions(navigation, self.config.site.route_base_docs)
 
         # The line above a docs page title (styling.eyebrows)
         if self.config.styling and "eyebrows" in self.config.styling.model_fields_set:
@@ -712,15 +717,19 @@ class Compiler:
                              hidden=p.hidden, frontmatter=p.frontmatter) for p in (api.pages if api else [])]
         extra = api.sidebar_extra(nav_config.mode == "manual") if api else []
         entries = manual_entries(api.config if api else self.config)
+        versions = resolved_versions(self.config.navigation)
         if entries:
             builder = NavBuilder(pages + api_pages, base_path=base, directory=nav_config.directory)
             nav = builder.to_dict_grouped(entries + extra, docs_dir=docs_dir)
         else:
-            nav = NavBuilder(pages, base_path=base, directory=nav_config.directory).to_dict()
+            roots = tuple(sub for _, sub in versions if sub)
+            nav = NavBuilder(pages, base_path=base, directory=nav_config.directory, roots=roots).to_dict()
             if api_pages:  # endpoint pages: where their spec is named, after the folders
                 nav["items"] += NavBuilder(api_pages, base_path=base).to_dict_grouped(extra)["items"]
         apply_indexing(nav, self.config.seo.indexing if self.config.seo else "navigable")
         head.apply_page_seo(nav, self.config.seo, base)
+        # Older versions: canonical to the default version's page; out of the sitemap and llms.txt
+        self._version_quiet = apply_versions(nav, self.config.navigation, base)
         # Sidebar behaviour (docs/features/navigation.md): only what differs from the default.
         if not nav_config.collapsible:
             nav["collapsible"] = False
@@ -1306,6 +1315,7 @@ class Compiler:
     def _collect_nav_pages(self, nav: dict) -> list[dict]:
         """Recursively collect all pages from docs-nav.json."""
         pages: list[dict] = []
+        quiet = getattr(self, "_version_quiet", set())
 
         def walk(items: list[dict]) -> None:
             for item in items:
@@ -1316,9 +1326,10 @@ class Compiler:
                             # The page's own title (the sidebar may show a shorter nav_title)
                             "title": item.get("pageTitle") or item.get("title", ""),
                             "description": item.get("description", ""),
-                            "noindex": bool(item.get("noindex")),
+                            # An unindexed version's page: out of the sitemap and llms.txt, in search
+                            "noindex": bool(item.get("noindex")) or item["path"] in quiet,
                             "hidden": bool(item.get("hidden")),
-                            "searchable": item.get("searchable") is not False,
+                            "searchable": item.get("searchable") is not False and not item.get("noindex"),
                             "seo": item.get("seo") or {},
                             "lastUpdated": item.get("lastUpdated"),
                         }
@@ -1535,7 +1546,7 @@ class Compiler:
         scanner = DocsScanner(docs_dir=self.base_path)
         pages = []
         for page in self._collect_nav_pages(nav):
-            if page["noindex"] or not page["searchable"]:
+            if not page["searchable"]:  # noindex pages too (an older version's stay: search filters by version)
                 continue
             md_path = self._resolve_md_source(page["path"])
             text = self._page_text(md_path) if md_path else ""

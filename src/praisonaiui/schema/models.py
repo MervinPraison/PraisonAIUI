@@ -839,7 +839,7 @@ class NavDivisionConfig(BaseModel):
 
     @property
     def label(self) -> str:
-        return next(getattr(self, k) for k in ("tab", "item", "anchor", "dropdown") if hasattr(self, k))
+        return next(getattr(self, k) for k in ("tab", "item", "anchor", "dropdown", "version") if hasattr(self, k))
 
     def children(self) -> list["NavDivisionConfig"]:
         return [*getattr(self, "menu", []), *getattr(self, "tabs", [])]
@@ -879,6 +879,17 @@ class NavDropdownConfig(NavDivisionConfig):
     tabs: list[NavTabConfig] = Field(default_factory=list)
 
 
+class NavVersionConfig(NavDivisionConfig):
+    """A version of the docs (``navigation.versions``): the default one is served at the docs root,
+    every other one from its folder (``docs/v1/`` at ``/docs/v1/...``), with a switcher above the sidebar."""
+
+    version: str = Field(min_length=1, max_length=40)
+    default: bool = False
+    tag: Optional[str] = Field(default=None, max_length=24)  # a badge after the name ("Latest")
+    index: Optional[bool] = None  # in the sitemap and llms.txt (default: only the default version)
+    tabs: list[NavTabConfig] = Field(default_factory=list)
+
+
 class NavGlobalConfig(BaseModel):
     """``navigation.global``: links shown on every page, whatever tab or dropdown is open."""
 
@@ -893,12 +904,13 @@ class NavigationConfig(BaseModel):
     tabs: list[NavTabConfig] = Field(default_factory=list)
     anchors: list[NavAnchorConfig] = Field(default_factory=list)
     dropdowns: list[NavDropdownConfig] = Field(default_factory=list, alias="products")
+    versions: list[NavVersionConfig] = Field(default_factory=list)
     global_: Optional[NavGlobalConfig] = Field(default=None, alias="global")
     pages: list[Union[str, NavGroupConfig, NavLinkConfig]] = Field(default_factory=list)
     groups: list[NavGroupConfig] = Field(default_factory=list)
 
     def divisions(self) -> list[tuple[NavDivisionConfig, bool]]:
-        """Every tab, menu item, anchor and dropdown (nested ones after their parent), with whether it is hidden."""
+        """Every tab, menu item, anchor, dropdown and version (nested ones after their parent), with whether it is hidden."""
         out: list[tuple[NavDivisionConfig, bool]] = []
 
         def walk(d: NavDivisionConfig, hidden: bool) -> None:
@@ -906,7 +918,7 @@ class NavigationConfig(BaseModel):
             for c in d.children():
                 walk(c, hidden or d.hidden)
 
-        for d in [*self.tabs, *self.anchors, *self.dropdowns, *(self.global_.anchors if self.global_ else [])]:
+        for d in [*self.tabs, *self.anchors, *self.dropdowns, *self.versions, *(self.global_.anchors if self.global_ else [])]:
             walk(d, False)
         return out
 

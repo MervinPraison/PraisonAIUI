@@ -3,10 +3,11 @@
  * page carries it as a <meta> and `aiui serve` sends it as a header, and the
  * site runs under it with no violation: the theme and URL scripts (hashed),
  * code highlighting, KaTeX, a Mermaid diagram, search, a YouTube embed, Try it
- * sending to the spec's servers and a redirect stub.
+ * sending to the spec's servers and a redirect stub; a highlighted code block in
+ * dark mode (the site code theme's assets, compiler/code_theme.py).
  */
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, setColorMode } from './support'
 
 type Violation = { directive: string; blocked: string; sample: string }
 
@@ -84,5 +85,20 @@ test('the docs app runs under the policy with no violation', async ({ page }) =>
   await expect(page.locator('#main-content article').first()).toBeVisible()
 
   expect(await violations()).toEqual([])
+  expect(errors.pageErrors).toEqual([])
+})
+
+test('a highlighted code block on a dark page renders with no violation', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  const violations = await watchViolations(page)
+  await setColorMode(page, 'dark')
+  await page.goto('/docs/markdown')
+  expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
+  // The site theme's grammar and colours (fixtures/docs-site/aiui.yaml: site.theme.code, codeLanguages).
+  const block = page.locator('#main-content [data-streamdown="code-block"]').filter({ hasText: 'hello world 42' })
+  await block.scrollIntoViewIfNeeded()
+  const token = block.locator('[data-streamdown="code-block-body"] span', { hasText: /^hello$/ }).first()
+  await expect.poll(() => token.evaluate((e) => getComputedStyle(e).color)).toBe('rgb(244, 112, 103)')
+  expect(await violations(), 'dark code block').toEqual([])
   expect(errors.pageErrors).toEqual([])
 })

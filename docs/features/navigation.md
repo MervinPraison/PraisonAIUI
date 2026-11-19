@@ -314,6 +314,43 @@ pages or groups gets its own sidebar, and the page you are on decides which
 one is open. `aiui validate` warns about one with no pages, groups or
 `href` (code 2102) and about a listed page that does not exist (2101).
 
+## Versions
+
+`navigation.versions` publishes several versions of the docs side by side.
+The default version is served at the docs root; every other version comes
+from its own folder, with no page list needed:
+
+```yaml
+navigation:
+  versions:
+    - { version: v2, default: true, tag: Latest }   # docs/**  ->  /docs/...
+    - { version: v1, tag: Deprecated }              # docs/v1/** ->  /docs/v1/...
+```
+
+| Key | Meaning |
+|---|---|
+| `version` | the name in the switcher; also the folder and URL segment (`v1`, `2.x`) |
+| `default` | the version at the docs root (default: the first one) |
+| `tag` | a badge after the name (`Latest`, `Beta`, `Deprecated`), up to 24 characters |
+| `index` | `true` keeps an older version in the sitemap and `llms.txt` (default: only the default version) |
+| `groups`, `pages`, `tabs` | the version's own sidebar and header tabs (with `nav.mode: manual`); without them the folder's pages form the sidebar |
+| `hidden` | left out of the switcher; its pages stay routable |
+
+A switcher at the top of the sidebar (and of the phone drawer) names the open
+version. Picking another one opens the same page in it (`/docs/guide/setup`
+and `/docs/v1/guide/setup`), or that version's first page when it has no
+such page. The sidebar, the pager, the header tabs and the site search show
+the open version only; the top-level `tabs` and `dropdowns` belong to the
+default version, and anchors show in every version.
+
+An older version's page names the default version's same page as its
+canonical URL and carries `robots: noindex`, so search engines send readers
+to the current docs; its pages stay out of `sitemap.xml` and `llms.txt`
+unless the version sets `index: true`. A page's own `canonical` or `robots`
+front matter wins. `aiui validate` reports two versions with one name, more
+than one default, and a version that lists a page from another version's
+folder (code 7018).
+
 ## Header Links
 
 `navbar` adds links and one primary button to the header. On phones they move
