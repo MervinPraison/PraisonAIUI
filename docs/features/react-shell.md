@@ -126,10 +126,19 @@ triples are converted in the browser where possible, but update the CSS.
 - `aiui build` writes `index.html` (and every route page) with
   `/assets/index.js?v=<sha256[:10]>` and the same for `index.css`, and copies
   `aiui-manifest.json` next to it.
-- The docs deploy keeps the previous build's chunks for one release
+- The docs deploy keeps the previous build's chunks, and with its ledger
+  (`aiui-carried.json`) older builds' chunks for `--keep-days` (default 2)
   (`src/frontend/scripts/carry-forward-assets.mjs`), so a reader with an
   old page open can still load its lazy parts.
-- A stale chunk that does fail to load triggers one automatic reload.
+- A stale chunk that does fail to load triggers one automatic reload, and
+  only when the server's HTML (fetched past the cache) names another build.
+  The reload opens the page as `?aiui-build=<build>`, a URL no browser or CDN
+  cache holds, and the boot removes the parameter again. When the boot
+  chunks themselves cannot load, the page says so and offers Reload.
+- A docs page never waits for good: each markdown request has a time limit
+  for its headers and one for its body, a stalled request is sent again,
+  and a page that still cannot load shows "Couldn't load this page" with
+  Retry (`src/frontend/src/docs/docLoader.ts`).
 - Static files are sent gzip-compressed. Each file is compressed once per
   version (path, mtime, size) in a worker thread and kept in memory (at most
   64 MB), so a cold page load does not compress the bundle again on the

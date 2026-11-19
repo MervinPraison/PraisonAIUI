@@ -1,7 +1,9 @@
 """Docs page feedback (docs/features/writing-docs.md#page-feedback).
 
 ``aiui serve`` / ``aiui dev`` answer ``/api/docs/feedback`` on a docs build: ``GET`` says votes
-are kept, ``POST`` appends one (page or code block, 1 or -1, optional comment) to
+are kept, and the ``ui-config.json`` they serve names the endpoint (``docsFeedback.url``), so the
+page posts here only when such a server sent it; a static host has neither and gets no request.
+``POST`` appends one (page or code block, 1 or -1, optional comment) to
 ``<data dir>/docs-feedback/feedback.jsonl``; a comment repeats its vote's ``id``. Public by
 design, so guarded: Host and Origin checks, JSON or text/plain, 4 KiB, a per-client rate limit
 and a size cap. Nothing is readable over HTTP: ``aiui docs feedback`` lists and exports.
@@ -132,6 +134,15 @@ class DocsFeedback:
         #: False when the site posts votes to its own ``endpoint``: then agents get no feedback tool.
         self.local = local
         self.hits: dict[str, deque] = {}
+        #: The build; with ``patch_config`` this endpoint serves its ui-config.json with ``docsFeedback``
+        #: (only when neither the MCP server nor Ask AI serves that file: cli._static_site_app).
+        self.root: Optional[Path] = None
+        self.patch_config = False
+        self.base = ""
+
+    def config_entry(self, base: str = "") -> dict:
+        """What the served ``ui-config.json`` says about votes: where to post them."""
+        return {"url": base + ENDPOINT}
 
     def allow(self, client: str) -> bool:
         """At most RATE_LIMIT posts per client in RATE_WINDOW_S (the HTTP endpoint and the MCP tool share it)."""
@@ -158,7 +169,9 @@ class DocsFeedback:
         if not (root / "docs-nav.json").is_file() or feedback is False:
             return None
         local = not (isinstance(feedback, dict) and "endpoint" in feedback)
-        return cls(str((config.get("site") or {}).get("title") or ""), origins, local=local)
+        endpoint = cls(str((config.get("site") or {}).get("title") or ""), origins, local=local)
+        endpoint.root = root
+        return endpoint
 
     def submit(self, body: dict, client: str, source: str = "agent") -> Union[dict, str]:
         """Store one record under the endpoint's rate limit and caps: the record, or why it is refused."""
@@ -177,12 +190,22 @@ class DocsFeedback:
 
         from praisonaiui import http_guard as hg
 
-        if scope.get("path") != ENDPOINT:
+        path, method = scope.get("path"), scope.get("method", "GET")
+        config_file = path == "/ui-config.json" and self.patch_config and self.root and method in ("GET", "HEAD")
+        if path != ENDPOINT and not config_file:
             return False
-        method = scope.get("method", "GET")
         response: Response
         if not hg.host_allowed(scope, hg.configured_hosts()):  # DNS rebinding
             response = PlainTextResponse("Host not allowed", status_code=400)
+        elif config_file:
+            try:
+                config = json.loads((self.root / "ui-config.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return False
+            if not isinstance(config, dict):
+                return False
+            response = JSONResponse({**config, "docsFeedback": self.config_entry(self.base)},
+                                    headers={"Cache-Control": "no-cache"})
         elif method in ("GET", "HEAD"):
             response = JSONResponse({"enabled": True}, headers={"Cache-Control": "no-cache"})
         elif method != "POST":

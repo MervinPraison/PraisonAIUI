@@ -69,6 +69,24 @@ describe('fetchWithRetry', () => {
         assert.equal(calls.length, 1)
     })
 
+    test('a body that stalls after the headers is cut off past its time limit and retried', async () => {
+        // Headers arrive, one chunk of the body, then nothing: the reader sat on the skeleton for ever.
+        const stalled = new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('# part')) } }))
+        const { impl, calls } = scriptedFetch([stalled, new Response('# Page')])
+        const started = Date.now()
+        const result = await fetchWithRetry('/docs/a.md', { ...fast, fetchImpl: impl })
+        assert.deepEqual(result, { ok: true, status: 200, text: '# Page' })
+        assert.equal(calls.length, 2)
+        assert.equal(calls[0].aborted, true) // its signal aborted: a real fetch cancels the body
+        assert.ok(Date.now() - started < 1_000)
+    })
+
+    test('a body that keeps stalling ends in DocLoadError, never a pending promise', async () => {
+        const stalled = () => new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('#')) } }))
+        const { impl } = scriptedFetch([stalled(), stalled(), stalled()])
+        await assert.rejects(fetchWithRetry('/docs/a.md', { ...fast, fetchImpl: impl }), DocLoadError)
+    })
+
     test('stops at once, without retrying, when the caller aborts', async () => {
         const { impl, calls } = scriptedFetch(['hang'])
         const nav = new AbortController()

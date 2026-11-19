@@ -799,9 +799,18 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     from praisonaiui.docs_assistant import DocsAssistant
 
     assistant = DocsAssistant.for_site(root, base, cors_origins)
-    if assistant and mcp:  # one ui-config.json carries both entries
-        mcp.extra_config["assistant"] = assistant.config_entry()
-        assistant.patch_config = False
+    # One handler serves ui-config.json with what only a live server adds:
+    # the MCP server, Ask AI and where votes go (a static host has none).
+    votes = {"docsFeedback": feedback.config_entry(base)} if feedback and feedback.local else {}
+    if mcp:
+        mcp.extra_config.update(votes)
+        if assistant:
+            mcp.extra_config["assistant"] = assistant.config_entry()
+            assistant.patch_config = False
+    elif assistant:
+        assistant.extra_config.update(votes)
+    elif votes:
+        feedback.base, feedback.patch_config = base, True
 
     def has_file(rel: str) -> bool:
         names = [rel, f"{rel}.html", f"{rel}/index.html"] if rel else ["index.html"]

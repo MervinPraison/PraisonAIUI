@@ -173,3 +173,114 @@ test('first load: a docs page loads none of the chat, agents or playground code'
   expect(styleChunks.filter((f) => scripts.has(f))).toEqual([])
   expect([...scripts].filter((p) => /\/SurfaceHost-[\w-]+\.js$/.test(p))).toEqual([])
 })
+
+test('a page whose body stalls after its headers is fetched again: never a skeleton for good', async ({ page }) => {
+  test.setTimeout(60_000)
+  // Headers in, one chunk of the body, then nothing (a dropped connection the
+  // browser has not noticed). The reader used to sit on the skeleton for ever.
+  await page.addInitScript(() => {
+    const real = window.fetch.bind(window)
+    let stalled = 0
+    ;(window as unknown as { __stalled: () => number }).__stalled = () => stalled
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const response = await real(input, init)
+      if (!url.endsWith('/docs/guide/second.source.md') || stalled) return response
+      stalled += 1
+      const body = new ReadableStream({ start: (c) => c.enqueue(new TextEncoder().encode('# Sec')) })
+      return new Response(body, { status: response.status, headers: response.headers })
+    }
+  })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+
+  await sidebarLink(page, '/docs/guide/second').click()
+  await expect(page.locator('.aiui-docs-skeleton')).toBeVisible()
+  // The body's time limit (docLoader BODY_TIMEOUT_MS, 15 s) cuts it off and a fresh request gets the page.
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible({ timeout: 25_000 })
+  await expect(page.locator('.aiui-docs-skeleton')).toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { __stalled: () => number }).__stalled())).toBe(1)
+})
+
+/** The hashed file of a source module in this build (never a chunk name: aiui-manifest.json). */
+async function chunkFile(page: Page, src: string): Promise<string> {
+  const manifest = (await (await page.request.get('/aiui-manifest.json')).json()) as Record<string, { file: string }>
+  const file = manifest[src]?.file
+  expect(file, `${src} in aiui-manifest.json`).toBeTruthy()
+  return `/${file}`
+}
+
+test('a boot chunk that cannot load says so and offers Reload (not a blank page)', async ({ page }) => {
+  const entry = await chunkFile(page, 'src/legacy-app-entry.tsx')
+  await page.route(`**${entry}`, (route) => route.fulfill({ status: 404, body: 'Not Found' }))
+  await page.goto('/docs/guide/first')
+  // The build's <noscript> nav sits in #root: the message must show all the same.
+  const alert = page.getByRole('alert').filter({ hasText: 'The interface failed to load.' })
+  await expect(alert).toBeVisible()
+  await page.unroute(`**${entry}`)
+  await alert.getByRole('button', { name: 'Reload' }).click()
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(/\/docs\/guide\/first$/) // the cache-busting parameter is gone again
+})
+
+test('after a deploy, a chunk the old page asks for is gone: one cache-busting reload, then the page', async ({ page }) => {
+  const entry = await chunkFile(page, 'src/legacy-app-entry.tsx')
+  // The open page is the old build: its chunk 404s until the reload (the new build has its own),
+  // and the server's HTML now names another build.
+  const navigations: string[] = []
+  page.on('request', (r) => { if (r.isNavigationRequest() && r.frame() === page.mainFrame()) navigations.push(r.url()) })
+  let missing = 0
+  await page.route(`**${entry}`, (route) => {
+    if (navigations.length > 1) return route.continue()
+    missing += 1
+    return route.fulfill({ status: 404, body: 'Not Found' })
+  })
+  await page.route(/\/docs\/guide\/first$/, async (route, request) => {
+    if (request.resourceType() !== 'fetch') return route.continue()
+    const response = await route.fetch()
+    const body = (await response.text()).replace(/\/assets\/index\.js\?v=[\w.-]+/, '/assets/index.js?v=nextbuild')
+    return route.fulfill({ response, body })
+  })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  expect(missing).toBeGreaterThan(0)
+  // One reload, to a URL no cache holds; the boot then strips the parameter.
+  expect(navigations).toHaveLength(2)
+  expect(new URL(navigations[1]).searchParams.get('aiui-build')).toBe('nextbuild')
+  await expect(page).toHaveURL(/\/docs\/guide\/first$/)
+})
+
+test('a chunk that stays missing reloads once at most, then says so', async ({ page }) => {
+  const entry = await chunkFile(page, 'src/legacy-app-entry.tsx')
+  await page.route(`**${entry}`, (route) => route.fulfill({ status: 404, body: 'Not Found' }))
+  await page.route(/\/docs\/guide\/first$/, async (route, request) => {
+    if (request.resourceType() !== 'fetch') return route.continue()
+    const response = await route.fetch()
+    const body = (await response.text()).replace(/\/assets\/index\.js\?v=[\w.-]+/, '/assets/index.js?v=nextbuild')
+    return route.fulfill({ response, body })
+  })
+  let documents = 0
+  page.on('request', (r) => { if (r.isNavigationRequest() && r.frame() === page.mainFrame()) documents += 1 })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('alert').filter({ hasText: 'The interface failed to load.' })).toBeVisible()
+  await page.waitForTimeout(1_500)
+  expect(documents).toBeLessThanOrEqual(2) // the first load and at most one reload
+})
+
+test('a lazy part of the page that cannot load fails alone: the article stays, never a blank page', async ({ page }) => {
+  // A deploy removed these chunks under an open page. Without a boundary React
+  // unmounted the whole docs App and the reader saw a blank screen.
+  for (const src of ['src/docs/DocsFeedback.tsx', 'src/docs/RelatedPages.tsx', 'src/docs/DocsSearch.tsx']) {
+    const file = await chunkFile(page, src)
+    await page.route(`**${file}`, (route) => route.fulfill({ status: 404, body: 'Not Found' }))
+  }
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await page.locator('footer.aiui-docs-pagefoot').scrollIntoViewIfNeeded()
+  await page.keyboard.press('ControlOrMeta+k') // the search chunk fails too
+  await page.waitForTimeout(1_500)
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await expect(page.locator('#main-content article')).toContainText('First page')
+  await expect(page.getByText('Was this page helpful?')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})

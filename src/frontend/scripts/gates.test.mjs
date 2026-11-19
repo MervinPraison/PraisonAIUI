@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { carryForward, previousAssets } from './carry-forward-assets.mjs'
+import { carryForward, LEDGER, previousAssets } from './carry-forward-assets.mjs'
 import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
 import { ICON_BUCKETS, ICON_NAMES_FILE, iconBucket, lucideIconNodes, lucideIcons } from './lib/lucide-icons.mjs'
 import { ManifestError, filesOf, findKey, loadManifest, namedChunks, staticClosure } from './lib/build-manifest.mjs'
@@ -316,8 +316,28 @@ test('carry-forward keeps exactly the previous build when it has a manifest', ()
   const site = write(tmpdir(), { 'assets/index.js': 'new entry', 'assets/a-new.js': 'new a' })
   assert.deepEqual(carryForward(prev, site).sort(), ['a-old.css', 'a-old.js', 'font-old.woff2'])
   assert.equal(readFileSync(path.join(site, 'assets/index.js'), 'utf8'), 'new entry', 'new files are never overwritten')
-  assert.equal(existsSync(path.join(site, 'assets/carried-from-two-releases-ago.js')), false)
+  assert.equal(existsSync(path.join(site, 'assets/carried-from-two-releases-ago.js')), false, 'not in a ledger')
   assert.equal(existsSync(path.join(site, 'escape.js')), false)
+})
+
+test('carry-forward keeps older generations for --keep-days through its ledger, then drops them', () => {
+  const now = Date.parse('2026-11-19T12:00:00Z')
+  const hoursAgo = (h) => new Date(now - h * 3_600_000).toISOString()
+  const prev = write(tmpdir(), {
+    'aiui-manifest.json': JSON.stringify({ a: { file: 'assets/a-prev.js' } }),
+    [LEDGER]: JSON.stringify({ files: { 'b-gen2.js': hoursAgo(5), 'c-gen9.js': hoursAgo(49), '../../escape.js': hoursAgo(1), 'bad.js': 'never' } }),
+    'assets/a-prev.js': 'previous build',
+    'assets/b-gen2.js': 'two deploys ago',
+    'assets/c-gen9.js': 'two days ago',
+    'assets/bad.js': 'x',
+    'escape.js': 'x',
+  })
+  const site = write(tmpdir(), { 'assets/index.js': 'new entry' })
+  assert.deepEqual(carryForward(prev, site, { now, keepDays: 2 }).sort(), ['a-prev.js', 'b-gen2.js'])
+  assert.equal(existsSync(path.join(site, 'assets/c-gen9.js')), false, 'older than --keep-days')
+  const ledger = JSON.parse(readFileSync(path.join(site, LEDGER), 'utf8'))
+  // Each file keeps the time it first left a build, so the window never restarts.
+  assert.deepEqual(ledger.files, { 'a-prev.js': new Date(now).toISOString(), 'b-gen2.js': hoursAgo(5) })
 })
 
 test('carry-forward keeps every asset of a site built before chunks were hashed', () => {
