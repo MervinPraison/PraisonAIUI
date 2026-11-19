@@ -469,6 +469,12 @@
   a list) with Stop and a 10 MB cap. `api.playground.display: auth` shows Try it to signed-in
   readers only; `api.auth` on `api:` pages uses the same inputs. See
   [OpenAPI](docs/features/openapi.md#authentication).
+- **Agents can report a docs problem.** The docs MCP server at `/mcp` gains a
+  `submit_feedback(path, helpful, comment?)` tool: an agent that found a page wrong, outdated
+  or missing something says so, and the report is stored with readers' votes (`source: agent`)
+  for `aiui docs feedback`, under the same rate limit and size caps as the page's vote button.
+  Not listed when page feedback is off or posted to an `endpoint`. See
+  [MCP server](docs/features/ai-ready-docs.md#mcp-server).
 
 ### Deprecated
 

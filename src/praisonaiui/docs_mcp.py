@@ -1,12 +1,14 @@
-"""A read-only MCP server for a built docs site (docs/features/ai-ready-docs.md#mcp-server).
+"""An MCP server for a built docs site (docs/features/ai-ready-docs.md#mcp-server).
 
 ``aiui serve`` and ``aiui dev`` answer the Model Context Protocol's Streamable
 HTTP transport at ``/mcp``: JSON-RPC 2.0 over ``POST`` (``initialize``,
 ``ping``, ``tools/list``, ``tools/call``), stateless, no session id and no
-server-to-client stream. Three tools: ``search_docs`` (the build's
+server-to-client stream. Three read-only tools: ``search_docs`` (the build's
 ``search-index.json``, ranked as the search dialog ranks it,
 ``src/frontend/src/docs/searchIndex.ts``), ``read_page`` (a page's agent-ready
-``.md``) and ``list_pages`` (``llms.txt``).
+``.md``) and ``list_pages`` (``llms.txt``); and ``submit_feedback``, which
+stores a page vote like the reader's (docs_feedback.py, ``source: agent``)
+unless feedback is off or posted to an ``endpoint``.
 
 Discovery: a server card at ``/.well-known/mcp`` (also ``mcp.json`` and
 ``mcp/server-card.json``), an "MCP server" section appended to ``llms.txt`` and
@@ -25,6 +27,7 @@ from typing import Any, Optional
 from urllib.parse import urlsplit
 
 from praisonaiui.__version__ import __version__
+from praisonaiui.docs_feedback import MAX_COMMENT, DocsFeedback
 
 #: Newest first; ``initialize`` answers the client's version when it is here.
 PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
@@ -58,7 +61,19 @@ TOOLS: list[dict[str, Any]] = [
     _tool("list_pages", "List the docs pages", "Every page of these docs by section, with its "
           "description and Markdown URL (llms.txt).", {}, []),
 ]
-_TOOL_NAMES = {t["name"] for t in TOOLS}
+#: Listed only when the site stores its own feedback (DocsFeedback.local).
+FEEDBACK_TOOL: dict[str, Any] = {
+    **_tool("submit_feedback", "Report a docs problem", "Tell the docs owners how a page worked for "
+            "you: helpful false when it is wrong, outdated, unclear or missing what you needed (say what "
+            "in comment), helpful true when it answered the question.", {
+                "path": {"type": "string", "description": "The page's path from search_docs or list_pages "
+                         "(/docs/guide/install), or its URL"},
+                "helpful": {"type": "boolean", "description": "Whether the page helped"},
+                "comment": {"type": "string", "maxLength": MAX_COMMENT,
+                            "description": "What is wrong or missing (optional, plain text)"},
+            }, ["path", "helpful"]),
+    "annotations": {"destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+}
 
 # -- search: a port of docs/searchRank.ts and docs/searchIndex.ts -------------
 
@@ -236,20 +251,26 @@ def _error(rid: Any, code: int, message: str) -> dict:
 class DocsMcp:
     """The MCP endpoint, server card and discovery entries of one built site (``root``)."""
 
-    def __init__(self, root: Path, base: str = "", origins: Optional[list[str]] = None):
+    def __init__(self, root: Path, base: str = "", origins: Optional[list[str]] = None,
+                 feedback: Optional[DocsFeedback] = None):
         self.root, self.base, self.origins = root.resolve(), base, list(origins or [])
         self._cache: dict[str, tuple[int, Any]] = {}
+        # The site's feedback endpoint: the tool shares its store, rate limit and caps.
+        self.feedback = feedback if feedback and feedback.local else None
+        self.tools = TOOLS + [FEEDBACK_TOOL] if self.feedback else TOOLS
 
     @classmethod
-    def for_site(cls, root: Path, base: str = "", origins: Optional[list[str]] = None) -> Optional[DocsMcp]:
-        """The server for a docs build (it has ``docs-nav.json``), unless ``content.docs.mcp: false``."""
+    def for_site(cls, root: Path, base: str = "", origins: Optional[list[str]] = None,
+                 feedback: Optional[DocsFeedback] = None) -> Optional[DocsMcp]:
+        """The server for a docs build (it has ``docs-nav.json``), unless ``content.docs.mcp: false``.
+        With the site's ``feedback`` endpoint it also lists ``submit_feedback``."""
         try:
             config = json.loads((root / "ui-config.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             config = {}
         if not (root / "docs-nav.json").is_file() or (isinstance(config, dict) and config.get("mcp") is False):
             return None
-        return cls(root, base, origins)
+        return cls(root, base, origins, feedback)
 
     def _load(self, name: str) -> Any:
         """A file of the build (JSON parsed), re-read when it changes (``aiui serve --watch``)."""
@@ -275,8 +296,11 @@ class DocsMcp:
         return {"name": _slug(title), "title": title, "version": __version__}
 
     def instructions(self) -> str:
-        return (f"Read-only access to the {self.server_info()['title']} documentation. search_docs finds "
-                "pages and sections, read_page returns one page as Markdown, list_pages lists every page.")
+        text = (f"{'Access' if self.feedback else 'Read-only access'} to the {self.server_info()['title']} "
+                "documentation. search_docs finds pages and sections, read_page returns one page as Markdown, "
+                "list_pages lists every page.")
+        return text + (" submit_feedback tells the docs owners a page is wrong, outdated, unclear or missing "
+                       "something." if self.feedback else "")
 
     def card(self, site_url: str) -> dict:
         """The server card ``/.well-known/mcp`` serves."""
@@ -290,11 +314,11 @@ class DocsMcp:
             "capabilities": {"tools": {"listChanged": False}},
             "authentication": {"required": False},
             "instructions": self.instructions(),
-            "tools": TOOLS,
+            "tools": self.tools,
         }
 
-    def page_markdown(self, path: str) -> Optional[str]:
-        """A page's agent-ready Markdown, from its path or URL (``None`` when there is no such page)."""
+    def _page(self, path: str) -> Optional[tuple[str, Path]]:
+        """A page's route (``/docs/guide/install``) and agent-ready ``.md`` file, from its path or URL."""
         from praisonaiui.compiler.agent_markdown import page_md_path
 
         rel = urlsplit(path.strip()).path
@@ -305,11 +329,34 @@ class DocsMcp:
         for candidate in (page_md_path("/" + rel, docs), f"/{rel}/index.md"):
             file = (self.root / candidate.lstrip("/")).resolve()
             if file.is_relative_to(self.root) and file.suffix == ".md" and file.is_file():
-                return file.read_text(encoding="utf-8")
+                return "/" + rel, file
         return None
 
-    def call_tool(self, name: str, args: dict, site_url: str) -> tuple[str, bool]:
+    def page_markdown(self, path: str) -> Optional[str]:
+        """A page's agent-ready Markdown, from its path or URL (``None`` when there is no such page)."""
+        page = self._page(path)
+        return page[1].read_text(encoding="utf-8") if page else None
+
+    def _submit_feedback(self, args: dict, client: str) -> tuple[str, bool]:
+        path, helpful = args.get("path"), args.get("helpful")
+        if not isinstance(path, str) or not path.strip():
+            return "submit_feedback needs the page's path, e.g. /docs/guide/install.", True
+        if not isinstance(helpful, bool):
+            return "helpful must be true or false.", True
+        page = self._page(path)
+        if not page:
+            return f"No page at {path}; search_docs or list_pages give page paths.", True
+        assert self.feedback
+        saved = self.feedback.submit({"path": page[0], "value": 1 if helpful else -1,
+                                      "comment": args.get("comment")}, client)
+        if isinstance(saved, str):
+            return saved, True
+        return f"Thanks: your feedback on {page[0]} is saved for the docs owners.", False
+
+    def call_tool(self, name: str, args: dict, site_url: str, client: str = "?") -> tuple[str, bool]:
         """Run a tool: its text and whether it is an error the model should see."""
+        if name == "submit_feedback":
+            return self._submit_feedback(args, client)
         if name == "list_pages":
             text = self._load("llms.txt")
             return (text, False) if text else ("This site publishes no page list.", True)
@@ -338,7 +385,7 @@ class DocsMcp:
             lines += [f"   {r['snippet']}"] if r["snippet"] else []
         return "\n".join(lines) + "\n\nread_page(path) returns a page as Markdown.", False
 
-    def answer(self, msg: Any, site_url: str) -> Optional[dict]:
+    def answer(self, msg: Any, site_url: str, client: str = "?") -> Optional[dict]:
         """The JSON-RPC reply to one message; ``None`` for a notification or a response."""
         if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0":
             return _error(None, -32600, "Invalid Request: one JSON-RPC 2.0 message per POST")
@@ -358,12 +405,12 @@ class DocsMcp:
         if method == "ping":
             return _result(rid, {})
         if method == "tools/list":
-            return _result(rid, {"tools": TOOLS})
+            return _result(rid, {"tools": self.tools})
         if method == "tools/call":
             name, args = params.get("name"), params.get("arguments") or {}
-            if name not in _TOOL_NAMES:
+            if name not in {t["name"] for t in self.tools}:
                 return _error(rid, -32602, f"Unknown tool: {name}")
-            text, failed = self.call_tool(name, args if isinstance(args, dict) else {}, site_url)
+            text, failed = self.call_tool(name, args if isinstance(args, dict) else {}, site_url, client)
             return _result(rid, {"content": [{"type": "text", "text": text}], "isError": failed})
         return _error(rid, -32601, f"Method not found: {method}")
 
@@ -412,7 +459,8 @@ class DocsMcp:
                     except ValueError:
                         response = JSONResponse(_error(None, -32700, "Parse error"), status_code=400)
                     else:
-                        reply = self.answer(msg, self._site_url(scope))
+                        client = (scope.get("client") or ("?",))[0]
+                        reply = self.answer(msg, self._site_url(scope), client)
                         response = JSONResponse(reply) if reply else Response(status_code=202)
         elif method not in ("GET", "HEAD"):
             return False
@@ -431,7 +479,7 @@ class DocsMcp:
             url = self._site_url(scope) + ENDPOINT
             title = self.server_info()["title"]
             text = (f"{text.rstrip()}\n\n## MCP server\n\n- [{title} MCP server]({url}): search and read "
-                    "these docs from an AI tool (Streamable HTTP, read-only)\n")
+                    f"these docs from an AI tool (Streamable HTTP{'' if self.feedback else ', read-only'})\n")
             response = PlainTextResponse(text, headers=no_cache)
         await response(scope, receive, send)
         return True

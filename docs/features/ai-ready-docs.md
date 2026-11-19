@@ -73,16 +73,27 @@ curl -H "Accept: text/markdown" http://127.0.0.1:8000/docs/guide/install
 
 ## MCP server
 
-`aiui serve` and `aiui dev` also run a read-only
+`aiui serve` and `aiui dev` also run an
 [MCP](https://modelcontextprotocol.io) server for the site at `/mcp`, so an
-editor's agent can search and read the docs while it works. Nothing to
-install or configure:
+editor's agent can search and read the docs while it works, and tell you when
+a page let it down. Nothing to install or configure:
 
 | Tool | What it returns |
 |---|---|
 | `search_docs(query, limit=10)` | the best matching pages and sections (ranked as the search dialog ranks them), each with its path, URL and a snippet |
 | `read_page(path)` | one page's agent-ready Markdown; `path` is a page path (`/docs/guide/install`) or URL |
 | `list_pages()` | every page by nav group (`llms.txt`) |
+| `submit_feedback(path, helpful, comment?)` | stores a vote on a page, like a reader's "Was this page helpful?", with `source: agent` |
+
+The first three are read-only. `submit_feedback` lets an agent report a page
+that is wrong, outdated, unclear or missing what it needed, so docs problems
+reach you from the agents reading them. Reports land in the same
+store as readers' votes, so `aiui docs feedback` counts them together (in the
+CSV and JSON exports `source` tells them apart), under the same limits as the page's vote
+button: 20 a minute per client (shared with `/api/docs/feedback`), 4 KiB, a
+1,000-character comment, and only for pages that exist. The tool is not
+listed when [page feedback](writing-docs.md#page-feedback) is off
+(`feedback: false`) or posted to your own `endpoint`.
 
 Connect from the page menu (**Copy MCP server URL**, **Connect to Cursor**,
 **Connect to VS Code**), or add it by hand:
@@ -96,7 +107,7 @@ Agents also find it on their own: `/.well-known/mcp` (also `mcp.json` and
 and `llms.txt` ends with an "MCP server" section linking it.
 
 The transport is Streamable HTTP (JSON-RPC over `POST`, protocol versions
-2025-03-26 to 2025-11-25), stateless and read-only. Requests whose `Host` is
+2025-03-26 to 2025-11-25) and stateless. Requests whose `Host` is
 not a name the server answers to (DNS rebinding; behind a reverse proxy on the
 same machine list the public name in `AIUI_ALLOWED_HOSTS`) or that come from
 another site's page (`Origin`; allow one with `--cors-origins` or

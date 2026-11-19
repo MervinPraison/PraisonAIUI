@@ -67,8 +67,8 @@ def test_initialize_negotiates_the_version_and_lists_read_only_tools(client: Tes
     assert note.status_code == 202 and note.content == b""
     assert _rpc(client, "ping").json()["result"] == {}
     tools = _rpc(client, "tools/list").json()["result"]["tools"]
-    assert [t["name"] for t in tools] == ["search_docs", "read_page", "list_pages"]
-    assert all(t["annotations"]["readOnlyHint"] for t in tools)
+    assert [t["name"] for t in tools] == ["search_docs", "read_page", "list_pages", "submit_feedback"]
+    assert all(t["annotations"]["readOnlyHint"] for t in tools[:3])
 
 
 def test_search_docs_ranks_like_the_search_dialog(client: TestClient) -> None:
@@ -115,12 +115,12 @@ def test_json_rpc_errors(client: TestClient) -> None:
 def test_discovery_card_llms_and_ui_config(client: TestClient) -> None:
     card = client.get("/.well-known/mcp").json()
     assert card["transport"] == {"type": "streamable-http", "url": "http://testserver/mcp"}
-    assert [t["name"] for t in card["tools"]] == ["search_docs", "read_page", "list_pages"]
+    assert [t["name"] for t in card["tools"]] == ["search_docs", "read_page", "list_pages", "submit_feedback"]
     assert client.get("/.well-known/mcp.json").json() == client.get("/.well-known/mcp/server-card.json").json() == card
     for path in ("/llms.txt", "/.well-known/llms.txt"):
         llms = client.get(path).text
         assert llms.endswith("## MCP server\n\n- [Acme Docs MCP server](http://testserver/mcp): search and read "
-                             "these docs from an AI tool (Streamable HTTP, read-only)\n")
+                             "these docs from an AI tool (Streamable HTTP)\n")
     config = client.get("/ui-config.json").json()
     assert config["mcp"] == {"url": "/mcp", "name": "acme-docs"} and config["site"]["title"] == "Acme Docs"
     assert client.get("/docs/guide/install").headers["content-type"].startswith("text/html")
@@ -190,4 +190,4 @@ def test_official_mcp_client_connects(tmp_path: Path) -> None:
             return tools, page.content[0].text
 
     tools, text = asyncio.run(run())
-    assert tools == ["search_docs", "read_page", "list_pages"] and text.startswith("# Install")
+    assert tools == ["search_docs", "read_page", "list_pages", "submit_feedback"] and text.startswith("# Install")
