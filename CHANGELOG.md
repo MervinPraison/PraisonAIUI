@@ -641,6 +641,14 @@
   tree; the dashboard chat lists them. New types `run`, `tool`, `llm`, `embedding`, `rerank`, `undefined`. Wire:
   `step_start` / `step_update` / `step_end`; protocol 1.2.0 (docs/features/steps.md).
 
+- **Sign-ins survive restarts and work on every worker.** Session tokens are signed (HMAC-SHA256)
+  instead of held in memory. Zero config: a secret is generated into `<data dir>/auth_secret` (0600);
+  `AIUI_AUTH_SECRET` (`aiui auth create-secret`) shares one across hosts and rotates as `new,old`.
+  Sign-in also sets an httpOnly cookie (`SameSite=Lax`, `Secure` on https, root path; YAML
+  `auth.cookie`) that signs in HTTP and WebSockets and slides while in use. Lifetime: YAML
+  `auth.sessionLifetime` (default `14d`, was 24 h). `POST /logout` revokes on every worker sharing the
+  data directory. `aiui auth create-key` now exists (docs/features/deployment.md#sessions).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
