@@ -389,5 +389,7 @@ export default [
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
   // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
   // (docs/PageActions.tsx, two lucide icons).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9645651 B', brotli: false },
+  // 9,665,044 B (+19,393 B, exactly the overage): header link icons, the GitHub star
+  // count, footer social marks (the lazy brandIcons chunk, 12.9 kB) and the banner.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9665044 B', brotli: false },
 ]
