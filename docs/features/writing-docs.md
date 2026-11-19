@@ -899,6 +899,75 @@ text as plain Markdown, and `aiui build` and `aiui validate` name it:
 `<Visibility for="humans">` / `for="agents"` shows its content only on the page /
 only to agents ([AI-ready docs](ai-ready-docs.md#content-for-people-or-for-agents-only)).
 
+## Your own components
+
+Write a React component once and use it on any page as a tag. Point the site
+at one ES module beside `aiui.yaml`:
+
+```yaml
+site:
+  components: ./components/index.js
+```
+
+The module registers each component with `registerBlock` from `@aiui/sdk`, or
+exports it under the tag's name. It imports React and the SDK as bare names:
+the build maps them to the page's own copies, so no bundler is needed for
+plain JS, and hooks work.
+
+```js
+// components/index.js
+import { useState } from 'react'
+import { jsx, jsxs } from 'react/jsx-runtime'
+import { registerBlock } from '@aiui/sdk'
+
+registerBlock('Counter', ({ start = 0, label, children }) => {
+  const [n, setN] = useState(start)
+  return jsxs('div', { children: [
+    jsx('button', { onClick: () => setN(n + 1), children: `${label} ${n}` }),
+    jsx('div', { children }),
+  ] })
+})
+
+export function Price({ amount, plans }) {
+  return jsx('strong', { children: `$${amount} (${plans.join(', ')})` })
+}
+```
+
+```markdown
+<Counter start={2} label="Clicks">
+Try it: **click** the button.
+</Counter>
+
+Plans from <Price amount={9} plans={["pro", "team"]} /> a month.
+```
+
+- **Props.** A quoted attribute is a string; `{…}` is a value: a number, `true`
+  or `false`, an array or an object (`{{ calls: 10 }}`, JSON or JS-style); a
+  bare attribute (`<Counter compact />`) is `true`. The component gets them as
+  props, and as `node.props` like any block.
+- **Children.** The tag's body is Markdown, rendered and passed as `children`.
+  A self-closing tag that shares its line with text sits inside the sentence.
+- **Loading.** The module loads only on a page that uses one of its tags,
+  after the page has painted; until then, and if the module fails or the
+  component throws, the page shows the tag's body. A built-in tag name
+  (`<Note>`, `<Card>`) keeps its built-in meaning.
+- **Tags.** The build finds them in the module (`registerBlock('Name'` and
+  `export function Name`). A minified bundle hides them: list them with
+  `site.components: {src: ./components/index.js, tags: [Counter, Price]}`.
+  Declared tags are not reported as unknown; a missing module, or one with no
+  tag the build can find, is a 7021 warning.
+- **Security.** The module is your site's own code, served from the site
+  (`script-src 'self'`); the build adds the import map's hash to the
+  [Content-Security-Policy](content-security-policy.md). Only same-site
+  modules load. In the `.md` copy for agents the tag's body stays and the tag goes.
+- **Styles.** Use the theme's CSS variables (`var(--primary)`), or add a
+  stylesheet with `site.customCss`.
+
+An installed [UI plugin](plugins.md) whose `blocks()` include a type named
+like a component (`HelloCard`) provides that tag too, with no config: when a
+page uses a tag nothing else knows, the build asks the plugins and publishes
+the plugin's static folder with the site.
+
 ## Comments
 
 `{/* … */}` and `<!-- … -->` never show on the page, in search or in
@@ -986,6 +1055,25 @@ Paste a YouTube, Vimeo or Loom URL (watch, share or embed form) in an
   reduced motion get the controls instead. Without `autoPlay` it shows
   controls.
 - In the page's `.md` copy for assistants, each video is a link.
+
+### Raw HTML
+
+Pages may use plain HTML for layout and text (`<div>`, `<details>`,
+`<kbd>`, `<sup>`, tables, `<img>`, `<picture>`), plus the `<iframe>` and
+`<video>` above. Anything that could run code or send the reader's data
+elsewhere is not rendered, so a page can never become a way to attack its
+readers:
+
+| You write | The reader sees | Instead |
+|-----------|-----------------|---------|
+| `<iframe>` from a site other than YouTube, Vimeo or Loom | a link to it | a link, or a screenshot with a link |
+| `<script>` | nothing | `site.customJs` |
+| `<style>`, `<link rel="stylesheet">` | nothing | `site.customCss` |
+| `<form>`, `<audio>`, `<object>`, `<embed>` | nothing | a link |
+
+`aiui validate` and `aiui build` name each one with its file and line
+(finding 7019). HTML inside code fences and inline code is shown as code and
+never flagged.
 
 `<Frame>` sets an image on a mat, with an optional `caption` under it and a `hint` above
 it (both Markdown, links included):

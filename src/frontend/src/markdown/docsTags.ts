@@ -6,7 +6,9 @@
  * its renderer in DOCS_TAG_COMPONENTS (docs/DocsBlocks.tsx), its name in KNOWN_DOCS_TAGS.
  * Tags may share a line with their text, nest in list items, self-close and
  * spread attributes over lines. An unknown PascalCase tag is dropped and its
- * children render as Markdown. `{/* … *\/}` comments go. Code is untouched.
+ * children render as Markdown, unless the site declares it (`site.components`):
+ * then it becomes `<aiui-block>` and docs/CustomBlock.tsx renders the site's
+ * own component. `{/* … *\/}` comments go. Code is untouched.
  */
 
 import { codeBlockFence } from '../docs/codeMeta'
@@ -132,6 +134,24 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     },
 }
 
+/** `{3}`, `{true}`, `{[1, 2]}`, `{{ a: 1 }}` → a value (JSON, or with bare keys and single quotes); else the text. */
+export function jsonish(v: string): unknown {
+    for (const t of [v, v.replace(/'([^'\\]*)'/g, '"$1"').replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/,\s*([}\]])/g, '$1')]) {
+        try {
+            return JSON.parse(t)
+        } catch { /* next */ }
+    }
+    return v
+}
+
+const CUSTOM_ATTRS: readonly string[] = ['tag', 'src', 'props']
+/** A site component (`site.components`): its props as JSON; `{…}` and bare attributes are values, quoted ones text. */
+const customTag = (tag: string, src: string, exprs: ReadonlySet<string>): DocsTag => ({
+    el: 'aiui-block',
+    attrs: CUSTOM_ATTRS,
+    map: (a) => ({ tag, src, props: JSON.stringify(Object.fromEntries(Object.entries(a).map(([k, v]) => [k, exprs.has(k) ? jsonish(v) : v]))) }),
+})
+
 /** Lower-case tags the table takes (raw HTML); every other lower-case tag stays HTML. */
 const HTML_TAGS = new Set(['iframe', 'video'])
 
@@ -145,6 +165,7 @@ export const DOCS_TAG_NAMES: readonly string[] = [...Object.keys(DOCS_TAGS), ...
 export const DOCS_ALLOWED_ELEMENTS: Readonly<Record<string, readonly string[]>> = {}
 for (const t of Object.values(DOCS_TAGS)) (DOCS_ALLOWED_ELEMENTS as Record<string, string[]>)[t.el] = [...(DOCS_ALLOWED_ELEMENTS[t.el] ?? []), ...(t.attrs ?? [])]
 ;(DOCS_ALLOWED_ELEMENTS as Record<string, string[]>)['aiui-slot'] = ['slot']
+;(DOCS_ALLOWED_ELEMENTS as Record<string, string[]>)['aiui-block'] = [...CUSTOM_ATTRS]
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '&#10;')
 
@@ -221,19 +242,20 @@ function skipBraces(s: string, p: number): number {
     return -1
 }
 
-type ParsedTag = { closing: boolean; name: string; attrs: TagAttrs; selfClosing: boolean; end: number }
+/** `exprs`: the attributes written as `{…}` (not a string) or bare (`<X open />`). */
+type ParsedTag = { closing: boolean; name: string; attrs: TagAttrs; exprs: Set<string>; selfClosing: boolean; end: number }
 
 /** A JSX-style tag at `s[p]`: null when it is not one, 'more' when the text ends inside it. */
 function parseTag(s: string, p: number): ParsedTag | null | 'more' {
     HEAD.lastIndex = p
     const m = HEAD.exec(s)
     if (!m || !/[a-z]/.test(m[2]) || (/^[a-z]/.test(m[2]) && !HTML_TAGS.has(m[2]))) return null
-    const [closing, name, attrs] = [m[1] === '/', m[2], {} as TagAttrs]
+    const [closing, name, attrs, exprs] = [m[1] === '/', m[2], {} as TagAttrs, new Set<string>()]
     for (let i = HEAD.lastIndex; ; ) {
         while (/\s/.test(s[i] ?? '')) i++
         if (i >= s.length) return 'more'
         const selfClosing = s.startsWith('/>', i)
-        if (selfClosing || s[i] === '>') return { closing, name, attrs, selfClosing, end: i + (selfClosing ? 2 : 1) }
+        if (selfClosing || s[i] === '>') return { closing, name, attrs, exprs, selfClosing, end: i + (selfClosing ? 2 : 1) }
         if (closing) return null
         if (s[i] === '{') { // {...spread}
             i = skipBraces(s, i)
@@ -248,9 +270,14 @@ function parseTag(s: string, p: number): ParsedTag | null | 'more' {
             const end = skipBraces(s, i - 1)
             if (end < 0) return 'more'
             const expr = s.slice(i, end - 1).trim() // {3} → 3, {"a"} → a, else as written
-            attrs[a[1]] = /^(["'`])([\s\S]*)\1$/.exec(expr)?.[2] ?? expr
+            const text = /^(["'`])([\s\S]*)\1$/.exec(expr)?.[2]
+            attrs[a[1]] = text ?? expr
+            if (text === undefined) exprs.add(a[1])
             i = end
-        } else attrs[a[1]] = a[2] ? a[2].replace(/^(["'])([\s\S]*)\1$/, '$2') : 'true'
+        } else {
+            attrs[a[1]] = a[2] ? a[2].replace(/^(["'])([\s\S]*)\1$/, '$2') : 'true'
+            if (!a[2]) exprs.add(a[1])
+        }
     }
 }
 
@@ -293,8 +320,12 @@ function codeBlockAt(lines: string[], li: number, first: string): [string[], num
     return [codeBlockFence(tag.attrs, body.join('\n'), indent), next]
 }
 
-/** Rewrites docs component tags into the `aiui-*` elements the docs renderer draws. */
-export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_TAGS): string {
+/**
+ * Rewrites docs component tags into the `aiui-*` elements the docs renderer draws.
+ * `custom`: the site's own component tags, tag → module URL; a self-closing one
+ * sharing its line with text sits inside the sentence.
+ */
+export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_TAGS, custom: Readonly<Record<string, string>> = {}): string {
     const lines = treeLists(md).split('\n')
     const out: string[] = []
     const stack: Open[] = []
@@ -389,7 +420,9 @@ export function expandDocsTags(md: string, tags: Record<string, DocsTag> = DOCS_
                     ;[s, li] = [joined, next]
                     const start = i
                     i = tag.end
-                    const spec = tags[tag.name]
+                    const site = !tags[tag.name] && Object.hasOwn(custom, tag.name)
+                    const shared = (!!cur.trim() && !LIST_MARKER.test(cur)) || !!s.slice(i).trim()
+                    const spec = site ? { ...customTag(tag.name, custom[tag.name], tag.exprs), inline: tag.selfClosing && shared } : tags[tag.name]
                     if (PASSTHROUGH.has(tag.name) || ((!spec || HTML_TAGS.has(tag.name)) && codeLike)) {
                         cur += s.slice(start, i)
                         continue

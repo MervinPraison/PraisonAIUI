@@ -584,6 +584,15 @@
   now answer every reader with the pages they may read, so signed-out readers and AI tools get the open
   pages (docs/features/docs-auth.md#groups).
 
+- **Your own React components in docs pages.** `site.components: ./components/index.js` names one ES
+  module that registers components with `registerBlock` from `@aiui/sdk` (or exports them by name);
+  pages then use them as tags, `<Pricing plan="pro" seats={3}>Markdown body</Pricing>`, with `{…}`
+  props as numbers, booleans, arrays and objects. The module loads only on a page that uses one of its
+  tags, under the site's Content-Security-Policy; a component that fails shows the tag's body. A UI
+  plugin's PascalCase block types work as tags too, with no config. Declared tags no longer trigger the
+  unknown-tag warning; a module that is missing or names no tag is 7021
+  (docs/features/writing-docs.md#your-own-components).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
@@ -595,6 +604,11 @@
   will be removed later.
 
 ### Fixed
+
+- **No surprise browser windows.** `aiui serve`, `aiui dev` and the examples dashboard open a browser
+  only when run from a terminal; scripts, CI, test runners and coding agents that start them no longer
+  pop a window. `aiui serve` gains `--open/--no-open`, and `AIUI_NO_BROWSER=1` turns it off everywhere.
+  See [CLI](docs/api/cli.md#when-a-browser-opens).
 
 - e2e: the page-types screenshot tests report **skipped** on a platform with
   no baseline (Linux CI today) after running their DOM checks, instead of
@@ -925,3 +939,9 @@
   `GET /api/feedback` reads back. The `json` store appends one line per vote
   instead of rewriting one array, and moves an older `feedback.json` into the
   new file on start. Override `feedback_file()` to put the log elsewhere.
+- `aiui validate` and `aiui build` name raw HTML that a docs page shows
+  differently than written (new finding 7019, with file and line): an
+  `<iframe>` from a site other than YouTube, Vimeo or Loom shows as a link (the
+  host is named), and `<script>`, `<style>`, `<link>`, `<form>`, `<audio>`,
+  `<object>` and `<embed>` are removed. Code fences and inline code are
+  skipped. Before, these disappeared without a word.

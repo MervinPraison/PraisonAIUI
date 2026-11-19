@@ -11,7 +11,7 @@ can show the docs in a frame.
 
 | Source | Directive |
 |--------|-----------|
-| The site's own files (app, chunks, fonts, `customCss`/`customJs` files) | `'self'` |
+| The site's own files (app, chunks, fonts, `customCss`/`customJs` files, the `site.components` module and its import map's hash) | `'self'` |
 | The small inline scripts the build writes (theme, URL, redirect stubs) | `script-src 'sha256-…'`, one hash each |
 | Google Fonts and font, stylesheet and script URLs in `site.theme.fonts`, `customCss`, `customJs` | `style-src`, `font-src`, `script-src` |
 | [Integrations](analytics.md) (analytics, support chat) | each provider's hosts |
@@ -66,8 +66,12 @@ the value is always a valid header.
 
 - **`customJs` that calls another server** (`fetch`, a WebSocket, a widget):
   add its origin under `connect-src`, `frame-src` or `script-src`.
-- **Raw `<iframe>` or `<script>` in a page** other than the video players
-  above: add the host. Inline event handlers (`onclick="…"`) never run.
+- **Raw HTML in a page** needs no sources: the page renders YouTube, Vimeo
+  and Loom `<iframe>` players, `<img>` and `<video>` (all allowed above), shows
+  any other `<iframe>` as a link and removes `<script>`, `<form>` and similar
+  elements before the policy is ever involved. `aiui validate` names each one
+  (finding 7019; see [raw HTML](writing-docs.md#raw-html)). Inline event
+  handlers (`onclick="…"`) never run.
 - **Tag Manager (`integrations.gtm`)** runs whatever tags the container holds,
   which the build cannot see, so the default there is `report-only`. Add the
   hosts of your tags and set `site.csp: true` to enforce.
