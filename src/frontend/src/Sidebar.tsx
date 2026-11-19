@@ -1,7 +1,7 @@
 // Docs sidebar: the nav tree, as a sticky column on desktop and a sheet on phones.
 // Styles: docs/docs.css (.aiui-docs-sidebar, .aiui-docs-nav*), Pro tokens.
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'virtual:aiui-icons/inline'
 import {
     Sheet,
     SheetContent,

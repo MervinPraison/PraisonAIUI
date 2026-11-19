@@ -4,7 +4,7 @@
 // The tags become aiui-field / aiui-expandable / aiui-panel (markdown/docsTags.ts).
 // Styles: docs/docs.css (.aiui-field*, .aiui-expandable*, .aiui-panel).
 import { createContext, lazy, Suspense, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Check, ChevronRight, ClipboardCopy } from 'lucide-react'
+import { Check, ChevronRight, ClipboardCopy } from 'virtual:aiui-icons/inline'
 import { Button } from '@/components/ui/button'
 import { withBase } from '@/lib/url'
 import { slugify } from '../markdown/slug'

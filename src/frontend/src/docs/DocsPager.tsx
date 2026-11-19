@@ -1,5 +1,5 @@
 // Previous / next page links under a docs article, in sidebar reading order.
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'virtual:aiui-icons/inline'
 import { canonicalDocPath } from './docSource'
 import { withBase } from '../lib/url'
 import type { DocsNav, NavItem } from '../types'

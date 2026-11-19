@@ -5,7 +5,7 @@
 // the site's own, and on a site `aiui serve` runs, the docs MCP server (copy its URL,
 // add it to an editor). Which ones, in which order: `actions` (pageActionList).
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, ClipboardCopy, ExternalLink, FileCode2, FileDown, Link2, Plug, Volume2, X } from 'lucide-react'
+import { Check, ChevronDown, ClipboardCopy, ExternalLink, FileCode2, FileDown, Link2, Plug, Volume2, X } from 'virtual:aiui-icons/inline'
 import { Button } from '@/components/ui/button'
 import {
     DropdownMenu,
