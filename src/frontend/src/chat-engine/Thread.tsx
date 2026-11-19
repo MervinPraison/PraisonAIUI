@@ -50,10 +50,12 @@ import { useDecision, type InlineGateProps } from './presentation/decision'
 import { commandLabel, commandOf } from './presentation/command'
 import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
 import { formatDuration, safeUrl } from './util'
+import { useVoiceConfig } from './voice'
 
 const AskToolLazy = lazy(() => import('./parts/AskTool'))
 const ElementPartLazy = lazy(() => import('./parts/ElementPart'))
 const A2uiPartLazy = lazy(() => import('./parts/A2uiPart'))
+const VoiceInputLazy = lazy(() => import('./VoiceInput'))
 
 /** The lazy presentation host (./presentation/host), loaded by the chat page for a layout. */
 export type PresentationHost = typeof import('./presentation/host')
@@ -598,6 +600,17 @@ export interface ComposerNotice {
   onDismiss?: () => void
 }
 
+/** The microphone (voice input), only for an app that turned it on (./voice); its chunk loads then. */
+const ComposerVoice: FC = () => {
+  const voice = useVoiceConfig()
+  if (!voice) return null
+  return (
+    <LazyBoundary fallback={null} failed={<></>}>
+      <VoiceInputLazy maxSeconds={voice.maxSeconds} maxBytes={voice.maxBytes} />
+    </LazyBoundary>
+  )
+}
+
 const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = ({ placeholder, notice }) => (
   <>
     {notice && (
@@ -627,6 +640,7 @@ const Composer: FC<{ placeholder?: string; notice?: ComposerNotice | null }> = (
           aria-label="Message"
           className="max-h-[40vh] min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground"
         />
+        <ComposerVoice />
         <AuiIf condition={(s) => !s.thread.isRunning && !s.composer.isEmpty}>
           <ComposerPrimitive.Send asChild>
             <Button size="icon-sm" className="shrink-0 rounded-lg" aria-label="Send">

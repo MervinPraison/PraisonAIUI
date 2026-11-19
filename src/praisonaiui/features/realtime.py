@@ -3,6 +3,13 @@
 Architecture:
     RealtimeProtocol (ABC)
       └── OpenAIRealtimeManager ← OpenAI Realtime API with WebRTC (lazy import)
+
+Voice input (speech to text): an app that calls
+``aiui.set_realtime_manager(manager)`` with a manager that implements
+:meth:`RealtimeProtocol.transcribe` turns it on. ``GET /api/realtime/voice``
+says whether it is on; ``POST /api/realtime/transcribe`` turns one recorded
+clip into text. The chat composer's microphone uses them (frontend
+``chat-engine/VoiceInput.tsx``); see ``docs/features/realtime-voice-input.md``.
 """
 
 from __future__ import annotations
@@ -55,6 +62,18 @@ class RealtimeProtocol(ABC):
         """Close a realtime session."""
         ...
 
+    async def transcribe(self, audio: bytes, *, mime_type: str) -> str:
+        """Turn one recorded clip (``audio/webm``, ``audio/mp4``…) into text.
+
+        Optional: voice input is on only while the app's manager
+        implements it.
+        """
+        raise NotImplementedError
+
+    def supports_transcription(self) -> bool:
+        """True when this manager's class implements :meth:`transcribe`."""
+        return type(self).transcribe is not RealtimeProtocol.transcribe
+
     def health(self) -> Dict[str, Any]:
         return {"status": "ok", "provider": self.__class__.__name__}
 
@@ -65,8 +84,27 @@ class RealtimeProtocol(ABC):
 class OpenAIRealtimeManager(RealtimeProtocol):
     """OpenAI Realtime API backend with ephemeral token support."""
 
-    def __init__(self):
+    #: Speech-to-text model for :meth:`transcribe` (voice input).
+    DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
+
+    def __init__(self, *, transcribe_model: Optional[str] = None):
         self._sessions: Dict[str, Any] = {}
+        self.transcribe_model = transcribe_model or self.DEFAULT_TRANSCRIBE_MODEL
+
+    async def transcribe(self, audio: bytes, *, mime_type: str) -> str:
+        """Transcribe a clip with OpenAI's speech-to-text endpoint.
+
+        Uses ``OPENAI_API_KEY`` (and ``OPENAI_BASE_URL``) like every OpenAI
+        client; ``openai`` is imported here, never at module import.
+        """
+        from openai import AsyncOpenAI
+
+        ext = _AUDIO_EXTENSIONS.get(mime_type.split(";")[0].strip().lower(), "webm")
+        result = await AsyncOpenAI().audio.transcriptions.create(
+            model=self.transcribe_model,
+            file=(f"voice.{ext}", audio, mime_type),
+        )
+        return getattr(result, "text", "") or ""
 
     async def create_session(self, *, model: str = "gpt-4o-realtime-preview") -> Dict[str, Any]:
         """Create ephemeral WebRTC session with OpenAI."""
@@ -221,6 +259,9 @@ class OpenAIRealtimeManager(RealtimeProtocol):
 # ── Manager singleton ────────────────────────────────────────────────
 
 _realtime_manager: Optional[RealtimeProtocol] = None
+# True once the app picked a manager: voice input is opt-in, so the default
+# manager (created on first use) never turns it on for every app.
+_app_manager = False
 
 
 def get_realtime_manager() -> RealtimeProtocol:
@@ -230,9 +271,35 @@ def get_realtime_manager() -> RealtimeProtocol:
     return _realtime_manager
 
 
-def set_realtime_manager(manager: RealtimeProtocol) -> None:
-    global _realtime_manager
+def set_realtime_manager(manager: Optional[RealtimeProtocol]) -> None:
+    """Use ``manager`` for realtime voice; ``None`` goes back to the default.
+
+    A manager that implements :meth:`RealtimeProtocol.transcribe` also turns
+    on voice input (``GET /api/realtime/voice`` answers ``enabled: true``).
+    """
+    global _realtime_manager, _app_manager
     _realtime_manager = manager
+    _app_manager = manager is not None
+
+
+def voice_input_enabled() -> bool:
+    """Voice input is on: the app set a manager that transcribes."""
+    return _app_manager and _realtime_manager is not None and _realtime_manager.supports_transcription()
+
+
+#: Longest clip the browser records before it stops by itself, in seconds.
+VOICE_MAX_SECONDS = 120
+#: Largest clip ``POST /api/realtime/transcribe`` accepts (about 4 minutes of Opus).
+VOICE_MAX_BYTES = 8 * 1024 * 1024
+
+_AUDIO_EXTENSIONS = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+}
 
 
 # ── Feature class ────────────────────────────────────────────────────
@@ -256,6 +323,8 @@ class RealtimeFeature(BaseFeatureProtocol):
         return [
             Route("/api/realtime/session", self._create_session, methods=["POST"]),
             Route("/api/realtime/session/{session_id}", self._close_session, methods=["DELETE"]),
+            Route("/api/realtime/voice", self._voice, methods=["GET"]),
+            Route("/api/realtime/transcribe", self._transcribe, methods=["POST"]),
             Route("/ws/realtime/{session_id}", self._websocket_handler),
         ]
 
@@ -287,6 +356,40 @@ class RealtimeFeature(BaseFeatureProtocol):
 
         result = await mgr.create_session(model=body.get("model", "gpt-4o-realtime-preview"))
         return JSONResponse(result)
+
+    async def _voice(self, request: Request) -> JSONResponse:
+        """Whether voice input is on, and the limits of one recording."""
+        return JSONResponse(
+            {
+                "enabled": voice_input_enabled(),
+                "max_seconds": VOICE_MAX_SECONDS,
+                "max_bytes": VOICE_MAX_BYTES,
+            }
+        )
+
+    async def _transcribe(self, request: Request) -> JSONResponse:
+        """One recorded clip (the raw body, ``Content-Type: audio/*``) to text."""
+        if not voice_input_enabled():
+            return JSONResponse({"error": "Voice input is off for this app."}, status_code=404)
+        mime_type = request.headers.get("content-type", "")
+        if not mime_type.lower().startswith("audio/"):
+            return JSONResponse({"error": "Send the recording as audio/*."}, status_code=415)
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > VOICE_MAX_BYTES:
+            return JSONResponse({"error": "The recording is too long."}, status_code=413)
+        audio = await request.body()
+        if len(audio) > VOICE_MAX_BYTES:
+            return JSONResponse({"error": "The recording is too long."}, status_code=413)
+        if not audio:
+            return JSONResponse({"error": "The recording is empty."}, status_code=400)
+        try:
+            text = await get_realtime_manager().transcribe(audio, mime_type=mime_type)
+        except NotImplementedError:
+            return JSONResponse({"error": "This app cannot transcribe speech."}, status_code=501)
+        except Exception as exc:  # noqa: BLE001 - the provider's failure is the client's answer
+            logger.warning("realtime transcribe failed: %s", type(exc).__name__)
+            return JSONResponse({"error": "Could not transcribe the recording."}, status_code=502)
+        return JSONResponse({"text": (text or "").strip()})
 
     async def _close_session(self, request: Request) -> JSONResponse:
         """Close realtime session."""

@@ -113,6 +113,16 @@
 
 ### New
 
+- **Voice input in the chat.** An app that sets a realtime manager able to
+  transcribe (`aiui.set_realtime_manager(OpenAIRealtimeManager())`) gets a
+  microphone button in the composer: record, stop, and the text lands in the
+  message box to read over and send. Keyboard accessible (Escape discards),
+  with clear messages for a blocked or missing microphone; its code loads only
+  for such an app. Built on `RealtimeProtocol.transcribe(audio, mime_type)`
+  (optional; `OpenAIRealtimeManager` implements it with OpenAI speech to text,
+  `transcribe_model=`), `GET /api/realtime/voice` and
+  `POST /api/realtime/transcribe`. See
+  [Voice input](docs/features/realtime-voice-input.md).
 - **Docs sites load less JavaScript.** The chat, agents and playground
   layouts load only for their style, so a docs page's first load is 53.6 KB
   (gzip) smaller: 24 files instead of 33.
@@ -623,6 +633,10 @@
 
 ### Fixed
 
+- **Phone chat: no stray copy button, no lonely logo.** A table that moved to
+  the canvas no longer leaves its copy and download buttons over the reply on
+  a touch screen, and a long app name in the new-chat hero wraps below its
+  logo, centred, instead of beside it.
 - **No surprise browser windows.** `aiui serve`, `aiui dev` and the examples dashboard open a browser
   only when run from a terminal; scripts, CI, test runners and coding agents that start them no longer
   pop a window. `aiui serve` gains `--open/--no-open`, and `AIUI_NO_BROWSER=1` turns it off everywhere.
