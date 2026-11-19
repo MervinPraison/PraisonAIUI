@@ -113,12 +113,16 @@
 
 ### New
 
-- **Speech to text for voice input.** `RealtimeProtocol.transcribe(audio,
-  mime_type)` (optional; `OpenAIRealtimeManager` implements it with OpenAI
-  speech to text, `transcribe_model=`), `GET /api/realtime/voice` and
-  `POST /api/realtime/transcribe`. Voice input is on only after the app calls
-  `aiui.set_realtime_manager()` with a manager that transcribes. The chat
-  composer's microphone that uses it is **(planned)**.
+- **Voice input in the chat.** An app that sets a realtime manager able to
+  transcribe (`aiui.set_realtime_manager(OpenAIRealtimeManager())`) gets a
+  microphone button in the composer: record, stop, and the text lands in the
+  message box to read over and send. Keyboard accessible (Escape discards),
+  with clear messages for a blocked or missing microphone; its code loads only
+  for such an app. Built on `RealtimeProtocol.transcribe(audio, mime_type)`
+  (optional; `OpenAIRealtimeManager` implements it with OpenAI speech to text,
+  `transcribe_model=`), `GET /api/realtime/voice` and
+  `POST /api/realtime/transcribe`. See
+  [Voice input](docs/features/realtime-voice-input.md).
 - **Docs sites load less JavaScript.** The chat, agents and playground
   layouts load only for their style, so a docs page's first load is 53.6 KB
   (gzip) smaller: 24 files instead of 33.

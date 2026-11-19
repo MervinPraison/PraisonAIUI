@@ -8,8 +8,8 @@ Voice input (speech to text): an app that calls
 ``aiui.set_realtime_manager(manager)`` with a manager that implements
 :meth:`RealtimeProtocol.transcribe` turns it on. ``GET /api/realtime/voice``
 says whether it is on; ``POST /api/realtime/transcribe`` turns one recorded
-clip into text. The chat composer's microphone that uses them is
-**(planned)**.
+clip into text. The chat composer's microphone uses them (frontend
+``chat-engine/VoiceInput.tsx``); see ``docs/features/realtime-voice-input.md``.
 """
 
 from __future__ import annotations
