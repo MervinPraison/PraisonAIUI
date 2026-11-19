@@ -160,7 +160,7 @@ triples are converted in the browser where possible, but update the CSS.
 |---|---|---|
 | Types | `npx tsc -b` | 0 errors |
 | Unit tests | `npm test`, `npm run test:scripts` | all pass |
-| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 143,081 B, /chat first-screen JS ≤ 256,562 B, `index.css` ≤ 32 kB, Streamdown ≤ 100 kB, shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,162 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 11,164,096 B uncompressed |
+| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 143,081 B, /chat first-screen JS ≤ 256,563 B, `index.css` ≤ 32 kB, Streamdown ≤ 100 kB, shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,162 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 11,164,896 B uncompressed |
 | First screen stays light | `npm run check:closure` | no Streamdown, Shiki, Mermaid, KaTeX or assistant-ui in the static closure of the entry, the shell or the legacy App |
 | Committed bundle | `npm run check:bundle` | `templates/frontend` equals a fresh build (pull requests that touch the frontend only) |
 | Browser suites | `npm run test:e2e` | see `src/frontend/e2e/README.md` |

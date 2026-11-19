@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -80,7 +81,8 @@ def test_each_page_names_its_translations_and_its_language(tmp_path: Path) -> No
     en = (out / "docs/guide/setup.html").read_text()
     assert '<html lang="en">' in en and 'hreflang="fr"' in en
     # A page with no translation names none; the home page is the site root.
-    assert "hreflang" not in (out / "docs/only-en.html").read_text()
+    only_en = re.sub(r'<script type="application/json" id="aiui-boot-data">.*?</script>', "", (out / "docs/only-en.html").read_text(), flags=re.S)
+    assert "hreflang" not in only_en  # (the inlined nav lists the other pages' translations)
     home = (out / "docs/fr.html").read_text()
     assert 'hreflang="en" href="https://docs.example.com/"' in home
 

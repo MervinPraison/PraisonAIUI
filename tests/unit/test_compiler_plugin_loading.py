@@ -35,7 +35,7 @@ def _compile(tmp_path: Path, **site) -> Path:
 
 def test_default_site_loads_only_plugins_that_act_on_react_docs():
     plugins = SiteConfig(title="x").plugins
-    assert plugins == ["fetch-retry", "nav-intercept"]
+    assert plugins == ["nav-intercept"]
     assert not set(plugins) & set(CDN_PLUGINS + INERT_ON_REACT_DOCS)
 
 

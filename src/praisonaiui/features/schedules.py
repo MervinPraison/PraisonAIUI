@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+import weakref
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -414,6 +415,42 @@ async def _execute_job(job_id: str, job) -> None:
     )
 
 
+# A job is not started again while its previous run is still going, and at
+# most _MAX_CONCURRENT_RUNS scheduled runs execute at once; the rest wait
+# without a thread. Without this, a job whose model call outlasts its interval
+# (slow model, 429 retries) started a new thread every tick until the process
+# hit the OS thread limit and stopped serving HTTP.
+_MAX_CONCURRENT_RUNS = 4
+_in_flight: set = set()
+_run_slots: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+
+
+def _start_job(job_id: str, job) -> bool:
+    """Schedule one run of ``job`` unless it is already running. True if started."""
+    import asyncio
+
+    if job_id in _in_flight:
+        logger.debug("Scheduled job %s still running; skipping this tick", job_id)
+        return False
+    _in_flight.add(job_id)
+    asyncio.create_task(_run_job_once(job_id, job))
+    return True
+
+
+async def _run_job_once(job_id: str, job) -> None:
+    import asyncio
+
+    loop = asyncio.get_running_loop()
+    slots = _run_slots.get(loop)
+    if slots is None:
+        slots = _run_slots[loop] = asyncio.Semaphore(_MAX_CONCURRENT_RUNS)
+    try:
+        async with slots:
+            await _execute_job(job_id, job)
+    finally:
+        _in_flight.discard(job_id)
+
+
 async def _scheduler_loop() -> None:
     """Background loop that checks and triggers due jobs every 15s.
 
@@ -435,8 +472,7 @@ async def _scheduler_loop() -> None:
                     due_jobs = runner.get_due_jobs()
                     for job in due_jobs:
                         jid = _getattr_or_get(job, "id", "")
-                        if jid:
-                            asyncio.create_task(_execute_job(jid, job))
+                        if jid and _start_job(jid, job):
                             runner.mark_run(job)
                 else:
                     # ── Fallback: in-memory store, manual due-check ─
@@ -445,7 +481,7 @@ async def _scheduler_loop() -> None:
                     for j in jobs:
                         jid = _getattr_or_get(j, "id", "")
                         if jid and _is_job_due(j):
-                            asyncio.create_task(_execute_job(jid, j))
+                            _start_job(jid, j)
             except Exception as e:
                 logger.debug("Scheduler tick error: %s", e)
             await asyncio.sleep(15)
