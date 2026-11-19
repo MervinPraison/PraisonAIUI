@@ -607,18 +607,28 @@ class StylingConfig(BaseModel):
 
 
 class NavbarLinkConfig(BaseModel):
-    """A link in the top navbar."""
+    """A link in the top navbar. ``type: github|discord`` draws that mark and
+    names the link (``label`` optional); ``icon`` is any icon value."""
 
-    label: str
+    label: Optional[str] = None
     href: str
+    icon: Optional[str] = None
+    type: Optional[Literal["github", "discord"]] = None
+
+    @model_validator(mode="after")
+    def _named(self) -> "NavbarLinkConfig":
+        if not (self.label or self.type):
+            raise ValueError("a navbar link needs a label (or type: github|discord)")
+        return self
 
 
 class NavbarPrimaryConfig(BaseModel):
-    """Primary navbar action button."""
+    """Primary navbar action button (``github`` also shows the repo's stars)."""
 
-    type: Literal["button", "github"] = "button"
+    type: Literal["button", "github", "discord"] = "button"
     label: Optional[str] = None
     href: str
+    icon: Optional[str] = None
 
 
 class NavbarConfig(BaseModel):
@@ -638,7 +648,7 @@ class FooterLinkItemConfig(BaseModel):
 class FooterLinkColumnConfig(BaseModel):
     """A column of links in the footer."""
 
-    header: str
+    header: Optional[str] = None
     items: list[FooterLinkItemConfig] = Field(default_factory=list)
 
 
@@ -647,6 +657,15 @@ class FooterConfig(BaseModel):
 
     socials: dict[str, str] = Field(default_factory=dict)
     links: list[FooterLinkColumnConfig] = Field(default_factory=list)
+
+
+class BannerConfig(BaseModel):
+    """``banner:`` a strip above the docs header. ``content`` is Markdown;
+    ``banner: "text"`` is the short form."""
+
+    content: str
+    dismissible: bool = False
+    type: Literal["info", "warning", "success"] = "info"
 
 
 class SearchConfig(BaseModel):
@@ -1051,6 +1070,7 @@ class Config(BaseModel):
     navigation: Optional[NavigationConfig] = None
     navbar: Optional[NavbarConfig] = None
     footer: Optional[FooterConfig] = None
+    banner: Optional[BannerConfig] = None
     search: Optional[SearchConfig] = None
     api: Optional[ApiConfig] = None
     interaction: Optional[InteractionConfig] = None
@@ -1071,6 +1091,12 @@ class Config(BaseModel):
     def _one_image(cls, value: Any) -> Any:
         """``logo: logo.svg`` / ``favicon: icon.svg``: one image for both modes."""
         return {"light": value} if isinstance(value, str) else value
+
+    @field_validator("banner", mode="before")
+    @classmethod
+    def _banner_text(cls, value: Any) -> Any:
+        """``banner: "text"``: the content alone."""
+        return {"content": value} if isinstance(value, str) else value
 
 
 # ── Ask* message family models (issue #16) ──────────────────────────

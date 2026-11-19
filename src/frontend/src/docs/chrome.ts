@@ -1,6 +1,6 @@
 // Header model the docs header and the phone drawer share: brand, links,
 // call to action (from the YAML navbar, logo and header component).
-import type { UIConfig } from '../types'
+import type { NavbarLinkConfig, UIConfig } from '../types'
 import { withBase } from '../lib/url'
 
 /** Header props from the template's header slot (or the `header` component). */
@@ -11,7 +11,7 @@ export function headerProps(config: UIConfig, templateKey = 'docs') {
     return (headerComponent?.props || headerSlot?.props) as {
         logoText?: string
         logoImage?: string
-        links?: { label: string; href: string }[]
+        links?: NavbarLinkConfig[]
         cta?: { label: string; href: string }
     } | undefined
 }
@@ -30,9 +30,24 @@ export function docsChromeModel(config: UIConfig, templateKey = 'docs') {
         logoDarkSrc: logoDark && withBase(logoDark),
         logoHref: logoConfig?.href || '/',
         logoText: header?.logoText || config.site?.title || 'PraisonAIUI',
-        links: (navbar?.links ?? header?.links ?? []).map((link) => ({ ...link, href: withBase(link.href) })),
-        primary: primary && { ...primary, href: withBase(primary.href) },
+        links: (navbar?.links ?? header?.links ?? []).map(chromeLink),
+        primary: primary && {
+            ...chromeLink({ ...primary, type: primary.type === 'button' ? undefined : primary.type }),
+            label: primary.label ?? (primary.type === 'github' ? 'GitHub' : primary.type === 'discord' ? 'Discord' : 'Get started'),
+            iconOnly: false,
+            stars: primary.type === 'github' ? primary.href : undefined,
+        },
     }
+}
+
+/** A header link ready to draw: `network` from `type`, whose name is the label when none is given (`iconOnly`: the mark alone). */
+export type ChromeLink = { label: string; href: string; icon?: string; network?: 'github' | 'discord'; iconOnly?: boolean }
+
+const NETWORK_LABELS = { github: 'GitHub', discord: 'Discord' } as const
+
+function chromeLink({ label, href, icon, type: network }: NavbarLinkConfig): ChromeLink {
+    const name = label || (network ? NETWORK_LABELS[network] : href)
+    return { label: name, href: withBase(href), icon, network, iconOnly: Boolean(network && !label) }
 }
 
 /** A path in this app (`/x`, not `//host` or `https://`): the header navigates to it in place. */

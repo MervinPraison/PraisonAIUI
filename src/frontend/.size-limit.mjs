@@ -289,7 +289,9 @@ export default [
   // preload map (the docs MCP menu items); no boot or chat code changed.
   // 254,411 B (+14 B, exactly the overage): docs tab panels carry data-title (the
   // printed tab titles) in the shared MkdocsTabs.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254411 B', gzip: true },
+  // 254,412 B (+1 B, exactly the overage): the lazy brandIcons chunk name in the
+  // entry's preload map; no boot or chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254412 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -392,8 +394,9 @@ export default [
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
   // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
   // (docs/PageActions.tsx, two lucide icons).
-  // 9,656,431 B (+7,451 B, exactly the overage): Try it authentication, file inputs and
-  // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth
-  // mode), on top of the docs print stylesheet and Download as PDF (+3,329 B).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9656431 B', brotli: false },
+  // 9,648,980 B (+3,329 B, exactly the overage): the docs print stylesheet and the
+  // Download as PDF page action.
+  // 9,668,391 B (+19,411 B, exactly the overage): header link icons, the GitHub star
+  // count, footer social marks (the lazy brandIcons chunk, 12.9 kB) and the banner.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9668391 B', brotli: false },
 ]

@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { applyTheme, applyStoredThemePreference, defaultThemeMode } from './themes'
 import type { UIConfig, DocsNav, RouteManifest, NavItem } from './types'
 import { Header } from './Header'
+import { DocsBanner } from './docs/DocsBanner'
 import { Sidebar, MobileNavSheet } from './Sidebar'
 import { Content } from './Content'
 import { ZoneWidgets } from './Widgets'
@@ -427,6 +428,7 @@ export default function App() {
 
   const docsChrome = (
     <>
+      <DocsBanner banner={config.banner} />
       <MobileNavSheet
         open={mobileNavOpen}
         onOpenChange={setMobileNavOpen}
