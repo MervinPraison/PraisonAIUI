@@ -192,7 +192,9 @@ class DocsAuth:
             return "page", p
         if path in FILTERED or _LANGUAGE_LLMS.fullmatch(path):  # llms-<code>.txt: compiler/llms.py
             return "filtered", path
-        if path == "/" + ACCESS_FILE:
+        # The split search index is not cut per reader, so a site with sign-in has none
+        # (compiler/search_index.py): one left from an older build stays hidden.
+        if path == "/" + ACCESS_FILE or path.startswith("/search-index/"):
             return "hidden", ""
         suffix = os.path.splitext(path)[1]
         if path in _OPEN or path.startswith(OPEN_PREFIXES) or suffix in hg.PUBLIC_STATIC_SUFFIXES:

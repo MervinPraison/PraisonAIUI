@@ -1,7 +1,8 @@
 // Docs search: the header's "Search docs" button and ⌘K open this dialog.
 // With an empty query it lists the pages by section; with a query it ranks
 // page titles, section headings and section text from the site's search
-// index (search-index.json, written by `aiui build`; searchIndex.ts). On a
+// index (written by `aiui build`: search-index/ in parts, loaded as a query
+// needs them, searchShards.ts; else search-index.json, searchIndex.ts). On a
 // site with header tabs, chips narrow the results to one tab (the reader's
 // own at first). The query is mirrored to the address bar as `?q=`, so a link
 // opens search prefilled (App.tsx reads it). A lazy chunk: App.tsx imports it
@@ -17,7 +18,9 @@ import {
     CommandList,
 } from '@/components/ui/command'
 import type { NavItem, SearchGroup } from '../types'
-import { highlightRuns, loadSearchIndex, searchDocs, type SearchIndex, type SearchResult } from './searchIndex'
+import { highlightRuns, searchDocs, type SearchIndex, type SearchResult } from './searchIndex'
+import { queryTerms } from './searchRank'
+import { openSearchIndex, ShardedIndex } from './searchShards'
 
 interface DocsSearchProps {
     open: boolean
@@ -81,7 +84,9 @@ function ResultRow({ result, query }: { result: SearchResult; query: string }) {
 
 export default function DocsSearch({ open, onOpenChange, groups, onSelect, indexUrl, tabs = [], activeTab, placeholder, maxResults, initialQuery = '', onAsk }: DocsSearchProps) {
     const [query, setQuery] = useState(initialQuery)
-    const [index, setIndex] = useState<SearchIndex | null>(null)
+    const [index, setIndex] = useState<SearchIndex | ShardedIndex | null>(null)
+    // Bumped when a part of the split index arrives: rank again.
+    const [parts, setParts] = useState(0)
     const showTabs = tabs.length > 1
     // '' is "All tabs". A deep link searches everywhere; a reader's own search starts in their tab.
     const [tab, setTab] = useState('')
@@ -109,22 +114,53 @@ export default function DocsSearch({ open, onOpenChange, groups, onSelect, index
     useEffect(() => {
         if (!open) return
         let live = true
-        loadSearchIndex(indexUrl).then((loaded) => live && setIndex(loaded))
+        openSearchIndex(indexUrl).then((loaded) => live && setIndex(loaded))
         return () => {
             live = false
         }
     }, [open])
 
+    // The split index: the word files this query's words fall in.
+    const terms = useMemo(() => queryTerms(query), [query])
+    useEffect(() => {
+        if (!(index instanceof ShardedIndex) || !terms.length) return
+        let live = true
+        index.need(terms).then((more) => live && more && setParts((n) => n + 1))
+        return () => {
+            live = false
+        }
+    }, [index, terms])
+    const ready = !(index instanceof ShardedIndex) || index.ready(terms)
+
     const limit = maxResults && maxResults > 0 ? Math.min(100, maxResults) : undefined
-    const results = useMemo(() => searchDocs(index, groups, query, { limit, tab }), [index, groups, query, limit, tab])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `parts`: the split index filled in place
+    const results = useMemo(() => searchDocs(index, groups, query, { limit, tab }), [index, groups, query, limit, tab, parts])
+    // While a query's word files load, keep the last full list rather than titles only.
+    const [held, setHeld] = useState<SearchResult[]>([])
+    if (ready && held !== results) setHeld(results)
+    const shown = ready || !held.length ? results : held
+    // ...and the section text of the pages listed, for their snippets.
+    useEffect(() => {
+        if (!(index instanceof ShardedIndex) || !shown.length) return
+        let live = true
+        index.needText(shown.map((r) => r.page.path ?? '')).then((more) => live && more && setParts((n) => n + 1))
+        return () => {
+            live = false
+        }
+    }, [index, shown])
     // Nothing in this tab: offer the other tabs' results instead of a dead end.
     const elsewhere = useMemo(
-        () => (tab && query.trim() && !results.length ? searchDocs(index, groups, query, { limit }).length : 0),
-        [index, groups, query, limit, tab, results.length],
+        () => (ready && tab && query.trim() && !results.length ? searchDocs(index, groups, query, { limit }).length : 0),
+        [index, groups, query, limit, tab, results.length, ready],
     )
+    // Rows that arrive after the query (a word file still loading) leave cmdk with nothing
+    // highlighted, so Enter would do nothing: highlight the first row then.
+    const [active, setActive] = useState('')
+    const rows = [...(elsewhere > 0 ? [ALL_TABS] : []), ...shown.map(resultKey), ...(onAsk ? [ASK_AI] : [])]
+    if (query.trim() && rows.length && !rows.includes(active)) setActive(rows[0])
     const listed = tab ? groups.filter((g) => g.tab === tab) : groups
     // cmdk sorts by its filter's score: hand it our rank so it keeps our order.
-    const rank = useMemo(() => new Map(results.map((r, i) => [resultKey(r), results.length - i])), [results])
+    const rank = useMemo(() => new Map(shown.map((r, i) => [resultKey(r), shown.length - i])), [shown])
     const choose = (item: NavItem, anchor?: string) => {
         onOpenChange(false)
         setQuery('')
@@ -139,6 +175,8 @@ export default function DocsSearch({ open, onOpenChange, groups, onSelect, index
             description="Find a page, a section or a phrase"
             className="aiui-docs-search-dialog"
             loop
+            value={active}
+            onValueChange={setActive}
             filter={(value) => (query.trim() ? rank.get(value) ?? (value === ALL_TABS ? 1 : value === ASK_AI ? 0.5 : 0) : 1)}
         >
             <CommandInput placeholder={placeholder || 'Search docs'} value={query} onValueChange={setQuery} />
@@ -163,7 +201,7 @@ export default function DocsSearch({ open, onOpenChange, groups, onSelect, index
                 )}
                 {query.trim() ? (
                     <CommandGroup heading="Results">
-                        {results.map((r) => (
+                        {shown.map((r) => (
                             <CommandItem key={resultKey(r)} value={resultKey(r)} onSelect={() => choose(r.page, r.anchor)}>
                                 <ResultRow result={r} query={query} />
                             </CommandItem>
