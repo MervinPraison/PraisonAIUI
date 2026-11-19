@@ -3276,6 +3276,12 @@
     "src": "src/docs/brandIcons.ts",
     "isDynamicEntry": true
   },
+  "src/docs/listen.ts": {
+    "file": "assets/listen-BmRlkdE8.js",
+    "name": "listen",
+    "src": "src/docs/listen.ts",
+    "isDynamicEntry": true
+  },
   "src/docs/redirects.ts": {
     "file": "assets/redirects-6p4lTREI.js",
     "name": "redirects",
@@ -3557,7 +3563,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-CU3qAySk.js",
+    "file": "assets/legacy-app-entry-7q2isoCC.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3595,6 +3601,7 @@
       "src/docs/TabsSelect.tsx",
       "src/docs/DocsFeedback.tsx",
       "src/docs/DocsFeedback.tsx",
+      "src/docs/listen.ts",
       "src/docs/RelatedPages.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
