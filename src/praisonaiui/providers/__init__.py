@@ -1001,6 +1001,8 @@ class PraisonAIProvider(BaseProvider):
                         )
                 elif evt_type == "thinking":
                     yield RunEvent(type=RunEventType.REASONING_STEP, step=event.get("step", ""))
+                elif evt_type in ("step_start", "step_update", "step_end"):  # aiui.Step
+                    yield RunEvent(type=RunEventType(evt_type), extra_data=event)
                 elif evt_type == "tool_call":
                     yield RunEvent(
                         type=RunEventType.TOOL_CALL_STARTED,

@@ -758,7 +758,7 @@ See the [Component API Reference](components.md) for the other builders
 |-------|---------|
 | `aiui.Message` | Outgoing message with elements and actions |
 | `aiui.AskUserMessage` | Ask the user for text (older form of `aiui.prompt`) |
-| `aiui.Step` | Processing step indicator |
+| `aiui.Step`, `@aiui.step` | A named step of the reply (tool, LLM call, sub-run), nested and timed: see [Steps](../features/steps.md) |
 | `aiui.BaseDataStore` | Abstract datastore interface |
 | `aiui.MemoryDataStore` | In-memory store |
 | `aiui.JSONFileDataStore` | Persistent JSON file store |

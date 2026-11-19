@@ -12,6 +12,8 @@
  *   - persisted cancelled replies carry status: 'cancelled'
  *   - reply text carries the message_id of the message it belongs to (a run
  *     can send several, each its own block: see messageText)
+ *   - step_start / step_update / step_end (aiui.Step) build a step tree: one
+ *     `step` data part per top-level step, its descendants inside (upsertStep)
  *
  * No React, no DOM: runs under `node --test` (scripts/run-tests.mjs).
  */
@@ -367,8 +369,62 @@ function pause(m: AiuiMessage, ev: WireEvent): AiuiMessage {
   return { ...m, parts: [...m.parts, part], status: { type: 'requires-action', reason: 'interrupt' } }
 }
 
+/** One step of the reply (aiui.Step), in its wire field names; `start`/`end` are epoch ms. */
+export type AiuiStep = {
+  step_id: string
+  parent_id?: string
+  name?: string
+  step_type?: string
+  status: 'running' | 'done' | 'error' | 'stopped'
+  start?: number
+  end?: number
+  input?: string
+  output?: string
+  error?: string
+}
+/** Data part holding one top-level step and its descendants: `{ steps: AiuiStep[] }`, root first. */
+export const STEP = 'step'
+
+const stepsOf = (p: AiuiPart) => (p.type === 'data' && p.name === STEP ? (obj(p.data).steps as AiuiStep[]) : undefined)
+const holds = (id: unknown) => (p: AiuiPart) => !!id && !!stepsOf(p)?.some((x) => x.step_id === id)
+
+/**
+ * Apply a step event (or a saved step): a step under a known parent joins that
+ * parent's tree, any other starts a new tree where it happens in the reply.
+ * `token` appends to the output; other fields replace.
+ */
+function upsertStep(m: AiuiMessage, ev: JSONObject, now = Date.now()): AiuiMessage {
+  const { type, token, ...fields } = ev
+  const id = s(fields.step_id)
+  if (!id) return m
+  let at = m.parts.findIndex(holds(id))
+  if (at < 0) at = m.parts.findIndex(holds(fields.parent_id))
+  const steps = at < 0 ? [] : stepsOf(m.parts[at])!
+  const prev = steps.find((x) => x.step_id === id)
+  const next = { start: now, status: 'running', ...prev, ...fields } as AiuiStep
+  if (typeof token === 'string') next.output = (prev?.output ?? '') + token
+  if (type === 'step_end') next.end ??= now
+  if (type === 'step_end' && !fields.status) next.status = 'done'
+  return upsertPart(m, {
+    type: 'data', id: at < 0 ? `step_${id}` : m.parts[at].id, name: STEP,
+    data: { steps: prev ? steps.map((x) => (x === prev ? next : x)) : [...steps, next] },
+  })
+}
+
+/** A reply that ended leaves no step running: one cut short shows as stopped. */
+const stopSteps = (m: AiuiMessage): AiuiMessage => ({
+  ...m,
+  parts: m.parts.map((p) => {
+    const steps = stepsOf(p)
+    return steps ? { ...p, data: { steps: steps.map((x) => (x.status === 'running' ? { ...x, status: 'stopped' } : x)) } } as AiuiPart : p
+  }),
+})
+
 /** Stamp the moment a reply became final (kept when it is final already). */
-const stampDone = (m: AiuiMessage): AiuiMessage => (m.completedAt ? m : { ...m, completedAt: Date.now() })
+const stampDone = (m0: AiuiMessage): AiuiMessage => {
+  const m = stopSteps(m0)
+  return m.completedAt ? m : { ...m, completedAt: Date.now() }
+}
 
 /**
  * `run_completed.suggestions`: follow-up prompts a layout may offer as chips.
@@ -440,6 +496,10 @@ export function applyEvent(
     case 'reasoning_completed':
     case 'team_reasoning_completed':
       return { message: closeReasoning(m) }
+    case 'step_start':
+    case 'step_update':
+    case 'step_end':
+      return { message: upsertStep(ev.type === 'step_start' ? closeReasoning(m) : m, ev) }
     case 'tool_call':
     case 'tool_call_started':
     case 'team_tool_call_started':
@@ -576,6 +636,7 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
       // persisted calls carry no wall-clock timing worth showing
       m = { ...m, parts: m.parts.map((p) => (p.type === 'tool-call' ? { ...p, timing: undefined } : p)) }
     }
+    m = stopSteps(savedSteps(m, raw.steps))
     const segments = historySegments(raw)
     const elements = (raw.elements as unknown[] | undefined) ?? []
     // The reply's messages as they were sent, each with its elements.
@@ -593,6 +654,13 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
   const content = s(raw.content) ?? s(raw.message) ?? ''
   if (content) m = { ...m, parts: [...m.parts, { type: 'text', id: `${m.id}_t`, text: content }] }
   return m
+}
+
+/** A saved reply's steps (`steps: [{step_id, parent_id, name, ..., start, end}]`, wire field names). */
+function savedSteps(m: AiuiMessage, raw: unknown): AiuiMessage {
+  let next = m
+  if (Array.isArray(raw)) for (const st of raw) next = upsertStep(next, { ...obj(st), type: 'saved' })
+  return next
 }
 
 /** A saved reply's messages, `segments: [{id, text, author?}]` (one block each). */
@@ -613,6 +681,7 @@ export function reconcileFromHistory(m: AiuiMessage, raw: JSONObject): AiuiMessa
   }
   for (const g of historySegments(raw)) next = messageText(next, g.id, g.text, true, g.author)
   for (const el of (raw.elements as unknown[] | undefined) ?? []) next = addElement(next, el)
+  next = savedSteps(next, raw.steps)
   next = finalize(next, s(raw.content))
   const st = historyStatus(raw)
   return st.type === 'complete' ? next : { ...next, status: st }
