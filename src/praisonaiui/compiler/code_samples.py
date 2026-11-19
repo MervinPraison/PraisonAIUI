@@ -24,6 +24,7 @@ from praisonaiui.compiler.openapi_pages import (
     media_examples,
     merged,
     sample,
+    security_options,
     server_url,
 )
 
@@ -86,19 +87,16 @@ def _text(value: Any) -> str:
 
 def _auth(spec: ApiSpec, op: Operation) -> list[tuple[str, str, str]]:
     """``(in, name, placeholder)`` for the first security requirement's schemes."""
-    schemes = (spec.document.get("components") or {}).get("securitySchemes") or {}
     out = []
-    for name in (op.security[0] if op.security and isinstance(op.security[0], dict) else {}):
-        s = spec.resolve(schemes.get(name))
-        kind = s.get("type") if isinstance(s, dict) else None
-        scheme = str(s.get("scheme") or "").lower() if isinstance(s, dict) else ""
-        if kind == "apiKey" and s.get("in") in ("header", "query", "cookie"):
-            out.append((s["in"], str(s.get("name") or "api_key"), "<api-key>"))
-        elif kind == "http" and scheme == "basic":
+    for s in (security_options(spec, op) or [[]])[0]:
+        scheme = s.get("scheme", "").lower()
+        if s["type"] == "apiKey":
+            out.append((s["in"], s["name"], "<api-key>"))
+        elif scheme == "basic":
             out.append(("header", "Authorization", "Basic <encoded-value>"))
-        elif kind == "http" and scheme and scheme != "bearer":
+        elif scheme and scheme != "bearer":
             out.append(("header", "Authorization", f"{s['scheme']} <token>"))
-        elif kind in ("http", "oauth2", "openIdConnect"):
+        else:
             out.append(("header", "Authorization", "Bearer <token>"))
     return out
 

@@ -3,7 +3,7 @@
 // <ResponseExample>) that docs/panels.ts moves to the page's side column.
 // The tags become aiui-field / aiui-expandable / aiui-panel (markdown/docsTags.ts).
 // Styles: docs/docs.css (.aiui-field*, .aiui-expandable*, .aiui-panel).
-import { createContext, lazy, Suspense, useContext, useState, type ReactNode } from 'react'
+import { createContext, lazy, Suspense, useContext, useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronRight, ClipboardCopy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { withBase } from '@/lib/url'
@@ -74,14 +74,28 @@ export function Panel({ kind, children }: { kind?: string; children?: ReactNode 
         : <div className="aiui-panel">{children}</div>
 }
 
+let signedIn: Promise<boolean> | undefined
+/** Whether the aiui server serving the docs has this reader signed in (asked once per page load; a static host: no). */
+const isSignedIn = () => (signedIn ??= fetch('/api/auth/status', { credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.json() as Promise<{ authenticated?: boolean }> : null))
+    .then((d) => d?.authenticated === true, () => false))
+
 /**
- * <ApiPlayground method path src>: the endpoint bar under an endpoint page's title
+ * <ApiPlayground method path src display>: the endpoint bar under an endpoint page's title
  * (compiler/openapi_pages.py). With `src` (display `interactive`), Try it opens the
- * request form, a lazy chunk fetched on first hover, focus or click.
+ * request form, a lazy chunk fetched on first hover, focus or click; `display="auth"`
+ * shows Try it to signed-in readers only.
  */
-export function Endpoint({ method = 'GET', path = '', src }: { method?: string; path?: string; src?: string }) {
+export function Endpoint({ method = 'GET', path = '', src, display }: { method?: string; path?: string; src?: string; display?: string }) {
     const [open, setOpen] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [allowed, setAllowed] = useState(display !== 'auth')
+    useEffect(() => {
+        if (display !== 'auth') return
+        let live = true
+        void isSignedIn().then((ok) => live && setAllowed(ok))
+        return () => { live = false }
+    }, [display])
     return (
         <div className="aiui-endpoint">
             <span className="aiui-endpoint-method" data-method={method}>{method}</span>
@@ -90,7 +104,7 @@ export function Endpoint({ method = 'GET', path = '', src }: { method?: string; 
                 setCopied(ok)
                 setTimeout(() => setCopied(false), 1500)
             })}>{copied ? <Check /> : <ClipboardCopy />}</Button>
-            {src && (
+            {src && allowed && (
                 <Button size="sm" onPointerEnter={() => void loadPlayground()} onFocus={() => void loadPlayground()} onClick={() => setOpen(true)}>
                     Try it
                 </Button>

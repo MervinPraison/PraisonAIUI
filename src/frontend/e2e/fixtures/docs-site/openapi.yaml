@@ -1,4 +1,4 @@
-# Try it (e2e/specs/docs-try-it.spec.ts): one x-hidden endpoint page, so the sidebar and search stay as they are.
+# Try it (e2e/specs/docs-try-it*.spec.ts): x-hidden endpoint pages, so the sidebar and search stay as they are.
 openapi: 3.1.0
 info: {title: Try it fixture, version: "1"}
 servers:
@@ -18,3 +18,16 @@ paths:
         required: true
         content: {application/json: {schema: {type: object, properties: {name: {type: string, example: Rex}}}}}
       responses: {"200": {description: The updated pet.}}
+  /photos:
+    post:
+      operationId: uploadPhoto
+      summary: Upload a photo
+      x-hidden: true
+      security: [{token: []}, {key: []}]
+      requestBody:
+        content: {multipart/form-data: {schema: {type: object, properties: {caption: {type: string, example: Hi}, photo: {type: string, format: binary}}}}}
+      responses: {"200": {description: Progress events., content: {text/event-stream: {schema: {type: string}}}}}
+components:
+  securitySchemes:
+    token: {type: http, scheme: bearer}
+    key: {type: apiKey, in: query, name: key}

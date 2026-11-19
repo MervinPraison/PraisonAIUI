@@ -66,7 +66,7 @@ tag: NEW
 | `boost` | number | Search ranking weight (`2` ranks the page higher). |
 | `openapi` | string | `"GET /users"`, `"spec.yaml POST /users"` or `"webhook name"`: the page shows that operation, its endpoint bar, Try it, fields and examples around your text ([OpenAPI](openapi.md#endpoints-on-your-own-pages)). |
 | `api` | string | `"POST /v1/users"`: an endpoint page without a spec, Try it from the page's `<ParamField>`s ([OpenAPI](openapi.md#pages-without-a-spec)). |
-| `playground` | string | `interactive`, `simple` or `none`: the Try-it display of an `openapi:` or `api:` page; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
+| `playground` | string | `interactive`, `simple`, `none` or `auth`: the Try-it display of an `openapi:` or `api:` page; site-wide: `api.playground.display` ([OpenAPI](openapi.md#try-it)). |
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
 | `rss` | `true`/`false` | `true` on a changelog page: the build writes its `<Update>` entries as an RSS feed at `<page>/rss.xml` and links it ([Changelog](#changelog)). |

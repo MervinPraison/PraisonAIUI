@@ -33,6 +33,7 @@ from praisonaiui.compiler.nav_directory import _walk as walk_nav
 from praisonaiui.compiler.nav_directory import write_directory_pages
 from praisonaiui.compiler.openapi import add_spec, endpoint_ref, same_source
 from praisonaiui.compiler.openapi_pages import (
+    LIVE,
     api_catalog,
     build_api_reference,
     embed_markdown,
@@ -738,7 +739,7 @@ class Compiler:
         prefill = not (self.config.api and self.config.api.examples) or self.config.api.examples.prefill
         data = [(p.slug, p.playground) for p in api.pages if p.playground] if api else []
         for path, e in (api.embeds.items() if api else []):
-            if e.mode == "interactive" and e.method != "webhook":
+            if e.mode in LIVE and e.method != "webhook":
                 data.append((e.slug, e.playground or manual_data(e.method, e.path, self._page_text(path),
                                                                  self.config.api, prefill)))
         for slug, value in data:

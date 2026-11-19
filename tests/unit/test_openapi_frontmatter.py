@@ -124,10 +124,9 @@ api: "POST /v1/orgs/{org}/users"
     data = json.loads((out / "openapi/try/users.json").read_text())
     assert data["servers"] == [{"url": "https://api.example.com"}]
     params = {p["name"]: p for p in data["params"]}
-    assert set(params) == {"dry", "org", "X-Key"}
+    assert set(params) == {"dry", "org"}
     assert params["org"]["required"] and params["dry"]["enum"] == ["true", "false"]
-    assert params["X-Key"] == {"name": "X-Key", "in": "header", "type": "string", "required": True,
-                               "example": "<api-key>"}
+    assert data["auth"] == [[{"id": "key", "type": "apiKey", "in": "header", "name": "X-Key"}]]
     assert json.loads(data["body"]["example"]) == {"name": "Ada", "age": 3}
 
 

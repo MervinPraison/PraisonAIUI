@@ -115,4 +115,6 @@ test('ApiPlayground: the endpoint bar (method, path, copy); Try it only with src
     const simple = renderDocs('<ApiPlayground method="GET" path="/pets" />')
     assert.match(simple, /data-method="GET">GET</)
     assert.ok(!simple.includes('Try it'), simple)
+    const gated = renderDocs('<ApiPlayground method="GET" path="/me" src="/openapi/try/me.json" display="auth" />')
+    assert.ok(gated.includes('Copy path') && !gated.includes('Try it'), gated) // until the server says the reader is signed in
 })
