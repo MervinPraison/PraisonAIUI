@@ -186,6 +186,8 @@ if (PAPER_FONTS.length !== 3) {
 // imports): a lazy chunk the endpoint bar loads on first hover, focus or click.
 // Measured 4.83 kB + 10%. 7,161 B (+1,861 B, exactly the overage): authentication
 // inputs, file inputs and streamed responses (sessionStorage, FormData, SSE list).
+// 7,162 B (+1 B, exactly the overage): docs components forward the page's utility
+// classes (docs/docsClasses.ts), which moves a shared chunk boundary; no Try it code changed.
 const tryItKey = Object.keys(manifest).find((key) => key === 'src/docs/ApiPlayground.tsx')
 if (!tryItKey) throw new Error('.size-limit.mjs: no src/docs/ApiPlayground.tsx chunk in the build')
 const legacyAll = new Set(filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks.legacyApp]), { css: true }))
@@ -237,7 +239,15 @@ export default [
   // 141,933 B (+24 B, exactly the overage): the SDK modules (sdk/install and what it
   // imports) became their own shared chunk, since docs pages that use a site component
   // load them lazily (docs/customBlocks.ts); the chat route imports them from it.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141933 B', gzip: true },
+  // 142,278 B (+345 B, exactly the overage): voice input's probe in the composer
+  // (chat-engine/voice.ts, one GET /api/realtime/voice per page view) and the lazy
+  // import of the recorder chunk; the recorder itself is not in the route.
+  // 143,081 B (+803 B, exactly the overage): each message a reply sends is its own
+  // block (message_id on reply text, the segment divider, message_update / remove /
+  // actions / action_remove, saved segments on reload) and the toast frame through the
+  // lazy toaster (sdk notify). Splitting the edits into a lazy chunk measured +137 B
+  // more (the loader and holding later frames cost more than the code it moves).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143081 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -299,7 +309,9 @@ export default [
   // 255,228 B (+768 B, exactly the overage): the SDK modules the shell boots with
   // (sdk/install and its imports) are a chunk of their own now that docs pages with a
   // site component load them lazily (docs/customBlocks.ts); same code, one more file.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '255228 B', gzip: true },
+  // 255,578 B (+350 B, exactly the overage): voice input's probe in the chat route (above).
+  // 256,385 B (+807 B, exactly the overage): the reply's messages as blocks (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256385 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -310,7 +322,7 @@ export default [
   { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7161 B', gzip: true },
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7162 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -423,5 +435,13 @@ export default [
   // 11,128,025 B (+4,452 B, exactly the overage): docs content languages (switcher, language-scoped nav).
   // 11,132,290 B (+4,265 B, exactly the overage): site components in docs pages
   // (docs/CustomBlock.tsx, the lazy docs/customBlocks.ts and the SDK chunk split).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11132290 B', brotli: false },
+  // 11,132,753 B (+463 B, exactly the overage): phone fixes in the chat (an artifact table's
+  // actions leave with it; a long app name wraps below the hero's mark).
+  // 11,138,755 B (+6,002 B, exactly the overage): voice input (the lazy VoiceInput chunk
+  // with its recorder rules, and the probe in the chat route).
+  // 11,160,284 B (+21,529 B, exactly the overage): utility classes on docs pages (the
+  // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
+  // 11,162,854 B (+2,570 B, exactly the overage): the reply's messages as blocks in the chat
+  // route (above).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11162854 B', brotli: false },
 ]

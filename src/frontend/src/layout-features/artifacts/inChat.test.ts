@@ -115,3 +115,20 @@ test('markInCanvas marks the block of each artifact, keeps snippets, and unmarks
   assert.equal(markInCanvas(msg, []), 0)
   assert.equal(tableBlock.hasAttribute(IN_CANVAS), false)
 })
+
+test("a table's copy and download actions leave with it: the renderer's table frame is the block", () => {
+  // Streamdown: [data-streamdown=table-wrapper] > (the scroll box with the table) + (the actions, drawn over the corner).
+  const scroll = new El('div', ['border-collapse']).add(
+    new El('table').add(new El('thead').add(new El('th', [], 'Algorithm'), new El('th', [], 'Stable'))),
+  )
+  const actions = new El('div').add(new El('button', [], 'Copy table'))
+  const wrapper = new El('div', [], '', { 'data-streamdown': 'table-wrapper' }).add(scroll, actions)
+  const md = new El('div', ['aiui-markdown']).add(new El('p', [], 'Here it is'), new El('div').add(wrapper), new El('p', [], 'Pick mergesort'))
+  const message = new El('div', [], '', { 'data-role': 'assistant' }).add(md)
+
+  assert.equal(markInCanvas(message as unknown as Element, [table]), 1)
+  const marked = md.querySelectorAll(`[${IN_CANVAS}]`)
+  assert.equal(marked.length, 1)
+  assert.ok(marked[0] === wrapper || marked[0] === wrapper.parentElement, 'the frame (or its only-child wrapper) is hidden, actions included')
+  assert.equal(scroll.hasAttribute(IN_CANVAS), false, 'not just the table, which left the actions over the reply text')
+})

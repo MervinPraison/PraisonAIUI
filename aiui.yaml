@@ -60,6 +60,7 @@ navigation:
           pages:
             - features/gateway-chat
             - features/sessions
+            - features/handler-context
             - features/attachments
             - features/message-elements
             - features/image-preview-chat
@@ -69,6 +70,7 @@ navigation:
             - features/model-fallback
             - features/subagent-tree
             - features/tts
+            - features/realtime-voice-input
             - features/media-analysis
         - group: "Theming"
           icon: palette

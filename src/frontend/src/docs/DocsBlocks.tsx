@@ -16,16 +16,17 @@ import { DocsTabs } from './DocsTabs'
 import { Embed, Video } from './DocsMedia'
 import { Update } from './DocsUpdate'
 import { CustomBlock } from './CustomBlock'
+import { cx } from './docsClasses'
 import { Badge, ColorItem, ColorRow, Colors, Icon, Prompt, Slot, Tile, Tooltip, Tree, TreeFile, TreeFolder, accent, slots } from './DocsWidgets'
 
-type BlockProps = { title?: string; children?: ReactNode }
+type BlockProps = { title?: string; children?: ReactNode; className?: string }
 type CardProps = BlockProps & {
     icon?: string; href?: string; horizontal?: string; img?: string; cta?: string; arrow?: string; color?: string
 }
 
 const on = (v?: string) => v !== undefined && v !== 'false'
 
-function Card({ title, icon, href, horizontal, img, cta, arrow, color, children }: CardProps) {
+function Card({ title, icon, href, horizontal, img, cta, arrow, color, className, children }: CardProps) {
     const glyph = icon ? <DocsHomeIcon name={icon} /> : null
     const external = !!href && isExternal(href)
     // A link card shows an arrow when asked, and by default when it leaves the site.
@@ -47,7 +48,7 @@ function Card({ title, icon, href, horizontal, img, cta, arrow, color, children 
         </>
     )
     const props = {
-        className: 'aiui-card',
+        className: cx('aiui-card', className),
         'data-horizontal': on(horizontal) ? '' : undefined,
         'data-img': image ? '' : undefined,
         style: accent(color) ? ({ '--aiui-card-accent': accent(color) } as CSSProperties) : undefined,
@@ -64,16 +65,16 @@ function Card({ title, icon, href, horizontal, img, cta, arrow, color, children 
 const StepHeading = createContext<string | undefined>(undefined)
 const HEADINGS = new Set(['h2', 'h3', 'h4'])
 
-const Steps = ({ heading, children }: BlockProps & { heading?: string }) => (
+const Steps = ({ heading, className, children }: BlockProps & { heading?: string }) => (
     <StepHeading.Provider value={heading}>
-        <ol className="aiui-steps">{children}</ol>
+        <ol className={cx('aiui-steps', className)}>{children}</ol>
     </StepHeading.Provider>
 )
-const Accordions = ({ children }: BlockProps) => <div className="aiui-accordions">{children}</div>
+const Accordions = ({ className, children }: BlockProps) => <div className={cx('aiui-accordions', className)}>{children}</div>
 
 type StepProps = BlockProps & { heading?: string; num?: string; icon?: string; anchor?: string }
 
-function Step({ title, heading, num, icon, anchor, children }: StepProps) {
+function Step({ title, heading, num, icon, anchor, className, children }: StepProps) {
     const inherited = useContext(StepHeading)
     const level = heading ?? inherited
     const Title = level && HEADINGS.has(level) ? (level as 'h2') : 'p'
@@ -82,7 +83,7 @@ function Step({ title, heading, num, icon, anchor, children }: StepProps) {
     const glyph = icon ? <DocsHomeIcon name={icon} /> : null
     return (
         <li
-            className="aiui-step"
+            className={cx('aiui-step', className)}
             id={Title === 'p' ? id : undefined}
             data-icon={glyph ? '' : undefined}
             style={Number.isNaN(n) ? undefined : { counterSet: `aiui-step ${n}` }}
@@ -94,12 +95,12 @@ function Step({ title, heading, num, icon, anchor, children }: StepProps) {
     )
 }
 
-function Cards({ cols, children }: BlockProps & { cols?: string | number }) {
+function Cards({ cols, className, children }: BlockProps & { cols?: string | number }) {
     const n = Math.min(Math.max(Number(cols) || 2, 1), 4)
-    return <div className="aiui-cards" style={{ '--aiui-cards-cols': n } as CSSProperties}>{children}</div>
+    return <div className={cx('aiui-cards', className)} style={{ '--aiui-cards-cols': n } as CSSProperties}>{children}</div>
 }
 
-const Column = ({ children }: BlockProps) => <div className="aiui-column">{children}</div>
+const Column = ({ className, children }: BlockProps) => <div className={cx('aiui-column', className)}>{children}</div>
 
 type DocsAdmonitionProps = Parameters<typeof Admonition>[0] & { icon?: string; anchor?: string; color?: string }
 
@@ -119,12 +120,12 @@ function DocsAdmonition({ icon, anchor, color, ...rest }: DocsAdmonitionProps) {
 const CardTag = ({ href, ...rest }: CardProps) => <Card {...rest} href={href ? cardHref(href) : undefined} />
 
 /** A mat around an image; `hint` (Markdown) is a line above it, `caption` (Markdown) sits under it. */
-function Frame({ children }: BlockProps) {
+function Frame({ className, children }: BlockProps) {
     const [{ hint, caption }, rest] = slots(children)
     return (
         <>
             {hint && <div className="aiui-frame-hint">{hint}</div>}
-            <figure className="aiui-frame">
+            <figure className={cx('aiui-frame', className)}>
                 {rest}
                 {caption && <figcaption>{caption}</figcaption>}
             </figure>

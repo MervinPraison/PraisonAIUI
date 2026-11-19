@@ -1,0 +1,31 @@
+/*
+ * Utility classes for docs pages (docs/docsClasses.ts): exactly the allowed
+ * classes, renamed `aiui:<class>` so they never touch the chrome or a
+ * component's inner parts, and `!important` so a page's class beats the
+ * component's own (unlayered) look. Imported by Content.tsx: it ships with the
+ * docs pages only, never in index.css.
+ *
+ * Keep the @source lines word for word in step with CLASS_PATTERNS (a test checks).
+ */
+@reference "tailwindcss/theme.css";
+@reference "../styles/theme.css";
+@custom-variant dark (&:is(.dark *));
+@custom-variant aiui (&);
+@import "tailwindcss/utilities.css" important source(none);
+
+@source inline("aiui:{,sm:,md:,lg:}{block,inline-block,inline,flex,inline-flex,grid,hidden}");
+@source inline("aiui:dark:{block,inline-block,inline,flex,grid,hidden}");
+@source inline("aiui:{,sm:,md:,lg:}{flex-row,flex-col,grid-cols-1,grid-cols-2,grid-cols-3,grid-cols-4,text-left,text-center,text-right,w-full,w-1/2,w-1/3,w-2/3}");
+@source inline("aiui:{flex-wrap,flex-1,flex-none,shrink-0,items-start,items-center,items-end,items-baseline,justify-start,justify-center,justify-end,justify-between,self-start,self-center,self-end,col-span-2,col-span-3,col-span-full}");
+@source inline("aiui:{gap,gap-x,gap-y}-{0,1,2,3,4,6,8}");
+@source inline("aiui:{m,mx,my,mt,mb,p,px,py,pt,pb}-{0,1,2,3,4,6,8,12}");
+@source inline("aiui:mx-auto");
+@source inline("aiui:text-{xs,sm,base,lg,xl,2xl,3xl}");
+@source inline("aiui:font-{normal,medium,semibold,bold,mono}");
+@source inline("aiui:{italic,underline,no-underline,uppercase,truncate,whitespace-nowrap,break-words,leading-tight,leading-normal,leading-relaxed,tracking-tight,tracking-wide}");
+@source inline("aiui:text-{foreground,muted-foreground,primary,primary-foreground,destructive,success,warning,info}");
+@source inline("aiui:bg-{background,card,muted,accent,primary,secondary}");
+@source inline("aiui:{border,border-0,border-2,border-t,border-b,border-dashed,border-border,border-primary}");
+@source inline("aiui:rounded{,-none,-sm,-md,-lg,-xl,-full}");
+@source inline("aiui:{w-auto,w-fit,w-1/4,w-3/4,h-auto,min-w-0,aspect-video,aspect-square,object-cover,object-contain,overflow-hidden,overflow-x-auto,opacity-50,opacity-75}");
+@source inline("aiui:max-w-{xs,sm,md,lg,xl,2xl,full,prose}");

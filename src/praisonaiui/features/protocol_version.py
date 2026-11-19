@@ -18,7 +18,7 @@ from ._base import BaseFeatureProtocol
 logger = logging.getLogger(__name__)
 
 # Protocol version — increment when wire format changes
-PROTOCOL_VERSION = "1.0.0"
+PROTOCOL_VERSION = "1.1.0"  # 1.1: message_id on reply text, message_* events, toast
 
 # Supported event types (Gap 25 — typed protocol like OpenClaw)
 EVENT_TYPES = [
@@ -37,6 +37,12 @@ EVENT_TYPES = [
     "reasoning_step",
     "reasoning_completed",
     "memory_update",
+    "message_element",
+    "message_actions",
+    "message_update",
+    "message_remove",
+    "action_remove",
+    "toast",
     "session_created",
     "session_closed",
     "config_changed",

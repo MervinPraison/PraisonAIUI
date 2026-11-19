@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Rss } from 'lucide-react'
 import { slugify } from '../markdown/slug'
+import { cx } from './docsClasses'
 
 const TAGS_CHANGED = 'aiui:update-tags'
 const TOC_REFRESH = 'aiui:toc-refresh'
@@ -77,9 +78,9 @@ function UpdateFilter({ tags, feed, chosen }: Bar & { chosen: string[] }) {
     )
 }
 
-type UpdateProps = { label?: string; description?: string; tags?: string; anchor?: string; children?: ReactNode }
+type UpdateProps = { label?: string; description?: string; tags?: string; anchor?: string; className?: string; children?: ReactNode }
 
-export function Update({ label, description, tags, anchor, children }: UpdateProps) {
+export function Update({ label, description, tags, anchor, className, children }: UpdateProps) {
     const list = useMemo(() => (tags ?? '').split(',').filter(Boolean), [tags])
     const chosen = useChosen()
     const ref = useRef<HTMLElement>(null)
@@ -98,7 +99,7 @@ export function Update({ label, description, tags, anchor, children }: UpdatePro
     return (
         <>
             {bar && (bar.tags.length > 0 || bar.feed) && <UpdateFilter {...bar} chosen={chosen} />}
-            <section ref={ref} className="aiui-update" data-tags={list.join(',') || undefined} hidden={!matches(list, chosen) || undefined}>
+            <section ref={ref} className={cx('aiui-update', className)} data-tags={list.join(',') || undefined} hidden={!matches(list, chosen) || undefined}>
                 <div className="aiui-update-meta">
                     {label && <h2 id={id} className="aiui-update-label">{label}</h2>}
                     {description && <p className="aiui-update-desc">{description}</p>}

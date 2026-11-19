@@ -277,3 +277,11 @@ def test_an_empty_secret_file_is_refused(tmp_path):
     (tmp_path / "auth_secret").write_text("\n")
     with pytest.raises(RuntimeError, match="no usable secret"):
         auth.create_token("alice")
+
+
+def test_handler_context_knows_the_cookie_user_on_a_websocket():
+    from praisonaiui.context import _scope_user
+
+    cookie = f"aiui_session={auth.create_token('alice')}".encode()
+    scope = {"type": "websocket", "headers": [(b"cookie", cookie)], "query_string": b""}
+    assert _scope_user(scope)["id"] == "alice"

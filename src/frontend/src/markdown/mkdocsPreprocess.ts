@@ -76,9 +76,18 @@ export function replaceMkdocsIcons(text: string): string {
     })
 }
 
-/** Drop the `<div class="grid cards" markdown>` wrappers MkDocs Material uses (not their content). */
+/**
+ * Drop the `<div class="grid cards" markdown>` wrappers MkDocs Material uses (not their
+ * content) and each one's own `</div>`; every other `<div>` keeps its close tag.
+ */
 export function stripMkdocsGridWrappers(text: string): string {
-    return outsideFences(text, (prose) => prose.replace(/<div[^>]*markdown[^>]*>\s*/gi, '').replace(/<\/div>\s*/gi, ''))
+    const open: boolean[] = [] // per open <div>: is it a wrapper?
+    return outsideFences(text, (prose) => prose.replace(/<div\b[^>]*>\s*|<\/div>\s*/gi, (tag) => {
+        if (tag[1] === '/') return open.pop() ? '' : tag
+        const wrapper = /\bmarkdown\b/i.test(tag)
+        if (!/\/>\s*$/.test(tag)) open.push(wrapper)
+        return wrapper ? '' : tag
+    }))
 }
 
 // Attributes are allowed: `<CodeGroup dropdown>` picks the file from a menu instead of tabs.

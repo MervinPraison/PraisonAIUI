@@ -52,6 +52,7 @@ ALLOWED_CALLBACK_DECORATORS = {
     "resume",
     "surface_page",
     "surface_action",
+    "author_rename",
 }
 
 # Future-proof decorator namespaces that are always allowed

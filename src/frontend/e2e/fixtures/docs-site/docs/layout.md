@@ -88,3 +88,13 @@ uv pip install aiui
 ```
 
 </CodeGroup>
+
+## Utility classes
+
+<div className="grid md:grid-cols-2 gap-4 fixed">
+<div className="rounded-lg border border-primary bg-muted p-4 text-muted-foreground">Styled box</div>
+<div className="dark:hidden font-bold">Light mode text</div>
+<div className="hidden dark:block font-bold">Dark mode text</div>
+</div>
+
+<Note className="mt-12">A spaced note.</Note>

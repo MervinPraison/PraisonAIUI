@@ -1060,7 +1060,7 @@ Paste a YouTube, Vimeo or Loom URL (watch, share or embed form) in an
 
 Pages may use plain HTML for layout and text (`<div>`, `<details>`,
 `<kbd>`, `<sup>`, tables, `<img>`, `<picture>`), plus the `<iframe>` and
-`<video>` above. Anything that could run code or send the reader's data
+`<video>` above, styled with [utility classes](#styling-with-classes). Anything that could run code or send the reader's data
 elsewhere is not rendered, so a page can never become a way to attack its
 readers:
 
@@ -1087,6 +1087,51 @@ it (both Markdown, links included):
 <Frame caption="A tool call, then an approval the agent waits on.">
 ![A tool call row (execute_command, Done in 0.3 s) above the answer, then an approval card for pip install numpy with Approve and Deny](../images/tool-streaming.png)
 </Frame>
+
+## Styling with classes
+
+Add `className` (or `class`) to a component tag or to raw HTML to adjust one
+block: its spacing, width, text, colour or layout. The classes use the site's
+theme tokens, so they follow light and dark mode and any theme preset:
+
+```markdown
+<div className="grid md:grid-cols-2 gap-4">
+<Card title="Install" href="install.md" className="bg-muted">Set up the CLI.</Card>
+<Card title="Deploy" href="deploy.md">Ship your site.</Card>
+</div>
+
+<Note className="mt-8">Read this before you deploy.</Note>
+
+<p className="text-sm text-muted-foreground text-center">Updated every release.</p>
+
+<span className="dark:hidden">Shown in light mode.</span>
+```
+
+Only these classes work (`{a,b}` means either). Any other class is dropped,
+and `aiui validate` and `aiui build` name it with its file and line, with the
+nearest allowed class (finding 7022). Nothing on a page can move the site's
+header, sidebar or search, or cover them, so there is no `fixed`, `absolute`,
+`z-*` or arbitrary `[...]` value.
+
+| Group | Classes |
+|-------|---------|
+| Display | `block`, `inline-block`, `inline`, `flex`, `inline-flex`, `grid`, `hidden` |
+| Flex and grid | `flex-row`, `flex-col`, `flex-wrap`, `flex-1`, `flex-none`, `shrink-0`, `grid-cols-{1,2,3,4}`, `col-span-{2,3,full}`, `items-{start,center,end,baseline}`, `justify-{start,center,end,between}`, `self-{start,center,end}`, `gap{,-x,-y}-{0,1,2,3,4,6,8}` |
+| Spacing | `m`, `mx`, `my`, `mt`, `mb`, `p`, `px`, `py`, `pt`, `pb` with `-{0,1,2,3,4,6,8,12}`; `mx-auto` |
+| Size | `w-{full,auto,fit,1/2,1/3,2/3,1/4,3/4}`, `max-w-{xs,sm,md,lg,xl,2xl,full,prose}`, `h-auto`, `min-w-0`, `aspect-{video,square}`, `object-{cover,contain}` |
+| Text | `text-{xs,sm,base,lg,xl,2xl,3xl}`, `font-{normal,medium,semibold,bold,mono}`, `text-{left,center,right}`, `italic`, `underline`, `no-underline`, `uppercase`, `truncate`, `whitespace-nowrap`, `break-words`, `leading-{tight,normal,relaxed}`, `tracking-{tight,wide}` |
+| Colour (theme tokens) | `text-{foreground,muted-foreground,primary,primary-foreground,destructive,success,warning,info}`, `bg-{background,card,muted,accent,primary,secondary}`, `border-{border,primary}` |
+| Borders | `border`, `border-0`, `border-2`, `border-t`, `border-b`, `border-dashed`, `rounded{,-none,-sm,-md,-lg,-xl,-full}` |
+| Other | `overflow-hidden`, `overflow-x-auto`, `opacity-{50,75}` |
+| Screen size | `sm:`, `md:` and `lg:` before a display class, `flex-row`, `flex-col`, `grid-cols-{1,2,3,4}`, `text-{left,center,right}` or `w-{full,1/2,1/3,2/3}` (from 640, 768 and 1024 px wide) |
+| Dark mode | `dark:` before a display class: `dark:hidden`, `dark:block`, `dark:inline-block`, `dark:inline`, `dark:flex`, `dark:grid` |
+
+- A class wins over the component's own look, so `<Note className="mt-8">`
+  really moves the note.
+- `style="…"` is always removed (finding 7022 names it). For anything the
+  classes do not cover, write CSS in `site.customCss`.
+- Your own components (`site.components`) receive `className` as a prop and
+  decide what to do with it. `<Tab>` and `<Visibility>` take no classes.
 
 ## Diagrams and math
 

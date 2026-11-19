@@ -75,6 +75,15 @@ class RunEventType(str, Enum):
     # --- Rich message elements (images, video, etc.) ---
     MESSAGE_ELEMENT = "message_element"
 
+    # --- A short notice that is not part of the transcript (aiui.notify) ---
+    TOAST = "toast"
+
+    # --- One message of the reply, by ``message_id`` (aiui.Message) ---
+    MESSAGE_ACTIONS = "message_actions"
+    MESSAGE_UPDATE = "message_update"
+    MESSAGE_REMOVE = "message_remove"
+    ACTION_REMOVE = "action_remove"
+
     # --- Team variants ---
     TEAM_RUN_STARTED = "team_run_started"
     TEAM_RUN_CONTENT = "team_run_content"
@@ -255,6 +264,9 @@ class RunEvent:
         agent_id:      Agent identifier.
         agent_name:    Human-readable agent name.
         error:         Error description.
+        message_id:    The reply message this content belongs to; a run can
+                       send several (``aiui.Message(...).send()``), each its own.
+        author:        Who wrote that message, when not the agent.
         event_id:      Auto-generated unique event id.
         timestamp:     Auto-generated epoch timestamp.
         extra_data:    Arbitrary provider-specific payload.
@@ -291,6 +303,10 @@ class RunEvent:
     # Error
     error: Optional[str] = None
 
+    # One message of the reply (several per run; see ``ReplyText``)
+    message_id: Optional[str] = None
+    author: Optional[str] = None
+
     # Metadata
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: float = field(default_factory=time.time)
@@ -317,6 +333,8 @@ class RunEvent:
             "references",
             "time_ms",
             "error",
+            "message_id",
+            "author",
             "event_id",
             "timestamp",
             "extra_data",
@@ -333,6 +351,61 @@ class RunEvent:
             if elements is not None and "elements" not in d:
                 d["elements"] = elements
         return d
+
+
+class ReplyText:
+    """The text of one reply, kept per message.
+
+    A run can send several messages (``aiui.Message(...).send()``,
+    ``aiui.say``); each keeps its own text under its ``message_id``. Tokens
+    append to their message; a whole message sets it, so the final ``send()``
+    of a streamed message never repeats it. Tokens without an id form one
+    message until another message is sent between them. ``text`` joins the
+    messages with a blank line, so each stays its own paragraph.
+    """
+
+    def __init__(self) -> None:
+        self._texts: Dict[str, str] = {}
+        self._authors: Dict[str, str] = {}
+        self._stream: Optional[str] = None  # the id of the anonymous token stream
+        self._last: Optional[str] = None
+
+    def token(self, token: str, message_id: Optional[str] = None) -> str:
+        """Append *token*; returns the message id it went to."""
+        if not message_id:
+            if self._stream is None or self._last != self._stream:
+                self._stream = uuid.uuid4().hex
+            message_id = self._stream
+        self._texts[message_id] = self._texts.get(message_id, "") + token
+        self._last = message_id
+        return message_id
+
+    def message(self, message_id: str, content: str, author: Optional[str] = None) -> bool:
+        """Set a whole message's text; False when it is already that."""
+        if author:
+            self._authors[message_id] = author
+        self._last = message_id
+        if self._texts.get(message_id) == content:
+            return False
+        self._texts[message_id] = content
+        return True
+
+    def remove(self, message_id: str) -> None:
+        self._texts.pop(message_id, None)
+
+    @property
+    def text(self) -> str:
+        return "\n\n".join(t for t in self._texts.values() if t)
+
+    def segments(self) -> List[Dict[str, str]]:
+        """``[{id, text, author?}]`` when the reply holds more than one message
+        or one with an author (saved, so a reload splits it the same way)."""
+        out = [
+            {"id": k, "text": v, **({"author": self._authors[k]} if k in self._authors else {})}
+            for k, v in self._texts.items()
+            if v
+        ]
+        return out if len(out) > 1 or self._authors else []
 
 
 # ---------------------------------------------------------------------------

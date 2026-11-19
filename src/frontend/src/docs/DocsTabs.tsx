@@ -12,7 +12,7 @@ import { chosenTab, NONE, pickTab, snapshot, subscribe, TOC_REFRESH } from './ta
 const TabsSelect = lazy(() => import('./TabsSelect'))
 
 type TabProps = { title?: string; icon?: string; anchor?: string; children?: ReactNode }
-type TabsProps = { children?: ReactNode; sync?: string; initial?: string; rule?: string; variant?: string }
+type TabsProps = { children?: ReactNode; sync?: string; initial?: string; rule?: string; variant?: string; className?: string }
 
 const isTab = (c: ReactNode): c is ReactElement<TabProps> => isValidElement<TabProps>(c) && typeof c.props.title === 'string'
 
@@ -25,7 +25,7 @@ function TabLabel({ title, icon, anchor }: TabProps) {
     )
 }
 
-export function DocsTabs({ children, sync, initial, rule, variant }: TabsProps) {
+export function DocsTabs({ children, sync, initial, rule, variant, className }: TabsProps) {
     const tabs = Children.toArray(children).filter(isTab)
     const titles = tabs.map((t) => t.props.title!)
     const synced = sync !== 'off'
@@ -42,7 +42,7 @@ export function DocsTabs({ children, sync, initial, rule, variant }: TabsProps) 
         window.dispatchEvent(new Event(TOC_REFRESH))
     }, [active])
 
-    const cls = rule === 'bottom' ? 'aiui-tabs-rule' : undefined
+    const cls = [rule === 'bottom' ? 'aiui-tabs-rule' : '', className ?? ''].join(' ').trim() || undefined
     if (variant === 'dropdown' && tabs.length) {
         return (
             <div className={`aiui-tabs my-4 min-w-0 ${cls ?? ''}`} data-aiui-tabs="" data-variant="dropdown">

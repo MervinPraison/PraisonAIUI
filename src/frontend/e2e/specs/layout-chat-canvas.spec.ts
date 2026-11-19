@@ -284,6 +284,166 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
   })
 }
 
+test.describe('a touch phone (no hover: overlay actions always show)', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+
+  test('phone: a table that moved to the canvas takes its copy and download actions with it', async ({ page }) => {
+    test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
+    const errors = collectPageErrors(page)
+    await page.goto('/chat')
+    await expect(page.locator('[data-connection="open"]')).toBeVisible()
+    await send(page, 'markdown table actions')
+    const reply = assistant(page).last()
+    await expect(reply.locator(TABLE_CARD)).toBeVisible()
+    await waitForRunEnd(page)
+    await expect(reply.locator('table')).toBeHidden()
+    // The renderer draws the table's actions over its corner: left behind,
+    // they sat on top of the reply's next line (a touch screen has no hover to hide them).
+    const actions = reply.locator('.aiui-markdown [data-streamdown="table-wrapper"] button')
+    expect(await actions.count()).toBeGreaterThan(0)
+    for (const button of await actions.all()) await expect(button).toBeHidden()
+    expect(await hasHorizontalOverflow(page)).toBe(false)
+    expect(errors.pageErrors).toEqual([])
+  })
+})
+
+test('phone: a long app name wraps below its mark, centred, instead of beside it', async ({ page }) => {
+  const LONG = 'PraisonAI Realtime Voice Assistant'
+  // The app name comes from the manifest (inline in the page and at /api/shell/manifest).
+  const rename = (manifest: { site?: { title?: string } }) => ({ ...manifest, site: { ...manifest.site, title: LONG } })
+  await page.route('**/api/shell/manifest', async (route) => {
+    const res = await route.fetch()
+    await route.fulfill({ response: res, json: rename(await res.json()) })
+  })
+  await page.route(/^https?:\/\/[^/]+\/chat$/, async (route) => {
+    const res = await route.fetch()
+    const html = (await res.text()).replace(/(<script id="aiui-boot"[^>]*>)([\s\S]*?)(<\/script>)/, (_m, open: string, json: string, close: string) =>
+      open + JSON.stringify(rename(JSON.parse(json))).replace(/</g, '\\u003c') + close,
+    )
+    await route.fulfill({ response: res, body: html })
+  })
+  const errors = collectPageErrors(page)
+  await page.setViewportSize(PHONE)
+  await page.goto('/chat')
+  const name = page.locator('[data-chat-hero] h2')
+  await expect(name).toHaveText(LONG)
+  // The brand row: the mark, then the name.
+  const mark = name.locator('xpath=preceding-sibling::*[1]')
+  const [m, n] = [await mark.boundingBox(), await name.boundingBox()]
+  expect(m && n).toBeTruthy()
+  if (!m || !n) return
+  const lineHeight = await name.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
+  expect(n.height, 'the long name takes more than one line at 390 px').toBeGreaterThan(lineHeight * 1.5)
+  expect(m.y + m.height, 'the mark sits above the name, not beside it').toBeLessThanOrEqual(n.y + 1)
+  expect(Math.abs(m.x + m.width / 2 - (n.x + n.width / 2)), 'the mark is centred over the name').toBeLessThan(4)
+  expect(n.x).toBeGreaterThanOrEqual(0)
+  expect(n.x + n.width).toBeLessThanOrEqual(PHONE.width)
+  expect(await hasHorizontalOverflow(page)).toBe(false)
+  expect(errors.pageErrors).toEqual([])
+})
+
+/**
+ * Voice input (features/realtime.py): the composer's microphone. The server
+ * here has no realtime manager, so voice is off; the "on" tests answer
+ * GET /api/realtime/voice and POST /api/realtime/transcribe in the page and
+ * give it a fake microphone (an oscillator), so MediaRecorder records for real.
+ */
+test.describe('voice input', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+  const MIC = 'Record a voice message'
+  const VOICE_CHUNK = 'VoiceInput'
+
+  async function voiceOn(page: Page, mic: 'ok' | 'blocked'): Promise<{ posted: { type: string; size: number }[] }> {
+    const posted: { type: string; size: number }[] = []
+    await page.route('**/api/realtime/voice', (route) => route.fulfill({ json: { enabled: true, max_seconds: 120, max_bytes: 8388608 } }))
+    await page.route('**/api/realtime/transcribe', async (route) => {
+      const req = route.request()
+      posted.push({ type: req.headers()['content-type'] ?? '', size: req.postDataBuffer()?.length ?? 0 })
+      await route.fulfill({ json: { text: 'hello from the microphone' } })
+    })
+    await page.addInitScript((mode) => {
+      const md = navigator.mediaDevices as MediaDevices & { getUserMedia: MediaDevices['getUserMedia'] }
+      md.getUserMedia = async () => {
+        if (mode === 'blocked') throw new DOMException('Permission denied', 'NotAllowedError')
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const out = ctx.createMediaStreamDestination()
+        osc.connect(out)
+        osc.start()
+        void ctx.resume()
+        return out.stream
+      }
+    }, mic)
+    return { posted }
+  }
+
+  test('off unless the app turns it on: no microphone and no recorder chunk', async ({ page }) => {
+    const scripts = trackScripts(page)
+    await page.goto('/chat')
+    await expect(composer(page)).toBeVisible()
+    await page.waitForTimeout(500)
+    await expect(page.getByRole('button', { name: MIC })).toHaveCount(0)
+    expect(scripts).not.toContain(VOICE_CHUNK)
+  })
+
+  test('on: record by keyboard, stop, and the text lands in the composer', async ({ page }) => {
+    const errors = collectPageErrors(page)
+    const scripts = trackScripts(page)
+    const { posted } = await voiceOn(page, 'ok')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await expect(mic).toBeVisible()
+    expect(scripts, 'the recorder is its own lazy chunk').toContain(VOICE_CHUNK)
+    const box = await mic.boundingBox()
+    expect(box && box.x + box.width <= PHONE.width).toBe(true)
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+
+    await composer(page).fill('Summarise this:')
+    await mic.focus()
+    await page.keyboard.press('Enter')
+    const stop = page.getByRole('button', { name: 'Stop recording and transcribe' })
+    await expect(stop).toHaveAttribute('aria-pressed', 'true')
+    await expect(stop).toBeFocused()
+    await expect(page.getByRole('status').filter({ hasText: /^Recording/ })).toHaveCount(1)
+    // The running time is in the button: the row keeps Send beside it at 390 px.
+    const send = page.getByRole('button', { name: 'Send', exact: true })
+    const [sb, mb] = [await send.boundingBox(), await stop.boundingBox()]
+    expect(sb && mb && Math.abs(sb.y + sb.height / 2 - (mb.y + mb.height / 2))).toBeLessThan(6)
+    await page.waitForTimeout(600)
+    await page.keyboard.press('Enter')
+    await expect(composer(page)).toHaveValue('Summarise this: hello from the microphone')
+    expect(posted).toHaveLength(1)
+    expect(posted[0].type).toMatch(/^audio\//)
+    expect(posted[0].size).toBeGreaterThan(0)
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    expect(await hasHorizontalOverflow(page)).toBe(false)
+    expect(errors.pageErrors).toEqual([])
+  })
+
+  test('Escape discards a recording: nothing is sent', async ({ page }) => {
+    const { posted } = await voiceOn(page, 'ok')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await mic.click()
+    await expect(page.getByRole('button', { name: 'Stop recording and transcribe' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    await page.waitForTimeout(300)
+    expect(posted).toEqual([])
+    await expect(composer(page)).toHaveValue('')
+  })
+
+  test('a blocked microphone says how to allow it', async ({ page }) => {
+    const { posted } = await voiceOn(page, 'blocked')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await mic.click()
+    await expect(page.locator('[data-sonner-toast]', { hasText: 'Microphone access is blocked' })).toBeVisible()
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    expect(posted).toEqual([])
+  })
+})
+
 test('the canvas is the main surface: wider than the thread, resizable by keyboard; one copy of each artifact', async ({ page }) => {
   test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
   const errors = collectPageErrors(page)

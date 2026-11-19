@@ -1,4 +1,4 @@
-"""Content checks for ``aiui validate``: codes 7000-7009, 7013, 7019 and 7101 (listed in docs/api/cli.md).
+"""Content checks for ``aiui validate``: codes 7000-7009, 7013, 7019, 7022 and 7101 (listed in docs/api/cli.md).
 
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
@@ -20,8 +20,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from praisonaiui.compiler.csp import EMBEDS
+from praisonaiui.compiler.docs_classes import DOCS_CLASSES
 from praisonaiui.compiler.docs_scanner import DocPage
-from praisonaiui.compiler.docs_tags import _prose_segments, strip_comments
+from praisonaiui.compiler.docs_tags import KNOWN_DOCS_TAGS, _prose_segments, strip_comments
 from praisonaiui.compiler.links import _ATX, _CODE_SPAN, _outside_code
 from praisonaiui.compiler.nav_builder import icon_name, icon_value, sidebar_title
 from praisonaiui.schema.models import PAGE_ACTIONS, page_action_list
@@ -227,6 +228,44 @@ def check_raw_html(text: str, shown: str) -> list[ContentIssue]:
     return out
 
 
+# A component or HTML tag's ``className`` / ``class`` / ``style`` (the value: quoted, or ``{"…"}`` / ``{{…}}``).
+_TAG = re.compile(r"<([A-Za-z][\w.]*)(?=[\s/>])([^<>]*)>")
+_TAG_ATTR = re.compile(r"""(?<![\w-])(className|class|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`]*)["'`]\s*\}|(\{\{[^<>]*?\}\}))""")
+
+
+def check_classes(text: str, shown: str) -> list[ContentIssue]:
+    """7022: a class on a component tag or raw HTML that the docs page drops (only the utility
+    classes in docs_classes.py work), and ``style`` attributes, which are always removed.
+    Your own components (``site.components``) get ``className`` as a prop and are skipped."""
+    _, first = _split_frontmatter(text)
+    out: list[ContentIssue] = []
+    line_no = 1
+    for code, chunk in _prose_segments(strip_comments(text)):
+        if not code:
+            prose = "\n".join(_CODE_SPAN.sub(lambda m: " " * len(m.group(0)), ln) for ln in chunk.split("\n"))
+            for tag in _TAG.finditer(prose):
+                name = tag.group(1)
+                if name[0].isupper() and name not in KNOWN_DOCS_TAGS:
+                    continue
+                for a in _TAG_ATTR.finditer(tag.group(2)):
+                    n = line_no + prose.count("\n", 0, tag.start(2) + a.start())
+                    if n < first:
+                        continue
+                    if a.group(1) == "style":
+                        out.append(ContentIssue(7022, shown, n, f"style on <{name}> is removed: docs pages keep no inline styles",
+                                                "Use utility classes (className), or site.customCss"))
+                        continue
+                    for cls in (a.group(2) or a.group(3) or a.group(4) or "").split():
+                        if cls in DOCS_CLASSES:
+                            continue
+                        near = difflib.get_close_matches(cls, DOCS_CLASSES, n=1)
+                        out.append(ContentIssue(7022, shown, n, f"class '{cls}' on <{name}> is dropped: it is not a docs utility class",
+                                                f"Did you mean '{near[0]}'?" if near else
+                                                "Use a class from the list in writing-docs.md (Styling with classes), or site.customCss"))
+        line_no += chunk.count("\n")
+    return out
+
+
 def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(),
                 read: Callable[[Path], str] | None = None) -> list[ContentIssue]:
     """Every content check for the scanned docs pages, in page order; ``listed``: slugs given a directory listing;
@@ -246,6 +285,7 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
         out += check_body(text, shown(page), fm, page.slug in listed)
         out += check_icons(text, shown(page), fm)
         out += check_raw_html(text, shown(page))
+        out += check_classes(text, shown(page))
 
     by_slug: dict[str, list[DocPage]] = defaultdict(list)
     by_title: dict[tuple, list[DocPage]] = defaultdict(list)

@@ -29,6 +29,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from praisonaiui import context as handler_context
+
 from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
@@ -518,22 +520,14 @@ class ChatManager(ChatProtocol):
         """Abort a running agent execution."""
         task = self._active_runs.get(run_id)
         if task and not task.done():
+            session_id = self._run_sessions.get(run_id)
             task.cancel()
             self._active_runs.pop(run_id, None)
 
-            # Invoke registered @aiui.cancel callback
-            try:
-                from praisonaiui.server import _callbacks
+            # @aiui.on_stop / @aiui.cancel, run as the stopped chat
+            from praisonaiui.callbacks import _fire
 
-                cancel_cb = _callbacks.get("cancel")
-                if cancel_cb:
-                    import asyncio
-
-                    r = cancel_cb()
-                    if asyncio.iscoroutine(r):
-                        await r
-            except Exception:
-                pass
+            await _fire("cancel", session_id=session_id)
 
             return {"status": "aborted", "run_id": run_id}
         return {"status": "no_active_run", "run_id": run_id}
@@ -729,6 +723,7 @@ class ChatManager(ChatProtocol):
             and set(last) <= _TOKEN_EVENT_KEYS
             and "token" in event
             and "token" in last
+            and event.get("message_id") == last.get("message_id")
         ):
             last["token"] += event["token"]
             last["seq"] = event["seq"]
@@ -906,7 +901,12 @@ async def _chat_send(request: Request) -> JSONResponse:
     # Also run the provider and stream results to WS clients
     asyncio.create_task(
         _run_and_broadcast(
-            content, session_id, agent_name, attachment_ids or None, reply_to=turn_id
+            content,
+            session_id,
+            agent_name,
+            attachment_ids or None,
+            reply_to=turn_id,
+            chat_session=handler_context.session_from_scope(request.scope, session_id, body),
         )
     )
 
@@ -953,7 +953,7 @@ _TERMINAL_RUN_EVENTS = frozenset({"run_completed", "run_error", "run_cancelled"}
 #: Events kept per live run for a tab that reloads mid-run (tokens merged).
 MAX_REPLAY_EVENTS = 2000
 _TOKEN_EVENT_KEYS = frozenset(
-    {"type", "session_id", "run_id", "token", "agent_name", "client_turn_id", "seq"}
+    {"type", "session_id", "run_id", "token", "agent_name", "client_turn_id", "seq", "message_id"}
 )
 
 
@@ -967,8 +967,12 @@ async def _run_and_broadcast(
     regenerate: bool = False,
     owner_client_id: Optional[str] = None,
     reply_to: Optional[str] = None,
+    chat_session: Any = None,
 ) -> None:
     """Run the provider and broadcast streaming events to WS clients.
+
+    *chat_session* (``context.ChatSession``): who sent the turn, from where;
+    a ``@reply`` handler reads it as ``aiui.context.session``.
 
     *reply_to* is the ``turn_id`` of the question this run answers; the saved
     reply carries it so history shows it after that question.
@@ -983,7 +987,7 @@ async def _run_and_broadcast(
     ``visible_history``).
     """
     from praisonaiui.features.attachments import current_attachments, prepare_attachments
-    from praisonaiui.provider import RunEventType
+    from praisonaiui.provider import ReplyText, RunEventType
     from praisonaiui.server import _datastore, get_provider
 
     # Text and PDF files go before the message; image paths go to the model;
@@ -995,6 +999,7 @@ async def _run_and_broadcast(
     mgr = get_chat_manager()
     provider = get_provider()
     full_response = ""
+    reply = ReplyText()  # the reply's text per message (a run can send several)
     run_id = str(uuid.uuid4())
     tool_step_counter = 0  # Step numbering (resets per user message)
     # Dedup: both stream deltas AND hook events fire for the same tool call.
@@ -1023,6 +1028,11 @@ async def _run_and_broadcast(
     first_event: Optional["asyncio.Future[Any]"] = None
     # Code the provider runs inherits the run id (tasks copy the context).
     run_token = current_run_id.set(run_id)
+    session_token = handler_context._session_var.set(chat_session) if chat_session is not None else None
+
+    from praisonaiui.callbacks import _shown_name
+
+    shown_names: Dict[str, str] = {}  # @aiui.author_rename answers for this run
 
     async def _emit(event: Dict[str, Any]) -> None:
         # Every event of the run names the sender's turn, so a client with
@@ -1030,6 +1040,8 @@ async def _run_and_broadcast(
         # when it never saw that run's run_started.
         if client_turn_id:
             event["client_turn_id"] = client_turn_id
+        if event.get("agent_name"):
+            event["agent_name"] = await _shown_name(event["agent_name"], shown_names)
         if event.get("run_id") == run_id:
             mgr.record_run_event(run_id, event)
         await mgr.broadcast(session_id, event)
@@ -1150,7 +1162,28 @@ async def _run_and_broadcast(
                 token = event.token or ""
                 if token and token != "None":
                     payload["token"] = token
-                    full_response += token
+                    reply.token(token, event.message_id)
+                elif event.content is not None and event.content != "None":
+                    # A whole message (aiui.Message, aiui.say): shown now, not at the end.
+                    reply.message(event.message_id or event.event_id, event.content, event.author)
+                    payload["content"] = event.content
+                full_response = reply.text
+            elif event.type == RunEventType.MESSAGE_UPDATE:
+                payload["content"] = event.content or ""
+                if event.message_id:
+                    reply.message(event.message_id, payload["content"], event.author)
+                    full_response = reply.text
+            elif event.type == RunEventType.MESSAGE_REMOVE:
+                if event.message_id:
+                    reply.remove(event.message_id)
+                    full_response = reply.text
+                    collected_elements[:] = [
+                        e for e in collected_elements if e.get("message_id") != event.message_id
+                    ]
+            elif event.type == RunEventType.MESSAGE_ACTIONS:
+                payload["actions"] = (event.extra_data or {}).get("actions") or []
+            elif event.type == RunEventType.ACTION_REMOVE:
+                payload["action_id"] = (event.extra_data or {}).get("action_id")
             elif event.type == RunEventType.RUN_COMPLETED:
                 content = event.content or full_response
                 if content == "None":
@@ -1299,6 +1332,13 @@ async def _run_and_broadcast(
             elif event.type == RunEventType.LLM_CONTENT:
                 # Intermediate narrative text between tool calls
                 payload["content"] = event.content or ""
+            elif event.type == RunEventType.TOAST:
+                # A notice only: never saved with the reply.
+                extra = getattr(event, "extra_data", None) or {}
+                payload["message"] = str(extra.get("message", ""))
+                payload["variant"] = extra.get("variant", "info")
+                if extra.get("duration"):
+                    payload["duration"] = extra["duration"]
             elif event.type == RunEventType.MESSAGE_ELEMENT:
                 extra = getattr(event, "extra_data", None) or {}
                 element = extra.get("element")
@@ -1309,6 +1349,10 @@ async def _run_and_broadcast(
 
             if event.agent_name:
                 payload["agent_name"] = event.agent_name
+            if event.message_id:
+                payload["message_id"] = event.message_id
+            if event.author:
+                payload["author"] = event.author
 
             await _emit(payload)
 
@@ -1344,6 +1388,8 @@ async def _run_and_broadcast(
         _run_suggestions.pop(run_id, None)
         current_run_id.reset(run_token)
         current_attachments.reset(attachments_token)
+        if session_token is not None:
+            handler_context._session_var.reset(session_token)
         if _event_observers:
             status = "cancelled" if cancelled else ("failed" if run_error is not None else "completed")
             _notify_observers(
@@ -1353,6 +1399,7 @@ async def _run_and_broadcast(
 
     # Save assistant response. A failed run is saved even with no text, so
     # a reload still shows the error instead of an unanswered question.
+    resolved_agent_name = shown_names.get(resolved_agent_name or "", resolved_agent_name)
     if full_response or collected_elements or run_error is not None:
         assistant_msg = ChatMessage(
             role="assistant",
@@ -1383,6 +1430,10 @@ async def _run_and_broadcast(
                 msg_data["toolCalls"] = list(collected_tool_calls.values())
             if collected_elements:
                 msg_data["elements"] = collected_elements
+            segments = reply.segments() if reply.text == full_response else []
+            if segments:
+                # Each message the reply sent, so a reload shows them apart.
+                msg_data["segments"] = segments
             if cancelled:
                 # A reply cut short by Stop/abort. Without this flag a reload
                 # shows the partial text as a complete answer.
@@ -1904,6 +1955,9 @@ async def _chat_ws(websocket: WebSocket) -> None:
                             regenerate=regenerate,
                             owner_client_id=client_id,
                             reply_to=turn_id,
+                            chat_session=handler_context.session_from_scope(
+                                websocket.scope, session_id, data
+                            ),
                         )
                     )
 
@@ -2005,7 +2059,37 @@ async def _chat_ws(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error(f"Chat WS error: {e}")
     finally:
+        chatted = list(mgr._ws_sent_sessions.get(client_id, ()))
         mgr.remove_ws_client(client_id)
+        from praisonaiui.server import _callbacks
+
+        if chatted and "goodbye" in _callbacks:
+            task = asyncio.create_task(_end_chats(mgr, chatted))
+            _lifecycle_tasks.add(task)
+            task.add_done_callback(_lifecycle_tasks.discard)
+
+
+_lifecycle_tasks: "set[asyncio.Task]" = set()
+
+
+async def _end_chats(mgr: ChatManager, session_ids: List[str]) -> None:
+    """Run ``@aiui.on_chat_end`` for each chat no connected client still chats in.
+
+    Waits for replies still running there first, so clean-up never pulls
+    state from under a live reply.
+    """
+    from praisonaiui.callbacks import _fire
+
+    for sid in session_ids:
+        if mgr.session_has_connected_owner(sid):
+            continue
+        runs = [mgr._active_runs[r] for r in mgr.live_runs_in_session(sid) if r in mgr._active_runs]
+        if runs:
+            await asyncio.wait(runs)
+        if mgr.session_has_connected_owner(sid):
+            continue  # a client came back while the reply finished
+        handler_context.end_chat(sid)
+        await _fire("goodbye", session_id=sid)
 
 
 # ── Feature Protocol Implementation ─────────────────────────────────

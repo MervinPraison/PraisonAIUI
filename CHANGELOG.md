@@ -113,6 +113,16 @@
 
 ### New
 
+- **Voice input in the chat.** An app that sets a realtime manager able to
+  transcribe (`aiui.set_realtime_manager(OpenAIRealtimeManager())`) gets a
+  microphone button in the composer: record, stop, and the text lands in the
+  message box to read over and send. Keyboard accessible (Escape discards),
+  with clear messages for a blocked or missing microphone; its code loads only
+  for such an app. Built on `RealtimeProtocol.transcribe(audio, mime_type)`
+  (optional; `OpenAIRealtimeManager` implements it with OpenAI speech to text,
+  `transcribe_model=`), `GET /api/realtime/voice` and
+  `POST /api/realtime/transcribe`. See
+  [Voice input](docs/features/realtime-voice-input.md).
 - **Docs sites load less JavaScript.** The chat, agents and playground
   layouts load only for their style, so a docs page's first load is 53.6 KB
   (gzip) smaller: 24 files instead of 33.
@@ -593,6 +603,38 @@
   unknown-tag warning; a module that is missing or names no tag is 7021
   (docs/features/writing-docs.md#your-own-components).
 
+- **Handler context: who is calling, this chat's state and its history.** Inside `@aiui.reply`,
+  `aiui.context.session` gives the chat id, signed-in user, `client_type` (`webapp`, `api`,
+  `copilot` or the bot platform), chat profile, settings, `language` (from Accept-Language) and the
+  request headers without credentials. `aiui.user_session` is a key/value store private to the chat;
+  `aiui.chat_context` is its message history (reloaded from the datastore after a restart) with
+  `to_openai(system=...)`. `await aiui.notify("Saved", type="success")` sends a `toast` event that
+  is never saved with the reply. Concurrent chats never see each other's data; `aiui.current_user()` now works in web chats
+  too (docs/features/handler-context.md).
+
+- **Chat lifecycle handlers and `@aiui.cache`.** `@aiui.on_message` (same as `@aiui.reply`),
+  `@aiui.on_chat_start` (once per chat before its first reply, as that chat), `@aiui.on_stop` (same as
+  `@aiui.cancel`, now run as the stopped chat), `@aiui.on_chat_end` (same as `@aiui.goodbye`, which now
+  runs when the chat's last connection closes) and `@aiui.author_rename` (the name shown for an agent).
+  `@aiui.cache` memoizes setup across chats (sync or async, `ttl=`, `maxsize=`, `fn.cache_clear()`;
+  concurrent first callers share one computation) (docs/api/python.md#chat-lifecycle).
+- **Utility classes in docs pages.** `className="…"` (or `class`) on a component tag or raw HTML
+  styles one block with a curated set of theme-token utilities: spacing, width, text size, weight and
+  alignment, token colours (`text-muted-foreground`, `bg-muted`), borders, rounding, flex and grid,
+  `sm:` / `md:` / `lg:` screen sizes and `dark:` for display. `<Note className="mt-8">` and
+  `<div className="grid md:grid-cols-2 gap-4">` just work, in light and dark mode. Classes cannot
+  touch the site chrome; any other class is dropped and `style` stays removed, and `aiui validate` /
+  `aiui build` name each one with the nearest allowed class (7022;
+  docs/features/writing-docs.md#styling-with-classes).
+
+- **Each message a reply sends is its own.** Every `aiui.Message(...).send()` and `aiui.say()` shows at once as
+  its own block under the answer (with its author, elements and actions), also after a reload; a streamed
+  message's final `send()` no longer repeats its text. Typed elements from `add_image()` and the other `add_*()`
+  methods now reach the chat, `update()`, `remove()` and `Action.remove()` arrive as their own events, and
+  `aiui.notify` shows a toast in both built-in chats. Wire: `run_content.message_id` / `author`, new
+  `message_actions`, `message_update`, `message_remove`, `action_remove`; protocol 1.1.0
+  (docs/features/message-elements.md#several-messages-in-one-reply).
+
 - **Sign-ins survive restarts and work on every worker.** Session tokens are signed (HMAC-SHA256)
   instead of held in memory. Zero config: a secret is generated into `<data dir>/auth_secret` (0600);
   `AIUI_AUTH_SECRET` (`aiui auth create-secret`) shares one across hosts and rotates as `new,old`.
@@ -613,6 +655,10 @@
 
 ### Fixed
 
+- **Phone chat: no stray copy button, no lonely logo.** A table that moved to
+  the canvas no longer leaves its copy and download buttons over the reply on
+  a touch screen, and a long app name in the new-chat hero wraps below its
+  logo, centred, instead of beside it.
 - **No surprise browser windows.** `aiui serve`, `aiui dev` and the examples dashboard open a browser
   only when run from a terminal; scripts, CI, test runners and coding agents that start them no longer
   pop a window. `aiui serve` gains `--open/--no-open`, and `AIUI_NO_BROWSER=1` turns it off everywhere.
@@ -953,3 +999,6 @@
   host is named), and `<script>`, `<style>`, `<link>`, `<form>`, `<audio>`,
   `<object>` and `<embed>` are removed. Code fences and inline code are
   skipped. Before, these disappeared without a word.
+
+- `aiui.run_sync(aiui.say(...))` in a thread started by `aiui.make_async` reaches the chat (it was
+  dropped), and `make_async(fn, executor=pool)` no longer fails with `TypeError`.

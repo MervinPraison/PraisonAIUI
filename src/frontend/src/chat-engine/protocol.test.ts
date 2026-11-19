@@ -270,3 +270,73 @@ test('history: the suggestions of a saved reply are restored', () => {
   assert.deepEqual(fromHistory({ role: 'assistant', content: 'ok', suggestions: ['More'] }, 0).custom?.suggestions, ['More'])
   assert.equal(fromHistory({ role: 'assistant', content: 'ok' }, 0).custom, undefined)
 })
+
+// ── a reply sent as several messages (aiui.Message / aiui.say, WS frames) ──
+
+const MESSAGES: WireEvent[] = [
+  { type: 'run_started', run_id: 'r1' },
+  { type: 'run_content', content: 'first message', message_id: 'm1' },
+  { type: 'run_content', content: 'second message', message_id: 'm2', author: 'Helper' },
+  { type: 'message_element', element: { type: 'image', url: '/b.png', message_id: 'm2' }, message_id: 'm2' },
+  { type: 'message_actions', message_id: 'm2', actions: [{ id: 'a1', name: 'go', label: 'Go' }, { id: 'a2', name: 'no', label: 'No' }] },
+  { type: 'run_content', token: 'Hel', message_id: 'm3' },
+  { type: 'run_content', token: 'lo', message_id: 'm3' },
+  { type: 'run_content', content: 'said', message_id: 'm4' },
+  { type: 'run_completed', content: 'first message\n\nsecond message\n\nHello\n\nsaid' },
+]
+
+const shape = (m: AiuiMessage) =>
+  m.parts.map((p) => (p.type === 'text' ? `text:${p.text}` : p.type === 'data' ? `${p.name}:${p.mid ?? ''}` : p.type))
+
+test('each message of a reply is its own block; run_completed does not merge or repeat them', () => {
+  const m = run(MESSAGES)
+  assert.deepEqual(shape(m), [
+    'text:first message',
+    'segment:m2', 'text:second message', 'element:m2', 'actions:m2',
+    'segment:m3', 'text:Hello',
+    'segment:m4', 'text:said',
+  ])
+  const seg = m.parts.find((p) => p.type === 'data' && p.mid === 'm2')
+  assert.deepEqual(seg?.type === 'data' && seg.data, { author: 'Helper' })
+  assert.equal(m.status?.type, 'complete')
+})
+
+test('a streamed message finalized with its whole text is set, never doubled', () => {
+  const m = run([
+    { type: 'run_content', token: 'Hel', message_id: 'm1' },
+    { type: 'run_content', token: 'lo', message_id: 'm1' },
+    { type: 'run_content', content: 'Hello!', message_id: 'm1' },
+    { type: 'run_completed', content: 'Hello!' },
+  ])
+  assert.deepEqual(shape(m), ['text:Hello!'])
+})
+
+test('message_update, message_remove and action_remove change only their message', () => {
+  const m = run([
+    ...MESSAGES.slice(0, -1),
+    { type: 'message_update', message_id: 'm1', content: 'first, edited' },
+    { type: 'message_update', message_id: 'unknown', content: 'ignored' },
+    { type: 'action_remove', message_id: 'm2', action_id: 'a1' },
+    { type: 'message_remove', message_id: 'm3' },
+  ])
+  assert.deepEqual(shape(m), [
+    'text:first, edited',
+    'segment:m2', 'text:second message', 'element:m2', 'actions:m2',
+    'segment:m4', 'text:said',
+  ])
+  const acts = m.parts.find((p) => p.type === 'data' && p.name === 'actions')
+  assert.deepEqual(acts?.type === 'data' && (acts.data as { actions: { id: string }[] }).actions.map((a) => a.id), ['a2'])
+})
+
+test('a saved reply with segments reloads as the same blocks, elements under their message', () => {
+  const raw = {
+    role: 'assistant',
+    content: 'one\n\ntwo',
+    elements: [{ type: 'image', url: '/b.png', message_id: 'm2' }, { type: 'image', url: '/c.png' }],
+    segments: [{ id: 'm1', text: 'one' }, { id: 'm2', text: 'two', author: 'Helper' }],
+  }
+  assert.deepEqual(shape(fromHistory(raw, 0)), ['text:one', 'segment:m2', 'text:two', 'element:m2', 'element:'])
+  // A stream cut short (reconnect) takes the saved messages, not one merged text.
+  const live = run([{ type: 'run_content', token: 'on', message_id: 'm1' }])
+  assert.deepEqual(shape(reconcileFromHistory(live, raw)), ['text:one', 'segment:m2', 'text:two', 'element:m2', 'element:'])
+})

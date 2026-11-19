@@ -7,8 +7,13 @@ that yields to the event emitter to keep UI responsive.
 from __future__ import annotations
 
 import asyncio
+import functools
+import inspect
 import json
-from typing import Any, Callable, Optional
+import threading
+import time
+from collections import OrderedDict
+from typing import Any, Callable, Dict, Hashable, Optional, Tuple
 
 # Characters that must never reach the HTML tokenizer inside a <script> element.
 _SCRIPT_JSON_ESCAPES = {
@@ -157,3 +162,112 @@ def safe_filename(filename: str, max_length: int = 255) -> str:
         safe_name = "untitled"
 
     return safe_name
+
+
+def _cache_key(args: tuple, kwargs: dict) -> Hashable:
+    key = (args, tuple(sorted(kwargs.items())))
+    try:
+        hash(key)
+        return key
+    except TypeError:  # a list or dict argument: key by its text instead
+        return ("repr", repr(key))
+
+
+def cache(
+    func: Optional[Callable[..., Any]] = None,
+    *,
+    ttl: Optional[float] = None,
+    maxsize: Optional[int] = None,
+) -> Any:
+    """Memoize expensive setup (a model, an index, a client) across chats.
+
+    Keyed by the arguments (unhashable ones by their ``repr``); sync or async.
+    Concurrent first calls share one computation (a cancelled awaiter does not
+    cancel it); exceptions are not cached. ``ttl`` (seconds) expires entries,
+    ``maxsize`` keeps the most recently used, ``fn.cache_clear()`` empties it.
+    """
+    if ttl is not None and not ttl > 0:
+        raise ValueError("ttl must be a positive number of seconds")
+    if maxsize is not None and (isinstance(maxsize, bool) or not isinstance(maxsize, int) or maxsize < 1):
+        raise ValueError("maxsize must be a positive integer")
+
+    def decorate(fn: Callable[..., Any]) -> Callable[..., Any]:
+        store: "OrderedDict[Hashable, Tuple[Optional[float], Any]]" = OrderedDict()
+        lock = threading.Lock()
+        pending: Dict[Hashable, Any] = {}  # key -> threading.Lock / asyncio.Task in progress
+
+        def lookup(key: Hashable) -> Tuple[bool, Any]:
+            with lock:
+                hit = store.get(key)
+                if hit is None:
+                    return False, None
+                expires, value = hit
+                if expires is not None and time.monotonic() >= expires:
+                    del store[key]
+                    return False, None
+                store.move_to_end(key)
+                return True, value
+
+        def remember(key: Hashable, value: Any) -> None:
+            with lock:
+                store[key] = (None if ttl is None else time.monotonic() + ttl, value)
+                store.move_to_end(key)
+                while maxsize is not None and len(store) > maxsize:
+                    store.popitem(last=False)
+
+        def cache_clear() -> None:
+            with lock:
+                store.clear()
+
+        if inspect.iscoroutinefunction(fn):
+
+            @functools.wraps(fn)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                key = _cache_key(args, kwargs)
+                found, value = lookup(key)
+                if found:
+                    return value
+                loop = asyncio.get_running_loop()
+                with lock:
+                    task = pending.get(key)
+                    if task is None or task.get_loop() is not loop:
+                        task = pending[key] = loop.create_task(fn(*args, **kwargs))
+
+                        def done(t: "asyncio.Task[Any]", key: Hashable = key) -> None:
+                            with lock:
+                                if pending.get(key) is t:
+                                    del pending[key]
+                            if not t.cancelled() and t.exception() is None:
+                                remember(key, t.result())
+
+                        task.add_done_callback(done)
+                return await asyncio.shield(task)
+
+            async_wrapper.cache_clear = cache_clear  # type: ignore[attr-defined]
+            return async_wrapper
+
+        @functools.wraps(fn)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            key = _cache_key(args, kwargs)
+            found, value = lookup(key)
+            if found:
+                return value
+            with lock:
+                key_lock = pending.setdefault(key, threading.Lock())
+            with key_lock:  # one computation per key; later callers wait for it
+                found, value = lookup(key)
+                if found:
+                    return value
+                try:
+                    value = fn(*args, **kwargs)
+                    remember(key, value)
+                    return value
+                finally:
+                    with lock:
+                        if pending.get(key) is key_lock:
+                            del pending[key]
+
+        sync_wrapper.cache_clear = cache_clear  # type: ignore[attr-defined]
+        return sync_wrapper
+
+    return decorate(func) if func is not None else decorate

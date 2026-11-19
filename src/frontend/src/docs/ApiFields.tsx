@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/button'
 import { withBase } from '@/lib/url'
 import { slugify } from '../markdown/slug'
 import { copyText } from './pageActionLinks'
+import { cx } from './docsClasses'
 
 const loadPlayground = () => import('./ApiPlayground')
 const ApiPlayground = lazy(loadPlayground)
 
 type FieldProps = {
     field?: string; at?: string; type?: string; req?: string; dep?: string
-    dflt?: string; hint?: string; pre?: string; post?: string; anchor?: string; children?: ReactNode
+    dflt?: string; hint?: string; pre?: string; post?: string; anchor?: string; children?: ReactNode; className?: string
 }
 
 /** The anchor of the field a nested field sits in: `#response-user-address-city`. */
@@ -23,12 +24,12 @@ const ParentField = createContext('')
 
 const Pills = ({ list }: { list?: string }) => list?.split(',').map((label) => <span key={label} className="aiui-field-pill">{label}</span>)
 
-export function ApiField({ field, at = 'param', type, req, dep, dflt, hint, pre, post, anchor, children }: FieldProps) {
+export function ApiField({ field, at = 'param', type, req, dep, dflt, hint, pre, post, anchor, className, children }: FieldProps) {
     const parent = useContext(ParentField)
     const slug = field ? slugify(field) : ''
     const id = anchor ?? (slug ? `${parent || (at === 'response' ? 'response' : 'param')}-${slug}` : undefined)
     return (
-        <div className="aiui-field" id={id} data-at={at} data-placeholder={hint} data-deprecated={dep ? '' : undefined}>
+        <div className={cx('aiui-field', className)} id={id} data-at={at} data-placeholder={hint} data-deprecated={dep ? '' : undefined}>
             <div className="aiui-field-head">
                 <Pills list={pre} />
                 {field && (id ? <a className="aiui-field-name" href={`#${id}`}>{field}</a> : <span className="aiui-field-name">{field}</span>)}
@@ -51,9 +52,9 @@ export function ApiField({ field, at = 'param', type, req, dep, dflt, hint, pre,
 }
 
 /** Nested properties: a native disclosure ("Show properties" / "Hide properties"), closed unless `defaultOpen`. */
-export function Expandable({ title = 'properties', opened, children }: { title?: string; opened?: string; children?: ReactNode }) {
+export function Expandable({ title = 'properties', opened, className, children }: { title?: string; opened?: string; className?: string; children?: ReactNode }) {
     return (
-        <details className="aiui-expandable" open={opened === 'true'}>
+        <details className={cx('aiui-expandable', className)} open={opened === 'true'}>
             <summary>
                 <ChevronRight aria-hidden="true" />
                 <span className="aiui-expandable-show">Show {title}</span>
@@ -67,11 +68,11 @@ export function Expandable({ title = 'properties', opened, children }: { title?:
 const PANEL_LABEL: Record<string, string> = { request: 'Request example', response: 'Response example' }
 
 /** One block of the side column; inline where docs/panels.ts leaves it (inside a list item). */
-export function Panel({ kind, children }: { kind?: string; children?: ReactNode }) {
+export function Panel({ kind, className, children }: { kind?: string; className?: string; children?: ReactNode }) {
     const label = kind ? PANEL_LABEL[kind] : undefined
     return label
-        ? <section className="aiui-panel" data-kind={kind} aria-label={label}>{children}</section>
-        : <div className="aiui-panel">{children}</div>
+        ? <section className={cx('aiui-panel', className)} data-kind={kind} aria-label={label}>{children}</section>
+        : <div className={cx('aiui-panel', className)}>{children}</div>
 }
 
 let signedIn: Promise<boolean> | undefined
@@ -86,7 +87,7 @@ const isSignedIn = () => (signedIn ??= fetch('/api/auth/status', { credentials: 
  * request form, a lazy chunk fetched on first hover, focus or click; `display="auth"`
  * shows Try it to signed-in readers only.
  */
-export function Endpoint({ method = 'GET', path = '', src, display }: { method?: string; path?: string; src?: string; display?: string }) {
+export function Endpoint({ method = 'GET', path = '', src, display, className }: { method?: string; path?: string; src?: string; display?: string; className?: string }) {
     const [open, setOpen] = useState(false)
     const [copied, setCopied] = useState(false)
     const [allowed, setAllowed] = useState(display !== 'auth')
@@ -97,7 +98,7 @@ export function Endpoint({ method = 'GET', path = '', src, display }: { method?:
         return () => { live = false }
     }, [display])
     return (
-        <div className="aiui-endpoint">
+        <div className={cx('aiui-endpoint', className)}>
             <span className="aiui-endpoint-method" data-method={method}>{method}</span>
             <code className="aiui-endpoint-path">{path}</code>
             <Button variant="ghost" size="icon-sm" aria-label={copied ? 'Copied' : 'Copy path'} onClick={() => void copyText(path).then((ok) => {

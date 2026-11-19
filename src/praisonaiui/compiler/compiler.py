@@ -23,6 +23,7 @@ from praisonaiui.compiler import seo as head
 from praisonaiui.compiler.content_lint import (
     ContentIssue,
     accent_contrast,
+    check_classes,
     check_pages,
     check_raw_html,
     nav_icons,
@@ -278,11 +279,13 @@ class Compiler:
                           self._components().tags)
 
     def lint_raw_html(self) -> list[str]:
-        """``aiui build``'s warnings for raw HTML a page shows differently than written (7019)."""
+        """``aiui build``'s warnings for raw HTML a page shows differently than written (7019) and
+        classes or styles it drops (7022)."""
         out = []
         for page in self._published_pages():
             shown = page.path.relative_to(self.base_path).as_posix() if page.path.is_relative_to(self.base_path) else page.path.as_posix()
-            out += [f"7019: {i.file}:{i.line}: {i.message}" for i in check_raw_html(self._page_text(page.path), shown)]
+            text = self._page_text(page.path)
+            out += [f"{i.code}: {i.file}:{i.line}: {i.message}" for i in check_raw_html(text, shown) + check_classes(text, shown)]
         return out
 
     def lint_content(self, config_file: str = "aiui.yaml", specs: dict | None = None) -> list[ContentIssue]:

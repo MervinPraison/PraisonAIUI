@@ -28,19 +28,45 @@ async def on_message(message):
 
 `aiui.audio(url)` and `aiui.video(url)` work the same way.
 
-!!! warning "`Message.add_*()` elements are dropped in the chat"
-    `msg.add_image()`, `add_pdf()`, `add_video()`, `add_audio()`, `add_file()`
-    and `add_code()` validate their arguments and append typed elements
-    (`ImageElement` and the others in `praisonaiui.schema.models`). On the
-    current release the reply bridge forwards only dict elements, so typed
-    ones never reach the browser. Use dicts (or `aiui.image()` and the other
-    helpers) until that is fixed; the `add_*()` methods are still useful to
-    validate input, for example `ImageElement(...).model_dump(exclude_none=True)`
-    gives the dict.
+`msg.add_image()`, `add_pdf()`, `add_video()`, `add_audio()`, `add_file()`
+and `add_code()` validate their arguments and append typed elements
+(`ImageElement` and the others in `praisonaiui.schema.models`); they reach the
+chat like dicts. So does any object with `model_dump()` or `to_dict()`.
 
-The sections below list each element's fields. Their examples use the
-`add_*()` methods, which take the same fields but, as the warning says, do not
-render in the chat yet; pass the same fields in a dict instead.
+## Several messages in one reply
+
+Each `aiui.Message(...).send()` and each `aiui.say(...)` is its own message:
+the chat shows it at once, as its own block under the same answer, with its
+author when it is not the agent, and its elements and actions under it. A
+reload shows the same blocks.
+
+```python
+@aiui.reply
+async def on_message(message):
+    await aiui.Message(content="Looking that up...").send()
+    chart = aiui.Message(content="Here is the chart:", author="Analyst")
+    chart.add_image(url="https://example.com/chart.png", alt="Sales")
+    await chart.send()
+
+    answer = aiui.Message(content="")
+    for token in ["The ", "total ", "is 42."]:
+        await answer.stream_token(token)
+    await answer.send()  # finalizes: the text is not repeated
+```
+
+Copy, feedback and Regenerate act on the whole answer. The saved reply keeps
+`content` (the messages joined by a blank line) and `segments`
+(`[{id, text, author?}]`); elements carry the `message_id` of their message.
+`msg.update()` and `msg.remove()` change only that message while the reply
+runs.
+
+On the wire every piece of reply text names its message: `run_content`
+carries `message_id` with a `token` (appended) or a whole `content` (sets that
+message's text), plus `author` when set. `message_element` and
+`message_actions` carry the same `message_id`; `message_update`,
+`message_remove` and `action_remove` edit a message already shown.
+
+The sections below list each element's fields.
 
 ## Element Types
 

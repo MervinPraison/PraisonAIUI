@@ -32,6 +32,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { sweepStaleWorkDirs } from './sweep-tmp.mjs'
+
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const FRONTEND = path.resolve(HERE, '..', '..')
 const REPO = path.resolve(FRONTEND, '..', '..')
@@ -93,6 +95,8 @@ function waitUntilBindable(python, port, env) {
 
 const opts = parseArgs(process.argv.slice(2))
 const python = findPython()
+// Folders a killed server could not remove (sweep-tmp.mjs).
+sweepStaleWorkDirs()
 const work = mkdtempSync(path.join(os.tmpdir(), 'aiui-e2e-'))
 const repo = opts.src || REPO
 if (!existsSync(path.join(repo, 'src', 'praisonaiui'))) fail(`${repo} is not a PraisonAIUI checkout`)
