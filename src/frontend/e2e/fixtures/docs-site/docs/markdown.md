@@ -152,3 +152,11 @@ line_15 = 15
   pip install aiui
   aiui run app.py
 </CodeBlock>
+
+## Site code theme
+
+A fence in the site's own grammar (`site.theme.codeLanguages`):
+
+```gr
+hello world 42 # greet twice
+```

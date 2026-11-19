@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import branding, changelog, integrations, site_assets
+from praisonaiui.compiler import branding, changelog, code_theme, integrations, site_assets
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
@@ -92,6 +92,7 @@ class Compiler:
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
         self._site_assets: site_assets.SiteAssets | None = None  # fonts, custom CSS/JS (site_assets.py)
+        self._code_theme: code_theme.CodeTheme | None = None  # code block theme, grammars (code_theme.py)
         # `aiui dev` sets it: analytics and chat widgets stay off unless integrations.dev
         self.dev = False
         self._feeds: dict[str, str] = {}  # page path -> its RSS feed URL (changelog.py)
@@ -164,6 +165,7 @@ class Compiler:
             files.append("docs-nav.json")
 
         # Generate ui-config.json (its redirects leave out those a page hides)
+        self._code_theme = None  # resolved with this build's base path
         ui_config = self._generate_ui_config()
         redirects = rd.active_rules(self.config.redirects, self._page_routes(nav))
         if redirects:
@@ -198,9 +200,9 @@ class Compiler:
         )
         files.append("assets/theme.css")
         extras = self._assets()
-        if extras.css:  # site.theme.fonts
+        if extras.css or self._code().css:  # site.theme.fonts, site.theme.code
             with (output_dir / "assets" / "theme.css").open("a", encoding="utf-8") as f:
-                f.write(f"\n{extras.css}")
+                f.write("".join(f"\n{css}" for css in (extras.css, self._code().css) if css))
         found = self._integrations()
         if found:  # integrations: the loader beside the pages, the consent banner's CSS
             (output_dir / integrations.SCRIPT).write_text(found.script, encoding="utf-8")
@@ -218,7 +220,7 @@ class Compiler:
 
         # Copy docs markdown files for content loading
         warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
-        warnings += [f"{i.file}: {i.message}" for i in extras.issues]
+        warnings += [f"{i.file}: {i.message}" for i in extras.issues + self._code().issues]
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             if self._snippets.errors():  # a missing snippet, or one that includes itself
@@ -270,7 +272,7 @@ class Compiler:
         nav = self._generate_docs_nav() if pages else {}
         items = walk_nav(nav.get("items", []))
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
-        issues += branding.missing_images(self.config, self.base_path) + self._assets().issues
+        issues += branding.missing_images(self.config, self.base_path) + self._assets().issues + self._code().issues
         moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
         divisions = [d for d, _ in self.config.navigation.divisions()] if self.config.navigation else []
         from praisonaiui.compiler.related import issues as related_issues
@@ -380,6 +382,7 @@ class Compiler:
                             else {}
                         ),
                         **({"strict": True} if self.config.site.theme.strict else {}),
+                        **self._code().config,
                     }
                     if self.config.site.theme
                     else None
@@ -966,6 +969,12 @@ class Compiler:
         if self._site_assets is None:
             self._site_assets = site_assets.collect(self.config.site, self.base_path, self._brand_files, self.url_base)
         return self._site_assets
+
+    def _code(self) -> code_theme.CodeTheme:
+        """Code block theme and grammars (code_theme.collect), once per build."""
+        if self._code_theme is None:
+            self._code_theme = code_theme.collect(self.config.site.theme, self.base_path, self._brand_files, self.url_base)
+        return self._code_theme
 
     def _integrations(self) -> integrations.Integrations | None:
         """Analytics, chat widgets and consent (``integrations:``); off in ``aiui dev``

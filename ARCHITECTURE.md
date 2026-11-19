@@ -41,7 +41,7 @@ Markdown. Pages and features extend through one plugin model: Python records
 | **Features (Python)** | `src/praisonaiui/features/*.py` (`BaseFeatureProtocol` subclasses) | Domain APIs, mounted only when their built-in record is enabled |
 | **Legacy React App** | `App.tsx`, `legacy-app-entry.tsx`, `chat/`, `agent-ui/`, `views/`, `pages/`, `surfaces/`, `components/*` (non-ui), `Header.tsx`, `Sidebar.tsx`, `Content.tsx` | The chat/docs/agents/playground/custom styles; maintained, not grown |
 | **Legacy vanilla views** | `templates/frontend/plugins/dashboard.js` + `plugins/views/*.js` (44 files, including 4 one-line page-id alias modules: `runs`, `cron`, `work`, `training`), `templates/frontend/dashboard-plugins/` (kanban, sample-board, video-studio; each claimed by a record's `dashboard_plugins`: `builtin.work`, `builtin.examples`, `builtin.video`) | The `dashboard` style; hosted in the app shell by `LegacyViewHost` |
-| **Committed bundle** | `src/praisonaiui/templates/frontend/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,aiui-sdk.d.ts,aiui-icons.json,assets/}` | Build output of `src/frontend`, shipped in the wheel |
+| **Committed bundle** | `src/praisonaiui/templates/frontend/{index.html,icon.svg,aiui-manifest.json,aiui-externals.json,aiui-sdk.d.ts,aiui-icons.json,aiui-code.json,assets/}` | Build output of `src/frontend`, shipped in the wheel |
 
 ```mermaid
 flowchart TB
@@ -382,7 +382,7 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | `lucide-react` | ^0.563.0 | Icons, static imports | Never a dynamic lucide lookup (boot budget); page icons belong in the manifest (G5) |
 | `@assistant-ui/react` | 0.15.36 | Chat runtime (`useExternalStoreRuntime`) and Thread primitives | Only `chat-engine/` imports it, and only `useAiuiRuntime.ts` touches the runtime API. Not `@assistant-ui/react-streamdown` |
 | `streamdown` | 2.7.1 | The one markdown renderer (`markdown/Markdown.tsx`), always behind `React.lazy` | Never react-markdown, react-syntax-highlighter or a second renderer; keep `rehype-sanitize`; never `allowedTags` |
-| `shiki` | 4.6.0 | Code highlighting via the curated `markdown/shikiPlugin.ts` (28 languages, JS regex engine) | Never `@streamdown/code` or a full Shiki import |
+| `shiki` | 4.6.0 | Code highlighting via the curated `markdown/shikiPlugin.ts` (74 languages, each its own lazy chunk; docs code themes in `virtual:aiui-code-themes`, JS regex engine) | Never `@streamdown/code` or a full Shiki import |
 | `mermaid` | ^11.17.2 | Diagrams, lazy `import('mermaid')` in `streamdownPlugins.ts` | Never import it statically |
 | `@streamdown/math` + `katex` | 1.0.3, 0.16.47 | Math, lazy (`pluginLoaders.ts`) | Never import statically |
 | `@a2ui/react`, `@a2ui/web_core` | optional peer (>=0.10.0) | Agent-driven surfaces (`surfaces/`, `chat-engine/parts/A2uiPart.tsx`) | Lazy only; the app must work without them |

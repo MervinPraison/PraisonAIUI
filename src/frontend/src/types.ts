@@ -56,6 +56,10 @@ export interface ThemeConfig {
     mode?: 'light' | 'dark' | 'system'
     /** `site.theme.strict`: the configured mode only (no toggle, a stored choice is ignored). */
     strict?: boolean
+    /** `site.theme.code`: the Shiki theme per colour mode (docs build). */
+    code?: { light?: string; dark?: string }
+    /** `site.theme.codeLanguages`: grammars the build published (docs build). */
+    codeLanguages?: { name: string; aliases?: string[]; url: string }[]
 }
 
 export interface SiteConfig {

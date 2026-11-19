@@ -68,6 +68,46 @@ class FontsConfig(BaseModel):
         return FontFace(family=v).family if isinstance(v, str) else v
 
 
+CODE_NAME = re.compile(r"^[a-z0-9][a-z0-9+#._-]*$")
+
+
+def _code_name(v: str) -> str:
+    v = v.strip().lower()
+    if not CODE_NAME.match(v):
+        raise ValueError("a code theme or language name is lowercase letters, digits and '+#._-'")
+    return v
+
+
+class CodeThemeConfig(BaseModel):
+    """Code block theme per colour mode (a bundled Shiki theme name each)."""
+
+    light: str = "github-light"
+    dark: str = "github-dark"
+
+    @field_validator("light", "dark")
+    @classmethod
+    def _names(cls, v):
+        return _code_name(v)
+
+
+class CodeLanguageConfig(BaseModel):
+    """A TextMate grammar (JSON file beside aiui.yaml) that highlights fences of its language."""
+
+    source: str
+    name: Optional[str] = Field(default=None, description="Fence language (default: the grammar's name)")
+    aliases: list[str] = Field(default_factory=list, description="More fence names for it")
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v):
+        return _code_name(v) if v is not None else v
+
+    @field_validator("aliases")
+    @classmethod
+    def _aliases(cls, v):
+        return [_code_name(a) for a in v]
+
+
 class ThemeConfig(BaseModel):
     """Theme configuration."""
 
@@ -141,6 +181,25 @@ class ThemeConfig(BaseModel):
             "each a family or {family, source, weight, format} for a font file."
         ),
     )
+
+    code: Optional[Union[str, CodeThemeConfig]] = Field(
+        default=None,
+        description=(
+            "Docs site code blocks: a Shiki theme name for both modes, or {light, dark}. "
+            "Default: github-light / github-dark on the site's own code background."
+        ),
+    )
+    code_languages: list[Union[str, CodeLanguageConfig]] = Field(
+        default_factory=list,
+        alias="codeLanguages",
+        description="Docs site: TextMate grammar files (JSON) for more fence languages, "
+        "each a path or {source, name, aliases}.",
+    )
+
+    @field_validator("code")
+    @classmethod
+    def _code_theme(cls, v):
+        return _code_name(v) if isinstance(v, str) else v
 
     @field_validator("fonts")
     @classmethod

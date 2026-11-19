@@ -55,8 +55,10 @@ class TestLazyBoundary:
 
     def test_curated_shiki_not_streamdown_code(self):
         plugin = _read(MD / "shikiPlugin.ts")
-        langs = re.findall(r"^\s{4}([\w]+): \(\) => import\('shiki/langs/", plugin, re.M)
-        assert len(langs) == 28, langs
+        # Each grammar its own lazy chunk; never a static grammar import or the full bundle.
+        langs = re.findall(r"^\s{4}'?([\w-]+)'?: \(\) => import\('shiki/langs/", plugin, re.M)
+        assert len(langs) == 74, langs
+        assert not re.search(r"^import .*shiki/langs", plugin, re.M)
         assert "createJavaScriptRegexEngine" in plugin
         assert "@streamdown/code" not in _read(MD / "streamdownPlugins.ts")
 

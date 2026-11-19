@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { lucideIcons } from './scripts/lib/lucide-icons.mjs'
+import { codeThemes } from './scripts/lib/code-themes.mjs'
 
 // Dev server: proxy every server-owned path to a running `aiui` backend so
 // `npm run dev` (and the dev/*.html harness pages) can talk to real APIs.
@@ -152,7 +153,7 @@ function noEntryImports(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), lucideIcons(__dirname)],
+  plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), lucideIcons(__dirname), codeThemes()],
   // Chunks, their preloads and CSS url()s resolve relative to the file that
   // names them (import.meta.url), so one bundle works at the site root and
   // under a base path (`aiui build --base-path /repo`, src/lib/url.ts).

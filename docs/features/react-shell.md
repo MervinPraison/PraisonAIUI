@@ -52,7 +52,7 @@ AIUI_SHELL=legacy aiui run app.py   # always the vanilla dashboard
   When the socket cannot open it falls back to Server-Sent Events (`POST /run`);
   on SSE an agent's question says that answering needs a live connection.
 - **One markdown renderer** (Streamdown) for chat and docs, with lazy code
-  highlighting (28 languages), Mermaid and KaTeX. In chat, external links open
+  highlighting (74 languages), Mermaid and KaTeX. In chat, external links open
   in a new tab with `rel="noopener noreferrer nofollow"`, and remote images
   are shown as a click-to-load placeholder naming their host (same-origin,
   `data:image/` and `blob:` images load directly).
