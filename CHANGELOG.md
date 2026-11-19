@@ -674,6 +674,21 @@
   server, Ask AI and older pages; a site built before the parts, or a part
   gone after a deploy, falls back to it. See
   [Writing docs → Search](docs/features/writing-docs.md#search).
+- Docs sites, first load: each page `aiui build` writes carries `docs-nav.json`
+  and `route-manifest.json` (as it already carried the page's Markdown) and
+  preloads `ui-config.json`, and the plugin loader's tag names the plugins, so
+  `plugins/plugins.json` is not requested. `fetch-retry` leaves the default
+  `site.plugins` (the app retries its own requests; list it to keep it). On
+  this site a first docs page makes 1 JSON request instead of 5 and loads 2
+  plugin scripts instead of 3. Sites with `content.docs.auth` keep fetching
+  their navigation (it is cut per reader), and a page served without its
+  content drops the block. See
+  [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
+- Docs sites: a page whose download stalls after it starts is requested again
+  after 5 seconds without a byte, instead of after the 15-second limit on the
+  whole download; a slow download that keeps arriving still gets the 15
+  seconds, and when every attempt fails the page still offers Retry. See
+  [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
 
 - **Phone chat: no stray copy button, no lonely logo.** A table that moved to
   the canvas no longer leaves its copy and download buttons over the reply on

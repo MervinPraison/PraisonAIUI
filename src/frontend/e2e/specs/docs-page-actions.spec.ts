@@ -5,7 +5,7 @@
  * site's own, the Ctrl+C shortcut and "Listen to page".
  */
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, withoutInlinedManifests } from './support'
 
 async function withActions(page: Page, site?: unknown, first?: unknown) {
   if (site !== undefined) {
@@ -15,6 +15,7 @@ async function withActions(page: Page, site?: unknown, first?: unknown) {
     })
   }
   if (first !== undefined) {
+    await withoutInlinedManifests(page)
     await page.route('**/docs-nav.json', async (route) => {
       const response = await route.fetch()
       const nav = await response.json()

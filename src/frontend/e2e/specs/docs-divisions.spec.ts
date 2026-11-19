@@ -1,7 +1,7 @@
 // Tabs, tab menus, sidebar anchors and the dropdown switcher (docs/features/navigation.md)
 // on the built fixture site, with docs-nav.json and ui-config.json replaced.
 import { expect, test, type Page } from '@playwright/test'
-import { collectPageErrors } from './support'
+import { collectPageErrors, withoutInlinedManifests } from './support'
 
 const NAV = {
   items: [
@@ -33,6 +33,7 @@ const NAVIGATION = {
 }
 
 async function withNavigation(page: Page) {
+  await withoutInlinedManifests(page)
   await page.route('**/docs-nav.json', (route) => route.fulfill({ json: NAV }))
   await page.route('**/ui-config.json', async (route) => {
     const response = await route.fetch()

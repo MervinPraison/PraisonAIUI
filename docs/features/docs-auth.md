@@ -92,9 +92,10 @@ A page's rule covers everything made from it: its HTML (including the copy
 inside `<noscript>`), its `.md` and `.source.md` files and `Accept:
 text/markdown` answer, its social card under `/og/`, its Try it data and its RSS
 feed. `docs-nav.json`, `search-index.json`, `llms.txt` and `llms-full.txt` (and
-their `/.well-known/` copies) hold only the pages the reader may read (the
-build writes no split search index, `search-index/`, for such a site: search
-reads the cut `search-index.json`), and the
+their `/.well-known/` copies) hold only the pages the reader may read (so the
+pages do not carry the navigation, as they do on a site without sign-in, and
+the build writes no split search index, `search-index/`: search reads the cut
+`search-index.json`), and the
 [MCP server](ai-ready-docs.md#mcp-server), [Ask AI](ai-ready-docs.md#ask-ai),
 `/api/docs/search` and page feedback see only those pages. An AI tool that
 connects to `/mcp` without the browser's cookie reads the open pages. The

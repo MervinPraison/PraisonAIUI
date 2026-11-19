@@ -313,7 +313,9 @@ export default [
   // 256,385 B (+807 B, exactly the overage): the reply's messages as blocks (chat route, above).
   // 256,562 B (+177 B, exactly the overage): the entry's boot-failure message with Reload and
   // the cache-busting reload after a deploy (main.tsx, chunkReload.ts).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256562 B', gzip: true },
+  // 256,563 B (+1 B, exactly the overage): docLoader's reader for the manifests aiui build
+  // inlines in each page (inlinedManifest).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256563 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -447,5 +449,9 @@ export default [
   // route (above).
   // 11,164,096 B (+1,242 B, exactly the overage): docs pages that never stay on the skeleton
   // (docLoader body limit, error boundaries for lazy parts, boot-failure Reload).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164096 B', brotli: false },
+  // 11,164,574 B (+478 B, exactly the overage): a stalled page download is retried after
+  // 5 s without a byte (docLoader reads the body chunk by chunk).
+  // 11,164,896 B (+322 B, exactly the overage): the manifests inlined in each built page
+  // (docLoader inlinedManifest, App.tsx reads them before fetching).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164896 B', brotli: false },
 ]

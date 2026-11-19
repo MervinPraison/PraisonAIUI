@@ -35,6 +35,17 @@ console.debug('[AIUI Loader] Starting...');
     }
   })();
   let pluginVersion = LOADER_VERSION;
+  // `aiui build` names the plugins on this tag (data-plugins="a,b"), which
+  // saves the plugins.json request; without it (a server, an older build)
+  // the list comes from plugins.json.
+  const INLINE_PLUGINS = (function () {
+    try {
+      const list = document.currentScript && document.currentScript.getAttribute('data-plugins');
+      return typeof list === 'string' ? list.split(',').map((s) => s.trim()).filter(Boolean) : null;
+    } catch (_) {
+      return null;
+    }
+  })();
 
   /** @type {Array<{name: string, init?: Function, onContentChange?: Function}>} */
   const loadedPlugins = [];
@@ -133,18 +144,21 @@ console.debug('[AIUI Loader] Starting...');
     if (el) el.remove();
   }
 
+  async function pluginList() {
+    if (INLINE_PLUGINS) return INLINE_PLUGINS;
+    const res = await fetch(PLUGINS_CONFIG);
+    if (!res.ok) {
+      console.debug('[AIUI] No plugins.json found, skipping plugins.');
+      return [];
+    }
+    const config = await res.json();
+    if (!pluginVersion && config.version) pluginVersion = String(config.version);
+    return config.plugins || [];
+  }
+
   async function main() {
     try {
-      const res = await fetch(PLUGINS_CONFIG);
-      if (!res.ok) {
-        console.debug('[AIUI] No plugins.json found, skipping plugins.');
-        removeAntiFlicker();
-        return;
-      }
-
-      const config = await res.json();
-      if (!pluginVersion && config.version) pluginVersion = String(config.version);
-      const pluginNames = config.plugins || [];
+      const pluginNames = await pluginList();
 
       if (pluginNames.length === 0) {
         removeAntiFlicker();

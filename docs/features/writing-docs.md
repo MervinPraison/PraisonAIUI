@@ -1421,4 +1421,8 @@ window.addEventListener('aiui:docs-feedback', (e) => console.log(e.detail.path, 
 
 Each page's HTML also carries that page's source (a JSON script,
 `id="aiui-initial-doc"`), so the first visit renders without a second request
-for it. Pages over 200 KB of Markdown are fetched as before.
+for it. Pages over 200 KB of Markdown are fetched as before. It also carries
+`docs-nav.json` and `route-manifest.json` (`id="aiui-boot-data"`, each up to
+100 KB; not the navigation of a site with sign-in) and preloads
+`ui-config.json`; see
+[Deploy to GitHub Pages → How pages load](../getting-started/github-pages.md#how-pages-load).
