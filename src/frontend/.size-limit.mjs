@@ -461,5 +461,8 @@ export default [
   // (docLoader inlinedManifest, App.tsx reads them before fetching).
   // 11,168,215 B (+3,319 B, exactly the overage): the split search index reader
   // (docs/searchShards.ts in the lazy search chunk) and CommandDialog's controlled `value`.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11168215 B', brotli: false },
+  // 11,168,707 B (+492 B, exactly the overage): the HTML parser as a lazy chunk of its own
+  // (markdown/rehypeRawGate.ts, the needsRaw hint, the chunk's import/export glue). No
+  // loaded chunk grows: the renderer chunk is 49.6 kB gzip smaller.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11168707 B', brotli: false },
 ]
