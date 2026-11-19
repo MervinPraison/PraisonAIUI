@@ -202,6 +202,25 @@ test('page actions: copy the page as Markdown, view it, open it in an assistant'
   expect(await res.text()).toContain('[second page](/docs/guide/second.md)')
 })
 
+test('page actions: aiui serve adds the docs MCP server (copy its URL, connect an editor)', async ({ page, context, baseURL }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL })
+  await page.goto('/docs/guide/first')
+  const actions = page.getByRole('group', { name: 'Page actions' })
+  await actions.getByRole('button', { name: 'More page actions' }).click()
+  const menu = page.getByRole('menu')
+  const url = `${baseURL}/mcp`
+  const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: 'aiui-e2e-docs', type: 'http', url }))}`
+  await expect(menu.getByRole('menuitem', { name: /Connect to VS Code/ })).toHaveAttribute('href', vscode)
+  const cursor = await menu.getByRole('menuitem', { name: /Connect to Cursor/ }).getAttribute('href')
+  expect(cursor!.startsWith('cursor://anysphere.cursor-deeplink/mcp/install?name=aiui-e2e-docs&config=')).toBe(true)
+  const copy = menu.getByRole('menuitem', { name: /Copy MCP server URL/ })
+  await copy.click()
+  await expect(copy).toContainText('Copied')
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url)
+  const res = await page.request.post('/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } })
+  expect((await res.json()).result.tools.map((t: { name: string }) => t.name)).toEqual(['search_docs', 'read_page', 'list_pages'])
+})
+
 test('phone: page actions fit beside the section and the page never scrolls sideways', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/docs/guide/first')

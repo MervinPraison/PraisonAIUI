@@ -741,6 +741,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     * A docs build stores "Was this page helpful?" votes at
       ``/api/docs/feedback`` (docs_feedback.py), unless built with
       ``content.docs.feedback: false``.
+    * A docs build answers MCP at ``/mcp`` with its discovery entries
+      (docs_mcp.py), unless built with ``content.docs.mcp: false``.
     """
     from starlette.applications import Starlette
     from starlette.exceptions import HTTPException
@@ -787,6 +789,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     from praisonaiui.docs_feedback import DocsFeedback
 
     feedback = DocsFeedback.for_site(root, cors_origins)
+    from praisonaiui.docs_mcp import DocsMcp
+
+    mcp = DocsMcp.for_site(root, base, cors_origins)
 
     def has_file(rel: str) -> bool:
         names = [rel, f"{rel}.html", f"{rel}/index.html"] if rel else ["index.html"]
@@ -794,6 +799,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
 
     async def site_app(scope, receive, send):
         if scope["type"] != "http" or (feedback and await feedback.serve(scope, receive, send)):
+            return
+        if mcp and await mcp.serve(scope, receive, send):
             return
         path = scope.get("path", "/")
         rel = path.strip("/")

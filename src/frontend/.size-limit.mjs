@@ -284,7 +284,9 @@ export default [
   // 254,333 B (+1 B, exactly the overage): lazy redirects chunk name in the preload map.
   // 254,374 B (+41 B, exactly the overage): builtin.api-reference's lazy page
   // registration in the boot chunk (the page itself is a lazy chunk).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254374 B', gzip: true },
+  // 254,397 B (+23 B, exactly the overage): new hashed chunk names in the entry's
+  // preload map (the docs MCP menu items); no boot or chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '254397 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -385,7 +387,7 @@ export default [
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
   // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
-  // 9,647,277 B (+3,330 B, exactly the overage): the docs print stylesheet and the
-  // Download as PDF page action.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9647277 B', brotli: false },
+  // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
+  // (docs/PageActions.tsx, two lucide icons).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9645651 B', brotli: false },
 ]

@@ -424,6 +424,13 @@
   readable over HTTP) and `aiui docs feedback` lists them per page or exports CSV / JSON. Also
   `feedback.endpoint` (static hosts), `feedback.code` (a flag per code block), the
   `aiui:docs-feedback` event and `feedback: false`. See [Writing docs](docs/features/writing-docs.md#page-feedback).
+- **Docs MCP server.** `aiui serve` and `aiui dev` answer the Model Context Protocol at `/mcp`
+  (Streamable HTTP, read-only, no extra dependency): `search_docs` (ranked like the search
+  dialog), `read_page` (a page's agent-ready Markdown) and `list_pages`. Agents find it through
+  `/.well-known/mcp` (a server card) and a section in `llms.txt`; the page menu gains **Copy MCP
+  server URL**, **Connect to Cursor** and **Connect to VS Code**. Host and Origin are checked
+  (DNS rebinding). On by default; `content.docs.mcp: false` turns it off. A static host serves
+  none of it. See [AI-ready docs](docs/features/ai-ready-docs.md#mcp-server).
 - **A social card for every docs page.** With Pillow installed (`pip install pillow`), `aiui build`
   draws a 1200x630 PNG per page (title, sidebar group, description, site name and logo, theme
   accent and colour mode) at `/og/<route>.png` and sets it as the page's `og:image`,
