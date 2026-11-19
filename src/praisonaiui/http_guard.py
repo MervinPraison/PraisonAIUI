@@ -820,10 +820,27 @@ def json_exception_handlers() -> dict:
 # ── Log redaction ────────────────────────────────────────────────────
 
 _SECRET_QS = re.compile(r"([?&](?:token|ticket|api_key|access_token)=)[^&\s\"']+", re.IGNORECASE)
+_BEARER = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
+# Literal values known to be secret (MCP headers and env); see register_secret.
+_KNOWN_SECRETS: set[str] = set()
+
+
+def register_secret(value: str) -> None:
+    """Redact this literal value (and its token after ``Bearer``) wherever a log line holds it.
+
+    Values shorter than 6 characters are ignored: they would blank ordinary words.
+    """
+    for part in (value, value.split(" ", 1)[-1]):
+        if isinstance(part, str) and len(part.strip()) >= 6:
+            _KNOWN_SECRETS.add(part.strip())
 
 
 def redact_secrets(text: str) -> str:
-    return _SECRET_QS.sub(r"\1[redacted]", text)
+    text = _BEARER.sub(r"\1[redacted]", _SECRET_QS.sub(r"\1[redacted]", text))
+    for secret in _KNOWN_SECRETS:
+        if secret in text:
+            text = text.replace(secret, "[redacted]")
+    return text
 
 
 class SecretRedactionFilter(logging.Filter):
@@ -833,24 +850,31 @@ class SecretRedactionFilter(logging.Filter):
         if isinstance(record.msg, str):
             record.msg = redact_secrets(record.msg)
         if isinstance(record.args, tuple):
-            record.args = tuple(redact_secrets(a) if isinstance(a, str) else a for a in record.args)
+            record.args = tuple(
+                redact_secrets(str(a)) if isinstance(a, (str, BaseException)) else a
+                for a in record.args
+            )
         elif isinstance(record.args, dict):
             record.args = {
                 k: redact_secrets(v) if isinstance(v, str) else v for k, v in record.args.items()
             }
+        if record.exc_info and not record.exc_text:
+            # Formatters reuse exc_text, so the traceback is redacted once here.
+            record.exc_text = redact_secrets(logging.Formatter().formatException(record.exc_info))
         return True
 
 
 _REDACTED_LOGGERS = ("uvicorn.access", "uvicorn.error", "uvicorn")
 
 
-def install_secret_redaction() -> None:
-    """Attach the redaction filter to uvicorn's loggers (idempotent).
+def install_secret_redaction(*extra_loggers: str) -> None:
+    """Attach the redaction filter to uvicorn's loggers and *extra_loggers* (idempotent).
 
     Logger-level filters run before a record propagates, so the root log
-    buffer behind the Logs page never sees the secret either.
+    buffer behind the Logs page never sees the secret either. They do not
+    apply to child loggers: name each logger that may print a secret.
     """
-    for name in _REDACTED_LOGGERS:
+    for name in (*_REDACTED_LOGGERS, *extra_loggers):
         target = logging.getLogger(name)
         if not any(isinstance(f, SecretRedactionFilter) for f in target.filters):
             target.addFilter(SecretRedactionFilter())
