@@ -456,5 +456,8 @@ export default [
   // 5 s without a byte (docLoader reads the body chunk by chunk).
   // 11,164,896 B (+322 B, exactly the overage): the manifests inlined in each built page
   // (docLoader inlinedManifest, App.tsx reads them before fetching).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164896 B', brotli: false },
+  // 11,165,388 B (+492 B, exactly the overage): the HTML parser as a lazy chunk of its own
+  // (markdown/rehypeRawGate.ts, the needsRaw hint, the chunk's import/export glue). No
+  // loaded chunk grows: the renderer chunk is 49.6 kB gzip smaller.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11165388 B', brotli: false },
 ]
