@@ -295,6 +295,37 @@ export function adoptInlinedDoc(root: InlinedDocSource | undefined = typeof docu
     }
 }
 
+/** The JSON script `aiui build` writes into each page: `{"/docs-nav.json": {...}, "/route-manifest.json": {...}}`. */
+export const BOOT_DATA_ID = 'aiui-boot-data'
+
+const bootData = new WeakMap<object, Record<string, unknown>>()
+
+/**
+ * A site manifest `aiui build` inlined in the page (compiler/boot_data.py), so
+ * the first render needs no request for it; undefined when the page has none
+ * (a server, an older build, a docs-auth site's nav, a file too big to inline)
+ * and the caller fetches it as before. The block stays in the page: the legacy
+ * nav-intercept plugin reads the nav from it too.
+ */
+export function inlinedManifest(
+    url: string,
+    root: InlinedDocSource | undefined = typeof document === 'undefined' ? undefined : document,
+): unknown {
+    const el = root?.getElementById(BOOT_DATA_ID)
+    if (!el) return undefined
+    let data = bootData.get(el)
+    if (!data) {
+        try {
+            const parsed: unknown = JSON.parse(el.textContent ?? '')
+            data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+        } catch {
+            data = {}
+        }
+        bootData.set(el, data)
+    }
+    return Object.hasOwn(data, url) ? data[url] : undefined
+}
+
 /**
  * On a deep link under the docs base, start loading that page's markdown
  * while the app is still fetching its manifests, instead of one round trip

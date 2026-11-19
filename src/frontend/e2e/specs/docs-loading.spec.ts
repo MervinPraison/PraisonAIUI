@@ -121,15 +121,31 @@ test('first load: a page renders from the markdown inlined in its HTML, with no 
   await expect(page.locator('#aiui-initial-doc')).toHaveCount(0) // read once, then removed
 })
 
+test('first load: the nav and route manifest come with the page, ui-config once, no plugins.json', async ({ page }) => {
+  const requests: string[] = []
+  page.on('request', (r) => requests.push(new URL(r.url()).pathname))
+  await page.goto('/docs/guide/second')
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  await expect(sidebarLink(page, '/docs/guide/first')).toBeVisible() // the nav, read from the page
+  await page.waitForLoadState('networkidle')
+  const count = (path: string) => requests.filter((p) => p === path).length
+  expect(count('/docs-nav.json')).toBe(0)
+  expect(count('/route-manifest.json')).toBe(0)
+  expect(count('/plugins/plugins.json')).toBe(0) // the loader's tag names the plugins
+  expect(count('/ui-config.json')).toBe(1) // preloaded with the page; the app's fetch takes it over
+  expect(requests.filter((p) => p.startsWith('/plugins/')).sort()).toEqual(['/plugins/nav-intercept.js', '/plugins/plugin-loader.js'])
+  expect(requests.filter((p) => p.endsWith('.json'))).toEqual(['/ui-config.json'])
+})
+
 test('first load: without the inlined block, a deep link fetches its page alongside the manifests', async ({ page }) => {
   const started: Record<string, number> = {}
   const finished: Record<string, number> = {}
   page.on('request', (r) => { started[new URL(r.url()).pathname] ??= Date.now() })
   page.on('requestfinished', (r) => { finished[new URL(r.url()).pathname] ??= Date.now() })
-  // An HTML without the block (an older build, a host that rewrote it).
+  // An HTML without the blocks (an older build, a host that rewrote it).
   await page.route(/\/docs\/guide\/second\/?$/, async (route) => {
     const response = await route.fetch()
-    const body = (await response.text()).replace(/<script type="application\/json" id="aiui-initial-doc">[\s\S]*?<\/script>/, '')
+    const body = (await response.text()).replace(/<script type="application\/json" id="aiui-(initial-doc|boot-data)">[\s\S]*?<\/script>/g, '')
     await route.fulfill({ response, body })
   })
   await page.route(/\/(ui-config|docs-nav|route-manifest)\.json$/, async (route) => {

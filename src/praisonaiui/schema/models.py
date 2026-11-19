@@ -267,9 +267,11 @@ class SiteConfig(BaseModel):
     # code-copy, toc, mkdocs-compat, content-loader, homepage, topnav) skip
     # React docs pages, and the first two pulled ~40 files from two CDNs per
     # page. nav-intercept keeps in-article /docs links on SPA navigation.
+    # fetch-retry retried the site manifests, which the app now fetches with
+    # its own retry or reads from the page (compiler/boot_data.py).
     # A site can still list any of them here.
     plugins: list[str] = Field(
-        default_factory=lambda: ["fetch-retry", "nav-intercept"],
+        default_factory=lambda: ["nav-intercept"],
         description="List of frontend plugin names to enable",
     )
     csp: Union[bool, Literal["report-only"], dict[str, Union[str, list[str], bool]], None] = Field(

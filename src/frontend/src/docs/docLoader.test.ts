@@ -3,8 +3,10 @@ import { afterEach, describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     DocLoadError,
+    BOOT_DATA_ID,
     INITIAL_DOC_ID,
     adoptInlinedDoc,
+    inlinedManifest,
     docHrefMarkdownUrl,
     fetchWithRetry,
     loadDoc,
@@ -276,5 +278,31 @@ describe('markdown inlined by aiui build', () => {
         assert.equal(adoptInlinedDoc(page(JSON.stringify({ url: '/ui-config.json', text: '{}' })).root), null)
         assert.equal(adoptInlinedDoc(undefined), null)
         assert.equal(peekDoc('/docs/x.md'), undefined)
+    })
+})
+
+describe('site manifests inlined by aiui build', () => {
+    function page(json: string | null) {
+        let removed = false
+        const el = json === null ? null : { textContent: json, remove: () => { removed = true } }
+        return { root: { getElementById: (id: string) => (id === BOOT_DATA_ID ? el : null) }, removed: () => removed }
+    }
+
+    test('hands back each inlined file by URL and leaves the block for the legacy nav plugin', () => {
+        const nav = { items: [{ title: 'Guide', path: '/docs/guide' }] }
+        const p = page(JSON.stringify({ '/docs-nav.json': nav, '/route-manifest.json': {} }))
+        assert.deepEqual(inlinedManifest('/docs-nav.json', p.root), nav)
+        assert.deepEqual(inlinedManifest('/route-manifest.json', p.root), {})
+        assert.equal(p.removed(), false)
+    })
+
+    test('a file not inlined, a missing or malformed block: undefined (the app fetches it)', () => {
+        const p = page(JSON.stringify({ '/docs-nav.json': { items: [] } }))
+        assert.equal(inlinedManifest('/ui-config.json', p.root), undefined)
+        assert.equal(inlinedManifest('/toString', p.root), undefined)
+        assert.equal(inlinedManifest('/docs-nav.json', page(null).root), undefined)
+        assert.equal(inlinedManifest('/docs-nav.json', page('{not json').root), undefined)
+        assert.equal(inlinedManifest('/docs-nav.json', page('[1]').root), undefined)
+        assert.equal(inlinedManifest('/docs-nav.json', undefined), undefined)
     })
 })

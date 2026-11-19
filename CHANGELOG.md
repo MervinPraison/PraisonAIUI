@@ -664,6 +664,16 @@
 
 ### Fixed
 
+- Docs sites, first load: each page `aiui build` writes carries `docs-nav.json`
+  and `route-manifest.json` (as it already carried the page's Markdown) and
+  preloads `ui-config.json`, and the plugin loader's tag names the plugins, so
+  `plugins/plugins.json` is not requested. `fetch-retry` leaves the default
+  `site.plugins` (the app retries its own requests; list it to keep it). On
+  this site a first docs page makes 1 JSON request instead of 5 and loads 2
+  plugin scripts instead of 3. Sites with `content.docs.auth` keep fetching
+  their navigation (it is cut per reader), and a page served without its
+  content drops the block. See
+  [Deploy to GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
 - Docs sites: a page whose download stalls after it starts is requested again
   after 5 seconds without a byte, instead of after the 15-second limit on the
   whole download; a slow download that keeps arriving still gets the 15
