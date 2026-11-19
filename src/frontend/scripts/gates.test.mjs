@@ -476,3 +476,28 @@ test('lucide-icons: the loader finds any icon (or alias) in its lazy bucket; aiu
   assert.ok(names.includes('flag') && names.includes('home') && names.includes('house'))
   assert.deepEqual(names, [...names].sort())
 })
+
+// e2e/fixtures/sweep-tmp.mjs: stale e2e work folders are removed, fresh ones and others kept.
+test('sweepStaleWorkDirs removes only old aiui-e2e-* folders', async () => {
+  const { mkdtempSync, mkdirSync, utimesSync, existsSync, rmSync } = await import('node:fs')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const { sweepStaleWorkDirs } = await import('../e2e/fixtures/sweep-tmp.mjs')
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'sweep-test-'))
+  try {
+    const old = path.join(dir, 'aiui-e2e-old')
+    const fresh = path.join(dir, 'aiui-e2e-fresh')
+    const other = path.join(dir, 'something-else')
+    for (const d of [old, fresh, other]) mkdirSync(d)
+    const tenHoursAgo = (Date.now() - 10 * 3600 * 1000) / 1000
+    utimesSync(old, tenHoursAgo, tenHoursAgo)
+    utimesSync(other, tenHoursAgo, tenHoursAgo)
+    const removed = sweepStaleWorkDirs({ dir })
+    assert.deepEqual(removed, ['aiui-e2e-old'])
+    assert.equal(existsSync(old), false)
+    assert.equal(existsSync(fresh), true)
+    assert.equal(existsSync(other), true)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
