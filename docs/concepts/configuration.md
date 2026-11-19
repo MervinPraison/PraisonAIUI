@@ -153,12 +153,16 @@ content:
       endpoint: "https://hooks.example.com/votes"  # optional: static hosting
     related: 5                       # related pages under each page (default 3; false: none)
     mcp: false                       # no MCP server on aiui serve (default: on)
+    assistant:                       # Ask AI on aiui serve (default: on; false: off)
+      starters: ["How do I install it?"]
+      instructions: "Call the product Acme."
 ```
 
 `editLink`, `lastUpdated` and `feedback` draw the page footer; see
 [Writing docs pages → Page footer](../features/writing-docs.md#page-footer).
 `related` is the [related pages](../features/writing-docs.md#related-pages) list.
-`mcp` is the [docs MCP server](../features/ai-ready-docs.md#mcp-server).
+`mcp` is the [docs MCP server](../features/ai-ready-docs.md#mcp-server) and
+`assistant` is [Ask AI](../features/ai-ready-docs.md#ask-ai).
 
 `indexFiles` and `nav` (`mode`, `sort`, `collapsible`, `maxDepth`) are accepted
 but not read by the build yet; see [Navigation](../features/navigation.md).

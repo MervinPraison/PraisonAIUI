@@ -258,6 +258,8 @@ class DocsMcp:
         # The site's feedback endpoint: the tool shares its store, rate limit and caps.
         self.feedback = feedback if feedback and feedback.local else None
         self.tools = TOOLS + [FEEDBACK_TOOL] if self.feedback else TOOLS
+        #: Other entries the served ui-config.json carries (Ask AI, docs_assistant.py).
+        self.extra_config: dict[str, Any] = {}
 
     @classmethod
     def for_site(cls, root: Path, base: str = "", origins: Optional[list[str]] = None,
@@ -471,7 +473,7 @@ class DocsMcp:
             if not isinstance(config, dict):
                 return False
             mcp = {"url": ENDPOINT, "name": self.server_info()["name"]}
-            response = JSONResponse({**config, "mcp": mcp}, headers=no_cache)
+            response = JSONResponse({**config, "mcp": mcp, **self.extra_config}, headers=no_cache)
         else:
             text = self._load(path.lstrip("/"))
             if text is None:

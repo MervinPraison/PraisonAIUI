@@ -477,6 +477,12 @@ class Compiler:
         if docs and not docs.mcp:
             result["mcp"] = False
 
+        # `content.docs.assistant`: Ask AI (docs_assistant.py); aiui serve adds where to ask
+        if docs and docs.assistant is False:
+            result["assistant"] = False
+        elif docs and not isinstance(docs.assistant, bool):
+            result["assistant"] = docs.assistant.model_dump(exclude_none=True, exclude_defaults=True)
+
         # `content.docs.pageActions`: the page actions menu (docs/PageActions.tsx); unset keeps the default list
         if docs and "page_actions" in docs.model_fields_set and docs.page_actions is not True:
             result["pageActions"] = page_action_list(

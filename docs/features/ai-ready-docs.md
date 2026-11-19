@@ -1,6 +1,6 @@
 ---
 title: AI-ready docs
-description: Every page as clean Markdown for agents, llms.txt by nav group, llms-full.txt, agent instructions, Visibility, Accept text/markdown and an MCP server.
+description: Every page as clean Markdown for agents, llms.txt by nav group, llms-full.txt, agent instructions, Visibility, Accept text/markdown, an MCP server and Ask AI with cited answers.
 ---
 
 # AI-ready docs
@@ -123,3 +123,77 @@ content:
 A static host (GitHub Pages, any CDN) runs no server, so it has no `/mcp`
 and the menu shows no MCP items; the `.md` pages and llms files above still
 work there.
+
+## Ask AI
+
+`aiui serve` and `aiui dev` also answer questions about the docs, with the
+sections each answer came from. Set a model key in the environment and
+serve; there is nothing to configure:
+
+```bash
+export OPENAI_API_KEY=sk-...
+aiui serve
+```
+
+The server ranks the build's sections for the question (the same ranking as
+search, widened so a long question still finds its pages), sends the best six
+to the model and streams a Markdown answer that cites them as `[1]`, `[2]`.
+Your key stays on the server: it is read from the environment and never logged
+or sent to the browser.
+
+| Model setting | Where |
+|---|---|
+| `content.docs.assistant.model`, else `AIUI_ASSISTANT_MODEL`, else `OPENAI_MODEL_NAME`, else `gpt-4o-mini` | which model answers |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | any OpenAI-compatible API, including a local server (`OPENAI_BASE_URL=http://localhost:11434/v1` needs no key) |
+| a `provider/model` name such as `anthropic/claude-sonnet-4-5` | goes through LiteLLM when it is installed, with that provider's key |
+
+Without a key the endpoint still answers: it returns the best matching
+sections and says AI answers are not set up, so readers never hit an error.
+
+```yaml
+content:
+  docs:
+    dir: docs
+    assistant:
+      starters: ["How do I install it?", "How do I change the theme?"]
+      instructions: Call the product Acme, never "the tool".
+      # model: gpt-4o-mini
+      # endpoint: https://docs-api.acme.dev/api/docs/ask   # static host only
+```
+
+| Key | Default | What it does |
+|---|---|---|
+| `starters` | none | up to six questions offered before the reader asks |
+| `instructions` | none | extra rules for every answer (tone, names, scope); up to 4,000 characters |
+| `model` | see above | the model |
+| `endpoint` | none | on a static host, the ask URL of an `aiui serve` running the same build |
+
+The docs site's Ask AI panel (⌘I, starter questions, ask about a selected
+passage, an `assistant` page mode) is **(planned)**; until it lands, call the
+API below. `assistant: false` turns it off. The build writes these settings into
+`ui-config.json`, which is public: keep secrets out of `instructions`.
+
+### The HTTP API
+
+`POST /api/docs/ask` with `{"question": "...", "context": "...", "page": "/docs/x", "history": [{"role": "user", "content": "..."}]}`
+(only `question` is required; `context` is a quoted passage, `history` the
+earlier turns) answers with Server-Sent Events:
+
+| Event | Data |
+|---|---|
+| `sources` | `[{"n": 1, "title", "heading", "path", "url", "snippet"}]`, the sections the answer may cite as `[n]` |
+| `text` | `{"text": "..."}`, the next piece of the Markdown answer |
+| `done` | `{}` |
+| `unavailable` | `{"message": "..."}` instead of `text` when no model is set up |
+| `error` | `{"message": "..."}` when the model call failed |
+
+`GET /api/docs/search?q=install&limit=10` returns `{"results": [{"title", "heading", "anchor", "path", "url", "snippet"}]}`,
+ranked as the search dialog ranks them, and each page's Markdown is at
+`/docs/<page>.md`, so another app can embed docs search and answers.
+
+The endpoints are public like the site, so they are guarded: 10 questions a
+minute per client, a 32 KiB body, a 2,000-character question, the same `Host`
+and `Origin` checks as the MCP server, and `application/json` or `text/plain`
+bodies (a static site on another origin posts `text/plain`, allowed with
+`--cors-origins` or `AIUI_ALLOWED_ORIGINS`). Answers spend your key, so put a
+public site behind your own rate limits too.
