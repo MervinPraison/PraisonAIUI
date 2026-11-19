@@ -223,7 +223,7 @@ def test_dev_needs_only_a_docs_folder(tmp_path, ran, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert CliRunner().invoke(cli_app, ["dev"]).exit_code == 0
     (config, _folder), options = ran[0]
-    assert config is None and options["port"] == 8000 and options["open_browser"] is True
+    assert config is None and options["port"] == 8000 and options["open_browser"] is None  # auto: browser.py decides
 
 
 def test_dev_examples_dashboard_stays_available(project, ran, monkeypatch):

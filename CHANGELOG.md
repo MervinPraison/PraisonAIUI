@@ -596,6 +596,11 @@
 
 ### Fixed
 
+- **No surprise browser windows.** `aiui serve`, `aiui dev` and the examples dashboard open a browser
+  only when run from a terminal; scripts, CI, test runners and coding agents that start them no longer
+  pop a window. `aiui serve` gains `--open/--no-open`, and `AIUI_NO_BROWSER=1` turns it off everywhere.
+  See [CLI](docs/api/cli.md#when-a-browser-opens).
+
 - e2e: the page-types screenshot tests report **skipped** on a platform with
   no baseline (Linux CI today) after running their DOM checks, instead of
   passing without comparing anything. ARCHITECTURE §5 and the e2e README now

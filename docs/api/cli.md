@@ -190,11 +190,21 @@ Build (unless `--no-build`) and serve a docs site.
 | `--cors-origins` | empty | Comma-separated allowed origins; empty means same-origin only |
 | `--ssl-certfile` | none | Certificate file for HTTPS |
 | `--ssl-keyfile` | none | Private key file for HTTPS |
+| `--open / --no-open` | auto | Open the site in a browser. Auto opens it only when run from a terminal; never in CI, under a test runner or from a script ([when a browser opens](#when-a-browser-opens)) |
 
 Paths without a file extension fall back to the single-page app. Paths that
 try to leave the output folder are refused. Every response carries the `/*`
 headers of the build's `_headers` file, which holds the site's
 [Content Security Policy](../features/content-security-policy.md).
+
+#### When a browser opens
+
+`aiui serve`, `aiui dev` and `aiui dev --examples` open a browser tab only for a
+person at a terminal. With neither flag, the tab opens when standard output is a
+terminal and no CI or test runner is detected (`CI`, `GITHUB_ACTIONS`,
+`GITLAB_CI`, `BUILDKITE`, `PYTEST_CURRENT_TEST`). `--open` forces it,
+`--no-open` skips it, and `AIUI_NO_BROWSER=1` turns it off everywhere, for
+scripts and coding agents that start these servers.
 
 ### `aiui dev`
 
@@ -209,7 +219,7 @@ the page while the last good build stays up. Run it in the folder that holds
 | `--config, -c` | `aiui.yaml` | Configuration file ([lookup](../concepts/configuration.md#config-file-name)) |
 | `--port, -p` | `8000` | Port (next free port if taken) |
 | `--host` | `127.0.0.1` | Address to bind to |
-| `--open / --no-open` | `--open` | Open the preview in the browser |
+| `--open / --no-open` | auto | Open the preview in a browser; auto as for `aiui serve` ([when a browser opens](#when-a-browser-opens)) |
 | `--base-path` | as `aiui build` | URL path to preview the site under |
 | `--examples, -e` | none | Run the examples dashboard for this folder instead (default port `9000`) |
 
