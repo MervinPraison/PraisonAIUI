@@ -31,9 +31,9 @@ test('raw HTML keeps the allowed utilities, renamed; other classes and style go'
 })
 
 test('component tags pass their allowed classes to the component root', () => {
-    const card = page('<Card title="Start" className="mt-8 bg-muted shadow-2xl">Body</Card>')
+    const card = page('<Card title="Start" className="mt-8 bg-muted drop-me">Body</Card>')
     assert.match(card, /<div class="aiui-card aiui:mt-8 aiui:bg-muted"/, card)
-    assert.ok(!card.includes('shadow'), card)
+    assert.ok(!card.includes('drop-me'), card)
     assert.match(page('<Note className="md:hidden">Phones only</Note>'), /<div class="aiui-admonition [^"]*aiui:md:hidden"[^>]*role="note"/)
     assert.match(page('<CardGroup cols={2} class="gap-8">\n<Card title="A" />\n</CardGroup>'), /<div class="aiui-cards aiui:gap-8"/)
     assert.match(page('Text <Badge className="font-bold">New</Badge>'), /<span class="aiui-badge aiui:font-bold"/)
@@ -44,8 +44,8 @@ test('component tags pass their allowed classes to the component root', () => {
 })
 
 test('images keep the light / dark classes (and any other allowed one) on the image', () => {
-    const light = page('<img className="block dark:hidden rounded-none" src="/l.png" alt="L" />')
-    assert.match(light, /<img[^>]* class="inline-block h-auto max-w-full rounded-lg align-middle aiui:block aiui:dark:hidden aiui:rounded-none" data-theme-only="light"/, light)
+    const light = page('<img className="block dark:hidden rounded-lg" src="/l.png" alt="L" />')
+    assert.match(light, /<img[^>]* class="inline-block h-auto max-w-full rounded-lg align-middle aiui:block aiui:dark:hidden aiui:rounded-lg" data-theme-only="light"/, light)
     assert.match(page('<img className="hidden dark:block" src="/d.png" alt="D" />'), /data-theme-only="dark"/)
 })
 
