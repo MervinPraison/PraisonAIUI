@@ -67,6 +67,8 @@ export interface SiteConfig {
     logo?: string
     description?: string
     theme?: ThemeConfig
+    /** `site.components`: the site's own component tags, tag → module URL (docs/CustomBlock.tsx). */
+    components?: Record<string, string>
 }
 
 export interface SEOConfig {

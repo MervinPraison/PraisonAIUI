@@ -34,6 +34,15 @@ test('a deep link loads with every request under the base path', async ({ page, 
   expect(errors.pageErrors).toEqual([])
 })
 
+test('the site\'s own components load from under the base path', async ({ page, baseURL }) => {
+  const paths = sameOriginPaths(page, new URL(baseURL!).origin)
+  await page.goto(`${BASE}/docs/components`)
+  await expect(page.getByTestId('price')).toHaveText('$9 (pro, team)')
+  expect(paths).toContain(`${BASE}/components/index.js`)
+  expect(paths).toContain(`${BASE}/_aiui/externals/sdk.js`)
+  expect(paths.filter((p) => p !== BASE && !p.startsWith(`${BASE}/`))).toEqual([])
+})
+
 test('sidebar, in-article links and Back keep the base path', async ({ page }) => {
   const errors = collectPageErrors(page)
   await page.goto(`${BASE}/docs/guide/first`)

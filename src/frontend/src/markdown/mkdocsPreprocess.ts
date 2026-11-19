@@ -236,10 +236,11 @@ export function convertMkdocsBlocks(md: string): string {
     return out.join('\n')
 }
 
-export function preprocessMkdocsMarkdown(md: string): string {
+/** `custom`: the site's own component tags, tag → module URL (ui-config `site.components`). */
+export function preprocessMkdocsMarkdown(md: string, custom?: Readonly<Record<string, string>>): string {
     let result = stripMkdocsGridWrappers(md)
     result = replaceMkdocsIcons(result)
-    result = expandDocsTags(result) // <Note>, <Card>, … (docsTags.ts)
+    result = expandDocsTags(result, undefined, custom) // <Note>, <Card>, … (docsTags.ts)
     result = convertMkdocsBlocks(result)
     return result
 }

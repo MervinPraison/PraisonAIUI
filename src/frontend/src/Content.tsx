@@ -62,6 +62,11 @@ function navigateTo(href: string) {
     window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path } }))
 }
 
+/** ui-config `site.components` (tag → module URL) with the site's base path. */
+function siteComponents(components: Record<string, string> = {}): Record<string, string> {
+    return Object.fromEntries(Object.entries(components).map(([tag, src]) => [tag, withBase(src)]))
+}
+
 export function Content({ config, routes, selectedItem, currentPath, nav, onNavigate, onSearch }: ContentProps) {
     const [markdown, setMarkdown] = useState<string>('')
     const [loadedPath, setLoadedPath] = useState('')
@@ -75,6 +80,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const itemRef = useRef(selectedItem)
     itemRef.current = selectedItem
     const theme = config.site?.theme
+    const custom = useMemo(() => siteComponents(config.site?.components), [config.site?.components])
 
     // Prefetch a docs link's markdown on hover, focus and pointerdown.
     useEffect(() => installDocPrefetch(), [])
@@ -106,7 +112,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const head = item && !modeIsBare(item.mode) && !(config.docsHome && sourcePath === DOCS_HOME_PATH)
         const prepare = (text: string) => {
             const source = prepareDocSource(text, sourcePath)
-            return preprocessMkdocsMarkdown(head ? withPageHead(source, item) : source)
+            return preprocessMkdocsMarkdown(head ? withPageHead(source, item) : source, custom)
         }
         const show = (result: DocResult, content = result.ok ? prepare(result.text) : '') => {
             loadedEventPath.current = urlPath // announced once the article has committed
@@ -158,7 +164,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             cancelIdle()
             setLoadingContent(false)
         }
-    }, [currentPath, selectedItem?.path, retryCount, config.docsHome])
+    }, [currentPath, selectedItem?.path, retryCount, config.docsHome, custom])
 
     useEffect(() => {
         if (!markdown || !articleRef.current) return
