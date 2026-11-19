@@ -16,6 +16,9 @@ removed from the environment and entry-point plugins are not autoloaded.
 `dist/` is copied to the temp directory and served with
 `AIUI_TEMPLATES_DIR`, so the tracked `src/praisonaiui/templates/frontend` is
 never read or written.
+The temp directory (`aiui-e2e-*`) is removed when the server stops. A server
+killed with SIGKILL cannot do that, so each server start also removes
+`aiui-e2e-*` folders older than six hours (`fixtures/sweep-tmp.mjs`).
 
 | Project | Server | Specs |
 |---|---|---|
