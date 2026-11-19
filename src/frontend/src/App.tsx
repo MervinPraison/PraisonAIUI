@@ -233,7 +233,9 @@ export default function App() {
     window.history.replaceState({ path }, '', withBase(path))
     setCurrentPath(path)
     selectNavItem(page)
-  })
+    // Once, when the manifests land: the values it reads are those of that render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {

@@ -62,9 +62,9 @@ export function languageLinks(languages: NavLanguage[], versions: NavDivision[],
 
 // The reader's pick in the switcher (blocked storage: no pick is kept).
 const KEY = 'aiui-docs-language'
-const storage = <T,>(use: (s: Storage) => T): T | null => {
+const storage = <T,>(run: (s: Storage) => T): T | null => {
     try {
-        return use(localStorage)
+        return run(localStorage)
     } catch {
         return null
     }

@@ -414,6 +414,6 @@ export default [
   // compressed wheel. No loaded chunk grows.
   // 11,123,573 B (+1,650 B, exactly the overage): docs versions (the switcher, version-scoped
   // sidebar, tabs and search in the legacy App chunk).
-  // 11,128,021 B (+4,448 B, exactly the overage): docs content languages (switcher, language-scoped nav).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11128021 B', brotli: false },
+  // 11,128,025 B (+4,452 B, exactly the overage): docs content languages (switcher, language-scoped nav).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11128025 B', brotli: false },
 ]
