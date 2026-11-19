@@ -14,6 +14,7 @@ import { resolveTemplate, shouldShowToc } from './resolver'
 import { normalizeDocPath } from './pathUtils'
 import { filterNavByTab } from './docs/navTabs'
 import { activeSection, divisionLinks, navSections, type DivisionLink, type NavDivisions } from './docs/navDivisions'
+import { versionAt, versionItems, versionLinks, versionNavigation } from './docs/versions'
 import { docSearchGroups } from './docs/docNav'
 import { applyHeadTags, mergeTags, pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
@@ -108,15 +109,23 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
 
+  // Versions (docs/versions.ts): the sidebar, tabs and search show the open version's pages only.
+  const versions = config.navigation?.versions ?? []
+  const version = versionAt(versions, currentPath)
+  const navigation = useMemo(() => versionNavigation(config.navigation, version), [config.navigation, version])
+  const versionNav = useMemo<DocsNav>(
+    () => (version < 0 ? nav : { ...nav, items: versionItems(nav.items ?? [], config.navigation?.versions ?? [], version) }),
+    [nav, config.navigation, version],
+  )
   // Tabs, tab menu items, anchors and dropdowns with groups: each has its own sidebar (docs/navDivisions.ts).
-  const sections = useMemo(() => navSections(config.navigation), [config.navigation])
+  const sections = useMemo(() => navSections(navigation), [navigation])
   const pickedSection = useRef(-1)
   const docsStyle = !loading && !error && DOCS_CHROME_STYLES.has(config.style || 'docs')
   useDocsTokens(docsStyle, config.site?.theme?.preset)
   useHashScroll(docsStyle)
   useHeadingAnchors(docsStyle)
   useImageZoom(docsStyle)
-  const searchGroups = useMemo(() => docSearchGroups(nav, sections), [nav, sections])
+  const searchGroups = useMemo(() => docSearchGroups(versionNav, sections), [versionNav, sections])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
   // A shared `?q=` link opens search prefilled (DocsSearch keeps `?q=` in step with the field).
   const [deepLinkQuery] = useState(() => new URLSearchParams(window.location.search).get('q')?.trim() ?? '')
@@ -187,14 +196,14 @@ export default function App() {
   }, [askUrl])
 
   const filteredNav = useMemo<DocsNav>(() => {
-    if (!sections.length) return nav
-    return { ...nav, items: filterNavByTab(nav.items ?? [], sections[activeTabIndex]) }
-  }, [nav, sections, activeTabIndex])
+    if (!sections.length) return versionNav
+    return { ...versionNav, items: filterNavByTab(versionNav.items ?? [], sections[activeTabIndex]) }
+  }, [versionNav, sections, activeTabIndex])
 
   useEffect(() => {
     if (!sections.length) return
-    setActiveTabIndex(activeSection(nav.items ?? [], sections, currentPath, pickedSection.current))
-  }, [currentPath, sections, nav])
+    setActiveTabIndex(activeSection(versionNav.items ?? [], sections, currentPath, pickedSection.current))
+  }, [currentPath, sections, versionNav])
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
@@ -461,8 +470,11 @@ export default function App() {
     else if (link.section >= 0) setActiveTabIndex(link.section)
   }
   const links = useMemo(
-    () => divisionLinks(config.navigation, nav.items ?? [], sections, sections[activeTabIndex]?.key ?? ''),
-    [config.navigation, nav, sections, activeTabIndex],
+    () => ({
+      ...divisionLinks(navigation, versionNav.items ?? [], sections, sections[activeTabIndex]?.key ?? ''),
+      versions: versionLinks(config.navigation?.versions ?? [], nav.items ?? [], currentPath, version),
+    }),
+    [navigation, config.navigation, nav, versionNav, sections, activeTabIndex, currentPath, version],
   )
   const divisions: NavDivisions = { ...links, open: openDivision }
   const searchTabs = [...new Set(sections.map((s) => s.tab))]

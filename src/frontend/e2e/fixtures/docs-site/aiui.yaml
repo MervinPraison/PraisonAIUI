@@ -15,6 +15,10 @@ content:
       issues: "https://github.com/acme/site/issues/new"
     include:
       - "**/*.md"
+navigation:
+  versions:   # docs-versions.spec.ts: docs/v1/ is the older version
+    - {version: v2, default: true, tag: Latest}
+    - {version: v1, tag: Legacy}
 api:
   openapi: openapi.yaml   # x-hidden endpoint pages (Try it)
 components:

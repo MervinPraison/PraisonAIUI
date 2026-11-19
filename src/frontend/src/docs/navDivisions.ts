@@ -25,12 +25,15 @@ export interface DivisionLink {
     section: number // the index (in navSections) of the section it opens, or -1
     active: boolean
     menu?: DivisionLink[]
+    tag?: string // a badge after the name (a version's "Latest")
 }
 
 export interface NavDivisions {
     tabs: DivisionLink[]
     anchors: DivisionLink[]
     dropdowns: DivisionLink[]
+    /** The version switcher's entries (docs/versions.ts); empty without `navigation.versions`. */
+    versions?: DivisionLink[]
     /** Go to the division's first page; `stay` (the phone drawer) only swaps the sidebar. */
     open: (link: DivisionLink, stay?: boolean) => void
 }

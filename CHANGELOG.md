@@ -544,6 +544,14 @@
   files, published with the site and registered on first use under their name and aliases.
   `aiui validate` names the nearest theme for a typo (7015) and reports a missing or broken grammar
   (7014, 7015) (docs/features/theming.md#code-blocks).
+- **Docs versions.** `navigation.versions: [{version: v2, default: true, tag: Latest}, {version: v1}]`
+  publishes older docs from their folder (`docs/v1/` at `/docs/v1/...`) beside the default version at
+  the docs root. A switcher above the sidebar (and in the phone drawer) keeps the reader on the same page
+  in the other version, else opens its first page; the sidebar, pager, tabs and search follow the open
+  version. Older pages point their canonical at the default version's page and stay out of the sitemap
+  and `llms.txt` unless `index: true`; a version may list its own `groups` or `tabs`. `aiui validate`
+  reports duplicate or double-default versions and misplaced pages (7018)
+  (docs/features/navigation.md#versions).
 
 ### Deprecated
 

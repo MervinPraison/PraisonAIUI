@@ -43,6 +43,7 @@ export function DivisionAnchor({ link, divisions, stay, describe, onClick, ...pr
                 <span>{link.name}</span>
                 {describe && link.description && <small>{link.description}</small>}
             </span>
+            {link.tag && <span className="aiui-docs-navtag">{link.tag}</span>}
             {external && docsIcon('arrow-up-right', 'aiui-docs-navext')}
             {external && <span className="sr-only"> (opens in a new tab)</span>}
         </a>
@@ -92,12 +93,13 @@ export function HeaderTabs({ divisions }: { divisions: NavDivisions }) {
     )
 }
 
-/** Above the sidebar tree: the dropdown switcher and the anchors; in the drawer, the tabs and the open tab's menu first. */
+/** Above the sidebar tree: the version switcher, the dropdown switcher and the anchors; in the drawer, the tabs and the open tab's menu first. */
 export function SidebarDivisions({ divisions, drawer }: { divisions: NavDivisions; drawer?: boolean }) {
-    const { tabs, anchors, dropdowns } = divisions
+    const { tabs, anchors, dropdowns, versions = [] } = divisions
     const current = dropdowns.find((d) => d.active) ?? dropdowns[0]
+    const version = versions.find((v) => v.active)
     const menu = drawer ? (tabs.find((t) => t.active)?.menu ?? []) : []
-    if (!anchors.length && !dropdowns.length && !(drawer && tabs.length)) return null
+    if (!anchors.length && !dropdowns.length && !version && !(drawer && tabs.length)) return null
     const row = (link: DivisionLink) => (
         <DivisionAnchor key={link.key} link={link} divisions={divisions} stay={drawer} className="aiui-docs-navitem aiui-docs-anchor" />
     )
@@ -107,6 +109,14 @@ export function SidebarDivisions({ divisions, drawer }: { divisions: NavDivision
                 <div className="aiui-docs-drawer-tabs" role="group" aria-label="Documentation sections">
                     {tabs.map((tab) => <DivisionAnchor key={tab.key} link={tab} divisions={divisions} stay />)}
                 </div>
+            )}
+            {version && (
+                // Each entry opens the same page in that version (else its first page).
+                <DivisionMenu items={versions} divisions={divisions} className="aiui-docs-switcher aiui-docs-version" active>
+                    <span className="sr-only">Version </span>
+                    <span className="aiui-docs-divtext"><span>{version.name}</span></span>
+                    {version.tag && <span className="aiui-docs-navtag">{version.tag}</span>}
+                </DivisionMenu>
             )}
             {menu.length > 0 && <nav className="aiui-docs-anchors" aria-label="Section menu">{menu.map(row)}</nav>}
             {current && (
