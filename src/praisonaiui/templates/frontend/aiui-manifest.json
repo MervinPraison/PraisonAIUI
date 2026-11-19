@@ -3196,6 +3196,18 @@
       "assets/ApiPlayground-BpURsa4u.css"
     ]
   },
+  "src/docs/DocsFeedback.tsx": {
+    "file": "assets/DocsFeedback-BBdEiO8Z.js",
+    "name": "DocsFeedback",
+    "src": "src/docs/DocsFeedback.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-SCdx8Lck.js",
+      "_TokenGate-D_fqDECK.js",
+      "_textarea-Bla6ebes.js",
+      "_preload-helper-PPVm8Dsz.js"
+    ]
+  },
   "src/docs/DocsSearch.tsx": {
     "file": "assets/DocsSearch-CVjUZhHZ.js",
     "name": "DocsSearch",
@@ -3513,7 +3525,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-CfxU8ASF.js",
+    "file": "assets/legacy-app-entry-p50CBhgJ.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -3547,6 +3559,8 @@
       "src/docs/redirects.ts",
       "src/docs/ApiPlayground.tsx",
       "src/docs/TabsSelect.tsx",
+      "src/docs/DocsFeedback.tsx",
+      "src/docs/DocsFeedback.tsx",
       "src/layouts/ChatLayout.tsx",
       "src/layouts/AgentUILayout.tsx",
       "src/layouts/PlaygroundLayout.tsx",
@@ -3554,7 +3568,7 @@
       "src/docs/DocsSearch.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-Bawidj5g.css"
+      "assets/legacy-app-entry-B0CrfFn0.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

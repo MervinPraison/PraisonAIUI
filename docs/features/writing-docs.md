@@ -1090,7 +1090,8 @@ Try it on this page.
 
 ## Page footer
 
-Under each page, three optional parts, turned on in `aiui.yaml`:
+Under each page: "Was this page helpful?" (on by default, see
+[Page feedback](#page-feedback)) and two optional parts, turned on in `aiui.yaml`:
 
 ```yaml
 content:
@@ -1110,10 +1111,51 @@ content:
   date. In GitHub Actions, check out with `fetch-depth: 0` to date every page.
   A page's `lastUpdatedDate: 2026-05-01` sets the date by hand, and
   `timestamp: false` (or `true`) turns it off (or on) for that page alone.
-- **Was this page helpful?** stores nothing. "Yes" thanks the reader; "No"
-  offers a new issue at `issues` with the page's title and address filled in.
+- **Was this page helpful?** keeps the vote (next section). With `issues`, a
+  "No" also offers a new issue there with the page's title and address filled in.
 
 The footer of this page shows all three.
+
+### Page feedback
+
+Nothing to configure: under `aiui serve` and `aiui dev` every docs page asks
+"Was this page helpful?". A vote is stored at once; the reader can then add a
+comment (up to 1,000 characters), which joins that vote. Read them with:
+
+```bash
+aiui docs feedback                            # votes per page, least helpful first
+aiui docs feedback --format csv -o votes.csv  # every vote with its comment (or json; --site <title>)
+```
+
+Votes are lines of `docs-feedback/feedback.jsonl` in the data directory
+(`$AIUI_DATA_DIR`, default `~/.praisonaiui`). `POST /api/docs/feedback` takes
+same-origin requests only (plus `--cors-origins`, `AIUI_ALLOWED_ORIGINS`),
+checks the Host header, takes 4 KiB and 20 posts a minute per client, and
+stops at 20 MB. Nothing is readable over HTTP; the export is the CLI.
+
+```yaml
+content:
+  docs:
+    feedback:                       # false: no question at all
+      issues: "https://github.com/acme/site/issues/new"  # a "No" also offers a new issue
+      code: true                    # default false: a flag in each code block's corner
+      endpoint: "https://hooks.example.com/docs-votes"  # default: the aiui server; false: none
+```
+
+A code flag is a `-1` vote with `kind: "code"` and `block`, the block's index
+on the page, plus an optional comment. On a static host with no
+`endpoint`, the page asks the server once whether it keeps votes; when it does
+not, the question is shown only if `issues` is set.
+
+`endpoint` receives the vote as JSON, sent as `text/plain` when it is on
+another origin so the browser makes no preflight request: `{"id", "path",
+"value", "kind", "block", "comment"}`. A comment arrives as a second post with
+the same `id`. Every vote, wherever it goes, also fires a browser event your
+own script can send to analytics:
+
+```js
+window.addEventListener('aiui:docs-feedback', (e) => console.log(e.detail.path, e.detail.value))
+```
 
 ## What the build publishes for assistants
 

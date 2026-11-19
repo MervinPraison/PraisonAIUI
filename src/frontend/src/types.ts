@@ -1,4 +1,5 @@
 // Shared type definitions for PraisonAIUI frontend
+import type { DocsFeedbackConfig } from './docs/feedback'
 
 export interface NavItem {
     title: string
@@ -191,8 +192,8 @@ export interface UIConfig {
     search?: SearchConfig
     /** Hero and features of the docs home page (frontmatter `layout: home`). */
     docsHome?: DocsHomeConfig
-    /** Page footer settings (`content.docs.editLink.text`, `content.docs.feedback.issues`). */
-    pageFooter?: { editText?: string; feedbackIssues?: string }
+    /** Page footer settings (`content.docs.editLink.text`, `content.docs.feedback`; false: no feedback). */
+    pageFooter?: { editText?: string; feedback?: false | DocsFeedbackConfig }
     /** `styling.eyebrows`: the line above a docs page title (default `section`). */
     styling?: { eyebrows?: 'section' | 'breadcrumbs' }
     footer?: {

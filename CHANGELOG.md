@@ -419,6 +419,11 @@
   operation's `x-aiui` sets its page's front matter (`metadata`), Markdown above the generated
   part (`content`) and URL (`href`). `aiui validate` names an operation no spec has (7012). See
   [OpenAPI](docs/features/openapi.md#endpoints-on-your-own-pages).
+- **Docs page feedback that is kept.** "Was this page helpful?" shows under every docs page with
+  no config; `aiui serve` / `aiui dev` store each vote and optional comment (guarded, nothing
+  readable over HTTP) and `aiui docs feedback` lists them per page or exports CSV / JSON. Also
+  `feedback.endpoint` (static hosts), `feedback.code` (a flag per code block), the
+  `aiui:docs-feedback` event and `feedback: false`. See [Writing docs](docs/features/writing-docs.md#page-feedback).
 - **Docs MCP server.** `aiui serve` and `aiui dev` answer the Model Context Protocol at `/mcp`
   (Streamable HTTP, read-only, no extra dependency): `search_docs` (ranked like the search
   dialog), `read_page` (a page's agent-ready Markdown) and `list_pages`. Agents find it through

@@ -736,6 +736,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     * A build made with ``--base-path /x`` is served under ``/x`` (``/``
       redirects there), so the preview matches the host.
     * The build's ``redirects`` answer with 301 (302 when not permanent).
+    * A docs build stores "Was this page helpful?" votes at
+      ``/api/docs/feedback`` (docs_feedback.py), unless built with
+      ``content.docs.feedback: false``.
     * A docs build answers MCP at ``/mcp`` with its discovery entries
       (docs_mcp.py), unless built with ``content.docs.mcp: false``.
     """
@@ -781,6 +784,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
         return md if md and _is_safe_path(md, root) and md.is_file() else None
 
     redirects = _built_redirects(root)
+    from praisonaiui.docs_feedback import DocsFeedback
+
+    feedback = DocsFeedback.for_site(root, cors_origins)
     from praisonaiui.docs_mcp import DocsMcp
 
     mcp = DocsMcp.for_site(root, base, cors_origins)
@@ -790,7 +796,9 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
         return any(_is_safe_path(root / n, root) and (root / n).is_file() for n in names)
 
     async def site_app(scope, receive, send):
-        if scope["type"] != "http" or (mcp and await mcp.serve(scope, receive, send)):
+        if scope["type"] != "http" or (feedback and await feedback.serve(scope, receive, send)):
+            return
+        if mcp and await mcp.serve(scope, receive, send):
             return
         path = scope.get("path", "/")
         rel = path.strip("/")

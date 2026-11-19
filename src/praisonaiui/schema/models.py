@@ -145,10 +145,27 @@ class EditLinkConfig(BaseModel):
 
 
 class FeedbackConfig(BaseModel):
-    """"Was this page helpful?" under each docs page. Nothing is stored: a "No"
-    opens a new issue with the page filled in."""
+    """"Was this page helpful?" under each docs page. ``aiui serve`` and ``aiui dev``
+    store the votes (``aiui docs feedback`` lists them); a static host posts them
+    to ``endpoint``. ``content.docs.feedback: false`` turns it off."""
 
-    issues: str = Field(description="New-issue URL, e.g. https://github.com/acme/site/issues/new")
+    issues: Optional[str] = Field(
+        default=None,
+        description="New-issue URL a \"No\" also offers, e.g. https://github.com/acme/site/issues/new",
+    )
+    endpoint: Union[Literal[False], str, None] = Field(
+        default=None,
+        description="Where votes are POSTed on a static host (an https:// URL); false sends none "
+        "(only the aiui:docs-feedback browser event). Default: the aiui server stores them",
+    )
+    code: bool = Field(default=False, description="A thumbs-down on each code block, to flag a broken sample")
+
+    @field_validator("endpoint")
+    @classmethod
+    def _endpoint_url(cls, v: Union[bool, str, None]) -> Union[bool, str, None]:
+        if isinstance(v, str) and not re.match(r"^(https?://\S+|/\S*)$", v):
+            raise ValueError("endpoint must be an http(s) URL or a path starting with /")
+        return v
 
 
 class ContentSourceConfig(BaseModel):
@@ -163,7 +180,7 @@ class ContentSourceConfig(BaseModel):
     nav: Optional[NavConfig] = None
     edit_link: Optional[EditLinkConfig] = Field(default=None, alias="editLink")
     last_updated: bool = Field(default=False, alias="lastUpdated")
-    feedback: Optional[FeedbackConfig] = None
+    feedback: Union[FeedbackConfig, bool, None] = None
     mcp: bool = Field(
         default=True,
         description="Serve a read-only MCP server at /mcp from aiui serve and aiui dev "

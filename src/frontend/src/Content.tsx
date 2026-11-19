@@ -14,12 +14,12 @@ import { docNeighbours, docTrail } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
-import { DocsPre } from './docs/DocsPre'
 import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
 import { DocsImage, DocsSource } from './docs/DocsMedia'
 import { splitPanels } from './docs/panels'
 import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
-import { PageFooter } from './docs/PageFooter'
+import { FlaggedPre, PageFooter } from './docs/PageFooter'
+import { CodeFeedback } from './docs/feedbackContext'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
@@ -39,7 +39,8 @@ interface ContentProps {
 }
 
 /** Docs-only element overrides (code titles and highlights; light/dark images; the docs components). Module scope: Markdown wants a stable object. */
-const DOCS_MARKDOWN_COMPONENTS = { pre: DocsPre, img: DocsImage, source: DocsSource, ...DOCS_TAG_COMPONENTS }
+// FlaggedPre: DocsPre, with a "Report a problem" flag under `content.docs.feedback.code`.
+const DOCS_MARKDOWN_COMPONENTS = { pre: FlaggedPre, img: DocsImage, source: DocsSource, ...DOCS_TAG_COMPONENTS }
 
 /** The docs home page: the only page whose frontmatter `layout: home` draws a hero. */
 const DOCS_HOME_PATH = '/docs/index'
@@ -177,6 +178,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         const trail = nav && !home ? docTrail(nav, currentPath) : []
         const crumbs = config.styling?.eyebrows === 'breadcrumbs' ? trail : trail.slice(-1)
         const bare = modeIsBare(selectedItem.mode)
+        const fb = config.pageFooter?.feedback, codeFeedback = fb && fb.code ? { path: shownPath ?? currentPath, cfg: fb } : null
         return (
             <main id="main-content" className="aiui-docs-main docs-main">
                 <div className="aiui-docs-column docs-main-inner">
@@ -229,6 +231,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         // legacy plugins (plugin-loader, syntax-highlight, code-copy, mermaid,
                         // toc) leave `#main-content article.prose` alone. Without it they
                         // re-highlight and wrap the React-rendered code blocks.
+                        <CodeFeedback.Provider value={codeFeedback}>
                         <div key={currentPath} className={side ? 'aiui-docs-split' : 'contents'}>
                             <article ref={articleRef} className="aiui-doc prose max-w-none min-w-0"
                                 data-no-anchor={selectedItem.noAnchor ? '' : undefined} {...metaAttributes(selectedItem.meta)}>
@@ -242,8 +245,9 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                                 </aside>
                             )}
                         </div>
+                        </CodeFeedback.Provider>
                     )}
-                    {contentReady && !home && !bare && <PageFooter item={selectedItem} config={config.pageFooter} />}
+                    {contentReady && !home && !bare && <PageFooter item={selectedItem} path={shownPath ?? currentPath} config={config.pageFooter} />}
                     {contentReady && nav && onNavigate && !bare && !selectedItem.hidePager && (
                         <DocsPager nav={nav} path={shownPath ?? currentPath} onNavigate={onNavigate} />
                     )}

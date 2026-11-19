@@ -147,8 +147,10 @@ content:
       pattern: "https://github.com/acme/site/edit/main/docs/:path"
       text: "Edit this page"         # optional
     lastUpdated: true                # the date of the page's last commit
-    feedback:                        # "Was this page helpful?"
-      issues: "https://github.com/acme/site/issues/new"
+    feedback:                        # "Was this page helpful?" (on by default; false: off)
+      issues: "https://github.com/acme/site/issues/new"  # optional
+      code: true                     # optional: a flag on each code block
+      endpoint: "https://hooks.example.com/votes"  # optional: static hosting
     mcp: false                       # no MCP server on aiui serve (default: on)
 ```
 
