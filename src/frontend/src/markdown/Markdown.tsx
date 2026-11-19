@@ -12,10 +12,11 @@
  * Streamdown's `allowedTags`: it rewrites blank lines inside the tag to
  * `<!---->` and corrupts fenced code. Extend the sanitize schema instead.
  */
-import { memo, useId, useMemo, useState, useEffect, type ComponentType } from 'react'
+import { memo, useId, useMemo, useState, useEffect, useSyncExternalStore, type ComponentType } from 'react'
 import { Streamdown, defaultRehypePlugins, type PluginConfig, type StreamdownProps } from 'streamdown'
 import { cn } from '@/lib/utils'
 import { SHIKI_THEMES, chatMermaidPlugin, ensureMathPlugin, getMathPlugin, lazyCodePlugin, lazyMermaidPlugin, needsMath } from './streamdownPlugins'
+import { getRawPlugin, loadRawPlugin, needsRaw, onRawPlugin } from './pluginLoaders'
 import { normalizeTexDelimiters } from './texDelimiters'
 import { ChatH1, ChatH2, ChatH3, ChatH4, ChatTd, ChatTh, ImageGate, ListOl, ListUl, MarkdownImage, PolicyLink } from './chatComponents'
 import { ChatCode } from './CodeBlock'
@@ -161,6 +162,22 @@ function useMathPlugin(content: string, variant: 'chat' | 'docs') {
     return needs ? math : null
 }
 
+/**
+ * Whether the HTML parser has loaded (rehypeRawGate.ts). Text that looks like
+ * it has HTML starts the load; any text draws again once the parser is in, so
+ * HTML the hint missed (the gate met it and started the load) still appears.
+ */
+const rawLoaded = () => getRawPlugin() !== null
+
+function useRawPlugin(content: string): boolean {
+    const ready = useSyncExternalStore(onRawPlugin, rawLoaded, rawLoaded)
+    const needs = !ready && needsRaw(content)
+    useEffect(() => {
+        if (needs) loadRawPlugin().catch(() => { /* the HTML stays out */ })
+    }, [needs])
+    return ready
+}
+
 const MERMAID_FENCE = /(^|\n)\s*(```|~~~)\s*mermaid\b/i
 
 /** Short stable hash so the theme key can travel as a data attribute (Streamdown's memo compares data-*). */
@@ -203,9 +220,13 @@ export const Markdown = memo(function Markdown({
     // one message jumped to another message's note.
     const idPrefix = `user-content-${instanceId.replace(/[^\w-]/g, '')}-`
     const remarkRehypeOptions = useMemo(() => ({ clobberPrefix: idPrefix }), [idPrefix])
+    // Once the HTML parser arrives, a new list (its blocks run again) and a
+    // new data-* attribute (Streamdown's own memo compares data-*, not plugins).
+    const rawReady = useRawPlugin(text)
     const rehypePlugins = useMemo(
         () => [...(isDocs ? docsRehypeWith(allowElements, beforeSanitize) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
-        [isDocs, idPrefix, allowElements, beforeSanitize],
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- rawReady only renews the list
+        [isDocs, idPrefix, allowElements, beforeSanitize, rawReady],
     )
 
     const math = useMathPlugin(text, variant)
@@ -238,6 +259,7 @@ export const Markdown = memo(function Markdown({
         <Streamdown
             className={cn(ROOT_CLASS, VARIANT_CLASS[variant], className)}
             data-aiui-theme={hasMermaid ? hashKey(themeKey) : undefined}
+            data-aiui-html={rawReady ? 'parsed' : undefined}
             mode={isDocs ? 'static' : 'streaming'}
             // Per-block direction: Arabic / Hebrew paragraphs render right to
             // left with their punctuation in place; code stays left to right.
