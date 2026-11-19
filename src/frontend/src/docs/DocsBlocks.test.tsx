@@ -122,7 +122,7 @@ test('<CodeGroup dropdown> keeps the group (attributes no longer break it) and d
     assert.match(html, /data-variant="dropdown"><div class="aiui-tabs-picker">/)
     assert.doesNotMatch(html, /role="tablist"/)
     assert.equal(html.match(/class="aiui-tabs-panel"/g)?.length, 2)
-    assert.match(html, /class="aiui-tabs-panel" hidden="">/)
+    assert.match(html, /class="aiui-tabs-panel" data-title="uv" hidden="">/)
 })
 
 test('<Visibility> shows for="humans" content on the page and never for="agents" content', () => {

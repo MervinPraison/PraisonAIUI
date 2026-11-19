@@ -2042,6 +2042,64 @@ dialog.aiui-zoom img {
   text-underline-offset: 2px;
 }
 
+/* ── Print (page actions → Download as PDF, or the browser's Print) ──────
+   The article alone, on light paper (docs/print.ts drops .dark while the page
+   prints), with everything a click would reveal shown: accordions,
+   expandables and file trees open, every tab's panel under its own title, long
+   code in full and wrapped. External links print their address. Blocks keep
+   together across page breaks. Any element can opt out with data-print="hide". */
+@media print {
+  html[data-aiui-docs] { color-scheme: light; }
+  .aiui-docs { min-height: 0; font-size: 11pt; }
+  html[data-aiui-docs] :is(.aiui-docs-header, .aiui-docs-sidebar, .aiui-docs-toc, .aiui-docs-mtoc, .aiui-docs-footer,
+    .aiui-docs-actions-menu, .aiui-docs-pager, .aiui-docs-pagefoot > :not(.aiui-docs-pagefoot-meta),
+    .aiui-docs-pagefoot-meta > a, .aiui-heading-anchor, .aiui-code-more, .aiui-code-flag, .aiui-zoom-actions,
+    .aiui-prompt-actions, [data-streamdown$='-actions'], [data-streamdown$='-button'], [data-streamdown$='-fullscreen'],
+    [data-radix-popper-content-wrapper], [role='dialog'], [data-print='hide']),
+  html[data-aiui-bg] .aiui-docs::before,
+  .aiui-docs article.aiui-doc .aiui-tabs > :is([role='tablist'], .aiui-tabs-picker),
+  .aiui-docs article.aiui-doc :is(.aiui-expandable > summary svg, .aiui-tree-chevron, .aiui-expandable-hide) { display: none !important; }
+
+  .aiui-docs-shell, .aiui-docs-split { display: block; min-height: 0; }
+  .aiui-docs .aiui-docs-column { max-width: none; padding: 0; }
+  .aiui-docs .aiui-docs-panel { position: static; max-height: none; overflow: visible; margin-top: 1.5rem; }
+
+  /* Open every disclosure: accordions, expandables, file trees. */
+  .aiui-docs article.aiui-doc details::details-content { content-visibility: visible; display: block; }
+  .aiui-docs article.aiui-doc .aiui-expandable-show { display: inline; }
+  /* Every tab, titled. */
+  .aiui-docs article.aiui-doc .aiui-tabs { border: 0; background: none; }
+  .aiui-docs article.aiui-doc .aiui-tabs > [data-title]::before {
+    content: attr(data-title);
+    display: block;
+    margin: 0.75rem 0 0.375rem;
+    font-weight: 600;
+  }
+  /* Code in full, wrapped instead of cut off at the right edge. */
+  .aiui-docs article.aiui-doc [data-streamdown='code-block-body'] { max-height: none !important; overflow: visible !important; mask-image: none !important; padding-bottom: 0; }
+  .aiui-docs article.aiui-doc pre { white-space: pre-wrap; overflow: visible; overflow-wrap: anywhere; }
+  .aiui-docs article.aiui-doc [data-streamdown='table-wrapper'] * { overflow: visible; }
+  .aiui-docs article.aiui-doc :is(pre, [data-streamdown='code-block'], .aiui-code-frame, .aiui-admonition, .aiui-card, .aiui-field, .aiui-step, tr, img, figure, .aiui-frame) { break-inside: avoid; }
+  .aiui-docs article.aiui-doc :is(h1, h2, h3, h4) { break-after: avoid; }
+  /* Where an external link goes. */
+  .aiui-docs article.aiui-doc a[href^='http']:not(:has(img))::after {
+    content: ' (' attr(href) ')';
+    color: var(--muted-foreground);
+    font-size: 0.85em;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+  }
+  .aiui-docs article.aiui-doc a.aiui-card[href^='http']::after { display: block; }
+}
+/* Tab panels carry `hidden`, which Tailwind's preflight hides with an
+   !important rule in @layer base; an !important in an earlier layer (theme)
+   is the only author rule that outranks it. */
+@layer theme {
+  @media print {
+    .aiui-docs article.aiui-doc .aiui-tabs > [data-title][hidden] { display: block !important; }
+  }
+}
+
 /* ── The Paper look (preset `paper`, DESIGN.md "Docs style") ─────────────
    A reading face, not a UI face: Newsreader for titles, Source Sans 3 at
    17px on 1.7 for text, a 40rem measure (about 75 characters), JetBrains
@@ -2142,3 +2200,4 @@ html[data-aiui-look='paper'] .aiui-docs-empty h1 {
   html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2 { font-size: 1.5rem; margin-top: 2.5rem; }
   html[data-aiui-look='paper'] .aiui-docs-hero-tagline { font-size: 1.0625rem; }
 }
+

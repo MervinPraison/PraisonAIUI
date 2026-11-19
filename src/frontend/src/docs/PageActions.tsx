@@ -1,7 +1,8 @@
 // "Copy page" and its menu above a docs article: the page as Markdown for an
-// assistant (copy, view), or a new ChatGPT or Claude chat that reads it.
+// assistant (copy, view), a new ChatGPT or Claude chat that reads it, or a PDF
+// (the browser's Print, laid out by docs.css @media print; docs/print.ts).
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, ClipboardCopy, ExternalLink, FileCode2 } from 'lucide-react'
+import { Check, ChevronDown, ClipboardCopy, ExternalLink, FileCode2, FileDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     DropdownMenu,
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { loadDoc, peekDoc, prefetchDoc } from './docLoader'
 import { assistantLinks, copyText } from './pageActionLinks'
+import { printPage } from './print'
 import { docPathToMarkdown } from '../pathUtils'
 import { withBase } from '../lib/url'
 
@@ -65,6 +67,10 @@ export function PageActions({ path, title }: { path: string; title: string }) {
                             <FileCode2 aria-hidden="true" />
                             <span><strong>View as Markdown</strong><small>The page for assistants, as plain text</small></span>
                         </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => printPage()}>
+                        <FileDown aria-hidden="true" />
+                        <span><strong>Download as PDF</strong><small>Print or save this page</small></span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>

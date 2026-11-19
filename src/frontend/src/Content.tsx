@@ -23,6 +23,7 @@ import { CodeFeedback } from './docs/feedbackContext'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { printLight } from './docs/print'
 import { metaAttributes, modeHidesToc, modeIsBare, withPageHead } from './docs/pageHead'
 import { stripBase, withBase } from './lib/url'
 
@@ -71,6 +72,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
 
     // Prefetch a docs link's markdown on hover, focus and pointerdown.
     useEffect(() => installDocPrefetch(), [])
+    // Paper is light whatever the theme (docs/print.ts; the layout is docs.css @media print).
+    useEffect(() => printLight(), [])
 
     // Load markdown from URL path (source of truth) to avoid stale selectedItem races.
     // docLoader bounds every attempt and retries, caches answers and shares
