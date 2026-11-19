@@ -925,3 +925,9 @@
   `GET /api/feedback` reads back. The `json` store appends one line per vote
   instead of rewriting one array, and moves an older `feedback.json` into the
   new file on start. Override `feedback_file()` to put the log elsewhere.
+- `aiui validate` and `aiui build` name raw HTML that a docs page shows
+  differently than written (new finding 7019, with file and line): an
+  `<iframe>` from a site other than YouTube, Vimeo or Loom shows as a link (the
+  host is named), and `<script>`, `<style>`, `<link>`, `<form>`, `<audio>`,
+  `<object>` and `<embed>` are removed. Code fences and inline code are
+  skipped. Before, these disappeared without a word.

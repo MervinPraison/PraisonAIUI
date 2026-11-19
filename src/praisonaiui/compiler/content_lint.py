@@ -1,4 +1,4 @@
-"""Content checks for ``aiui validate``: codes 7000-7009, 7013 and 7101 (listed in docs/api/cli.md).
+"""Content checks for ``aiui validate``: codes 7000-7009, 7013, 7019 and 7101 (listed in docs/api/cli.md).
 
 Each issue names the page and line and says how to fix it. Missing images and
 broken links are ``links.py``'s (6001); unknown component tags ``docs_tags.py``'s;
@@ -17,9 +17,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
+from praisonaiui.compiler.csp import EMBEDS
 from praisonaiui.compiler.docs_scanner import DocPage
-from praisonaiui.compiler.docs_tags import strip_comments
+from praisonaiui.compiler.docs_tags import _prose_segments, strip_comments
 from praisonaiui.compiler.links import _ATX, _CODE_SPAN, _outside_code
 from praisonaiui.compiler.nav_builder import icon_name, icon_value, sidebar_title
 from praisonaiui.schema.models import PAGE_ACTIONS, page_action_list
@@ -175,6 +177,56 @@ def check_body(text: str, shown: str, frontmatter: dict, listed: bool = False) -
     return out
 
 
+#: Raw HTML the docs renderer removes (its sanitizer keeps no such element), and what to use instead.
+_REMOVED_HTML = {
+    "script": "Load scripts with site.customJs",
+    "style": "Add styles with site.customCss",
+    "link": "Add stylesheets with site.customCss",
+    "form": "Link to the form instead",
+    "audio": "Link to the audio file instead",
+    "object": "Link to the file instead",
+    "embed": "Link to the file instead",
+}
+_RAW_HTML = re.compile(r"<(iframe|" + "|".join(_REMOVED_HTML) + r")(?=[\s/>])([^>]*)")
+_IFRAME_SRC = re.compile(r"""\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["']([^"']*)["']\s*\}|([^\s>]+))""")
+
+
+def check_raw_html(text: str, shown: str) -> list[ContentIssue]:
+    """7019: raw HTML a docs page shows differently than written. Only YouTube, Vimeo and
+    Loom ``<iframe>`` players play in the page (docs/embeds.ts), any other becomes a link;
+    ``<script>``, ``<style>``, ``<link>``, ``<form>``, ``<audio>``, ``<object>`` and
+    ``<embed>`` are removed. Fenced code, ``<CodeBlock>`` and inline code are skipped."""
+    _, first = _split_frontmatter(text)
+    out: list[ContentIssue] = []
+    line_no = 1
+    for code, chunk in _prose_segments(strip_comments(text)):
+        if not code:
+            prose = "\n".join(_CODE_SPAN.sub(lambda m: " " * len(m.group(0)), ln) for ln in chunk.split("\n"))
+            for m in _RAW_HTML.finditer(prose):
+                n = line_no + prose.count("\n", 0, m.start())
+                if n < first:
+                    continue
+                tag = m.group(1)
+                if tag != "iframe":
+                    out.append(ContentIssue(7019, shown, n, f"<{tag}> is removed: docs pages do not load raw <{tag}>",
+                                            _REMOVED_HTML[tag]))
+                    continue
+                found = _IFRAME_SRC.search(m.group(2))
+                src = next((g for g in found.groups() if g is not None), "") if found else ""
+                if any(rx.search(src) for rx in EMBEDS):
+                    continue
+                if not src:
+                    out.append(ContentIssue(7019, shown, n, "<iframe> has no src and is removed",
+                                            "Give it a YouTube, Vimeo or Loom URL"))
+                    continue
+                host = urlsplit(src).hostname or src
+                out.append(ContentIssue(7019, shown, n, f"<iframe> to {host} shows as a link, not an embedded frame",
+                                        "Only YouTube, Vimeo and Loom videos play inside a page; "
+                                        "write a link, or use an image of the content with a link"))
+        line_no += chunk.count("\n")
+    return out
+
+
 def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(),
                 read: Callable[[Path], str] | None = None) -> list[ContentIssue]:
     """Every content check for the scanned docs pages, in page order; ``listed``: slugs given a directory listing;
@@ -193,6 +245,7 @@ def check_pages(pages: list[DocPage], root: Path, listed: frozenset = frozenset(
         fm = page.frontmatter if isinstance(page.frontmatter, dict) else {}
         out += check_body(text, shown(page), fm, page.slug in listed)
         out += check_icons(text, shown(page), fm)
+        out += check_raw_html(text, shown(page))
 
     by_slug: dict[str, list[DocPage]] = defaultdict(list)
     by_title: dict[tuple, list[DocPage]] = defaultdict(list)
