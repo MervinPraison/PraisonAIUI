@@ -3,7 +3,7 @@
  * API: GET /api/mcp/servers, POST /api/mcp/connect, POST /api/mcp/disconnect/{name}
  */
 import { showToast, showConfirm } from '../toast.js';
-import { inAppShell, glyph, statusChip, humanize, emptyState, shellButton } from '/plugins/views/_helpers.js';
+import { inAppShell, glyph, statusChip, humanize, emptyState, shellButton, esc } from '/plugins/views/_helpers.js';
 
 const STATUS_STYLE = {
   connected: 'background:rgba(34,197,94,0.15);color:#22c55e',
@@ -11,12 +11,6 @@ const STATUS_STYLE = {
   error: 'background:rgba(239,68,68,0.15);color:#ef4444',
   disconnected: 'background:rgba(113,113,122,0.2);color:var(--db-text-dim)',
 };
-
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
-}
 
 export async function render(container) {
   container.innerHTML = '<div class="db-loading"><div class="db-spinner"></div></div>';
@@ -123,16 +117,17 @@ function openConnectForm(host, container) {
       <h3 style="margin:0 0 16px;font-size:14px;font-weight:600">Connect MCP Server</h3>
       <div class="db-form-group">
         <label class="db-form-label">Name</label>
-        <input id="mcp-f-name" class="db-form-input" value="everything-demo" placeholder="my-server">
+        <input id="mcp-f-name" class="db-form-input" placeholder="my-server">
       </div>
       <div class="db-form-group">
         <label class="db-form-label">Transport</label>
         <select id="mcp-f-transport" class="db-form-select">
+          <option value="streamable-http">Streamable HTTP (url)</option>
+          <option value="sse">SSE (url)</option>
           <option value="stdio">stdio (command)</option>
-          <option value="sse">SSE / HTTP (url)</option>
         </select>
       </div>
-      <div id="mcp-f-stdio">
+      <div id="mcp-f-stdio" style="display:none">
         <div class="db-form-group">
           <label class="db-form-label">Command</label>
           <input id="mcp-f-command" class="db-form-input" value="npx" placeholder="npx" required>
@@ -142,10 +137,10 @@ function openConnectForm(host, container) {
           <input id="mcp-f-args" class="db-form-input" value="-y @modelcontextprotocol/server-everything" placeholder="-y @modelcontextprotocol/server-everything">
         </div>
       </div>
-      <div id="mcp-f-url" style="display:none">
+      <div id="mcp-f-url">
         <div class="db-form-group">
           <label class="db-form-label">URL</label>
-          <input id="mcp-f-urlval" class="db-form-input" placeholder="https://example.com/sse">
+          <input id="mcp-f-urlval" class="db-form-input" placeholder="https://example.com/mcp">
         </div>
       </div>
       <div class="db-button-group" style="margin:0">
@@ -191,6 +186,7 @@ function openConnectForm(host, container) {
         return;
       }
       body.url = url;
+      if (transportSel.value === 'sse') body.transport = 'sse'; // else: Streamable HTTP, SSE as a fallback
     }
 
     const submitBtn = host.querySelector('#mcp-f-submit');
@@ -203,12 +199,12 @@ function openConnectForm(host, container) {
         body: JSON.stringify(body),
       });
       const d = await r.json();
-      if (r.ok && d.server) {
+      if (r.ok && d.server && d.server.status === 'connected') {
         showToast(`Connected to ${d.server.name}`, 'success');
         host.innerHTML = '';
         render(container);
       } else {
-        showToast(d.error || d.hint || 'Connection failed', 'error');
+        showToast((d.server && d.server.last_error) || d.error || d.hint || 'Connection failed', 'error');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Connect';
       }
