@@ -664,6 +664,11 @@
 
 ### Fixed
 
+- **Docs pages load a third less markdown renderer.** The HTML parser
+  (rehype-raw and parse5, about 48 kB gzip) left the renderer chunk (147 kB to
+  98 kB) and loads only for pages whose markdown has HTML or docs components;
+  the renderer's small shared helpers are one chunk instead of four to six
+  requests.
 - **Phone chat: no stray copy button, no lonely logo.** A table that moved to
   the canvas no longer leaves its copy and download buttons over the reply on
   a touch screen, and a long app name in the new-chat hero wraps below its

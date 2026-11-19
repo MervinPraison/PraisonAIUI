@@ -321,7 +321,10 @@ export default [
   // fork), which gives 146.6 kB for the same bytes: 147 kB was that budget.
   // +1 kB for the chat's collapsible code blocks (markdown/CodeBlock.tsx:
   // 12-line collapse, wrap toggle, sideways-scroll fade), 147.4 kB measured.
-  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
+  // 100 kB (down from 148): the HTML parser (rehype-raw, parse5) is its own chunk,
+  // loaded only for markdown with HTML (markdown/rehypeRawGate.ts), and the small
+  // syntax-tree helpers moved to `markdown-kit`; 97.47 kB measured.
+  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '100 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
   { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7162 B', gzip: true },
