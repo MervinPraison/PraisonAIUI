@@ -434,10 +434,15 @@ def nav_warnings(config: Any, base: Path) -> list[ValidationError]:
             out.append(ValidationError(1004, "navigation" if section.endswith("nav") else "i18n",
                                        f"{section}.{alias} is accepted but has no effect: {why}"))
     nav = getattr(config, "navigation", None)
+    for d, _ in nav.divisions() if nav else []:
+        if not (d.href or getattr(d, "url", None) or d.pages or d.groups or d.children()):
+            kind = type(d).__name__.removeprefix("Nav").removesuffix("Config").removesuffix("Item").lower()
+            out.append(ValidationError(2102, "navigation", f"navigation {kind} '{d.label}' has no pages, groups or href",
+                                       suggestion="Give it groups or pages to open, or an href to link to"))
     docs_dir = base / docs.dir if docs else None
     if not nav or docs_dir is None or not docs_dir.is_dir():
         return out
-    entries = [*nav.pages, *nav.groups, *(g for t in nav.tabs for g in t.groups)]
+    entries = [*nav.pages, *nav.groups, *(g for d, _ in nav.divisions() for g in d.sidebar_groups())]
     if not entries:
         return out
     scanner = DocsScanner(docs_dir, include=docs.include, exclude=docs.exclude, index_files=docs.index_files)

@@ -383,5 +383,7 @@ export default [
   // filter (docs/DocsUpdate.tsx, docs.css).
   // 9,637,745 B (+4,947 B, exactly the overage): docs page feedback (the lazy
   // DocsFeedback chunk, PageFooter.tsx, docs.css).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9637745 B', brotli: false },
+  // 9,643,947 B (+6,202 B, exactly the overage): docs tabs that navigate, tab menus,
+  // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9643947 B', brotli: false },
 ]

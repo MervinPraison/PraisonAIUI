@@ -54,8 +54,41 @@ def manual_entries(config) -> list | None:
     docs = config.content.docs if config.content else None
     entries: list = [*nav.pages, *nav.groups] if nav else []
     if nav and docs and docs.nav and docs.nav.mode == "manual":
-        entries += [g.model_copy(update={"hidden": True}) if t.hidden else g for t in nav.tabs for g in t.groups]
+        from praisonaiui.schema.models import NavGroupConfig
+
+        for d, hidden in nav.divisions():  # tabs, their menu items, anchors, dropdowns
+            if not hidden:
+                entries += [*d.pages, *d.groups]
+                continue
+            entries += [NavGroupConfig(group=d.label, pages=d.pages, hidden=True)] * bool(d.pages)
+            entries += [g.model_copy(update={"hidden": True}) for g in d.groups]
     return entries or None
+
+
+def nav_divisions(nav) -> dict:
+    """``navigation`` in ui-config.json: tabs, anchors and dropdowns with their groups' page
+    lists (a division's loose ``pages`` as a first untitled group); hidden ones left out."""
+
+    def group(g) -> dict:
+        return {"group": g.group, "icon": g.icon, "prefix": g.prefix, "pages": g.page_slugs(),
+                **({"boost": g.boost} if g.boost is not None else {})}
+
+    def division(d, key: str) -> dict:
+        out = {key: d.label, "groups": [group(g) for g in d.sidebar_groups()]}
+        for k in ("icon", "href", "url", "description"):
+            if getattr(d, k, None):
+                out[k] = getattr(d, k)
+        for k, child in (("menu", "item"), ("tabs", "tab")):
+            if getattr(d, k, None):
+                out[k] = [division(c, child) for c in getattr(d, k) if not c.hidden]
+        return out
+
+    out: dict = {"tabs": [division(t, "tab") for t in nav.tabs if not t.hidden]}
+    for k, child, items in (("anchors", "anchor", [*(nav.global_.anchors if nav.global_ else []), *nav.anchors]),
+                            ("dropdowns", "dropdown", nav.dropdowns)):
+        if items:
+            out[k] = [division(d, child) for d in items if not d.hidden]
+    return out
 
 
 def nav_trails(nav: dict) -> dict[str, list[dict]]:

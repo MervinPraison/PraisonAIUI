@@ -496,22 +496,90 @@ class NavGroupConfig(BaseModel):
 NavGroupConfig.model_rebuild()
 
 
-class NavTabConfig(BaseModel):
-    """A top-level navigation tab."""
+class NavDivisionConfig(BaseModel):
+    """What tabs, tab menu items, anchors and dropdowns share: a link out (``href``),
+    or a part of the docs with its own sidebar (``groups`` and/or ``pages``)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    icon: Optional[str] = None
+    href: Optional[str] = Field(default=None, pattern=r"^(https?://|/|mailto:)")
+    hidden: bool = False  # it and its pages leave the header and sidebar (pages stay routable)
+    groups: list[NavGroupConfig] = Field(default_factory=list)
+    pages: list[Union[str, NavGroupConfig, NavLinkConfig]] = Field(default_factory=list)
+
+    @property
+    def label(self) -> str:
+        return next(getattr(self, k) for k in ("tab", "item", "anchor", "dropdown") if hasattr(self, k))
+
+    def children(self) -> list["NavDivisionConfig"]:
+        return [*getattr(self, "menu", []), *getattr(self, "tabs", [])]
+
+    def sidebar_groups(self) -> list[NavGroupConfig]:
+        """Its groups, with its loose ``pages`` as a first untitled group."""
+        return [NavGroupConfig(group="", pages=self.pages)] * bool(self.pages) + self.groups
+
+
+class NavMenuItemConfig(NavDivisionConfig):
+    """An item of a tab's dropdown menu."""
+
+    item: str
+    description: Optional[str] = None
+
+
+class NavTabConfig(NavDivisionConfig):
+    """A top-level navigation tab: its own sidebar, a link (``href``), or a ``menu`` of items."""
 
     tab: str
-    url: Optional[str] = None
-    hidden: bool = False  # the tab and its groups' pages leave the header and sidebar
-    groups: list[NavGroupConfig] = Field(default_factory=list)
+    url: Optional[str] = None  # older spelling of href
+    menu: list[NavMenuItemConfig] = Field(default_factory=list)
     openapi: Optional[OpenApiRef] = None
 
 
+class NavAnchorConfig(NavDivisionConfig):
+    """A link pinned at the top of the sidebar on every page; with ``groups``/``pages`` it opens its own sidebar."""
+
+    anchor: str
+
+
+class NavDropdownConfig(NavDivisionConfig):
+    """An entry of the switcher at the top of the sidebar (a product or a section), with its own sidebar or tabs."""
+
+    dropdown: str = Field(alias="product")
+    description: Optional[str] = None
+    tabs: list[NavTabConfig] = Field(default_factory=list)
+
+
+class NavGlobalConfig(BaseModel):
+    """``navigation.global``: links shown on every page, whatever tab or dropdown is open."""
+
+    anchors: list[NavAnchorConfig] = Field(default_factory=list)
+
+
 class NavigationConfig(BaseModel):
-    """Top-level navigation: header tabs, or a sidebar listed at the root."""
+    """Top-level navigation: header tabs, sidebar anchors and a dropdown switcher, or a sidebar listed at the root."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     tabs: list[NavTabConfig] = Field(default_factory=list)
+    anchors: list[NavAnchorConfig] = Field(default_factory=list)
+    dropdowns: list[NavDropdownConfig] = Field(default_factory=list, alias="products")
+    global_: Optional[NavGlobalConfig] = Field(default=None, alias="global")
     pages: list[Union[str, NavGroupConfig, NavLinkConfig]] = Field(default_factory=list)
     groups: list[NavGroupConfig] = Field(default_factory=list)
+
+    def divisions(self) -> list[tuple[NavDivisionConfig, bool]]:
+        """Every tab, menu item, anchor and dropdown (nested ones after their parent), with whether it is hidden."""
+        out: list[tuple[NavDivisionConfig, bool]] = []
+
+        def walk(d: NavDivisionConfig, hidden: bool) -> None:
+            out.append((d, hidden or d.hidden))
+            for c in d.children():
+                walk(c, hidden or d.hidden)
+
+        for d in [*self.tabs, *self.anchors, *self.dropdowns, *(self.global_.anchors if self.global_ else [])]:
+            walk(d, False)
+        return out
 
 
 class InteractionConfig(BaseModel):

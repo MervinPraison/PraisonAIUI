@@ -102,14 +102,29 @@ export interface NavTabGroupConfig {
     boost?: number
 }
 
-export interface NavTabConfig {
-    tab: string
+/** A tab, a tab's menu item, an anchor or a dropdown (ui-config `navigation`): a link out, or groups with their own sidebar. */
+export interface NavDivision {
+    tab?: string
+    item?: string
+    anchor?: string
+    dropdown?: string
+    icon?: string
+    href?: string
     url?: string
+    description?: string
     groups?: NavTabGroupConfig[]
+    menu?: NavDivision[]
+    tabs?: NavDivision[]
+}
+
+export interface NavTabConfig extends NavDivision {
+    tab: string
 }
 
 export interface NavigationConfig {
     tabs?: NavTabConfig[]
+    anchors?: NavDivision[]
+    dropdowns?: NavDivision[]
 }
 
 export interface NavbarLinkConfig {
