@@ -529,3 +529,30 @@ async def action_buttons(buttons: list[dict]) -> None:
     ctx = _get_context()
     if ctx and ctx._stream_queue:
         await ctx._stream_queue.put({"type": "actions", "buttons": buttons})
+
+
+TOAST_TYPES = ("info", "success", "warning", "error")
+
+
+async def notify(message: str, type: str = "info", *, duration: Optional[int] = None) -> bool:
+    """Pop a short notice (a toast) in the chat that sent the current message.
+
+    *type* is info, success, warning or error; *duration* is in milliseconds.
+    The notice is not saved with the reply. Returns False outside a handler.
+    (``aiui.toast`` is different: it builds a toast component for a page.)
+
+    Example:
+        await aiui.notify("Saved to your notes", type="success")
+    """
+    if type not in TOAST_TYPES:
+        raise ValueError(f"type must be one of {', '.join(TOAST_TYPES)}")
+    if duration is not None and (not isinstance(duration, int) or duration <= 0):
+        raise ValueError("duration must be a positive number of milliseconds")
+    ctx = _get_context()
+    if not (ctx and ctx._stream_queue):
+        return False
+    event: dict = {"type": "toast", "message": str(message), "variant": type}
+    if duration is not None:
+        event["duration"] = duration
+    await ctx._stream_queue.put(event)
+    return True
