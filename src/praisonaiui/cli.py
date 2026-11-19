@@ -880,7 +880,23 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
             Middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET"])
         )
     app = Starlette(routes=routes, middleware=middleware)
-    return _under_base(app, base) if base else app
+    app = _under_base(app, base) if base else app
+    from praisonaiui.compiler.csp import site_headers
+
+    extra = site_headers(root)  # the build's _headers (its Content-Security-Policy), as on the host
+    if not extra:
+        return app
+
+    async def with_headers(scope, receive, send):
+        async def send_with(message):
+            if message["type"] == "http.response.start":
+                have = {k.lower() for k, _ in message.get("headers", [])}
+                message = dict(message, headers=[*message.get("headers", []), *(h for h in extra if h[0] not in have)])
+            await send(message)
+
+        await app(scope, receive, send_with if scope["type"] == "http" else send)
+
+    return with_headers
 
 
 @app.command()

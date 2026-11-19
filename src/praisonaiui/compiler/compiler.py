@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import branding, changelog, integrations, site_assets
+from praisonaiui.compiler import branding, changelog, csp, integrations, site_assets
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
@@ -244,6 +244,7 @@ class Compiler:
             self._patch_homepage_seo(output_dir, nav)
         # After every page, so a stub never takes a page's file
         files.extend(rd.write_redirects(output_dir, redirects, self.url_base, self._page_url))
+        files.extend(self._write_csp(output_dir, files))  # last: it hashes every page's inline scripts
 
         return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings, notes=notes)
 
@@ -985,6 +986,63 @@ class Compiler:
             for directive, hosts in origins.items():
                 merged.setdefault(directive, set()).update(hosts)
         return {k: sorted(v) for k, v in sorted(merged.items())}
+
+    def csp_mode(self) -> tuple[str | None, dict[str, list[str]]]:
+        """``site.csp`` as (``"enforce"``, ``"report-only"`` or None, extra sources).
+        Unset: enforced on a docs build, reported only under a tag manager (it
+        runs tags the build never sees), off for any other build."""
+        value = self.config.site.csp
+        if value is False or (value is None and not (self.config.content and self.config.content.docs)):
+            return None, {}
+        if value == "report-only":
+            return "report-only", {}
+        extra = dict(value) if isinstance(value, dict) else {}
+        report = extra.pop("report-only", None)
+        if report is None and value is None:
+            report = bool(self._integrations() and self.config.integrations.gtm)
+        return ("report-only" if report else "enforce"), extra
+
+    def _csp_sources(self, output_dir: Path) -> dict[str, set[str]]:
+        """What the built pages load besides the site itself, per directive."""
+        out: dict[str, set[str]] = {d: set(v) for d, v in self.external_origins().items()}
+
+        def add(directive: str, *values: str) -> None:
+            out.setdefault(directive, set()).update(values)
+
+        for name in self.config.site.plugins:
+            for directive, hosts in csp.PLUGINS.get(name, {}).items():
+                add(directive, *hosts)
+        docs = self.config.content.docs if self.config.content else None
+        endpoints = [getattr(docs.feedback, "endpoint", None), getattr(docs.assistant, "endpoint", None)] if docs else []
+        add("connect-src", *(site_assets.origin(e) for e in endpoints if isinstance(e, str) and site_assets.is_url(e)))
+        primary = self.config.navbar.primary if self.config.navbar else None
+        if primary and primary.type == "github":  # the star count (docs/githubStars.ts)
+            add("connect-src", csp.GITHUB_API)
+        for f in sorted((output_dir / TRY_DIR).rglob("*.json")):  # Try it calls the spec's servers
+            for server in json.loads(f.read_text(encoding="utf-8")).get("servers", []):
+                add("connect-src", *csp.server_origins(server))
+        for f in sorted(output_dir.rglob(f"*{am.SOURCE_SUFFIX}")):  # the pages the browser renders
+            add("frame-src", *csp.embed_origins(f.read_text(encoding="utf-8")))
+        return out
+
+    def _write_csp(self, output_dir: Path, files: list[str]) -> list[str]:
+        """The policy (compiler/csp.py) in a ``<meta>`` of every page the build
+        wrote (when enforced) and in ``_headers``; returns the files written."""
+        mode, extra = self.csp_mode()
+        if mode is None:
+            return []
+        names = [f for f in dict.fromkeys([*files, "404.html"]) if f.endswith(".html")]
+        pages = {p: p.read_text(encoding="utf-8") for p in (output_dir / n for n in names) if p.is_file()}
+        sources = self._csp_sources(output_dir)
+        sources.setdefault("script-src", set()).update(*(csp.inline_hashes(t) for t in pages.values()))
+        policy = csp.build(sources, extra)
+        if mode == "enforce":
+            meta = csp.render(policy, meta=True)
+            for page, text in pages.items():
+                page.write_text(csp.patch_page(text, meta), encoding="utf-8")
+        name = csp.HEADER if mode == "enforce" else csp.REPORT_ONLY
+        (output_dir / csp.HEADERS_FILE).write_text(csp.headers_file(name, csp.render(policy)), encoding="utf-8")
+        return [csp.HEADERS_FILE]
 
     def _color_mode(self) -> str:
         """``site.theme.mode`` (light, dark or system), else from ``darkMode``."""

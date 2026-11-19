@@ -53,7 +53,7 @@ def _first_events(site: DevSite, n: int) -> list[str]:
 def test_with_client_goes_before_body_end():
     html = with_client(b"<html><body><p>x</p></body></html>", "abc-1")
     assert html.endswith(b"</script></body></html>")
-    assert b'var id = "abc-1"' in html and EVENTS_PATH.encode() in html
+    assert b'data-build="abc-1" src="/__aiui/dev.js"' in html
     assert with_client(b"<p>no body</p>", "x").startswith(b"<p>no body</p><script")
 
 
@@ -62,12 +62,17 @@ def test_html_gets_the_reload_script_and_other_files_do_not(site):
     client = TestClient(site)
     page = client.get("/docs/index", headers={"Accept-Encoding": "gzip"})
     assert page.status_code == 200
-    assert f'var id = "{site.build_id}"'.encode() in page.content
+    assert f'data-build="{site.build_id}"'.encode() in page.content
     assert page.headers["cache-control"] == "no-store"
     assert int(page.headers["content-length"]) == len(page.content)
     nav = client.get("/docs-nav.json")
     assert nav.status_code == 200 and b"data-aiui-dev" not in nav.content
     assert client.head("/docs/index").status_code == 200
+    # A file, so the page's Content-Security-Policy (script-src 'self') lets it run
+    script = client.get("/__aiui/dev.js")
+    assert script.headers["content-type"].startswith("text/javascript")
+    assert EVENTS_PATH.encode() in script.content and b"data-build" in script.content
+    assert "script-src 'self'" in page.headers["content-security-policy"]
 
 
 def test_build_output_never_carries_the_script(site, project):

@@ -42,7 +42,9 @@ aiui dev --config site/aiui.yaml     # a configuration elsewhere
 aiui dev --base-path /               # preview at the root whatever basePath says
 ```
 
-The tab listens on `/__aiui/dev` (Server-Sent Events). It only answers on this
+The tab listens on `/__aiui/dev` (Server-Sent Events) with a script served
+from `/__aiui/dev.js`, so the preview runs under the site's
+[Content Security Policy](content-security-policy.md). It only answers on this
 machine unless you pass `--host`; build errors include file paths, so expose it
 only on a network you trust. Every option is in the
 [CLI reference](../api/cli.md#aiui-dev).
