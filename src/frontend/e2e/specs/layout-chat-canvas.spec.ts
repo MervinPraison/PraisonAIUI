@@ -284,6 +284,108 @@ for (const mode of ['light', 'dark'] as ColorMode[]) {
   })
 }
 
+/**
+ * Voice input (features/realtime.py): the composer's microphone. The server
+ * here has no realtime manager, so voice is off; the "on" tests answer
+ * GET /api/realtime/voice and POST /api/realtime/transcribe in the page and
+ * give it a fake microphone (an oscillator), so MediaRecorder records for real.
+ */
+test.describe('voice input', () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true })
+  const MIC = 'Record a voice message'
+  const VOICE_CHUNK = 'VoiceInput'
+
+  async function voiceOn(page: Page, mic: 'ok' | 'blocked'): Promise<{ posted: { type: string; size: number }[] }> {
+    const posted: { type: string; size: number }[] = []
+    await page.route('**/api/realtime/voice', (route) => route.fulfill({ json: { enabled: true, max_seconds: 120, max_bytes: 8388608 } }))
+    await page.route('**/api/realtime/transcribe', async (route) => {
+      const req = route.request()
+      posted.push({ type: req.headers()['content-type'] ?? '', size: req.postDataBuffer()?.length ?? 0 })
+      await route.fulfill({ json: { text: 'hello from the microphone' } })
+    })
+    await page.addInitScript((mode) => {
+      const md = navigator.mediaDevices as MediaDevices & { getUserMedia: MediaDevices['getUserMedia'] }
+      md.getUserMedia = async () => {
+        if (mode === 'blocked') throw new DOMException('Permission denied', 'NotAllowedError')
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const out = ctx.createMediaStreamDestination()
+        osc.connect(out)
+        osc.start()
+        void ctx.resume()
+        return out.stream
+      }
+    }, mic)
+    return { posted }
+  }
+
+  test('off unless the app turns it on: no microphone and no recorder chunk', async ({ page }) => {
+    const scripts = trackScripts(page)
+    await page.goto('/chat')
+    await expect(composer(page)).toBeVisible()
+    await page.waitForTimeout(500)
+    await expect(page.getByRole('button', { name: MIC })).toHaveCount(0)
+    expect(scripts).not.toContain(VOICE_CHUNK)
+  })
+
+  test('on: record by keyboard, stop, and the text lands in the composer', async ({ page }) => {
+    const errors = collectPageErrors(page)
+    const scripts = trackScripts(page)
+    const { posted } = await voiceOn(page, 'ok')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await expect(mic).toBeVisible()
+    expect(scripts, 'the recorder is its own lazy chunk').toContain(VOICE_CHUNK)
+    const box = await mic.boundingBox()
+    expect(box && box.x + box.width <= PHONE.width).toBe(true)
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+
+    await composer(page).fill('Summarise this:')
+    await mic.focus()
+    await page.keyboard.press('Enter')
+    const stop = page.getByRole('button', { name: 'Stop recording and transcribe' })
+    await expect(stop).toHaveAttribute('aria-pressed', 'true')
+    await expect(stop).toBeFocused()
+    await expect(page.getByRole('status').filter({ hasText: /^Recording/ })).toHaveCount(1)
+    // The running time is in the button: the row keeps Send beside it at 390 px.
+    const send = page.getByRole('button', { name: 'Send', exact: true })
+    const [sb, mb] = [await send.boundingBox(), await stop.boundingBox()]
+    expect(sb && mb && Math.abs(sb.y + sb.height / 2 - (mb.y + mb.height / 2))).toBeLessThan(6)
+    await page.waitForTimeout(600)
+    await page.keyboard.press('Enter')
+    await expect(composer(page)).toHaveValue('Summarise this: hello from the microphone')
+    expect(posted).toHaveLength(1)
+    expect(posted[0].type).toMatch(/^audio\//)
+    expect(posted[0].size).toBeGreaterThan(0)
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    expect(await hasHorizontalOverflow(page)).toBe(false)
+    expect(errors.pageErrors).toEqual([])
+  })
+
+  test('Escape discards a recording: nothing is sent', async ({ page }) => {
+    const { posted } = await voiceOn(page, 'ok')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await mic.click()
+    await expect(page.getByRole('button', { name: 'Stop recording and transcribe' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    await page.waitForTimeout(300)
+    expect(posted).toEqual([])
+    await expect(composer(page)).toHaveValue('')
+  })
+
+  test('a blocked microphone says how to allow it', async ({ page }) => {
+    const { posted } = await voiceOn(page, 'blocked')
+    await page.goto('/chat')
+    const mic = page.getByRole('button', { name: MIC })
+    await mic.click()
+    await expect(page.locator('[data-sonner-toast]', { hasText: 'Microphone access is blocked' })).toBeVisible()
+    await expect(mic).toHaveAttribute('aria-pressed', 'false')
+    expect(posted).toEqual([])
+  })
+})
+
 test('the canvas is the main surface: wider than the thread, resizable by keyboard; one copy of each artifact', async ({ page }) => {
   test.skip(!HAS_CANVAS, 'the artifacts feature is not in this build')
   const errors = collectPageErrors(page)
