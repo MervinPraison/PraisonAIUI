@@ -186,6 +186,8 @@ if (PAPER_FONTS.length !== 3) {
 // imports): a lazy chunk the endpoint bar loads on first hover, focus or click.
 // Measured 4.83 kB + 10%. 7,161 B (+1,861 B, exactly the overage): authentication
 // inputs, file inputs and streamed responses (sessionStorage, FormData, SSE list).
+// 7,162 B (+1 B, exactly the overage): docs components forward the page's utility
+// classes (docs/docsClasses.ts), which moves a shared chunk boundary; no Try it code changed.
 const tryItKey = Object.keys(manifest).find((key) => key === 'src/docs/ApiPlayground.tsx')
 if (!tryItKey) throw new Error('.size-limit.mjs: no src/docs/ApiPlayground.tsx chunk in the build')
 const legacyAll = new Set(filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks.legacyApp]), { css: true }))
@@ -310,7 +312,7 @@ export default [
   { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7161 B', gzip: true },
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7162 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -423,5 +425,7 @@ export default [
   // 11,128,025 B (+4,452 B, exactly the overage): docs content languages (switcher, language-scoped nav).
   // 11,132,290 B (+4,265 B, exactly the overage): site components in docs pages
   // (docs/CustomBlock.tsx, the lazy docs/customBlocks.ts and the SDK chunk split).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11132290 B', brotli: false },
+  // 11,153,819 B (+21,529 B, exactly the overage): utility classes on docs pages (the
+  // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11153819 B', brotli: false },
 ]
