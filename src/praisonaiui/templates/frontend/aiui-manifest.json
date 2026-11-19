@@ -3179,7 +3179,7 @@
     ]
   },
   "src/docs/ApiPlayground.tsx": {
-    "file": "assets/ApiPlayground-CFos8vIT.js",
+    "file": "assets/ApiPlayground-9rd9siVZ.js",
     "name": "ApiPlayground",
     "src": "src/docs/ApiPlayground.tsx",
     "isDynamicEntry": true,
@@ -3193,7 +3193,7 @@
       "_preload-helper-PPVm8Dsz.js"
     ],
     "css": [
-      "assets/ApiPlayground-BpURsa4u.css"
+      "assets/ApiPlayground-BC0bESZX.css"
     ]
   },
   "src/docs/DocsFeedback.tsx": {
@@ -3542,7 +3542,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-Bjk7vSIa.js",
+    "file": "assets/legacy-app-entry-CBB0o9yD.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
