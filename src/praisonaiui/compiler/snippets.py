@@ -18,6 +18,9 @@ from the docs folder. It must stay inside the project (or docs) folder. A missin
 file, a path outside, and a snippet that includes itself are 7008, and fail the
 build. References in fenced code are left alone. ``<docs>/snippets/`` is never
 published as pages (``docs_scanner.SNIPPETS_EXCLUDE``).
+
+A ``::: package.module`` line becomes that module's API reference from its
+docstrings (compiler/python_api.py); one that names nothing is 7016 and fails the build.
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ from pathlib import Path
 
 from praisonaiui.compiler.content_lint import ContentIssue
 from praisonaiui.compiler.docs_tags import _prose_segments
+from praisonaiui.compiler.python_api import DIRECTIVE, ApiReferenceError, PythonApi, options
 
 _IMPORT = re.compile(r"""^[ \t]*import[ \t]+([A-Z]\w*)[ \t]+from[ \t]+(["'])([^"'\n]+\.mdx?)\2[ \t]*;?[ \t]*(?:\n|$)""", re.M)
 _VALUE = r"""(?:"[^"]*"|'[^']*'|\{[^{}]*\})"""
@@ -45,8 +49,10 @@ def _text(value: object) -> str:
 class Snippets:
     """Expands one build's docs pages; ``issues`` holds what it found (7007, 7008)."""
 
-    def __init__(self, root: Path, docs_dir: Path | None, variables: dict | None = None):
+    def __init__(self, root: Path, docs_dir: Path | None, variables: dict | None = None,
+                 python: PythonApi | None = None):
         self.root = root.resolve()
+        self.python = python or PythonApi(self.root)
         self.docs_dir = docs_dir.resolve() if docs_dir else None
         self.variables = {str(k): _text(v) for k, v in (variables or {}).items()}
         self._pages: dict[Path, str] = {}
@@ -57,8 +63,8 @@ class Snippets:
         return list(self._issues.values())
 
     def errors(self) -> list[str]:
-        """The 7008 findings as ``file:line: message`` (they fail ``aiui build``)."""
-        return [f"{i.file}:{i.line}: {i.message}" for i in self.issues if i.code == 7008]
+        """The 7008 and 7016 findings as ``file:line: message`` (they fail ``aiui build``)."""
+        return [f"{i.file}:{i.line}: {i.message}" for i in self.issues if i.code in (7008, 7016)]
 
     def read(self, path: Path) -> str:
         """``path``'s text; a page in the docs folder comes back expanded (cached per build)."""
@@ -124,8 +130,26 @@ class Snippets:
             indent = m.group(1)
             return indent + self._include(m.group(2), m.group(4), {}, file, at(m)[0], indent, stack)
 
+        refs: list[str] = []  # API references go in last, so their text is never read as snippet tags
+
+        def reference(m: re.Match[str]) -> str:
+            refs.append(self._reference(m, file, at(m)[0]))
+            return f"\0{len(refs) - 1}\0"
+
+        chunk = DIRECTIVE.sub(reference, chunk)
         chunk = _IMPORT.sub(lambda m: "\n" if m.group(0).endswith("\n") else "", chunk) if imports else chunk
-        return _MKDOCS.sub(mkdocs, _TAG.sub(tag, chunk))
+        chunk = _MKDOCS.sub(mkdocs, _TAG.sub(tag, chunk))
+        return re.sub(r"\0(\d+)\0", lambda m: refs[int(m.group(1))], chunk) if refs else chunk
+
+    def _reference(self, m: re.Match[str], file: Path, line: int) -> str:
+        """The Markdown for one ``::: target`` block, or the block as written (and 7016)."""
+        try:
+            return self.python.markdown(m.group(1), options(m.group(2)))
+        except (ApiReferenceError, OSError) as e:
+            self._issue(7016, file, line, f"'::: {m.group(1)}': {e}",
+                        "Name a module below content.docs.reference.paths (default src, then the project folder), "
+                        "then a class or function in it")
+            return m.group(0)
 
     def _include(self, written: str, target: str, props: dict, file: Path, line: int, indent: str,
                  stack: tuple[Path, ...]) -> str:
