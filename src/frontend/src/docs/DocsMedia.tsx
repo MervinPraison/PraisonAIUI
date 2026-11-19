@@ -5,6 +5,7 @@ import { useState, useSyncExternalStore, type ComponentProps, type CSSProperties
 import { Play } from 'lucide-react'
 import { cardHref } from './cardHref'
 import { embedTarget } from './embeds'
+import { cx } from './docsClasses'
 
 type Size = { width?: string; height?: string }
 
@@ -14,14 +15,14 @@ function box({ width, height }: Size): CSSProperties {
     return { aspectRatio: w > 0 && h > 0 ? `${w} / ${h}` : undefined, maxWidth: w > 0 && /^\d+(px)?$/.test(width!) ? `${w}px` : undefined }
 }
 
-type EmbedProps = Size & { src?: string; title?: string; poster?: string }
+type EmbedProps = Size & { src?: string; title?: string; poster?: string; className?: string }
 
 /**
  * A YouTube, Vimeo or Loom player. Nothing loads from the provider until the
  * reader presses play (no cookies, no third-party requests on page load); any
  * other iframe is shown as a link.
  */
-export function Embed({ src, title, poster, ...size }: EmbedProps) {
+export function Embed({ src, title, poster, className, ...size }: EmbedProps) {
     const [playing, setPlaying] = useState(false)
     const target = embedTarget(src)
     if (!target) {
@@ -31,7 +32,7 @@ export function Embed({ src, title, poster, ...size }: EmbedProps) {
     const name = title || `${target.provider} video`
     const image = poster ? cardHref(poster) : undefined
     return (
-        <div className="aiui-embed" style={box(size)}>
+        <div className={cx('aiui-embed', className)} style={box(size)}>
             {playing ? (
                 <iframe
                     src={target.play}
@@ -56,12 +57,12 @@ export function Embed({ src, title, poster, ...size }: EmbedProps) {
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 
 /** A self-hosted video. `autoPlay` plays muted and inline (never for readers who ask for reduced motion, who get controls instead). */
-export function Video({ src, poster, title, flags, children, ...size }: EmbedProps & { flags?: string; children?: ReactNode }) {
+export function Video({ src, poster, title, flags, className, children, ...size }: EmbedProps & { flags?: string; children?: ReactNode }) {
     const f = new Set((flags ?? '').split(' '))
     const auto = f.has('autoplay') && !(typeof window !== 'undefined' && window.matchMedia?.(REDUCED_MOTION).matches)
     return (
         <video
-            className="aiui-video"
+            className={cx('aiui-video', className)}
             src={src ? cardHref(src) : undefined}
             poster={poster ? cardHref(poster) : undefined}
             title={title}
@@ -79,7 +80,7 @@ export function Video({ src, poster, title, flags, children, ...size }: EmbedPro
     )
 }
 
-/** `![](a.png#gh-dark-mode-only)` (GitHub's form) and `className="hidden dark:block"` (utility-class form). */
+/** `![](a.png#gh-dark-mode-only)` (GitHub's form) and `className="hidden dark:block"` (utility classes, renamed `aiui:dark:block`). */
 const THEME_SUFFIX = /#gh-(dark|light)-mode-only$/
 
 type ImageProps = ComponentProps<'img'> & { node?: unknown; nozoom?: unknown }
@@ -89,7 +90,7 @@ export function DocsImage({ node: _node, nozoom, className, alt, ...rest }: Imag
     void _node
     const cls = ` ${className ?? ''} `
     const theme = THEME_SUFFIX.exec(typeof rest.src === 'string' ? rest.src : '')?.[1]
-        ?? (cls.includes(' dark:hidden ') ? 'light' : cls.includes(' dark:block ') ? 'dark' : undefined)
+        ?? (cls.includes('dark:hidden ') ? 'light' : cls.includes('dark:block ') ? 'dark' : undefined)
     const noZoom = nozoom === undefined || nozoom === false ? undefined : ''
     // The same look as the shared Markdown image (markdown/chatComponents.tsx MarkdownImage), which this
     // module does not import: it would pull the markdown chunk into the docs boot path.
@@ -99,7 +100,7 @@ export function DocsImage({ node: _node, nozoom, className, alt, ...rest }: Imag
             alt={alt ?? ''}
             loading="lazy"
             decoding="async"
-            className="inline-block h-auto max-w-full rounded-lg align-middle"
+            className={cx('inline-block h-auto max-w-full rounded-lg align-middle', className)}
             data-theme-only={theme}
             data-nozoom={noZoom}
         />

@@ -217,11 +217,15 @@ export function treeLists(md: string): string {
     return lines.join('\n')
 }
 
-/** `<el a="…">` with only the attributes the table names for it. */
+/**
+ * `<el a="…">` with only the attributes the table names for it, plus the tag's
+ * `className` / `class` (docs/docsClasses.ts keeps the allowed utilities).
+ */
 function openTag(spec: DocsTag, a: TagAttrs): string {
     const values: Record<string, string | undefined> = spec.map ? spec.map(a) : a
     const parts = (spec.attrs ?? []).flatMap((k) => (values[k] ? [` ${k}="${escapeAttr(values[k]!)}"`] : []))
-    return `<${spec.el}${parts.join('')}>`
+    const cls = spec.el === 'aiui-block' ? undefined : (a.className ?? a.class)
+    return `<${spec.el}${parts.join('')}${cls ? ` class="${escapeAttr(cls)}"` : ''}>`
 }
 
 const LIST_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s+/

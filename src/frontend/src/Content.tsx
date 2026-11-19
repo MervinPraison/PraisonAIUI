@@ -17,7 +17,8 @@ import { DocsNotFound } from './docs/DocsNotFound'
 import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
 import { DocsImage, DocsSource } from './docs/DocsMedia'
 import { splitPanels } from './docs/panels'
-import { DOCS_ALLOWED_ELEMENTS } from './markdown/docsTags'
+import { DOCS_PAGE_ELEMENTS, rehypeDocsClasses } from './docs/docsClasses'
+import './docs/utilities.css'
 import { FlaggedPre, PageFooter } from './docs/PageFooter'
 import { CodeFeedback } from './docs/feedbackContext'
 import { relatedLinks } from './docs/related'
@@ -255,12 +256,12 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                         <div key={currentPath} className={side ? 'aiui-docs-split' : 'contents'}>
                             <article ref={articleRef} className="aiui-doc prose max-w-none min-w-0"
                                 data-no-anchor={selectedItem.noAnchor ? '' : undefined} {...metaAttributes(selectedItem.meta)}>
-                                <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{main}</Markdown>
+                                <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_PAGE_ELEMENTS} beforeSanitize={rehypeDocsClasses}>{main}</Markdown>
                             </article>
                             {side && (
                                 <aside className="aiui-docs-panel" aria-label="Side panel">
                                     <article className="aiui-doc prose max-w-none min-w-0">
-                                        <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>{side}</Markdown>
+                                        <Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_PAGE_ELEMENTS} beforeSanitize={rehypeDocsClasses}>{side}</Markdown>
                                     </article>
                                 </aside>
                             )}

@@ -15,15 +15,16 @@ const TONE: Record<string, string> = {
 }
 
 type BlockProps = { children?: ReactNode; title?: string; type?: string; collapsible?: string }
-/** Docs extras (docs/DocsBlocks.tsx passes them): an anchor id, an icon, a line under the title, an accent colour. */
-type AdmonitionProps = BlockProps & { id?: string; icon?: ReactNode; description?: string; style?: CSSProperties }
+/** Docs extras (docs/DocsBlocks.tsx passes them): an anchor id, an icon, a line under the title, an accent colour, the page's classes. */
+type AdmonitionProps = BlockProps & { id?: string; icon?: ReactNode; description?: string; style?: CSSProperties; className?: string }
 
-export function Admonition({ children, title, type = 'note', collapsible, id, icon, description, style }: AdmonitionProps) {
+export function Admonition({ children, title, type = 'note', collapsible, id, icon, description, style, className }: AdmonitionProps) {
     const kind = type.toLowerCase()
     const heading = title || kind.charAt(0).toUpperCase() + kind.slice(1)
     const cls = cn(
         'aiui-admonition my-4 rounded-r-lg border-l-2 bg-muted/50 px-4 py-3',
         TONE[kind] ?? 'border-l-primary',
+        className,
     )
     const body = '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0'
     const bare = kind === 'callout' && !title // <Callout>: its icon beside the text, no heading
