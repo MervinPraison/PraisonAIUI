@@ -58,6 +58,7 @@ class _ChatState:
         self.values: Dict[str, Any] = {}
         self.history: deque = deque(maxlen=MAX_HISTORY)
         self.seeded = False
+        self.started = False  # on_chat_start ran (reset when on_chat_end runs)
 
 
 _states: "OrderedDict[str, _ChatState]" = OrderedDict()
@@ -198,6 +199,41 @@ async def prepare_run(session_id: Optional[str], text: str) -> ChatSession:
     if text and (last.get("role"), last.get("content")) != ("user", text):
         st.history.append({"role": "user", "content": text})
     return sess
+
+
+def begin_chat(session_id: str) -> bool:
+    """Mark the chat started; True only the first time (again after :func:`end_chat`)."""
+    st = _state(session_id)
+    with _states_lock:
+        first, st.started = not st.started, True
+    return first
+
+
+def end_chat(session_id: str) -> None:
+    """Mark the chat ended, so its next turn starts it again."""
+    with _states_lock:
+        st = _states.get(session_id)
+        if st is not None:
+            st.started = False
+
+
+def session_for(session_id: str) -> ChatSession:
+    """The chat *session_id* outside a turn (stop, end), with the user and profile it last ran with."""
+    with _states_lock:
+        st = _states.get(session_id)
+        values = dict(st.values) if st is not None else {}
+    try:
+        loop: Optional[asyncio.AbstractEventLoop] = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    return ChatSession(
+        id=session_id,
+        user=values.get("user"),
+        chat_profile=values.get("chat_profile"),
+        chat_settings=values.get("chat_settings") or {},
+        env=values.get("env") or {},
+        loop=loop,
+    )
 
 
 def enter(session: ChatSession) -> None:

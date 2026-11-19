@@ -1,6 +1,6 @@
 # Handler context
 
-Inside an `@aiui.reply` handler you can ask who is calling, keep state for
+Inside an `@aiui.reply` (or `@aiui.on_message`) handler you can ask who is calling, keep state for
 this chat, read the chat's history in the shape an LLM wants, pop a notice,
 and call the UI from blocking worker code. Nothing to configure.
 
@@ -92,6 +92,39 @@ async def answer(msg):
 with the handler's context. From that thread, `run_sync(coro, timeout=None)`
 runs the coroutine on the server's loop and waits; in a plain script it starts
 its own loop; in async code it raises `RuntimeError` (use `await`).
+
+## Per-chat setup and clean-up
+
+`@aiui.on_chat_start` runs once per chat before its first reply, as that chat,
+so it is the place to fill `aiui.user_session`; `@aiui.on_chat_end` runs as the
+chat when its last connection closes. See
+[Chat lifecycle](../api/python.md#chat-lifecycle).
+
+## `aiui.cache`
+
+Load a model, an index or a client once and share it across every chat
+(`@aiui.cache(ttl=3600, maxsize=8)` takes options; `async def` works too):
+
+```python
+@aiui.cache
+def load_index(path: str):
+    return build_index(path)          # runs once per path
+
+@aiui.on_chat_start
+async def start():
+    aiui.user_session["index"] = load_index("docs/")
+```
+
+| Option | Does |
+|---|---|
+| `ttl=None` | Seconds an entry is kept; `None` keeps it until cleared. |
+| `maxsize=None` | Keep only the most recently used entries; `None` for no limit. |
+| `fn.cache_clear()` | Forget every entry. |
+
+Entries are keyed by the arguments (unhashable ones, like a list, by their
+`repr`) and live in the server's memory. It is thread-safe; concurrent first
+calls share one computation (a caller cancelled by Stop does not cancel it).
+Exceptions are never cached, so the next call tries again.
 
 ## `aiui.notify`
 
