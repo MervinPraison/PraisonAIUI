@@ -49,6 +49,7 @@ from praisonaiui.compiler.publish import (
     set_robots_meta,
     with_slash,
 )
+from praisonaiui.compiler.python_api import PythonApi
 from praisonaiui.compiler.snippets import Snippets
 from praisonaiui.compiler.versions import apply as apply_versions
 from praisonaiui.compiler.versions import issues as version_issues
@@ -312,7 +313,8 @@ class Compiler:
     @cached_property
     def _snippets(self) -> Snippets:
         docs = self.config.content.docs if self.config.content else None
-        return Snippets(self.base_path, self.base_path / docs.dir if docs else None, self.config.variables)
+        python = PythonApi(self.base_path, docs.reference.paths) if docs else None
+        return Snippets(self.base_path, self.base_path / docs.dir if docs else None, self.config.variables, python)
 
     def _page_text(self, path: Path) -> str:
         """A docs page's source with snippets and ``{{variables}}`` expanded (compiler/snippets.py),
