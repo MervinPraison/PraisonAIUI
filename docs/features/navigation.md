@@ -316,14 +316,67 @@ one is open. `aiui validate` warns about one with no pages, groups or
 
 ## Header Links
 
-`navbar` adds links and one primary button to the header:
+`navbar` adds links and one primary button to the header. On phones they move
+into the navigation drawer.
 
 ```yaml
 navbar:
   links:
     - label: "Blog"
       href: "https://example.com/blog"
+      icon: newspaper       # optional: any icon value (lucide name, image URL, emoji)
+    - type: discord         # github | discord: the network's mark; no label needed
+      href: "https://discord.gg/your-server"
   primary:
-    type: github          # button | github
+    type: github            # button (default) | github | discord
     href: "https://github.com/your/repo"
 ```
+
+A link with `type` and no `label` shows the network's mark alone, named for
+screen readers. Links to another site open in a new tab.
+
+The star count needs no setup: the browser asks the public GitHub API once and
+keeps the answer for six hours. If it cannot get one, the button shows the mark
+and the label.
+
+## Footer
+
+`footer.socials` maps a network to a URL and draws its mark; `footer.links`
+adds columns of links above the bottom line.
+
+```yaml
+footer:
+  socials:
+    github: "https://github.com/your/repo"
+    x: "https://x.com/you"
+    discord: "https://discord.gg/your-server"
+    status: "https://status.example.com"   # any key: a globe named "status"
+  links:
+    - header: "Company"                    # optional
+      items:
+        - label: "About"
+          href: "https://example.com/about"
+```
+
+Known keys: `github`, `gitlab`, `x` (or `twitter`), `discord`, `slack`,
+`linkedin`, `youtube`, `bluesky`, `mastodon`, `reddit`, `telegram`,
+`facebook`, `instagram`, `threads`, `medium`, `hacker-news`, `npm`,
+`website`, `email` (a `mailto:` URL), `rss` and `podcast`. Any other key whose
+URL is on one of those sites gets that mark (`community:
+https://discord.gg/x` shows Discord); the rest get a globe. Each mark is a link
+named for its network.
+
+## Banner
+
+`banner` puts a strip above the header on every docs page:
+
+```yaml
+banner:
+  content: "Version 2 is out. [Read the notes](/changelog)"   # Markdown
+  dismissible: true      # a close button (default false)
+  type: warning          # info (default) | warning | success
+```
+
+`banner: "Version 2 is out."` is the short form. A closed banner stays closed
+for that reader until its content changes, so a new announcement shows again
+with no key to bump.

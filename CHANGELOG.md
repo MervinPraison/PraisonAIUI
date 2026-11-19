@@ -446,6 +446,11 @@
   there whose entries each own a sidebar or their own header tabs. On phones all of it sits in
   the navigation drawer. `aiui validate` warns about one with nothing to open (2102). See
   [Navigation](docs/features/navigation.md#tab-options).
+- **Header link icons, footer social marks and a site banner.** `navbar.links` take `icon` and
+  `type: github|discord` (the mark; label optional); a `type: github` primary shows the repo's star
+  count (cached). `footer.socials` draws marks for 21 networks (by key or URL) instead of text;
+  column `header` is optional. `banner:` adds a Markdown strip above the docs header (`type`,
+  `dismissible`; a closed one returns when its content changes). See [Navigation](docs/features/navigation.md#banner).
 - **Docs pages print and save as PDF.** The page actions menu has
   **Download as PDF** (the browser's Print). A printed page, from there or from
   `Ctrl+P`, is the article alone on light paper: no header, sidebar, "On this

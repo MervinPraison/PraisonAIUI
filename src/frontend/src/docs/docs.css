@@ -213,6 +213,30 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   color: var(--foreground);
   background: var(--accent);
 }
+.aiui-docs-navlink { gap: 0.375rem; }
+.aiui-docs-navlink[data-icon-only] { padding-inline: 0.5rem; }
+.aiui-docs-linkicon { flex: none; width: 1rem; height: 1rem; object-fit: contain; }
+/* The GitHub button's star count. */
+.aiui-docs-stars { display: inline-flex; align-items: center; gap: 0.25rem; margin-inline-start: 0.25rem; padding-inline-start: 0.5rem; border-inline-start: 1px solid color-mix(in oklab, currentColor 30%, transparent); font-variant-numeric: tabular-nums; }
+.aiui-docs-stars .aiui-docs-linkicon { width: 0.875rem; height: 0.875rem; }
+
+/* The `banner:` strip above the header (docs/DocsBanner.tsx), in its tone. */
+.aiui-docs-banner {
+  --tone: var(--info);
+  display: flex; align-items: center; gap: 0.5rem; min-height: 2.5rem;
+  padding: 0.375rem 0.5rem 0.375rem 1rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--tone) 26%, var(--background));
+  background: color-mix(in oklab, var(--tone) 10%, var(--background));
+  color: var(--foreground); font-size: 0.875rem; line-height: 1.4;
+}
+.aiui-docs-banner[data-type='warning'] { --tone: var(--warning); }
+.aiui-docs-banner[data-type='success'] { --tone: var(--success); }
+.aiui-docs-banner-text { flex: 1; min-width: 0; text-align: center; font-size: inherit; line-height: inherit; }
+.aiui-docs-banner-text :is(p, ul, ol) { margin: 0; }
+.aiui-docs-banner-text a { color: inherit; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.aiui-docs-banner-close { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: 0; border-radius: var(--radius-md, 8px); background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.aiui-docs-banner-close:hover { color: var(--foreground); background: color-mix(in oklab, var(--tone) 14%, transparent); }
+.aiui-docs-banner-close svg { width: 1rem; height: 1rem; }
 
 /* Search: a quiet field-shaped button with its shortcut. */
 .aiui-docs-search {
@@ -1764,6 +1788,11 @@ dialog.aiui-zoom img {
   text-decoration: none;
 }
 .aiui-docs-footer a:hover { color: var(--foreground); }
+/* footer.socials: one mark per network (docs/ChromeLinks.tsx). */
+.aiui-docs-socials { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
+.aiui-docs-socials a { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: var(--radius-md, 8px); }
+.aiui-docs-socials a:hover { background: var(--accent); }
+.aiui-docs-socials :is(svg, img) { width: 1.125rem; height: 1.125rem; }
 
 /* The search dialog sits in a portal, outside the .aiui-docs root. */
 .aiui-docs-search-dialog { font-family: var(--aiui-font-sans); }
@@ -2051,7 +2080,7 @@ dialog.aiui-zoom img {
 @media print {
   html[data-aiui-docs] { color-scheme: light; }
   .aiui-docs { min-height: 0; font-size: 11pt; }
-  html[data-aiui-docs] :is(.aiui-docs-header, .aiui-docs-sidebar, .aiui-docs-toc, .aiui-docs-mtoc, .aiui-docs-footer,
+  html[data-aiui-docs] :is(.aiui-docs-banner, .aiui-docs-header, .aiui-docs-sidebar, .aiui-docs-toc, .aiui-docs-mtoc, .aiui-docs-footer,
     .aiui-docs-actions-menu, .aiui-docs-pager, .aiui-docs-pagefoot > :not(.aiui-docs-pagefoot-meta),
     .aiui-docs-pagefoot-meta > a, .aiui-heading-anchor, .aiui-code-more, .aiui-code-flag, .aiui-zoom-actions,
     .aiui-prompt-actions, [data-streamdown$='-actions'], [data-streamdown$='-button'], [data-streamdown$='-fullscreen'],

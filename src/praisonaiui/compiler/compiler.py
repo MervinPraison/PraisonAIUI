@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -473,35 +474,18 @@ class Compiler:
                 "href": logo.href,
             }
 
-        # Navbar
+        # Navbar, footer and the banner above the header
         if self.config.navbar:
-            navbar_dict: dict = {}
+            result["navbar"] = self.config.navbar.model_dump(exclude_none=True, exclude_defaults=True)
             if self.config.navbar.primary:
-                navbar_dict["primary"] = {
-                    "type": self.config.navbar.primary.type,
-                    "label": self.config.navbar.primary.label,
-                    "href": self.config.navbar.primary.href,
-                }
-            if self.config.navbar.links:
-                navbar_dict["links"] = [
-                    {"label": lnk.label, "href": lnk.href} for lnk in self.config.navbar.links
-                ]
-            result["navbar"] = navbar_dict
-
-        # Footer
+                result["navbar"]["primary"] = self.config.navbar.primary.model_dump(exclude_none=True)
         if self.config.footer:
-            footer_dict: dict = {}
-            if self.config.footer.socials:
-                footer_dict["socials"] = self.config.footer.socials
-            if self.config.footer.links:
-                footer_dict["links"] = [
-                    {
-                        "header": col.header,
-                        "items": [{"label": item.label, "href": item.href} for item in col.items],
-                    }
-                    for col in self.config.footer.links
-                ]
-            result["footer"] = footer_dict
+            result["footer"] = self.config.footer.model_dump(exclude_none=True, exclude_defaults=True)
+        if self.config.banner:
+            banner = self.config.banner
+            # A dismissal is remembered per content, so new content shows again.
+            key = hashlib.sha256(f"{banner.type}\n{banner.content}".encode()).hexdigest()[:12]
+            result["banner"] = {**banner.model_dump(), "id": key}
 
         # Search
         if self.config.search:

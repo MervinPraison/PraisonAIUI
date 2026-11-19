@@ -1,18 +1,10 @@
 // Docs footer: optional link columns (YAML `footer.links`), then the brand
-// line and the footer component's links. Styles: docs/docs.css (.aiui-docs-footer*).
+// line, the footer component's links and the `footer.socials` marks. Styles: docs/docs.css (.aiui-docs-footer*).
 import type { UIConfig } from './types'
 import { BrandMark } from './docs/BrandMark'
 import { isExternal } from './docs/chrome'
 import { withBase } from './lib/url'
-
-const SOCIAL_LABELS: Record<string, string> = {
-    github: 'GitHub',
-    x: 'X',
-    twitter: 'X',
-    youtube: 'YouTube',
-    discord: 'Discord',
-    linkedin: 'LinkedIn',
-}
+import { SocialLinks } from './docs/ChromeLinks'
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
     const external = isExternal(href)
@@ -35,11 +27,7 @@ export function Footer({ config, templateKey = 'docs' }: { config: UIConfig; tem
     } | undefined
 
     const columns = (config.footer?.links ?? []).filter((col) => col.items?.length)
-    const socials = Object.entries(config.footer?.socials ?? {}).filter(([, href]) => Boolean(href))
-    const bottomLinks = [
-        ...(footer?.links ?? []),
-        ...socials.map(([key, href]) => ({ label: SOCIAL_LABELS[key.toLowerCase()] ?? key, href })),
-    ]
+    const bottomLinks = footer?.links ?? []
     const siteName = config.site?.title || 'PraisonAIUI'
 
     return (
@@ -47,9 +35,9 @@ export function Footer({ config, templateKey = 'docs' }: { config: UIConfig; tem
             <div className="aiui-docs-footer-inner">
                 {columns.length > 0 && (
                     <div className="aiui-docs-footer-cols">
-                        {columns.map((col) => (
-                            <div key={col.header} className="aiui-docs-footer-col">
-                                <h2>{col.header}</h2>
+                        {columns.map((col, i) => (
+                            <div key={i} className="aiui-docs-footer-col">
+                                {col.header && <h2>{col.header}</h2>}
                                 <ul>
                                     {col.items.map((item) => (
                                         <li key={item.href + item.label}>
@@ -75,6 +63,7 @@ export function Footer({ config, templateKey = 'docs' }: { config: UIConfig; tem
                             ))}
                         </nav>
                     )}
+                    {config.footer?.socials && <SocialLinks socials={config.footer.socials} />}
                 </div>
             </div>
         </footer>
