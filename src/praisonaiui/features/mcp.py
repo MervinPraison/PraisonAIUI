@@ -541,6 +541,12 @@ async def get_mcp_server(name: str) -> Optional[MCPServer]:
     return await _manager.get_server(name)
 
 
+async def disconnect_all_mcp_servers() -> None:
+    """Disconnect every connected server (server shutdown: no stdio child outlives it)."""
+    for name in list(_manager._clients):
+        await _manager.disconnect_server(name)
+
+
 # Auto-load MCP servers from config if available
 async def auto_discover_mcp_servers() -> None:
     """Auto-discover and connect MCP servers from configuration."""

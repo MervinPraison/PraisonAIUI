@@ -57,8 +57,10 @@ def _replay_pages() -> tuple[PageSpec, ...]:
 
 
 def _mcp_routes() -> list:
-    # The handlers live in features/mcp_servers.py (server.py re-exports
-    # their names). Imported only while builtin.mcp is on.
+    # features/mcp_servers.py: the mcp: config, the allowlists and the
+    # handlers (server.py re-exports the handler names). Imported only while
+    # builtin.mcp is on, so a disabled built-in reads no config and connects
+    # nothing at startup.
     from praisonaiui.features.mcp_servers import routes
 
     return routes()
