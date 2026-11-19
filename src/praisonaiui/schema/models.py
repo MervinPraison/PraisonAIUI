@@ -238,6 +238,62 @@ class FeedbackConfig(BaseModel):
         return v
 
 
+#: The built-in page actions (docs/PageActions.tsx), in their default order:
+#: the page itself, the assistants that take a prompt in the URL, the docs MCP server.
+PageActionId = Literal[
+    "copy", "view", "pdf", "listen",
+    "chatgpt", "claude", "perplexity", "grok", "google", "copilot", "mistral", "cursor",
+    "mcp",
+]
+PAGE_ACTIONS: tuple[str, ...] = PageActionId.__args__
+#: What the menu shows when nothing is configured.
+DEFAULT_PAGE_ACTIONS = ("copy", "view", "pdf", "listen", "chatgpt", "claude", "mcp")
+_UNSAFE_HREF = re.compile(r"^\s*(javascript|data|vbscript|file):", re.I)
+
+
+class PageActionLink(BaseModel):
+    """A page action of your own: a link with ``{url}`` (the page), ``{md}`` (its
+    Markdown), ``{title}`` and ``{prompt}`` (the "read this page" prompt) filled in,
+    URL-encoded."""
+
+    label: str = Field(min_length=1, max_length=60)
+    href: str = Field(description="URL; {url}, {md}, {title} and {prompt} are filled in, URL-encoded")
+    icon: Optional[str] = Field(default=None, description="A lucide icon name, an emoji or an image URL")
+    description: Optional[str] = Field(default=None, max_length=80, description="The line under the label")
+
+    @field_validator("href")
+    @classmethod
+    def _safe_href(cls, v: str) -> str:
+        if not re.match(r"^([a-z][a-z0-9+.-]*:|/)", v.strip(), re.I) or _UNSAFE_HREF.match(v):
+            raise ValueError("href must be a URL (https://…, a deep link such as vscode:…) or a path starting with /")
+        return v.strip()
+
+
+PageActionEntry = Union[PageActionId, PageActionLink]
+
+
+def page_action_list(value: Any) -> Union[list, bool, None]:
+    """A frontmatter or config ``pageActions`` value made safe for the browser: False,
+    or the known ids and valid links in order (duplicates dropped); None when invalid."""
+    if isinstance(value, bool):
+        return value
+    if not isinstance(value, list):
+        return None
+    out: list = []
+    for entry in value:
+        if isinstance(entry, str) and entry in PAGE_ACTIONS:
+            if entry not in out:
+                out.append(entry)
+        elif isinstance(entry, dict):
+            try:
+                out.append(PageActionLink.model_validate(entry).model_dump(exclude_none=True))
+            except ValueError:
+                return None
+        else:
+            return None
+    return out
+
+
 class ContentSourceConfig(BaseModel):
     """Configuration for a single content source (docs, blog, etc.)."""
 
@@ -260,6 +316,12 @@ class ContentSourceConfig(BaseModel):
         default=True,
         description="Serve a read-only MCP server at /mcp from aiui serve and aiui dev "
         "(docs/features/ai-ready-docs.md#mcp-server)",
+    )
+    page_actions: Union[bool, list[PageActionEntry]] = Field(
+        default=True,
+        alias="pageActions",
+        description="The page actions menu above each docs page: the built-in actions and your own "
+        "links, in order, or false for none (docs/features/writing-docs.md#page-actions)",
     )
 
     model_config = ConfigDict(populate_by_name=True)

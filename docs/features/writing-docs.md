@@ -70,6 +70,7 @@ tag: NEW
 | `timestamp` | `true`/`false` | Turns the "Last updated" date off or on for this page (see [Page footer](#page-footer)). |
 | `lastUpdatedDate` | date (`2026-05-01`) | The "Last updated" date, instead of the last commit's. |
 | `related` | list of pages or URLs, or `false` | The "Related pages" under this page, instead of the suggested ones; `false` shows none ([Related pages](#related-pages)). |
+| `pageActions` | list of page actions, or `false` | This page's page actions menu, in order, instead of the site's; `false` shows none ([Page actions](#page-actions)). |
 | `rss` | `true`/`false` | `true` on a changelog page: the build writes its `<Update>` entries as an RSS feed at `<page>/rss.xml` and links it ([Changelog](#changelog)). |
 | `layout`, `hero`, `features` | | The docs home page ([Home page layout](content-sources.md#home-page-layout)). |
 | any other key | string, number or `true`/`false` | Custom data, such as `product: cloud`: a `data-fm-product="cloud"` attribute on the article (for CSS) and `meta` in the `aiui:content-loaded` event (for custom JS). |
@@ -1077,18 +1078,50 @@ too; without `--strict` they print them as warnings.
 ## Page actions
 
 Above every page's title, **Copy page** copies the page's Markdown, ready to
-paste into an assistant. Its menu also has:
+paste into an assistant. `Ctrl+C` (`⌘C` on a Mac) does the same when nothing
+is selected and the cursor is not in a text field. Its menu also has:
 
-| Action | What it does |
-|---|---|
-| Copy page | The page's agent-ready Markdown on the clipboard |
-| View as Markdown | Opens `/docs/<page>.md`, the page as plain Markdown for assistants |
-| Open in ChatGPT | A new ChatGPT chat that reads the page and takes questions |
-| Open in Claude | The same, in Claude |
-| Download as PDF | The browser's Print dialog; pick **Save as PDF** |
+| Action | Id | What it does |
+|---|---|---|
+| Copy page | `copy` | The page's agent-ready Markdown on the clipboard |
+| View as Markdown | `view` | Opens `/docs/<page>.md`, the page as plain Markdown for assistants |
+| Download as PDF | `pdf` | The browser's Print dialog; pick **Save as PDF** |
+| Listen to page | `listen` | The browser reads the article aloud, with pause and stop; hidden where the browser has no speech |
+| Open in ChatGPT | `chatgpt` | A new ChatGPT chat that reads the page and takes questions |
+| Open in Claude | `claude` | The same, in Claude |
+| Copy MCP server URL, Connect to Cursor / VS Code | `mcp` | On a site `aiui serve` runs ([MCP server](ai-ready-docs.md#mcp-server)) |
 
 Nothing to configure: they use the Markdown `aiui build` already publishes.
 Try it on this page.
+
+To pick and order the actions, list them. Besides the ids above there are
+`perplexity`, `grok`, `google` (Google AI Mode), `copilot`, `mistral` (Le Chat)
+and `cursor`, and links of your own:
+
+```yaml
+content:
+  docs:
+    pageActions:
+      - copy
+      - chatgpt
+      - perplexity
+      - label: Ask our support bot
+        href: https://support.acme.dev/new?q={prompt}
+        icon: life-buoy                   # optional: a lucide name, an emoji or an image URL
+        description: Opens a support chat # optional: the line under the label
+```
+
+In `href`, `{url}` is the page's address, `{md}` its Markdown, `{title}` its
+title and `{prompt}` the "read this page" prompt the assistants get, each
+URL-encoded. `pageActions: false` turns the menu off. One page can have its own
+list, or none, in its front matter:
+
+```yaml
+---
+title: Release notes
+pageActions: [copy, view]   # or: pageActions: false
+---
+```
 
 ### Printing and PDF
 

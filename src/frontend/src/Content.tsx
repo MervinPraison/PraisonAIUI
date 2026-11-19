@@ -24,6 +24,7 @@ import { relatedLinks } from './docs/related'
 import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
+import { pageActionList } from './docs/pageActionLinks'
 import { printLight } from './docs/print'
 import { metaAttributes, modeHidesToc, modeIsBare, withPageHead } from './docs/pageHead'
 import { stripBase, withBase } from './lib/url'
@@ -217,7 +218,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                                     </ol>
                                 </nav>
                             ) : <span />}
-                            <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} mcp={config.mcp || undefined} />
+                            <PageActions path={shownPath ?? currentPath} title={selectedItem.pageTitle ?? selectedItem.title} mcp={config.mcp || undefined}
+                                actions={pageActionList(config.pageActions, selectedItem.pageActions)} />
                         </div>
                     )}
                     {loadingContent && (

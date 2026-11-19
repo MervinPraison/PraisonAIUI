@@ -492,6 +492,13 @@
   built-in style and script, cache-busted with a content hash; `site.customCss` was
   ignored by `aiui build` before. `aiui validate` reports a file that is not in the
   project (7014). See [Theming](docs/features/theming.md#fonts).
+- **Page actions you choose, and a page read aloud.** `content.docs.pageActions` picks and
+  orders the menu above each docs page, adds Perplexity, Grok, Google AI Mode, Copilot, Le Chat
+  and Cursor, and takes links of your own (`{label, href, icon}` with `{url}`, `{md}`, `{title}`
+  and `{prompt}` filled in); `false` turns it off. A page's front matter `pageActions` sets its
+  own list or none. **Listen to page** reads the article aloud in the browser (pause, stop),
+  and `Ctrl+C` / `⌘C` with nothing selected copies the page as Markdown. See
+  [Page actions](docs/features/writing-docs.md#page-actions).
 
 ### Deprecated
 

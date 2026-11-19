@@ -402,5 +402,7 @@ export default [
   // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth mode).
   // 9,678,344 B (+2,502 B, exactly the overage): related pages under docs pages (the lazy
   // RelatedPages chunk, its styles and the link helper in the legacy App chunk).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9678344 B', brotli: false },
+  // 9,682,765 B (+4,421 B, exactly the overage): page actions you choose (AI targets, links
+  // of your own, per-page lists, the Ctrl+C copy) and the lazy listen-to-page chunk.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9682765 B', brotli: false },
 ]
