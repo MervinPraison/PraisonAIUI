@@ -167,10 +167,16 @@ pretty-printed). A relative or missing server URL means the site the docs are se
 ```yaml
 api:
   playground:
-    display: interactive   # simple: the bar without Try it; none: method and path as plain text
+    display: interactive   # simple: the bar without Try it; none: method and path as plain text;
+                           # auth: Try it only for readers signed in to the aiui server
   examples:
     prefill: true          # false: inputs start empty, the example as placeholder
 ```
+
+With `auth`, the bar asks `GET /api/auth/status` once per page load and shows Try it only when it
+answers `authenticated: true` (an `aiui serve` or `create_app` site whose reader is signed in;
+without sign-in configured, every reader counts as signed in). On a static host it acts like
+`simple`.
 
 Webhooks have no Try it. Front matter `playground:` (same values) sets the display of one
 [`openapi:` or `api:` page](#endpoints-on-your-own-pages), `x-aiui` `metadata.playground` of
@@ -189,8 +195,42 @@ loaded on the first hover, focus or click of Try it. In the page source the bar 
 `<ApiPlayground method="GET" path="/pets" src="/openapi/try/....json" />` (without `src`, the bar
 alone, usable on a hand-written page); the agent `.md` keeps `` `GET` `/pets` ``.
 
-**(planned)**: an Authorization section and auth inputs in Try it (API key, bearer, basic,
-OAuth2), file uploads and streaming responses in Try it, method and `kind: badge` pills in the
+#### Authentication
+
+An operation's `security` (else the spec's) becomes an **Authorization** section on its page (a
+field per scheme, required when every alternative needs it, OAuth2 scopes listed) and inputs in
+Try it: `apiKey` in a header, query or cookie, `http` `bearer` (and any other scheme name),
+`http` `basic` (username and password, base64-encoded for you), `oauth2` and `openIdConnect` (paste
+an access token; sent as `Bearer`). With several alternatives a menu picks one (`{}` in the list
+adds "None"); `security: []` turns it off; `mutualTLS` is left out (a browser cannot send it).
+A scheme's `x-default` prefills its input.
+
+```yaml
+components:
+  securitySchemes:
+    token: {type: http, scheme: bearer, bearerFormat: JWT, x-default: test-token}
+    key: {type: apiKey, in: query, name: api_key}
+security: [{token: []}, {key: []}]
+```
+
+Values are kept in the browser tab's `sessionStorage` per docs site (gone when the tab closes,
+never `localStorage`) and sent only with the request itself. The curl command shows them as
+`********` until **Show values**; the request examples on the page keep placeholders
+(`Bearer <token>`).
+
+#### Files and streams
+
+- `multipart/form-data`: a file input per part with `format: binary` / `byte` or a
+  `contentMediaType`; the chosen file replaces that field (curl `--form 'photo=@cat.png'`).
+- A body that is a file (`application/octet-stream`, `image/*`, `audio/*`, `video/*`, PDF, or a
+  `format: binary` schema): one file input, sent as the body (curl `--data-binary`).
+- A JSON field with `format: byte` or `contentEncoding: base64` / `base64url`: a file input
+  that writes the file's encoding into the body.
+- A `text/event-stream`, NDJSON or JSON Lines response is shown as it arrives: server-sent events
+  as a list (event name, id, data with JSON pretty-printed), other streams as text. **Stop**
+  ends it; reading stops at 10 MB; a broken connection says "Stream interrupted."
+
+**(planned)**: method and `kind: badge` pills in the
 sidebar, a choice picker for `any` fields, `api.optional`, and showing image, audio and video responses inline.
 
 ## Endpoints on your own pages
@@ -234,7 +274,7 @@ api: "POST /v1/users"
 ```yaml
 api:
   server: https://api.example.com     # or a list: a menu in Try it
-  auth: {method: key, name: X-API-Key}  # bearer (default), basic, key or none: a header input
+  auth: {method: key, name: X-API-Key}  # bearer (default), basic, key or none: Try it's Authorization inputs
 ```
 
 ### Endpoints in navigation

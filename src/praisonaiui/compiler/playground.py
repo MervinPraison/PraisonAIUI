@@ -14,9 +14,9 @@ from typing import Any
 
 from praisonaiui.compiler.code_samples import _IGNORED, _explicit, _text, build_request
 from praisonaiui.compiler.openapi import ApiSpec, Operation
-from praisonaiui.compiler.openapi_pages import _CYCLE, _media, merged, type_label
+from praisonaiui.compiler.openapi_pages import _CYCLE, _media, merged, security_options, type_label
 
-MODES = ("interactive", "simple", "none")
+MODES = ("interactive", "simple", "none", "auth")
 TRY_DIR = "openapi/try"  # openapi/try/<page slug>.json
 
 
@@ -67,18 +67,40 @@ def playground_data(spec: ApiSpec, op: Operation, prefill: bool = True) -> dict:
         "params": [_param(spec, p) for p in op.parameters if p.get("in") in ("path", "query", "header", "cookie")
                    and not (p.get("in") == "header" and str(p.get("name")).lower() in _IGNORED)],
     }
+    if any(options := security_options(spec, op)):
+        out["auth"] = options  # alternatives, each a list of schemes sent together
     request = build_request(spec, op)  # the body as the request examples send it
-    if request.kind:
+    kind, media = _media((op.request_body or {}).get("content"))
+    schema = merged(spec, media.get("schema") or {})
+    binary = bool(kind) and request.kind != "multipart" and (
+        bool(_BINARY.search(kind)) or schema.get("format") == "binary" or "contentMediaType" in schema)
+    if request.kind or binary:
         body = request.body
-        out["body"] = {"type": _media((op.request_body or {}).get("content"))[0],
-                       "example": json.dumps(body, indent=2, ensure_ascii=False)
+        out["body"] = {"type": kind, "example": "" if binary else json.dumps(body, indent=2, ensure_ascii=False)
                        if request.kind in ("json", "multipart") else str(body),
                        **({"required": True} if (op.request_body or {}).get("required") else {})}
+        if binary:
+            out["body"]["file"] = True  # the body is one file
+        elif request.kind == "multipart" and request.files:
+            out["body"]["files"] = sorted(request.files)  # file inputs, sent as form parts
+        elif request.kind == "json" and (b64 := {str(k): e for k, v in (schema.get("properties") or {}).items()
+                                                 if (e := _encoding(spec, v))}):
+            out["body"]["base64"] = b64  # a file input fills the field with the file's base64
     return out
 
 
-_AUTH = {"bearer": ("Authorization", "Bearer <token>"), "basic": ("Authorization", "Basic <encoded-value>"),
-         "key": ("X-API-Key", "<api-key>")}
+_BINARY = re.compile(r"octet-stream|^(image|audio|video)/|/pdf|/zip", re.I)
+
+
+def _encoding(spec: ApiSpec, schema: Any) -> str:
+    """``base64`` / ``base64url`` for a string field holding an encoded file, else ``""``."""
+    s = merged(spec, schema)
+    enc = str(s.get("contentEncoding") or "").lower()
+    return enc if enc in ("base64", "base64url") else "base64" if s.get("format") == "byte" else ""
+
+
+_AUTH = {"bearer": {"type": "http", "scheme": "bearer"}, "basic": {"type": "http", "scheme": "basic"},
+         "key": {"type": "apiKey", "in": "header"}}
 
 
 def _typed(kind: str, value: str) -> Any:
@@ -94,7 +116,7 @@ def _typed(kind: str, value: str) -> Any:
 def manual_data(method: str, path: str, text: str, api: Any = None, prefill: bool = True) -> dict:
     """Try-it data for an ``api: "POST /v1/users"`` page: the page's ``<ParamField>``s (their
     ``placeholder``, else ``default``, as the example), each ``{param}`` in the path,
-    ``api.server`` and an ``api.auth`` header."""
+    ``api.server`` and the ``api.auth`` scheme."""
     from praisonaiui.compiler.agent_markdown import _TAG, FIELD_IN, _attrs
     from praisonaiui.compiler.docs_tags import _prose_segments
     params: list[dict] = []
@@ -116,14 +138,14 @@ def manual_data(method: str, path: str, text: str, api: Any = None, prefill: boo
         if not any(p["in"] == "path" and p["name"] == name for p in params):
             params.append({"name": name, "in": "path", "type": "string", "required": True})
     auth = getattr(api, "auth", None)
-    if auth and auth.method in _AUTH:
-        header, value = _AUTH[auth.method]
-        params.append({"name": auth.name if auth.method == "key" and auth.name else header, "in": "header", "type": "string", "required": True,
-                       "example": value})
+    method = auth.method if auth else "none"
     servers = getattr(api, "server", None) or []
     out: dict[str, Any] = {"method": method, "path": path, "prefill": prefill,
                            "servers": [{"url": u} for u in ([servers] if isinstance(servers, str) else servers)],
                            "params": params}
+    if method in _AUTH:  # api.auth: the scheme's inputs in Try it
+        out["auth"] = [[{"id": method, **_AUTH[method], **(
+            {"name": auth.name or "X-API-Key"} if method == "key" else {})}]]
     if body:
         out["body"] = {"type": "application/json", "example": json.dumps(body, indent=2, ensure_ascii=False)}
     return out

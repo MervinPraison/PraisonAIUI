@@ -439,6 +439,16 @@
   there whose entries each own a sidebar or their own header tabs. On phones all of it sits in
   the navigation drawer. `aiui validate` warns about one with nothing to open (2102). See
   [Navigation](docs/features/navigation.md#tab-options).
+- **Try it: authentication, file uploads and streams.** An operation's `security` becomes an
+  Authorization section on its endpoint page and inputs in Try it: API key (header, query or
+  cookie), bearer and other HTTP schemes, basic (username and password), OAuth2 and OpenID
+  Connect tokens (scopes listed), a menu when there are alternatives, `x-default` prefill.
+  Values stay in the tab's `sessionStorage` per docs site and show as `********` in the curl
+  command until **Show values**. File inputs for multipart parts, file bodies and base64 JSON
+  fields; `text/event-stream`, NDJSON and JSON Lines responses render as they arrive (events as
+  a list) with Stop and a 10 MB cap. `api.playground.display: auth` shows Try it to signed-in
+  readers only; `api.auth` on `api:` pages uses the same inputs. See
+  [OpenAPI](docs/features/openapi.md#authentication).
 
 ### Deprecated
 

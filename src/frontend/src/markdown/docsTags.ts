@@ -114,7 +114,7 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     ResponseField: apiField(true),
     Expandable: { el: 'aiui-expandable', attrs: ['title', 'opened'], map: (a) => ({ title: a.title, opened: on(a.defaultOpen) ? 'true' : undefined }) },
     // The endpoint bar of an endpoint page (docs/ApiFields.tsx Endpoint); `src`: its Try-it data.
-    ApiPlayground: { el: 'aiui-endpoint', attrs: ['method', 'path', 'src'] },
+    ApiPlayground: { el: 'aiui-endpoint', attrs: ['method', 'path', 'src', 'display'] },
     // The page's side column (docs/panels.ts); `kind` is set by <RequestExample> / <ResponseExample>.
     Panel: { el: 'aiui-panel', attrs: ['kind'], map: () => ({}) },
     // for="humans": only on the page; for="agents": only in the .md and llms files (compiler/agent_markdown.py).

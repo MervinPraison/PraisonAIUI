@@ -433,8 +433,9 @@ class ApiExamplesConfig(BaseModel):
 class ApiPlaygroundConfig(BaseModel):
     """``api.playground``: the Try-it panel on endpoint pages (front matter ``playground:`` per page)."""
 
-    # interactive: endpoint bar with Try it; simple: the bar without it; none: method and path as text
-    display: Literal["interactive", "simple", "none"] = "interactive"
+    # interactive: endpoint bar with Try it; simple: the bar without it; none: method and path as text;
+    # auth: Try it only for readers signed in to the aiui server serving the docs
+    display: Literal["interactive", "simple", "none", "auth"] = "interactive"
 
 
 class ApiAuthConfig(BaseModel):

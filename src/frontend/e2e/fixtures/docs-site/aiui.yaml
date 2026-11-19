@@ -13,7 +13,7 @@ content:
     include:
       - "**/*.md"
 api:
-  openapi: openapi.yaml   # one x-hidden endpoint page (Try it)
+  openapi: openapi.yaml   # x-hidden endpoint pages (Try it)
 components:
   sidebar_docs:
     type: DocsSidebar

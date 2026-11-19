@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 DEFAULT_DIRECTORY = "api-reference"
 MAX_DEPTH = 6  # nested properties shown below a field
 _CYCLE = object()  # sample(): a schema repeating one it sits in
+LIVE = ("interactive", "auth")  # display modes with Try it
 _PARAMS = (("path", "Path parameters"), ("query", "Query parameters"),
            ("header", "Headers"), ("cookie", "Cookies"))
 
@@ -270,7 +271,7 @@ def build_api_reference(config: "Config", specs: dict[str, ApiSpec], taken: set[
             continue
         sp, op = hit
         embeds[page.path.resolve()] = Embed(page.slug, ref[1], ref[2], mode, sp, op, playground_data(sp, op, prefill)
-                                  if mode == "interactive" and not op.webhook else None, fm)
+                                  if mode in LIVE and not op.webhook else None, fm)
         claimed.setdefault((sp.source, op.pointer), page.slug)
     chosen: dict[tuple[str, int], tuple[ApiSection, Operation] | str | None] = {}
     for where, k, (file, method, path) in _nav_entries(config):
@@ -338,7 +339,7 @@ def _pages(spec: ApiSpec, directory: str | None, taken: set[str], expand: bool =
         description = str(meta.pop("description", "") or _first_line(op.description) or (
             f"Webhook {op.path}" if op.webhook else f"{op.method} {op.path}"))
         mode = playground_mode(api, meta)
-        live = mode == "interactive" and not op.webhook
+        live = mode in LIVE and not op.webhook
         content = settings.get("content") if isinstance(settings.get("content"), str) else ""
         text = page_markdown(spec, op, title, description, expand=expand, languages=languages, playground=mode,
                              src=f"/{TRY_DIR}/{slug}.json" if live else "", meta=meta, content=content)
@@ -846,11 +847,13 @@ def _callback_lines(spec: ApiSpec, op: Operation) -> list[str]:
 
 
 def bar(method: str, path: str, playground: str = "interactive", src: str = "") -> list[str]:
-    """The endpoint bar (docs/ApiFields.tsx), with ``src`` its Try it button; ``none``: plain text."""
+    """The endpoint bar (docs/ApiFields.tsx), with ``src`` its Try it button (``auth``: for signed-in
+    readers only); ``none``: plain text."""
     if playground == "none":
         return [f"`{method}` `{path}`", ""]
-    return [f'<ApiPlayground method="{method}" path="{_attr(path)}"'
-            + (f' src="{_attr(src)}"' if src and playground == "interactive" else "") + " />", ""]
+    live = bool(src) and playground in LIVE
+    return [f'<ApiPlayground method="{method}" path="{_attr(path)}"' + (f' src="{_attr(src)}"' if live else "")
+            + (' display="auth"' if live and playground == "auth" else "") + " />", ""]
 
 
 def keywords(spec: ApiSpec, op: Operation) -> list[str]:
@@ -873,11 +876,74 @@ def endpoint_head(spec: ApiSpec, op: Operation, playground: str = "interactive",
     return lines + (["<Warning>This endpoint is deprecated.</Warning>", ""] if op.deprecated else [])
 
 
+def security_options(spec: ApiSpec, op: Operation) -> list[list[dict]]:
+    """The operation's ``security`` alternatives (any one is enough), each a list of the schemes
+    sent together: ``{id, type, in, name}`` (apiKey), ``{id, type, scheme}`` (http) or
+    ``{id, type, scopes}`` (oauth2, openIdConnect), with ``description``, ``format``
+    (bearerFormat) and ``default`` (``x-default``). ``[]``: authentication is optional."""
+    schemes = (spec.document.get("components") or {}).get("securitySchemes") or {}
+    out: list[list[dict]] = []
+    for need in op.security if isinstance(op.security, list) else []:
+        option = []
+        for name, scopes in (need.items() if isinstance(need, dict) else ()):
+            s = spec.resolve(schemes.get(name)) if isinstance(schemes, dict) else None
+            kind = s.get("type") if isinstance(s, dict) else None
+            if kind == "apiKey" and s.get("in") in ("header", "query", "cookie"):
+                one = {"in": s["in"], "name": str(s.get("name") or "api_key")}
+            elif kind == "http":
+                one = {"scheme": str(s.get("scheme") or "bearer")}
+            elif kind in ("oauth2", "openIdConnect"):
+                one = {"scopes": [str(x) for x in scopes]} if isinstance(scopes, list) and scopes else {}
+            else:
+                continue  # mutualTLS: a browser cannot send it
+            one = {"id": str(name), "type": kind, **one}
+            for key, src in (("description", "description"), ("format", "bearerFormat"), ("default", "x-default")):
+                if isinstance(s.get(src), str) and s[src]:
+                    one[key] = s[src]
+            option.append(one)
+        out.append(option)
+    return out
+
+
+def _auth_text(s: dict) -> str:
+    scheme = str(s.get("scheme", "")).lower()
+    if s["type"] == "apiKey":
+        text = f"API key, sent as the `{s['name']}` cookie." if s["in"] == "cookie" else "API key."
+    elif s["type"] == "http" and scheme == "basic":
+        text = "Basic authentication header of the form `Basic <encoded-value>`, where `<encoded-value>` " \
+               "is the base64-encoded `username:password`."
+    elif s["type"] == "http" and scheme != "bearer":
+        text = f"Authentication header of the form `{s['scheme']} <token>`."
+    else:
+        text = f"{'OAuth 2.0 access token' if s['type'] != 'http' else 'Bearer token'}" \
+               f"{' (' + s['format'] + ')' if s.get('format') else ''}, sent as `Bearer <token>`."
+    scopes = "Scopes: " + ", ".join(map(_code, s["scopes"])) + "." if s.get("scopes") else ""
+    return "\n\n".join(x for x in (text, _prose(s.get("description")), scopes) if x)
+
+
+def auth_lines(spec: ApiSpec, op: Operation) -> list[str]:
+    """The "Authorization" section: a field per security scheme, required when every alternative needs it."""
+    options = [] if op.webhook else security_options(spec, op)
+    unique = list({s["id"]: s for option in options for s in option}.values())
+    if not unique:
+        return []
+    lines = ["## Authorization", ""]
+    if len(options) > 1:
+        names = [" and ".join(_code(s["id"]) for s in o) or "none" for o in options]
+        lines += [f"Any one of: {', '.join(names)}.", ""]
+    for s in unique:
+        at, name = ("header", "Authorization") if s["type"] != "apiKey" else (
+            "header" if s["in"] == "cookie" else s["in"], s["name"])
+        lines += [*field_lines(spec, "ParamField", at, name, {"type": "string"}, description=_auth_text(s),
+                               required=all(any(x["id"] == s["id"] for x in o) for o in options)), ""]
+    return lines
+
+
 def endpoint_reference(spec: ApiSpec, op: Operation, *, expand: bool = False,
                        languages: list[str] | None = None) -> list[str]:
-    """Parameters, body, responses, request and response examples, callbacks and the spec link."""
+    """Authorization, parameters, body, responses, request and response examples, callbacks and the spec link."""
     from praisonaiui.compiler.code_samples import request_examples  # it builds on this module
-    lines: list[str] = []
+    lines: list[str] = auth_lines(spec, op)
     for where, heading in _PARAMS:
         params = [p for p in op.parameters if p.get("in") == where]
         lines += [f"## {heading}", ""] if params else []
@@ -905,7 +971,7 @@ def page_markdown(spec: ApiSpec, op: Operation, title: str, description: str, *,
                   meta: dict | None = None, content: str = "") -> str:
     """The Markdown source of one endpoint page (``expand``: nested properties open, ``api.params.expanded: all``;
     ``languages``: request example languages, ``api.examples.languages``; ``playground``: the display mode,
-    :func:`~praisonaiui.compiler.playground.playground_mode`; ``src``: its Try-it data URL, interactive only;
+    :func:`~praisonaiui.compiler.playground.playground_mode`; ``src``: its Try-it data URL (modes with Try it);
     ``meta``: more front matter and ``content``: Markdown above the description, from :func:`page_settings`)."""
     front = {"title": title, "description": description,
              "openapi": f"{spec.source} {'webhook ' if op.webhook else ''}{op.method} {op.path}",
@@ -935,7 +1001,7 @@ def embed_markdown(text: str, embed: Embed, *, expand: bool = False,
     first = next((i for i, line in enumerate(lines) if line.strip()), len(lines))
     h1 = first < len(lines) and re.match(r"#\s", lines[first]) is not None
     top, rest = (lines[: first + 1], lines[first + 1:]) if h1 else ([], lines)
-    src = f"/{TRY_DIR}/{embed.slug}.json" if embed.mode == "interactive" and embed.method != "webhook" else ""
+    src = f"/{TRY_DIR}/{embed.slug}.json" if embed.mode in LIVE and embed.method != "webhook" else ""
     spec, op = embed.spec, embed.op
     if spec is None or op is None:  # `api:`: the bar and the configured servers
         head = bar(embed.method, embed.path, embed.mode, src)

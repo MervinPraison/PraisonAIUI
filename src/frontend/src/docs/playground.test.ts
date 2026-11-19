@@ -2,7 +2,10 @@
 // the body, the curl command and the fetch arguments.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bodyProblem, buildRequest, byteSize, curl, fetchArgs, initialValues, initialVariables, missing, prettyBody, serverUrl, type Operation } from './playground'
+import {
+    authHook, authInputs, bodyProblem, buildRequest, byteSize, curl, encodeFile, fetchArgs, initialAuth, initialValues, initialVariables, isStream, loadAuth,
+    missing, prettyBody, readBody, saveAuth, serverUrl, sseEvents, withField, type AuthScheme, type Operation,
+} from './playground'
 
 const op: Operation = {
     method: 'POST',
@@ -60,4 +63,76 @@ test('responses: JSON pretty-printed, other text as sent; sizes', () => {
     assert.equal(prettyBody('<p>hi</p>', 'text/html'), '<p>hi</p>')
     assert.equal(prettyBody('{bad', 'application/json'), '{bad')
     assert.deepEqual([byteSize(830), byteSize(1234), byteSize(2_500_000)], ['830 B', '1.2 kB', '2.5 MB'])
+})
+
+const schemes: AuthScheme[] = [
+    { id: 'key', type: 'apiKey', in: 'header', name: 'X-Key' },
+    { id: 'q', type: 'apiKey', in: 'query', name: 'api key' },
+    { id: 'sid', type: 'apiKey', in: 'cookie', name: 'sid' },
+    { id: 'token', type: 'oauth2', scopes: ['read'] },
+]
+
+test('auth: API key header, query and cookie, bearer tokens; masked for the curl command', () => {
+    const values = { key: 'k1', q: 'a&b', sid: 's9', token: 'Bearer t-1' }
+    const d = buildRequest(op, 'https://x.test', initialValues(op), '', [authHook(schemes, values)])
+    assert.equal(d.url, 'https://x.test/pets/7?tags=a&tags=b&api%20key=a%26b')
+    assert.deepEqual(d.headers, [['X-Trace', 't-1'], ['Cookie', 'session=s 1; sid=s9'], ['X-Key', 'k1'], ['Authorization', 'Bearer t-1']])
+    const shown = curl(buildRequest(op, 'https://x.test', initialValues(op), '', [authHook(schemes, values, true)]))
+    assert.ok(!/k1|s9|t-1'|a%26b/.test(shown.replace("X-Trace: t-1", '')), shown)
+    assert.match(shown, /--header 'Authorization: Bearer \*{8}'/)
+    const empty = buildRequest(op, '', {}, '', [authHook(schemes, {})]) // nothing typed: nothing added
+    assert.deepEqual(empty.headers, [])
+})
+
+test('auth: basic encodes username:password (UTF-8); other http schemes keep their name; inputs and storage', () => {
+    const basic: AuthScheme = { id: 'b', type: 'http', scheme: 'basic' }
+    assert.deepEqual(authInputs(basic), [['b:username', 'Username'], ['b:password', 'Password']])
+    assert.deepEqual(authInputs(schemes[0]), [['key', 'X-Key']])
+    const d = buildRequest(form, '', {}, '', [authHook([basic, { id: 'd', type: 'http', scheme: 'Digest' }], { 'b:username': 'ä', 'b:password': 'p', d: 'x' })])
+    assert.deepEqual(d.headers, [['Authorization', 'Basic w6Q6cA=='], ['Authorization', 'Digest x']])
+    const auth = { ...op, auth: [[{ ...schemes[0], default: 'dflt' }], []] }
+    assert.deepEqual(initialAuth(auth, {}), { key: 'dflt' })
+    assert.deepEqual(initialAuth(auth, { key: 'typed' }), { key: 'typed' })
+    const store = new Map<string, string>()
+    const g = globalThis as { window?: unknown }
+    g.window = { sessionStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) } }
+    saveAuth('/docs', { key: 'k', empty: '' })
+    assert.deepEqual([...store.keys()], ['aiui-try-auth:/docs'])
+    assert.deepEqual(loadAuth('/docs'), { key: 'k' })
+    assert.deepEqual(loadAuth('/other'), {})
+    delete g.window
+    assert.deepEqual(loadAuth('/docs'), {}) // no storage: nothing, no error
+})
+
+test('files: multipart parts replace their JSON field, a binary body is the file, base64 fields', async () => {
+    const photo = new File(['png'], 'cat.png', { type: 'image/png' })
+    const d = buildRequest(form, 'https://x.test', {}, '{"title": "a", "photo": "<binary>"}', [], { photo })
+    assert.match(curl(d), /--form 'title=a' \\\n {2}--form 'photo=@cat.png'$/)
+    const sent = fetchArgs(d)[1].body as FormData
+    assert.equal((sent.get('photo') as File).name, 'cat.png')
+    assert.deepEqual(buildRequest(form, '', {}, '', [], { photo }).body, '{}') // files alone still send
+    const raw: Operation = { method: 'PUT', path: '/p', servers: [], params: [], body: { type: 'image/png', example: '', file: true } }
+    const r = buildRequest(raw, 'https://x.test', {}, 'ignored', [], { '': photo })
+    assert.match(curl(r), /--header 'Content-Type: image\/png' \\\n {2}--data-binary '@cat.png'$/)
+    assert.equal(fetchArgs(r)[1].body, photo)
+    assert.equal(buildRequest(raw, '', {}, '').body, undefined) // no file chosen: no body
+    assert.equal(await encodeFile(new Blob([new Uint8Array([251, 255])])), '+/8=')
+    assert.equal(await encodeFile(new Blob([new Uint8Array([251, 255])]), 'base64url'), '-_8')
+    assert.equal(withField('{"name": "a"}', 'photo', 'AA=='), '{\n  "name": "a",\n  "photo": "AA=="\n}')
+    assert.equal(withField('nope', 'photo', 'AA=='), '{\n  "photo": "AA=="\n}')
+})
+
+test('streams: read as they arrive with a cap; server-sent events parsed', async () => {
+    assert.ok(isStream('text/event-stream; charset=utf-8') && isStream('application/x-ndjson') && !isStream('application/json'))
+    const chunks = ['data: {"a"', ':1}\n\nevent: done\nid: 2\ndata: x\ndata: y\n\n: ping\n\n']
+    const seen: number[] = []
+    const res = new Response(new ReadableStream({ start(c) { for (const t of chunks) c.enqueue(new TextEncoder().encode(t)); c.close() } }))
+    let text = ''
+    assert.equal(await readBody(res, (t, n) => { text = t; seen.push(n) }), 'done')
+    assert.deepEqual(seen.slice(0, 2), [10, 10 + new TextEncoder().encode(chunks[1]).length]) // once per chunk
+    assert.deepEqual(sseEvents(text), [{ data: '{"a":1}' }, { event: 'done', id: '2', data: 'x\ny' }])
+    const big = new Response(new ReadableStream({ pull(c) { c.enqueue(new Uint8Array(10)) } }))
+    assert.equal(await readBody(big, () => {}, 25), 'capped')
+    const broken = new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array([104])); c.error(new Error('reset')) } }))
+    await assert.rejects(readBody(broken, () => {}))
 })

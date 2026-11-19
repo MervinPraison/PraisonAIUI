@@ -99,8 +99,9 @@ def test_mode_setting_and_front_matter():
     assert playground_mode(api) == "simple"
     assert playground_mode(api, {"playground": "none"}) == "none"
     assert playground_mode(api, {"playground": "bogus"}) == "simple"
+    assert playground_mode(api, {"playground": "auth"}) == "auth"
     with pytest.raises(ValidationError):
-        ApiConfig.model_validate({"playground": {"display": "auth"}})
+        ApiConfig.model_validate({"playground": {"display": "signed-in"}})
     assert ApiConfig.model_validate({"examples": {"prefill": False}}).examples.prefill is False
     assert "playground" in FRONTMATTER_TYPES and "ApiPlayground" in KNOWN_DOCS_TAGS
 
