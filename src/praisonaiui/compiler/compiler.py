@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from praisonaiui.compiler import access as docs_access
 from praisonaiui.compiler import agent_markdown as am
 from praisonaiui.compiler import branding, changelog, code_theme, csp, integrations, site_assets
+from praisonaiui.compiler import languages as lang
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
@@ -54,7 +55,6 @@ from praisonaiui.compiler.python_api import PythonApi
 from praisonaiui.compiler.snippets import Snippets
 from praisonaiui.compiler.versions import apply as apply_versions
 from praisonaiui.compiler.versions import issues as version_issues
-from praisonaiui.compiler.versions import resolved as resolved_versions
 from praisonaiui.schema.models import LogoConfig, NavConfig, page_action_list
 from praisonaiui.schema.validators import validate_config
 from praisonaiui.utils import json_for_html
@@ -289,6 +289,7 @@ class Compiler:
                                 lambda p: Path(os.path.relpath(p.path, self.base_path)).as_posix(),
                                 lambda p: self._snippets.read(p.path))
         issues += version_issues(self.config.navigation, base)
+        issues += lang.issues(self.config.navigation, self.base_path / self.config.content.docs.dir) if pages else []
         return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved + related + docs_access.issues(self, config_file)
 
     def _page_routes(self, nav: dict) -> set[str]:
@@ -477,7 +478,7 @@ class Compiler:
         # Navigation: tabs, anchors, dropdowns, versions (endpoint pages added where a spec is named)
         navigation = (self._api.config if self._api else self.config).navigation
         if navigation and (navigation.tabs or navigation.anchors or navigation.dropdowns or navigation.versions
-                           or navigation.global_):
+                           or navigation.languages or navigation.global_):
             result["navigation"] = nav_divisions(navigation, self.config.site.route_base_docs)
 
         # The line above a docs page title (styling.eyebrows)
@@ -717,12 +718,11 @@ class Compiler:
                              hidden=p.hidden, frontmatter=p.frontmatter) for p in (api.pages if api else [])]
         extra = api.sidebar_extra(nav_config.mode == "manual") if api else []
         entries = manual_entries(api.config if api else self.config)
-        versions = resolved_versions(self.config.navigation)
         if entries:
             builder = NavBuilder(pages + api_pages, base_path=base, directory=nav_config.directory)
             nav = builder.to_dict_grouped(entries + extra, docs_dir=docs_dir)
         else:
-            roots = tuple(sub for _, sub in versions if sub)
+            roots = lang.roots(self.config.navigation)  # version and language folders
             nav = NavBuilder(pages, base_path=base, directory=nav_config.directory, roots=roots).to_dict()
             if api_pages:  # endpoint pages: where their spec is named, after the folders
                 nav["items"] += NavBuilder(api_pages, base_path=base).to_dict_grouped(extra)["items"]
@@ -730,6 +730,8 @@ class Compiler:
         head.apply_page_seo(nav, self.config.seo, base)
         # Older versions: canonical to the default version's page; out of the sitemap and llms.txt
         self._version_quiet = apply_versions(nav, self.config.navigation, base)
+        # Languages: each page's translations (hreflang) and language; other languages out of llms.txt
+        self._page_lang, self._other_lang = lang.apply(nav, self.config.navigation, base)
         # Sidebar behaviour (docs/features/navigation.md): only what differs from the default.
         if not nav_config.collapsible:
             nav["collapsible"] = False
@@ -1255,7 +1257,7 @@ class Compiler:
             # Build page-specific HTML
             page_title = f"{title} | {site_title}"
             page_desc = page.get("description") or f"{title} - {site_desc}"
-            html = template_html
+            html = self._with_lang(template_html, page.get("lang"))
 
             # Replace <title>
             html = html.replace(
@@ -1312,6 +1314,11 @@ class Compiler:
 
         return files
 
+    @staticmethod
+    def _with_lang(html: str, code: str | None) -> str:
+        """``html`` with ``<html lang>`` set to the page's language (``navigation.languages``)."""
+        return re.sub(r'(<html\b[^>]*?\blang=")[^"]*"', rf'\g<1>{code}"', html, count=1) if code else html
+
     def _collect_nav_pages(self, nav: dict) -> list[dict]:
         """Recursively collect all pages from docs-nav.json."""
         pages: list[dict] = []
@@ -1332,6 +1339,7 @@ class Compiler:
                             "searchable": item.get("searchable") is not False and not item.get("noindex"),
                             "seo": item.get("seo") or {},
                             "lastUpdated": item.get("lastUpdated"),
+                            "lang": getattr(self, "_page_lang", {}).get(item["path"]),
                         }
                     )
                 if item.get("children"):
@@ -1449,7 +1457,8 @@ class Compiler:
         home = self._docs_home_path(nav)
         if docs_access.is_public(rules, "/") and not any(p["noindex"] and p["path"].rstrip("/") == home for p in pages):
             root_lastmod = self._format_lastmod(self.base_path / "docs" / "index.md")
-            urls.append(self._sitemap_url_entry(self._absolute_url("/"), root_lastmod))
+            alternates = next((self._alternates(p) for p in pages if p["path"].rstrip("/") == home), {})
+            urls.append(self._sitemap_url_entry(self._absolute_url("/"), root_lastmod, alternates))
         for page in pages:
             if page.get("noindex"):
                 continue
@@ -1458,23 +1467,31 @@ class Compiler:
                 continue  # the docs home is the site root, listed above
             loc = self._page_url(path)
             lastmod = self._format_lastmod(self._resolve_md_source(path))
-            urls.append(self._sitemap_url_entry(loc, lastmod))
+            urls.append(self._sitemap_url_entry(loc, lastmod, self._alternates(page)))
+        xhtml = ' xmlns:xhtml="http://www.w3.org/1999/xhtml"' if "<xhtml:link" in "".join(urls) else ""
 
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"{xhtml}>\n'
             + "\n".join(urls)
             + "\n</urlset>\n"
         )
         (output_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
         return ["sitemap.xml"]
 
+    def _alternates(self, page: dict) -> dict[str, str]:
+        """A page's translations as ``{hreflang: absolute URL}`` (compiler/lang.py)."""
+        n = len(lang.HREFLANG)
+        return {k[n:]: self._page_url(v) for k, v in page["seo"].items() if k.startswith(lang.HREFLANG)}
+
     @staticmethod
-    def _sitemap_url_entry(loc: str, lastmod: str | None) -> str:
+    def _sitemap_url_entry(loc: str, lastmod: str | None, alternates: dict[str, str] | None = None) -> str:
         safe_loc = Compiler._escape_html(loc)
+        links = "".join(f'<xhtml:link rel="alternate" hreflang="{Compiler._escape_html(code)}" '
+                        f'href="{Compiler._escape_html(url)}"/>' for code, url in (alternates or {}).items())
         if lastmod:
-            return f"  <url><loc>{safe_loc}</loc><lastmod>{lastmod}</lastmod></url>"
-        return f"  <url><loc>{safe_loc}</loc></url>"
+            return f"  <url><loc>{safe_loc}</loc><lastmod>{lastmod}</lastmod>{links}</url>"
+        return f"  <url><loc>{safe_loc}</loc>{links}</url>"
 
     @staticmethod
     def _format_lastmod(path: Path | None) -> str | None:
@@ -1586,7 +1603,7 @@ class Compiler:
         json_ld = self._build_json_ld(docs_home, page_title, site_desc, (), tags, page)
         crawl_nav = self._build_crawl_nav_html(nav)
 
-        html = index_path.read_text(encoding="utf-8")
+        html = self._with_lang(index_path.read_text(encoding="utf-8"), page.get("lang"))
         html = html.replace(
             "<title>Documentation</title>",
             f"<title>{self._escape_html(page_title)}</title>",
@@ -1679,7 +1696,11 @@ class Compiler:
         if seo and seo.twitter and "handle" in seo.twitter:
             tags["twitter:site"] = seo.twitter["handle"]
         overrides = {**head.clean(seo.metatags if seo else None), **page.get("seo", {})}
-        return head.merge(tags, overrides, self._absolute_url)
+        tags = head.merge(tags, overrides, self._absolute_url)
+        for key, value in page.get("seo", {}).items():  # translations: URLs as the canonical writes them
+            if key.startswith(lang.HREFLANG) and value.startswith("/"):
+                tags[key] = self._page_url(value)
+        return tags
 
     def _og_image(self, path: str, page: dict) -> str | None:
         """The page's ``og:image`` before overrides: its generated social card, else

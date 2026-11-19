@@ -847,7 +847,8 @@ class NavDivisionConfig(BaseModel):
 
     @property
     def label(self) -> str:
-        return next(getattr(self, k) for k in ("tab", "item", "anchor", "dropdown", "version") if hasattr(self, k))
+        return next(getattr(self, k) for k in ("tab", "item", "anchor", "dropdown", "version", "language")
+                    if hasattr(self, k))
 
     def children(self) -> list["NavDivisionConfig"]:
         return [*getattr(self, "menu", []), *getattr(self, "tabs", [])]
@@ -898,6 +899,16 @@ class NavVersionConfig(NavDivisionConfig):
     tabs: list[NavTabConfig] = Field(default_factory=list)
 
 
+class NavLanguageConfig(NavDivisionConfig):
+    """A content language (``navigation.languages``): the default one is served at the docs root, every
+    other one from its folder (``docs/fr/`` at ``/docs/fr/...``; inside a version, ``docs/v1/fr/``)."""
+
+    language: str = Field(pattern=r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")  # a BCP 47 tag: en, fr, pt-BR
+    name: Optional[str] = Field(default=None, max_length=40, alias="label")  # default: the language's own name
+    default: bool = False
+    index: Optional[bool] = None  # in llms.txt (default: only the default language; each has llms-<code>.txt)
+
+
 class NavGlobalConfig(BaseModel):
     """``navigation.global``: links shown on every page, whatever tab or dropdown is open."""
 
@@ -913,6 +924,9 @@ class NavigationConfig(BaseModel):
     anchors: list[NavAnchorConfig] = Field(default_factory=list)
     dropdowns: list[NavDropdownConfig] = Field(default_factory=list, alias="products")
     versions: list[NavVersionConfig] = Field(default_factory=list)
+    languages: list[NavLanguageConfig] = Field(default_factory=list)
+    # false: a first visit to the docs home stays in the default language (no browser-language redirect)
+    language_redirect: bool = Field(default=True, alias="languageRedirect")
     global_: Optional[NavGlobalConfig] = Field(default=None, alias="global")
     pages: list[Union[str, NavGroupConfig, NavLinkConfig]] = Field(default_factory=list)
     groups: list[NavGroupConfig] = Field(default_factory=list)
@@ -926,7 +940,8 @@ class NavigationConfig(BaseModel):
             for c in d.children():
                 walk(c, hidden or d.hidden)
 
-        for d in [*self.tabs, *self.anchors, *self.dropdowns, *self.versions, *(self.global_.anchors if self.global_ else [])]:
+        for d in [*self.tabs, *self.anchors, *self.dropdowns, *self.versions, *self.languages,
+                  *(self.global_.anchors if self.global_ else [])]:
             walk(d, False)
         return out
 

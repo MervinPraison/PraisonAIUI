@@ -98,6 +98,16 @@ def nav_divisions(nav, base: str = "/docs") -> dict:
              **({"tag": v.tag} if v.tag else {}), **({"hidden": True} if v.hidden else {})}
             for v, sub in resolved(nav)
         ]
+    from praisonaiui.compiler import languages
+
+    if nav.languages:  # compiler/languages.py; the browser's docs/languages.ts
+        out["languages"] = [
+            {"language": lang.language, **({"name": lang.name} if lang.name else {}), "folder": sub,
+             "prefix": prefix(sub, base), **({"default": True} if not sub else {}), **({"hidden": True} if lang.hidden else {})}
+            for lang, sub in languages.resolved(nav)
+        ]
+        if not nav.language_redirect:
+            out["languageRedirect"] = False
     return out
 
 

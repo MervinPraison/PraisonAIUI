@@ -15,6 +15,7 @@ import { normalizeDocPath } from './pathUtils'
 import { filterNavByTab } from './docs/navTabs'
 import { activeSection, divisionLinks, navSections, type DivisionLink, type NavDivisions } from './docs/navDivisions'
 import { versionAt, versionItems, versionLinks, versionNavigation } from './docs/versions'
+import { autoRoute, languageAt, languageItems, languageLinks, rememberLanguage, storedLanguage } from './docs/languages'
 import { docSearchGroups } from './docs/docNav'
 import { applyHeadTags, mergeTags, pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
@@ -117,6 +118,14 @@ export default function App() {
     () => (version < 0 ? nav : { ...nav, items: versionItems(nav.items ?? [], config.navigation?.versions ?? [], version) }),
     [nav, config.navigation, version],
   )
+  // Languages (docs/languages.ts): within the open version, the open language's pages only.
+  const languages = config.navigation?.languages ?? []
+  const language = languageAt(languages, versions, currentPath)
+  const pageNav = useMemo<DocsNav>(
+    () => (language < 0 ? versionNav
+      : { ...versionNav, items: languageItems(versionNav.items ?? [], config.navigation?.languages ?? [], config.navigation?.versions ?? [], language) }),
+    [versionNav, config.navigation, language],
+  )
   // Tabs, tab menu items, anchors and dropdowns with groups: each has its own sidebar (docs/navDivisions.ts).
   const sections = useMemo(() => navSections(navigation), [navigation])
   const pickedSection = useRef(-1)
@@ -125,7 +134,7 @@ export default function App() {
   useHashScroll(docsStyle)
   useHeadingAnchors(docsStyle)
   useImageZoom(docsStyle)
-  const searchGroups = useMemo(() => docSearchGroups(versionNav, sections), [versionNav, sections])
+  const searchGroups = useMemo(() => docSearchGroups(pageNav, sections), [pageNav, sections])
   const searchEnabled = docsStyle && config.search?.enabled !== false && (nav.items?.length ?? 0) > 0
   // A shared `?q=` link opens search prefilled (DocsSearch keeps `?q=` in step with the field).
   const [deepLinkQuery] = useState(() => new URLSearchParams(window.location.search).get('q')?.trim() ?? '')
@@ -196,14 +205,35 @@ export default function App() {
   }, [askUrl])
 
   const filteredNav = useMemo<DocsNav>(() => {
-    if (!sections.length) return versionNav
-    return { ...versionNav, items: filterNavByTab(versionNav.items ?? [], sections[activeTabIndex]) }
-  }, [versionNav, sections, activeTabIndex])
+    if (!sections.length) return pageNav
+    return { ...pageNav, items: filterNavByTab(pageNav.items ?? [], sections[activeTabIndex]) }
+  }, [pageNav, sections, activeTabIndex])
 
   useEffect(() => {
     if (!sections.length) return
-    setActiveTabIndex(activeSection(versionNav.items ?? [], sections, currentPath, pickedSection.current))
-  }, [currentPath, sections, versionNav])
+    setActiveTabIndex(activeSection(pageNav.items ?? [], sections, currentPath, pickedSection.current))
+  }, [currentPath, sections, pageNav])
+
+  // The page's language on <html lang> (the built page has it from the start).
+  const pageLang = languages[language]?.language
+  useEffect(() => {
+    if (pageLang) document.documentElement.lang = pageLang
+  }, [pageLang])
+
+  // A first visit to the docs home opens the reader's language (their pick, else the browser's);
+  // never for crawlers, and not with `navigation.languageRedirect: false`.
+  const autoRouted = useRef(false)
+  useEffect(() => {
+    if (loading || autoRouted.current || !languages.length) return
+    autoRouted.current = true
+    if (config.navigation?.languageRedirect === false) return
+    const page = autoRoute(languages, versions, versionNav.items ?? [], currentPath, navigator, storedLanguage())
+    if (!page?.path) return
+    const path = canonicalDocPath(page.path)
+    window.history.replaceState({ path }, '', withBase(path))
+    setCurrentPath(path)
+    selectNavItem(page)
+  })
 
   // Helper function to find nav item by path (searches top-level items and nested children)
   const findNavItemByPath = (navData: DocsNav, path: string): NavItem | null => {
@@ -466,15 +496,17 @@ export default function App() {
 
   const openDivision = (link: DivisionLink, stay?: boolean) => {
     pickedSection.current = link.section
+    if (link.lang) rememberLanguage(link.lang)
     if (link.page && !stay) handleItemClick(link.page)
     else if (link.section >= 0) setActiveTabIndex(link.section)
   }
   const links = useMemo(
     () => ({
-      ...divisionLinks(navigation, versionNav.items ?? [], sections, sections[activeTabIndex]?.key ?? ''),
+      ...divisionLinks(navigation, pageNav.items ?? [], sections, sections[activeTabIndex]?.key ?? ''),
       versions: versionLinks(config.navigation?.versions ?? [], nav.items ?? [], currentPath, version),
+      languages: languageLinks(config.navigation?.languages ?? [], config.navigation?.versions ?? [], versionNav.items ?? [], currentPath),
     }),
-    [navigation, config.navigation, nav, versionNav, sections, activeTabIndex, currentPath, version],
+    [navigation, config.navigation, nav, versionNav, pageNav, sections, activeTabIndex, currentPath, version],
   )
   const divisions: NavDivisions = { ...links, open: openDivision }
   const searchTabs = [...new Set(sections.map((s) => s.tab))]

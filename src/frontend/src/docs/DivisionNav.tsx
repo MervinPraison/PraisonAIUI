@@ -2,7 +2,7 @@
 // the phone drawer's tabs (navDivisions.ts). Styles: docs/docs.css (.aiui-docs-tab,
 // .aiui-docs-switcher, .aiui-docs-anchor, .aiui-docs-menu).
 import { Suspense, lazy, useState, type ComponentProps, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Languages } from 'lucide-react'
 import type { DivisionLink, NavDivisions } from './navDivisions'
 import { canonicalDocPath } from './docSource'
 import { docsIcon } from './docsHomeIcons'
@@ -30,6 +30,8 @@ export function DivisionAnchor({ link, divisions, stay, describe, onClick, ...pr
             data-active={link.active ? '' : undefined}
             aria-current={link.active ? 'true' : undefined}
             target={external ? '_blank' : undefined}
+            lang={link.lang}
+            hrefLang={link.lang}
             rel={external ? 'noopener noreferrer' : undefined}
             onClick={(event) => {
                 onClick?.(event)
@@ -90,6 +92,20 @@ export function HeaderTabs({ divisions }: { divisions: NavDivisions }) {
                 ),
             )}
         </nav>
+    )
+}
+
+/** The header's language switcher (docs/languages.ts): each entry opens the same page in that language. */
+export function LanguageSwitcher({ divisions }: { divisions: NavDivisions }) {
+    const items = divisions.languages ?? []
+    const current = items.find((l) => l.active)
+    if (items.length < 2 || !current) return null
+    return (
+        <DivisionMenu items={items} divisions={divisions} className="aiui-docs-lang">
+            <Languages className="aiui-docs-divicon" aria-hidden="true" />
+            <span className="sr-only">Language: </span>
+            <span className="aiui-docs-langname" lang={current.lang}>{current.name}</span>
+        </DivisionMenu>
     )
 }
 

@@ -8,6 +8,9 @@ Every tag comes from one map per page, built in this order (later wins):
 4. the page's frontmatter: ``canonical``, ``robots``, ``keywords`` and any
    ``og:*``, ``twitter:*`` or ``article:*`` key.
 
+A page with translations (compiler/languages.py) also carries ``hreflang:<code>``
+keys, written as ``<link rel="alternate" hreflang>``.
+
 Layers 3 and 4 travel in docs-nav.json as the page's ``seo`` map, so the docs
 app sets the same tags on client navigation (``src/frontend/src/docs/seoMeta.ts``).
 A noindex page always keeps its noindex robots value.
@@ -121,7 +124,7 @@ def merge(defaults: dict[str, str], overrides: dict[str, str], absolute: Callabl
     """
     tags = dict(defaults)
     for key, value in overrides.items():
-        if key in URL_KEYS and value.startswith("/") and not value.startswith("//"):
+        if (key in URL_KEYS or key.startswith("hreflang:")) and value.startswith("/") and not value.startswith("//"):
             value = absolute(value)
         tags[key] = value
     if "og:url" not in overrides:
@@ -142,6 +145,8 @@ def render(tags: dict[str, str]) -> str:
             continue
         if key == "canonical":
             lines.append(f'  <link rel="canonical" href="{escape(value)}" />')
+        elif key.startswith("hreflang:"):  # a translation (compiler/languages.py)
+            lines.append(f'  <link rel="alternate" hreflang="{escape(key[9:])}" href="{escape(value)}" />')
         else:
             attr = "property" if _PROPERTY.match(key) else "name"
             lines.append(f'  <meta {attr}="{escape(key)}" content="{escape(value)}" />')

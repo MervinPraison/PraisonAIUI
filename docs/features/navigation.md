@@ -351,6 +351,50 @@ front matter wins. `aiui validate` reports two versions with one name, more
 than one default, and a version that lists a page from another version's
 folder (code 7018).
 
+## Languages
+
+`navigation.languages` publishes translated docs. The default language is
+served at the docs root; every other one comes from its own folder, named by
+its code, with no page list needed:
+
+```yaml
+navigation:
+  languages:
+    - { language: en, default: true }   # docs/**     ->  /docs/...
+    - { language: fr }                  # docs/fr/**  ->  /docs/fr/...
+    - { language: pt-BR, label: Português }
+```
+
+| Key | Meaning |
+|---|---|
+| `language` | the language code (`fr`, `pt-BR`); also the folder and URL segment |
+| `label` | the name in the switcher (default: the language's own name, `Français`) |
+| `default` | the language at the docs root (default: the first one) |
+| `index` | `true` lists its pages in `llms.txt` too (default: only the default language) |
+| `groups`, `pages` | its own sidebar (with `nav.mode: manual`); without them its folder's pages form the sidebar |
+| `hidden` | left out of the switcher and the translation links; its pages stay routable |
+
+A switcher in the header (an icon on phones) opens the same page in the
+other language (`/docs/guide/setup` and `/docs/fr/guide/setup`), or that
+language's first page when the page is not translated yet. The sidebar, the
+pager and the site search show the open language only. The reader's pick is
+remembered, and on a first visit to the docs home the reader's browser
+language (`fr-CA` finds `fr`) opens its translation; crawlers and other
+automated browsers always get the default language. `navigation.languageRedirect: false`
+turns that redirect off.
+
+Every page carries `<html lang>` and, when it has translations, a
+`<link rel="alternate" hreflang>` for each (with `x-default` on the default
+language's page); `sitemap.xml` lists the same alternates. `llms.txt` and
+`llms-full.txt` hold the default language, and each other language gets its
+own `llms-<code>.txt`.
+
+With `navigation.versions` too, a language folder sits inside its version's
+folder: `docs/v1/fr/` is served at `/docs/v1/fr/...`, and both switchers keep
+the page. `aiui validate` reports two languages with one code, more than one
+default, and a version folder inside a language folder such as `docs/fr/v1/`
+(code 7020).
+
 ## Header Links
 
 `navbar` adds links and one primary button to the header. On phones they move

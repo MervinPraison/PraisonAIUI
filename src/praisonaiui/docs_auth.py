@@ -49,6 +49,7 @@ SCOPE_KEY = "aiui.docs_view"
 #: Files built from every page: cut to what the reader may read.
 FILTERED = frozenset({"/search-index.json", "/docs-nav.json", "/llms.txt", "/llms-full.txt",
                       "/.well-known/llms.txt", "/.well-known/llms-full.txt"})
+_LANGUAGE_LLMS = re.compile(r"/llms-[a-z0-9-]+\.txt")
 #: Open to anyone: the site's config and discovery files, and the endpoints that filter by reader.
 OPEN = frozenset({"/ui-config.json", "/aiui-manifest.json", "/route-manifest.json", "/robots.txt",
                   "/sitemap.xml", "/404.html", "/LICENSE-fonts.txt", "/mcp", "/.well-known/mcp",
@@ -189,7 +190,7 @@ class DocsAuth:
         p = p.rstrip("/") or "/"
         if p in self.pages:
             return "page", p
-        if path in FILTERED:
+        if path in FILTERED or _LANGUAGE_LLMS.fullmatch(path):  # llms-<code>.txt: compiler/llms.py
             return "filtered", path
         if path == "/" + ACCESS_FILE:
             return "hidden", ""

@@ -19,6 +19,9 @@ navigation:
   versions:   # docs-versions.spec.ts: docs/v1/ is the older version
     - {version: v2, default: true, tag: Latest}
     - {version: v1, tag: Legacy}
+  languages:  # docs-languages.spec.ts: docs/fr/ is the French translation
+    - {language: en, default: true}
+    - {language: fr}
 api:
   openapi: openapi.yaml   # x-hidden endpoint pages (Try it)
 components:

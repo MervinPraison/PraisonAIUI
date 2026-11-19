@@ -569,6 +569,15 @@
   true` keep pages open; a signed-out reader's nav, search index and the sitemap list only those. Passwords
   stay in the environment; `aiui build` warns a static host cannot enforce it (7017) (docs/features/docs-auth.md).
 
+- **Docs in several languages.** `navigation.languages: [{language: en, default: true}, {language: fr}]`
+  publishes each translation from its folder (`docs/fr/` at `/docs/fr/...`, inside a version
+  `docs/v1/fr/`). A header switcher keeps the reader on the same page in the other language, else opens
+  its first page, and remembers the pick; a first visit to the docs home opens the browser's language
+  (never for crawlers; `languageRedirect: false` turns it off). The sidebar, pager and search follow the
+  open language. Each page gets `<html lang>` and `hreflang` alternates (with `x-default`), the sitemap
+  lists them, and each other language has its own `llms-<code>.txt`. `aiui validate` reports duplicate
+  or double-default languages and `docs/fr/v1/` folders (7020) (docs/features/navigation.md#languages).
+
 - **Docs sign-in: groups, and agents see only what the reader may read.** `users: {alice: {password:
   env:X, groups: [partners]}}` and front matter `groups: [partners]` limit a page to a group (a 404 for any
   other reader). `llms.txt` and `llms-full.txt`, the MCP server, Ask AI, `/api/docs/search` and page feedback

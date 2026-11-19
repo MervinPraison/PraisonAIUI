@@ -20,6 +20,8 @@ export function pageUrl(origin: string, path: string, seo: SEOConfig | undefined
 const URL_KEYS = new Set(['canonical', 'og:url', 'og:image', 'og:image:url', 'og:image:secure_url', 'twitter:image'])
 const NOINDEX = /\b(noindex|none)\b/i
 const PROPERTY = /^(og|article|fb|book|profile|music|video):/
+/** A page's translation (compiler/languages.py): `hreflang:fr` is `<link rel="alternate" hreflang="fr">`. */
+const HREFLANG = 'hreflang:'
 
 /**
  * `defaults` with `overrides` (`seo.metatags`, then the page's `seo`) on top: `og:url`
@@ -33,7 +35,7 @@ export function mergeTags(
 ): Record<string, string> {
     const tags = { ...defaults }
     for (const [key, value] of Object.entries(overrides)) {
-        tags[key] = URL_KEYS.has(key) && value.startsWith('/') && !value.startsWith('//') ? absolute(value) : value
+        tags[key] = (URL_KEYS.has(key) || key.startsWith(HREFLANG)) && value.startsWith('/') && !value.startsWith('//') ? absolute(value) : value
     }
     if (!('og:url' in overrides)) tags['og:url'] = tags.canonical
     if (!('twitter:image' in overrides) && tags['og:image']) tags['twitter:image'] = tags['og:image']
@@ -45,21 +47,29 @@ export function mergeTags(
 // Keys written on an earlier page, removed when the next page does not set them.
 let written = new Set<string>()
 
-/** Writes `tags` into `doc.head`: the canonical link and one `<meta>` per key (`property=` for Open Graph). */
+/** Writes `tags` into `doc.head`: the canonical link, the translations' alternate links and one
+ *  `<meta>` per other key (`property=` for Open Graph). Alternates the page does not name go. */
 export function applyHeadTags(doc: Document, tags: Record<string, string>): void {
     const find = (key: string) =>
         key === 'canonical'
             ? doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
-            : doc.head.querySelector<HTMLMetaElement>(`meta[name="${key}"], meta[property="${key}"]`)
+            : key.startsWith(HREFLANG)
+              ? doc.head.querySelector<HTMLLinkElement>(`link[rel="alternate"][hreflang="${CSS.escape(key.slice(HREFLANG.length))}"]`)
+              : doc.head.querySelector<HTMLMetaElement>(`meta[name="${key}"], meta[property="${key}"]`)
+    doc.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((el) => {
+        if (!(`${HREFLANG}${el.getAttribute('hreflang')}` in tags)) el.remove()
+    })
     for (const key of written) if (!(key in tags)) find(key)?.remove()
     written = new Set(Object.keys(tags))
     for (const [key, value] of Object.entries(tags)) {
+        const link = key === 'canonical' || key.startsWith(HREFLANG)
         let el = find(key)
         if (!el) {
-            el = doc.createElement(key === 'canonical' ? 'link' : 'meta')
-            el.setAttribute(key === 'canonical' ? 'rel' : PROPERTY.test(key) ? 'property' : 'name', key)
+            el = doc.createElement(link ? 'link' : 'meta')
+            if (key.startsWith(HREFLANG)) el.setAttribute('hreflang', key.slice(HREFLANG.length))
+            el.setAttribute(link ? 'rel' : PROPERTY.test(key) ? 'property' : 'name', key === 'canonical' ? key : link ? 'alternate' : key)
             doc.head.appendChild(el)
         }
-        el.setAttribute(key === 'canonical' ? 'href' : 'content', value)
+        el.setAttribute(link ? 'href' : 'content', value)
     }
 }
