@@ -122,6 +122,7 @@ nav:
     - UI Styles: features/styles.md
     - Protocols: features/protocols.md
     - Sessions: features/sessions.md
+    - Handler Context: features/handler-context.md
     - Content Sources: features/content-sources.md
     - Navigation: features/navigation.md
     - Theming: features/theming.md

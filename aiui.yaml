@@ -60,6 +60,7 @@ navigation:
           pages:
             - features/gateway-chat
             - features/sessions
+            - features/handler-context
             - features/attachments
             - features/message-elements
             - features/image-preview-chat
