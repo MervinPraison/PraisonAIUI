@@ -408,6 +408,16 @@ def page_action_list(value: Any) -> Union[list, bool, None]:
     return out
 
 
+class ReferenceConfig(BaseModel):
+    """``content.docs.reference``: where ``::: package.module`` blocks find Python source."""
+
+    paths: list[str] = Field(
+        default_factory=lambda: ["src", "."],
+        description="Folders, relative to the project folder, searched in order for the modules "
+        "::: blocks name (docs/features/api-reference-python.md)",
+    )
+
+
 _ENV_REF = re.compile(r"^env:[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -483,6 +493,10 @@ class ContentSourceConfig(BaseModel):
         alias="pageActions",
         description="The page actions menu above each docs page: the built-in actions and your own "
         "links, in order, or false for none (docs/features/writing-docs.md#page-actions)",
+    )
+    reference: ReferenceConfig = Field(
+        default_factory=ReferenceConfig,
+        description="Python API reference from docstrings: where ::: blocks find modules",
     )
     auth: Optional[DocsAuthConfig] = Field(
         default=None,

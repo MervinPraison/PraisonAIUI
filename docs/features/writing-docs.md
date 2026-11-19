@@ -693,7 +693,9 @@ You are a technical writer. Use the second person.
 
 Document an endpoint's parameters and response with field rows. Each row
 shows the name, its type, where it goes, `required` and `deprecated`, and
-its default, then the description (any Markdown).
+its default, then the description (any Markdown). For Python code, a
+`::: mypkg.module` line writes these rows from the docstrings
+([Python API reference](api-reference-python.md)).
 
 `<ParamField>` names the parameter by where it goes: `path`, `query`,
 `body` or `header`. `<ResponseField name>` is a field of the response.
