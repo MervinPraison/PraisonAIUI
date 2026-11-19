@@ -25,6 +25,23 @@ const PROXIED_PATHS = [
 // the legacy App path and every lazy route (size budgets glob for it).
 const VENDOR_REACT = /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/
 
+// The small syntax-tree helpers the markdown chunks share (the renderer, the
+// HTML parser, Shiki, KaTeX, Streamdown's highlighter). Left to Rollup they
+// split into one tiny chunk per combination of those, four to six requests
+// on a docs page; together they are one `markdown-kit` chunk. Only markdown
+// code imports them (the renderer is always loaded first), so no other page
+// pays for it.
+const MARKDOWN_KIT = new RegExp(
+  '[\\\\/]node_modules[\\\\/](' +
+    [
+      'property-information', 'hastscript', 'hast-util-parse-selector', 'hast-util-whitespace', 'web-namespaces',
+      'zwitch', 'html-void-elements', 'unist-util-is', 'unist-util-visit', 'unist-util-visit-parents',
+      'unist-util-position', '@ungap[\\\\/]structured-clone', 'devlop', 'ccount', 'longest-streak',
+      'micromark-util-character', 'micromark-factory-space',
+    ].join('|') +
+    ')[\\\\/]',
+)
+
 // Selectable layouts (ADR 0003 R17). Every layout is its own chunk group
 // `layout-<id>` (src/app-layouts/<id>/), the shared kit is `layout-kit`
 // (src/app-layouts/kit/), and every layout-specific feature is `lf-<name>`
@@ -152,8 +169,26 @@ function noEntryImports(): Plugin {
   }
 }
 
+// Streamdown imports rehype-raw (the HTML parser: parse5 and its entity
+// tables) at its top, so it would ride in the renderer chunk for every page.
+// Only markdown with HTML needs it: Streamdown's import resolves to
+// src/markdown/rehypeRawGate.ts, which loads the real plugin on demand
+// (markdown/pluginLoaders.ts loadRawPlugin). Our own import('rehype-raw')
+// resolves as usual and becomes its own chunk.
+const STREAMDOWN_DIR = /[\\/]node_modules[\\/]streamdown[\\/]/
+function lazyRehypeRaw(): Plugin {
+  const gate = path.resolve(__dirname, 'src/markdown/rehypeRawGate.ts')
+  return {
+    name: 'aiui-lazy-rehype-raw',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      return source === 'rehype-raw' && importer && STREAMDOWN_DIR.test(importer) ? gate : null
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), lucideIcons(__dirname), codeThemes()],
+  plugins: [lazyRehypeRaw(), globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), lucideIcons(__dirname), codeThemes()],
   // Chunks, their preloads and CSS url()s resolve relative to the file that
   // names them (import.meta.url), so one bundle works at the site root and
   // under a base path (`aiui build --base-path /repo`, src/lib/url.ts).
@@ -214,6 +249,7 @@ export default defineConfig({
         manualChunks: (id) => {
           if (VENDOR_REACT.test(id)) return 'vendor-react'
           if (id.includes(PRELOAD_HELPER)) return 'preload-helper'
+          if (MARKDOWN_KIT.test(id)) return 'markdown-kit'
           return undefined
         },
       },

@@ -682,6 +682,11 @@
 
 ### Fixed
 
+- **Docs pages load a third less markdown renderer.** The HTML parser
+  (rehype-raw and parse5, about 48 kB gzip) left the renderer chunk (147 kB to
+  98 kB) and loads only for pages whose markdown has HTML or docs components;
+  the renderer's small shared helpers are one chunk instead of four to six
+  requests.
 - Docs sites: search no longer downloads the whole index the first time it
   opens. `aiui build` also writes it in parts under `search-index/`: the
   headings and word list on first open, then only the word files a query's

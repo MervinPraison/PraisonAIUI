@@ -93,3 +93,23 @@ test('navigating between docs pages keeps the app loaded once', async ({ page })
   expect(entryLoads).toHaveLength(1)
   expect(errors.pageErrors).toEqual([])
 })
+
+test('the HTML parser loads only for pages whose markdown has HTML', async ({ page }) => {
+  // rehype-raw is a lazy chunk (markdown/rehypeRawGate.ts); never a chunk name: aiui-manifest.json.
+  const manifest = (await (await page.request.get('/aiui-manifest.json')).json()) as Record<string, { file: string }>
+  const parser = manifest['node_modules/rehype-raw/index.js']?.file
+  expect(parser, 'rehype-raw in aiui-manifest.json').toBeTruthy()
+  const fetched: string[] = []
+  page.on('request', (r) => fetched.push(new URL(r.url()).pathname))
+
+  // Plain markdown: the page paints and settles without the parser.
+  await page.goto('/docs/guide/second')
+  await expect(page.locator('#main-content').getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  expect(fetched).not.toContain(`/${parser}`)
+
+  // An admonition is HTML after preprocessing: the parser loads and the block renders.
+  await page.goto('/docs/markdown')
+  await expect(page.locator('#main-content').getByRole('note', { name: 'Heads up' })).toContainText('MkDocs admonitions are rendered too.')
+  expect(fetched).toContain(`/${parser}`)
+})

@@ -204,6 +204,11 @@ class _PluginAwareGroup(typer.core.TyperGroup):
         return cmd
 
 
+# Seconds `aiui run` / `aiui serve` wait for open connections on shutdown.
+# Without a limit, one open browser tab (its chat WebSocket) kept a stopped
+# server alive forever at "Waiting for connections to close".
+GRACEFUL_SHUTDOWN_SECONDS = 5
+
 app = typer.Typer(
     name="aiui",
     help="PraisonAIUI - YAML-driven website generator",
@@ -1040,7 +1045,12 @@ def serve(
     # Run Uvicorn
     import uvicorn
 
-    uvicorn_kwargs: dict = {"host": host, "port": actual_port, "log_level": "info"}
+    uvicorn_kwargs: dict = {
+        "host": host,
+        "port": actual_port,
+        "log_level": "info",
+        "timeout_graceful_shutdown": GRACEFUL_SHUTDOWN_SECONDS,
+    }
     if ssl_certfile:
         uvicorn_kwargs["ssl_certfile"] = str(ssl_certfile)
     if ssl_keyfile:
@@ -2443,6 +2453,7 @@ def run(
                 log_level="info",
                 reload=True,
                 reload_dirs=[str(app_file.resolve().parent)],
+                timeout_graceful_shutdown=GRACEFUL_SHUTDOWN_SECONDS,
             )
         else:
             uvicorn.run(
@@ -2450,6 +2461,7 @@ def run(
                 host=host,
                 port=actual_port,
                 log_level="info",
+                timeout_graceful_shutdown=GRACEFUL_SHUTDOWN_SECONDS,
             )
 
 

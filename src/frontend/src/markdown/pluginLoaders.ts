@@ -76,16 +76,85 @@ export function getMathPlugin(variant: MathVariant = 'chat'): MathPlugin | null 
     return realMath[variant]
 }
 
+// ── Raw HTML (rehype-raw: parse5 and its entity tables) ──
+// Streamdown's own `rehype-raw` import resolves to rehypeRawGate.ts in the
+// build (vite.config.ts lazyRehypeRaw), so the parser is a lazy chunk that
+// only markdown with HTML in it loads.
+type RawPlugin = typeof import('rehype-raw')['default']
+let realRaw: RawPlugin | null = null
+let rawLoading: Promise<RawPlugin> | null = null
+// Listeners, not a top-level promise: a statement with a side effect here
+// would pull this module into every chunk that names it (the boot path).
+const rawListeners = new Set<() => void>()
+
+export function loadRawPlugin(): Promise<RawPlugin> {
+    rawLoading ??= import('rehype-raw')
+        .then((m) => {
+            realRaw = m.default
+            for (const listener of rawListeners) listener()
+            rawListeners.clear()
+            return realRaw
+        })
+        .catch((e: unknown) => {
+            rawLoading = null
+            throw e
+        })
+    return rawLoading
+}
+
+/** The real rehype-raw once loaded, else null. */
+export function getRawPlugin(): RawPlugin | null {
+    return realRaw
+}
+
+/** Calls `listener` once anything (a hint, the gate) has loaded rehype-raw; never starts the load. Returns the unsubscribe. */
+export function onRawPlugin(listener: () => void): () => void {
+    rawListeners.add(listener)
+    return () => { rawListeners.delete(listener) }
+}
+
+const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})(.*)$/
+const INLINE_CODE = /(`+)[^`\n]*?\1/g
+/** A tag, closing tag, comment, declaration or processing instruction: what CommonMark parses as HTML. */
+const HTML_START = /<[A-Za-z/!?]/
+
+/**
+ * Whether markdown may contain HTML, outside fenced code and one-line code
+ * spans. A hint for loading ahead of the first paint: it may say yes for
+ * text with no HTML, and when it misses one, the gate loads the parser as it
+ * meets the HTML and the renderer draws it again (Markdown.tsx useRawPlugin).
+ */
+export function needsRaw(md: string): boolean {
+    if (!md.includes('<')) return false
+    let fence: string | null = null
+    for (const line of md.split('\n')) {
+        const m = FENCE_LINE.exec(line)
+        if (fence) {
+            if (m && m[1][0] === fence[0] && m[1].length >= fence.length && !m[2].trim()) fence = null
+            continue
+        }
+        // A backtick fence's info string has no backtick; anything else is not an opener.
+        if (m && !(m[1][0] === '`' && m[2].includes('`'))) {
+            fence = m[1]
+            continue
+        }
+        if (HTML_START.test(line.replace(INLINE_CODE, ''))) return true
+    }
+    return false
+}
+
 const FENCE_RE = /```|~~~/
 
 /**
  * Kick off the loads a document will need. Docs await this before the first
- * paint (no raw-`$$` or unstyled-code flash); grammars and mermaid stay lazy.
- * Never rejects: a failed plugin only means plain code or raw TeX.
+ * paint (no raw-`$$`, unstyled-code or missing-HTML flash); grammars and
+ * mermaid stay lazy. Never rejects: a failed plugin only means plain code,
+ * raw TeX or no HTML.
  */
 export async function preloadMarkdownPlugins(md: string): Promise<void> {
     const jobs: Promise<unknown>[] = []
     if (FENCE_RE.test(md)) jobs.push(loadCodePlugin())
     if (needsMath(md, 'docs')) jobs.push(ensureMathPlugin('docs'))
+    if (needsRaw(md)) jobs.push(loadRawPlugin())
     await Promise.allSettled(jobs)
 }
