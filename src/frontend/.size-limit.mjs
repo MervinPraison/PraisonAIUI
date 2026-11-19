@@ -398,5 +398,7 @@ export default [
   // Download as PDF page action.
   // 9,668,391 B (+19,411 B, exactly the overage): header link icons, the GitHub star
   // count, footer social marks (the lazy brandIcons chunk, 12.9 kB) and the banner.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9668391 B', brotli: false },
+  // 9,675,842 B (+7,451 B, exactly the overage): Try it authentication, file inputs and
+  // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth mode).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9675842 B', brotli: false },
 ]
