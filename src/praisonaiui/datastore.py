@@ -223,6 +223,49 @@ async def list_sessions_page(
     return sessions[offset:end], total
 
 
+def feedback_record(
+    session_id: str, message_id: str, value: int, comment: Optional[str] = None
+) -> dict[str, Any]:
+    """One feedback row, as every store returns it from ``list_feedback``."""
+    return {
+        "id": str(uuid.uuid4()),
+        "session_id": session_id,
+        "message_id": message_id,
+        "value": value,
+        "comment": comment,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+_append_lock = threading.Lock()
+
+
+def append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    """Append *record* as one line to *path* (created with its folder on first use)."""
+    line = json.dumps(record, default=str) + "\n"
+    with _append_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line)
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Rows of a JSON-lines file; a missing file is empty, a torn line is skipped."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    return rows
+
+
 class BaseDataStore(ABC):
     """Database-agnostic storage interface for sessions and messages.
 
@@ -272,6 +315,17 @@ class BaseDataStore(ABC):
         """Clean up resources (connections, file handles). Called on shutdown."""
         pass
 
+    def feedback_file(self) -> Path:
+        """JSON-lines file the default feedback methods append to.
+
+        ``$AIUI_DATA_DIR/feedback/feedback.jsonl`` (default
+        ``~/.praisonaiui/feedback/feedback.jsonl``). File-backed stores keep it
+        next to their sessions; stores with their own table override
+        ``record_feedback`` and ``list_feedback`` instead.
+        """
+        base = Path(os.environ.get("AIUI_DATA_DIR", str(Path.home() / ".praisonaiui")))
+        return base / "feedback" / "feedback.jsonl"
+
     async def record_feedback(
         self,
         session_id: str,
@@ -279,7 +333,7 @@ class BaseDataStore(ABC):
         value: int,
         comment: Optional[str] = None,
     ) -> None:
-        """Record user feedback for a message.
+        """Record user feedback for a message (one appended line in ``feedback_file()``).
 
         Args:
             session_id: Session identifier
@@ -287,13 +341,14 @@ class BaseDataStore(ABC):
             value: Feedback value (-1, 0, or 1 for down, neutral, up)
             comment: Optional feedback comment
         """
-        pass
+        record = feedback_record(session_id, message_id, value, comment)
+        await asyncio.to_thread(append_jsonl, self.feedback_file(), record)
 
     async def list_feedback(
         self,
         session_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
-        """List feedback records, optionally filtered by session.
+        """List feedback records (oldest first), optionally filtered by session.
 
         Args:
             session_id: Optional session filter
@@ -301,7 +356,10 @@ class BaseDataStore(ABC):
         Returns:
             List of feedback records with metadata
         """
-        return []
+        rows = await asyncio.to_thread(read_jsonl, self.feedback_file())
+        if session_id is None:
+            return rows
+        return [r for r in rows if r.get("session_id") == session_id]
 
     @staticmethod
     def generate_title(message: str) -> str:
@@ -410,15 +468,7 @@ class MemoryDataStore(BaseDataStore):
         comment: Optional[str] = None,
     ) -> None:
         """Record user feedback for a message."""
-        feedback = {
-            "id": str(uuid.uuid4()),
-            "session_id": session_id,
-            "message_id": message_id,
-            "value": value,
-            "comment": comment,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        self._feedback.append(feedback)
+        self._feedback.append(feedback_record(session_id, message_id, value, comment))
 
     async def list_feedback(
         self,
@@ -457,7 +507,7 @@ class JSONFileDataStore(BaseDataStore):
         # Store feedback in a separate subdirectory to avoid conflicts with session files
         self._feedback_dir = self._data_dir / "feedback"
         self._feedback_dir.mkdir(parents=True, exist_ok=True)
-        self._feedback_file = self._feedback_dir / "feedback.json"
+        self._migrate_feedback()
 
     def _session_path(self, session_id: str) -> Path:
         # Sanitize session_id to prevent path traversal
@@ -566,64 +616,28 @@ class JSONFileDataStore(BaseDataStore):
 
         await asyncio.to_thread(_update)
 
-    def _read_feedback(self) -> list[dict[str, Any]]:
-        """Read feedback from JSON file."""
+    def feedback_file(self) -> Path:
+        return self._feedback_dir / "feedback.jsonl"
+
+    def _migrate_feedback(self) -> None:
+        """Turn an older ``feedback.json`` (one rewritten array) into the JSON-lines log."""
+        legacy = self._feedback_dir / "feedback.json"
+        target = self.feedback_file()
+        if not legacy.is_file() or target.exists():
+            return
         try:
-            return json.loads(self._feedback_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
-
-    def _write_feedback(self, feedback_list: list[dict[str, Any]]) -> None:
-        """Write feedback to JSON file atomically."""
-        # Use atomic write to prevent race conditions
-        temp_file = self._feedback_file.with_suffix(".tmp")
-        try:
-            temp_file.write_text(json.dumps(feedback_list, indent=2, default=str), encoding="utf-8")
-            temp_file.replace(self._feedback_file)
-        except Exception:
-            if temp_file.exists():
-                temp_file.unlink()
-            raise
-
-    async def record_feedback(
-        self,
-        session_id: str,
-        message_id: str,
-        value: int,
-        comment: Optional[str] = None,
-    ) -> None:
-        """Record user feedback for a message with thread safety."""
-
-        def _record() -> None:
-            # Read, modify, write in single thread to ensure atomicity
-            feedback_list = self._read_feedback()
-            feedback = {
-                "id": str(uuid.uuid4()),
-                "session_id": session_id,
-                "message_id": message_id,
-                "value": value,
-                "comment": comment,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-            feedback_list.append(feedback)
-            # Atomic write prevents race conditions
-            self._write_feedback(feedback_list)
-
-        await asyncio.to_thread(_record)
-
-    async def list_feedback(
-        self,
-        session_id: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """List feedback records, optionally filtered by session."""
-
-        def _list() -> list[dict[str, Any]]:
-            feedback_list = self._read_feedback()
-            if session_id is None:
-                return feedback_list
-            return [f for f in feedback_list if f["session_id"] == session_id]
-
-        return await asyncio.to_thread(_list)
+            rows = json.loads(legacy.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            return
+        if not isinstance(rows, list):
+            return
+        tmp = target.with_suffix(".tmp")
+        tmp.write_text(
+            "".join(json.dumps(r, default=str) + "\n" for r in rows if isinstance(r, dict)),
+            encoding="utf-8",
+        )
+        tmp.replace(target)
+        legacy.unlink()
 
 
 # ---------------------------------------------------------------------------

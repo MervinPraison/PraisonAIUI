@@ -803,3 +803,11 @@
   carried it, so only Guided and the classic frame showed it. The hero now
   shows the greeting in place of its generic "Ask anything…" line, above the
   starters; without a greeting the hero is unchanged.
+- Chat thumbs up/down feedback is kept by every data store. The default store
+  when the agents package is installed (`sdk`), and any custom
+  `BaseDataStore` without its own feedback methods, dropped every vote; now
+  they append it to a JSON-lines file (`feedback/feedback.jsonl` next to the
+  sessions, or under `$AIUI_DATA_DIR` for custom stores) that
+  `GET /api/feedback` reads back. The `json` store appends one line per vote
+  instead of rewriting one array, and moves an older `feedback.json` into the
+  new file on start. Override `feedback_file()` to put the log elsewhere.

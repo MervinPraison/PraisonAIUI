@@ -62,7 +62,7 @@ class TestFeedbackDataStore:
         assert all(f["session_id"] == "session1" for f in session1_feedback)
 
     def test_base_datastore_feedback_defaults(self):
-        """Test BaseDataStore provides default no-op implementations."""
+        """Test MemoryDataStore keeps feedback it records."""
         from praisonaiui.datastore import MemoryDataStore
 
         # Use MemoryDataStore which inherits the default implementations
@@ -337,7 +337,7 @@ class TestJSONFileDataStoreFeedback:
         asyncio.run(run_test())
 
     def test_json_file_feedback_no_collision_with_sessions(self, tmp_path):
-        """Test that feedback.json doesn't interfere with session listing."""
+        """Test that the feedback log does not interfere with session listing."""
         import asyncio
 
         from praisonaiui.datastore import JSONFileDataStore
@@ -358,7 +358,7 @@ class TestJSONFileDataStoreFeedback:
             assert sessions[0]["id"] == "test-session"
 
             # Feedback should be in separate directory (note: datastore creates its own data_dir structure)
-            feedback_file = tmp_path / "feedback" / "feedback.json"
+            feedback_file = tmp_path / "feedback" / "feedback.jsonl"
             assert feedback_file.exists()
 
             # Session file should exist separately

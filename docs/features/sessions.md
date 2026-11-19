@@ -76,6 +76,22 @@ Use `--server` to target a different server:
 aiui sessions list --server http://localhost:3000
 ```
 
+## Feedback
+
+Chat thumbs up/down (`POST /api/feedback`, listed with totals by
+`GET /api/feedback`) is kept by every store:
+
+| Store | Where votes go |
+|-------|----------------|
+| SDK (default) | `feedback/feedback.jsonl` in the session folder (`~/.praisonai/sessions/` by default) |
+| JSON files | `feedback/feedback.jsonl` in the session folder; an older `feedback.json` is moved into it on start |
+| SQL | The `feedback` table |
+| Memory | Memory (lost on restart) |
+| Your own `BaseDataStore` | `$AIUI_DATA_DIR/feedback/feedback.jsonl` unless you override `record_feedback` and `list_feedback`, or `feedback_file()` to move the file |
+
+The file stores append one JSON line per vote, so a vote never rewrites the
+earlier ones. Turn the buttons off with `aiui.set_feedback_enabled(False)`.
+
 ## Custom Data Store
 
 Implement `BaseDataStore` for any database (SQLite, PostgreSQL, Redis, MongoDB, etc.):
@@ -86,7 +102,8 @@ from praisonaiui.datastore import BaseDataStore
 class PostgresDataStore(BaseDataStore):
     # The six session/message methods are abstract; update_session, close,
     # count_sessions (len(list_sessions()) by default; override it when the
-    # database can count) and the feedback methods have defaults.
+    # database can count) and the feedback methods have defaults (votes go
+    # to a JSON-lines file; see Feedback above).
     def __init__(self, dsn: str):
         self.dsn = dsn
         # ... set up connection pool
