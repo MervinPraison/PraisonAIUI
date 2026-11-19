@@ -90,8 +90,9 @@ anyway. `aiui dev` leaves integrations out so previews are not visits;
 ## Content Security Policy
 
 No inline script is emitted: the settings are a JSON data block and the loader
-is a file at the site root (`/aiui-integrations.js`). A policy needs
-`script-src 'self'` plus each provider's hosts, which
-`Compiler(config).external_origins()` lists per directive (`script-src`,
-`connect-src`, `img-src`, ...). A tag manager container (`gtm`) loads whatever
-tags you add to it, so add their hosts too.
+is a file at the site root (`/aiui-integrations.js`). The build's
+[Content Security Policy](content-security-policy.md) adds each provider's
+hosts per directive by itself (`Compiler(config).external_origins()` lists
+them). A tag manager container (`gtm`) loads whatever tags you add to it, so
+with `gtm` the policy is report-only until you add their hosts under
+`site.csp` and set it to enforce.

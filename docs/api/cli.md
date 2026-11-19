@@ -186,7 +186,9 @@ Build (unless `--no-build`) and serve a docs site.
 | `--ssl-keyfile` | none | Private key file for HTTPS |
 
 Paths without a file extension fall back to the single-page app. Paths that
-try to leave the output folder are refused.
+try to leave the output folder are refused. Every response carries the `/*`
+headers of the build's `_headers` file, which holds the site's
+[Content Security Policy](../features/content-security-policy.md).
 
 ### `aiui dev`
 
