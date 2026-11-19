@@ -37,6 +37,8 @@ function CommandDialog({
   showCloseButton = true,
   filter,
   loop,
+  value,
+  onValueChange,
   onOpenAutoFocus,
   onCloseAutoFocus,
   ...props
@@ -49,6 +51,9 @@ function CommandDialog({
   filter?: React.ComponentProps<typeof CommandPrimitive>["filter"]
   /** Arrow keys wrap from the last item to the first and back (cmdk `loop`). */
   loop?: boolean
+  /** The highlighted item's value, controlled (cmdk `value` / `onValueChange`). */
+  value?: string
+  onValueChange?: (value: string) => void
   onOpenAutoFocus?: React.ComponentProps<typeof DialogContent>["onOpenAutoFocus"]
   onCloseAutoFocus?: React.ComponentProps<typeof DialogContent>["onCloseAutoFocus"]
 }) {
@@ -65,7 +70,7 @@ function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command filter={filter} loop={loop} className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+        <Command filter={filter} loop={loop} value={value} onValueChange={onValueChange} className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>
       </DialogContent>

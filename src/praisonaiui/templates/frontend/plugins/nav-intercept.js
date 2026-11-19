@@ -40,11 +40,24 @@ function currentAppPath() {
 
 /* ── Load navigation data ────────────────────────────────────────── */
 
+/** The nav `aiui build` inlined in the page (compiler/boot_data.py), or null. */
+function inlinedNav() {
+  try {
+    const el = document.getElementById('aiui-boot-data');
+    return (el && JSON.parse(el.textContent || '')['/docs-nav.json']) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function loadNavData() {
   try {
-    const resp = await fetch(BASE + '/docs-nav.json');
-    if (!resp.ok) return;
-    const data = await resp.json();
+    let data = inlinedNav();
+    if (!data) {
+      const resp = await fetch(BASE + '/docs-nav.json');
+      if (!resp.ok) return;
+      data = await resp.json();
+    }
 
     function collectPaths(items) {
       for (const item of items) {
