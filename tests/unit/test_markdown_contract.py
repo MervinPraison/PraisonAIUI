@@ -68,7 +68,7 @@ class TestDocsContent:
         source = _read(SRC / "Content.tsx")
         assert "from './markdown/LazyMarkdown'" in source
         assert (
-            '<Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_ALLOWED_ELEMENTS}>'
+            '<Markdown variant="docs" components={DOCS_MARKDOWN_COMPONENTS} allowElements={DOCS_PAGE_ELEMENTS} beforeSanitize={rehypeDocsClasses}>'
             in source
         )
         assert 'className="aiui-doc prose max-w-none min-w-0"' in source
@@ -105,10 +105,11 @@ class TestSecurity:
             assert "sanitizePlugin" in block
             assert "defaultRehypePlugins.harden" in block
         # Each variant's list, plus the per-instance footnote-label prefix step.
-        assert "[...(isDocs ? docsRehypeWith(allowElements) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
-        # A docs page's own aiui-* elements extend the schema; the list keeps all three steps.
+        assert "[...(isDocs ? docsRehypeWith(allowElements, beforeSanitize) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]]" in source
+        # A docs page's own aiui-* elements extend the schema; the list keeps all three steps
+        # (a docs page's `beforeSanitize` step runs between raw and sanitize, never after it).
         extended = source.split("function docsRehypeWith")[1].split("\n}\n")[0]
-        assert "[defaultRehypePlugins.raw, [sanitizePlugin, schema], defaultRehypePlugins.harden]" in extended
+        assert "[defaultRehypePlugins.raw, ...(before ? [before] : []), [sanitizePlugin, schema], defaultRehypePlugins.harden]" in extended
         assert "rehypePlugins={rehypePlugins}" in source
         assert "allowedTags" not in source.split("*/", 1)[1]  # only mentioned in the header comment
 

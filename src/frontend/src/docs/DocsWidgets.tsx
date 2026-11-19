@@ -10,8 +10,10 @@ import { cardHref } from './cardHref'
 import { isExternal } from './chrome'
 import { DocsHomeIcon, docsIcon } from './docsHomeIcons'
 import { copyText, promptLinks } from './pageActionLinks'
+import { cx } from './docsClasses'
 
-type Kids = { children?: ReactNode }
+/** `className`: the page's classes on the tag (docs/docsClasses.ts). */
+type Kids = { children?: ReactNode; className?: string }
 
 /** An author's colour (`#0f766e`, `teal`, `rgb(…)`): kept only when it is plainly one. */
 const COLOR = /^(#[\da-f]{3,8}|[a-z]{3,20}|(rgb|hsl|oklch)a?\([\d\s.,%/-]+\))$/i
@@ -47,11 +49,11 @@ const BADGE_TONE: Record<string, string> = {
 
 type BadgeProps = Kids & { color?: string; size?: string; shape?: string; icon?: string; stroke?: string; off?: string }
 
-export function Badge({ color = 'gray', size, shape, icon, stroke, off, children }: BadgeProps) {
+export function Badge({ color = 'gray', size, shape, icon, stroke, off, className, children }: BadgeProps) {
     const tone = accent(BADGE_TONE[color] ?? (color.endsWith('destructive') ? 'destructive' : color))
     return (
         <span
-            className="aiui-badge"
+            className={cx('aiui-badge', className)}
             data-size={size}
             data-shape={shape}
             data-stroke={stroke ? '' : undefined}
@@ -76,14 +78,14 @@ function fitTip(e: { currentTarget: HTMLElement }) {
 type TooltipProps = Kids & { tip?: string; headline?: string; cta?: string; href?: string }
 
 /** A dotted term that explains itself on hover or keyboard focus; Escape hides it. */
-export function Tooltip({ tip, headline, cta, href, children }: TooltipProps) {
+export function Tooltip({ tip, headline, cta, href, className, children }: TooltipProps) {
     const id = useId()
     const [hidden, setHidden] = useState(false)
     const to = link(href)
     if (!tip) return <>{children}</>
     return (
         <span
-            className="aiui-tooltip"
+            className={cx('aiui-tooltip', className)}
             tabIndex={0}
             aria-describedby={id}
             data-hidden={hidden ? '' : undefined}
@@ -102,15 +104,15 @@ export function Tooltip({ tip, headline, cta, href, children }: TooltipProps) {
 }
 
 /** <Icon icon size color>: an icon in a sentence; `size` in px (default: the text's size), `color` a token or colour. */
-export function Icon({ icon, size, color }: { icon?: string; size?: string; color?: string }) {
+export function Icon({ icon, size, color, className }: { icon?: string; size?: string; color?: string; className?: string }) {
     const px = Number.parseFloat(size ?? '')
     const tone = accent(color)
     const style = { ...(px > 0 && px <= 512 ? { '--aiui-icon-size': `${px}px` } : {}), ...(tone ? { color: tone } : {}) }
-    return <span className="aiui-icon" style={style as CSSProperties}>{docsIcon(icon)}</span>
+    return <span className={cx('aiui-icon', className)} style={style as CSSProperties}>{docsIcon(icon)}</span>
 }
 
 /** A preview (an image or drawing), then the title and a line of description; the whole tile is the link. */
-export function Tile({ href, description, children }: Kids & { href?: string; description?: string }) {
+export function Tile({ href, description, className, children }: Kids & { href?: string; description?: string }) {
     const [named, preview] = slots(children)
     const to = link(href)
     const inner = (
@@ -120,7 +122,8 @@ export function Tile({ href, description, children }: Kids & { href?: string; de
             {description && <span className="aiui-tile-desc">{description}</span>}
         </>
     )
-    return to ? <a className="aiui-tile" data-link="" {...to}>{inner}</a> : <div className="aiui-tile">{inner}</div>
+    const cls = cx('aiui-tile', className)
+    return to ? <a className={cls} data-link="" {...to}>{inner}</a> : <div className={cls}>{inner}</div>
 }
 
 const PROMPT_ACTIONS = ['copy', 'chatgpt', 'claude', 'cursor'] as const
@@ -129,7 +132,7 @@ const ACTION_LABEL: Record<string, string> = { chatgpt: 'Open in ChatGPT', claud
 type PromptProps = Kids & { actions?: string; icon?: string; text?: string }
 
 /** A prompt to hand an assistant: what it does, the prompt itself (folded), Copy and Open in ChatGPT / Claude / Cursor. */
-export function Prompt({ actions = 'copy,chatgpt,claude', icon, text, children }: PromptProps) {
+export function Prompt({ actions = 'copy,chatgpt,claude', icon, text, className, children }: PromptProps) {
     const [named, body] = slots(children)
     const [copied, setCopied] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
@@ -137,7 +140,7 @@ export function Prompt({ actions = 'copy,chatgpt,claude', icon, text, children }
     const wanted = PROMPT_ACTIONS.filter((a) => actions.split(',').includes(a))
     const open = (e: MouseEvent<HTMLAnchorElement>, a: 'chatgpt' | 'claude' | 'cursor') => { e.currentTarget.href = promptLinks(prompt())[a] }
     return (
-        <div className="aiui-prompt">
+        <div className={cx('aiui-prompt', className)}>
             <div className="aiui-prompt-head">
                 {icon && <DocsHomeIcon name={icon} />}
                 {named.description}
@@ -183,11 +186,11 @@ function onTreeKey(e: KeyboardEvent<HTMLDivElement>) {
     go[e.key]()?.focus()
 }
 
-export const Tree = ({ children }: Kids) => <div className="aiui-tree" onKeyDown={onTreeKey}>{children}</div>
+export const Tree = ({ className, children }: Kids) => <div className={cx('aiui-tree', className)} onKeyDown={onTreeKey}>{children}</div>
 
 type TreeProps = Kids & { name?: string; opened?: string; fixed?: string; hl?: string }
 
-export function TreeFolder({ name, opened, fixed, hl, children }: TreeProps) {
+export function TreeFolder({ name, opened, fixed, hl, className, children }: TreeProps) {
     const head = (
         <>
             <ChevronRight className="aiui-tree-chevron" aria-hidden="true" />
@@ -197,35 +200,35 @@ export function TreeFolder({ name, opened, fixed, hl, children }: TreeProps) {
     )
     if (fixed) {
         return (
-            <div className="aiui-tree-folder" data-hl={hl ? '' : undefined} data-open={opened ? '' : undefined}>
+            <div className={cx('aiui-tree-folder', className)} data-hl={hl ? '' : undefined} data-open={opened ? '' : undefined}>
                 <div className="aiui-tree-row" tabIndex={0}>{head}</div>
                 {opened && <div className="aiui-tree-children">{children}</div>}
             </div>
         )
     }
     return (
-        <details className="aiui-tree-folder" data-hl={hl ? '' : undefined} open={!!opened}>
+        <details className={cx('aiui-tree-folder', className)} data-hl={hl ? '' : undefined} open={!!opened}>
             <summary className="aiui-tree-row">{head}</summary>
             <div className="aiui-tree-children">{children}</div>
         </details>
     )
 }
 
-export const TreeFile = ({ name, hl }: TreeProps) => (
-    <div className="aiui-tree-row aiui-tree-file" tabIndex={0} data-hl={hl ? '' : undefined} aria-current={hl ? 'true' : undefined}>
+export const TreeFile = ({ name, hl, className }: TreeProps) => (
+    <div className={cx('aiui-tree-row aiui-tree-file', className)} tabIndex={0} data-hl={hl ? '' : undefined} aria-current={hl ? 'true' : undefined}>
         <File aria-hidden="true" />
         {name}
     </div>
 )
 
-export const Colors = ({ variant, children }: Kids & { variant?: string }) => (
-    <div className="aiui-colors" data-variant={variant === 'table' ? 'table' : 'compact'}>{children}</div>
+export const Colors = ({ variant, className, children }: Kids & { variant?: string }) => (
+    <div className={cx('aiui-colors', className)} data-variant={variant === 'table' ? 'table' : 'compact'}>{children}</div>
 )
 
-export function ColorRow({ children }: Kids) {
+export function ColorRow({ className, children }: Kids) {
     const [named, items] = slots(children)
     return (
-        <div className="aiui-color-row">
+        <div className={cx('aiui-color-row', className)}>
             {named.title}
             <div className="aiui-color-items">{items}</div>
         </div>
@@ -233,7 +236,7 @@ export function ColorRow({ children }: Kids) {
 }
 
 /** One swatch (its light and dark values when both are given); a click copies the value shown. */
-export function ColorItem({ name, value, dark }: { name?: string; value?: string; dark?: string }) {
+export function ColorItem({ name, value, dark, className }: { name?: string; value?: string; dark?: string; className?: string }) {
     const [copied, setCopied] = useState(false)
     const light = accent(value)
     const night = accent(dark) ?? light
@@ -246,7 +249,7 @@ export function ColorItem({ name, value, dark }: { name?: string; value?: string
     return (
         <button
             type="button"
-            className="aiui-color"
+            className={cx('aiui-color', className)}
             style={{ '--aiui-swatch': light, '--aiui-swatch-dark': night } as CSSProperties}
             onClick={copy}
             aria-label={`Copy ${name ? `${name}, ` : ''}${shown}`}

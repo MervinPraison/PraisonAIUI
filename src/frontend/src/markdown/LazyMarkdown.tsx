@@ -5,7 +5,7 @@
  *
  *   export function Markdown(p: { children: string; variant?: 'chat'|'docs'; streaming?: boolean;
  *     className?: string; components?: Record<string, ComponentType<any>>;
- *     allowElements?: Record<string, string[]> })
+ *     allowElements?: Record<string, rule[]>; beforeSanitize?: rehype plugin })
  *   export const preloadMarkdown
  *
  * Import this module, never ./Markdown directly.
@@ -24,8 +24,10 @@ export interface MarkdownProps {
     /** Element overrides. Keep the object stable (module scope or useMemo). */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     components?: Record<string, ComponentType<any>>
-    /** docs: extra `aiui-*` elements the sanitizer keeps, element → attributes (markdown/docsTags.ts). Keep the object stable. */
-    allowElements?: Readonly<Record<string, readonly string[]>>
+    /** docs: extra `aiui-*` elements the sanitizer keeps, element → attribute rules (markdown/docsTags.ts). Keep the object stable. */
+    allowElements?: Readonly<Record<string, readonly (string | readonly unknown[])[]>>
+    /** docs, with `allowElements`: a rehype plugin run before the sanitizer (docs/docsClasses.ts). Keep it stable. */
+    beforeSanitize?: unknown
 }
 
 let implLoading: Promise<{ default: ComponentType<MarkdownProps> }> | null = null

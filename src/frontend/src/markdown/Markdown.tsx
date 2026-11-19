@@ -101,22 +101,25 @@ const DOCS_REHYPE = [
     defaultRehypePlugins.harden,
 ] as StreamdownProps['rehypePlugins']
 
-export type AllowedElements = Readonly<Record<string, readonly string[]>>
+/** Element (or `*`) → attribute rules: a name, or `[name, ...allowed values]`. */
+export type AllowedElements = Readonly<Record<string, readonly (string | readonly unknown[])[]>>
 const allowedCache = new WeakMap<AllowedElements, StreamdownProps['rehypePlugins']>()
 
 /**
  * The docs schema plus a page's own elements (the docs components table,
- * markdown/docsTags.ts). Only `aiui-*` elements, and never event handlers or
- * `style`; sanitize still checks every URL attribute.
+ * markdown/docsTags.ts) and attribute rules, which come first so they win over
+ * the schema's own for the same attribute. Only `aiui-*` elements are added, and
+ * never event handlers or `style`; sanitize still checks every URL attribute.
+ * `before` runs on the page before the sanitizer (docs/docsClasses.ts).
  */
-function docsRehypeWith(allow?: AllowedElements): StreamdownProps['rehypePlugins'] {
+function docsRehypeWith(allow?: AllowedElements, before?: Pluggable): StreamdownProps['rehypePlugins'] {
     if (!allow) return DOCS_REHYPE
     if (!allowedCache.has(allow)) {
-        const tags = Object.keys(allow).filter((t) => t.startsWith('aiui-'))
         const attributes = { ...docsSchema.attributes }
-        for (const t of tags) attributes[t] = [...(attributes[t] ?? []), ...allow[t].filter((a) => !/^(on|style$)/i.test(a))]
+        for (const t in allow) attributes[t] = [...allow[t].filter((a) => !/^(on|style\b)/i.test(String(a))), ...(attributes[t] ?? [])]
+        const tags = Object.keys(allow).filter((t) => t.startsWith('aiui-'))
         const schema = { ...docsSchema, tagNames: [...(docsSchema.tagNames ?? []), ...tags], attributes }
-        allowedCache.set(allow, [defaultRehypePlugins.raw, [sanitizePlugin, schema], defaultRehypePlugins.harden] as StreamdownProps['rehypePlugins'])
+        allowedCache.set(allow, [defaultRehypePlugins.raw, ...(before ? [before] : []), [sanitizePlugin, schema], defaultRehypePlugins.harden] as StreamdownProps['rehypePlugins'])
     }
     return allowedCache.get(allow)
 }
@@ -178,10 +181,12 @@ export interface MarkdownProps {
     components?: Record<string, ComponentType<any>>
     /** docs: extra `aiui-*` elements the sanitizer keeps, element → attributes. Keep the object stable. */
     allowElements?: AllowedElements
+    /** docs, with `allowElements`: a rehype plugin run before the sanitizer. Keep it stable. */
+    beforeSanitize?: Pluggable
 }
 
 export const Markdown = memo(function Markdown({
-    children, variant = 'chat', streaming = false, className, components, allowElements,
+    children, variant = 'chat', streaming = false, className, components, allowElements, beforeSanitize,
 }: MarkdownProps) {
     const isDocs = variant === 'docs'
     const source = typeof children === 'string' ? children : String(children ?? '')
@@ -199,8 +204,8 @@ export const Markdown = memo(function Markdown({
     const idPrefix = `user-content-${instanceId.replace(/[^\w-]/g, '')}-`
     const remarkRehypeOptions = useMemo(() => ({ clobberPrefix: idPrefix }), [idPrefix])
     const rehypePlugins = useMemo(
-        () => [...(isDocs ? docsRehypeWith(allowElements) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
-        [isDocs, idPrefix, allowElements],
+        () => [...(isDocs ? docsRehypeWith(allowElements, beforeSanitize) : CHAT_REHYPE)!, [rehypeFootnoteLabel, idPrefix]] as StreamdownProps['rehypePlugins'],
+        [isDocs, idPrefix, allowElements, beforeSanitize],
     )
 
     const math = useMathPlugin(text, variant)

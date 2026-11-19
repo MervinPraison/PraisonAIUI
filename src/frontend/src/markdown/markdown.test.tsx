@@ -334,6 +334,9 @@ test('preprocess is fence-aware: wrappers and icons inside code are kept', () =>
     assert.match(out, /Use ✅ here/)
     assert.match(out, /```html\n<div class="grid" markdown>\n:material-check:\n<\/div>\n```/)
     assert.doesNotMatch(out.split('```').at(-1) ?? '', /<\/?div/)
+    // Other divs keep their close tags, inside a wrapper too.
+    const nested = stripMkdocsGridWrappers('<div class="grid" markdown>\n<div className="flex">\n<div>a</div>\n</div>\n</div>\n<div>b</div>')
+    assert.equal(nested, '<div className="flex">\n<div>a</div>\n</div>\n<div>b</div>')
 })
 
 test('mkdocs titles may contain escaped quotes (admonitions and tabs)', () => {

@@ -593,6 +593,15 @@
   unknown-tag warning; a module that is missing or names no tag is 7021
   (docs/features/writing-docs.md#your-own-components).
 
+- **Utility classes in docs pages.** `className="…"` (or `class`) on a component tag or raw HTML
+  styles one block with a curated set of theme-token utilities: spacing, width, text size, weight and
+  alignment, token colours (`text-muted-foreground`, `bg-muted`), borders, rounding, flex and grid,
+  `sm:` / `md:` / `lg:` screen sizes and `dark:` for display. `<Note className="mt-8">` and
+  `<div className="grid md:grid-cols-2 gap-4">` just work, in light and dark mode. Classes cannot
+  touch the site chrome; any other class is dropped and `style` stays removed, and `aiui validate` /
+  `aiui build` name each one with the nearest allowed class (7022;
+  docs/features/writing-docs.md#styling-with-classes).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
