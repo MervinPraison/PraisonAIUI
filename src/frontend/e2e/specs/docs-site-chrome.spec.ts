@@ -3,6 +3,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectPageErrors, contrastRatio, hasHorizontalOverflow, setColorMode, toRgb } from './support'
 
+// The navbar is added in flight, after the build worked out its Content-Security-Policy
+// (which allows api.github.com only for a built `type: github` button): bypass it here.
+test.use({ bypassCSP: true })
+
 const BANNER = { content: 'Version 2 is out. [Read the notes](/docs/guide/first)', dismissible: true, type: 'warning', id: 'v2notes' }
 
 async function withChrome(page: Page, banner: Record<string, unknown> = BANNER) {

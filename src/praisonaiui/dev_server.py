@@ -5,7 +5,8 @@
   takes the preview down. The error is printed in the terminal and shown over
   the page, and the last good build stays up.
 * The tab hears about builds over Server-Sent Events at :data:`EVENTS_PATH`.
-  The small script that listens is added to HTML responses as they are
+  The small script that listens (:data:`SCRIPT_PATH`, a file so the build's
+  Content-Security-Policy allows it) is added to HTML responses as they are
   served, never written to disk, so ``aiui build`` output never carries it.
 * A reload keeps the scroll position, and the URL keeps the heading anchor.
 """
@@ -23,13 +24,14 @@ from pathlib import Path
 from typing import Callable, Optional
 
 EVENTS_PATH = "/__aiui/dev"
+SCRIPT_PATH = "/__aiui/dev.js"
 
-# Runs in the served page. __ID__ is the build the page came from; the stream
+# Runs in the served page. The tag's data-build is the build the page came from; the stream
 # sends {id, error} on connect and on every build. A new id reloads the page
 # (also after a server restart: EventSource reconnects by itself), an error
 # shows the overlay. Text goes in with textContent, never as HTML.
 _CLIENT_JS = """(function () {
-  var id = __ID__, key = "aiui-dev-scroll:" + location.pathname;
+  var id = document.currentScript.getAttribute("data-build"), key = "aiui-dev-scroll:" + location.pathname;
   try {
     var y = sessionStorage.getItem(key);
     sessionStorage.removeItem(key);
@@ -90,12 +92,12 @@ _WAITING_PAGE = (
 )
 
 
+CLIENT_JS = _CLIENT_JS.replace("__URL__", json.dumps(EVENTS_PATH)).encode()
+
+
 def client_script(build_id: str) -> bytes:
-    """The ``<script>`` that reloads a page built as *build_id*."""
-    js = _CLIENT_JS.replace("__ID__", json.dumps(build_id)).replace(
-        "__URL__", json.dumps(EVENTS_PATH)
-    )
-    return f"<script data-aiui-dev>{js}</script>".encode()
+    """The ``<script>`` that reloads a page built as *build_id* (build ids are hex and dashes)."""
+    return f'<script data-aiui-dev data-build="{build_id}" src="{SCRIPT_PATH}"></script>'.encode()
 
 
 def with_client(html: bytes, build_id: str) -> bytes:
@@ -232,6 +234,10 @@ class DevSite:
             return
         if not host_allowed(scope, configured_hosts()):  # DNS rebinding: errors name local paths
             await PlainTextResponse("Host not allowed", status_code=400)(scope, receive, send)
+            return
+        if scope["path"] == SCRIPT_PATH:
+            headers = {"Cache-Control": "no-store"}
+            await Response(CLIENT_JS, media_type="text/javascript", headers=headers)(scope, receive, send)
             return
         if scope["path"] == EVENTS_PATH:
             response = StreamingResponse(

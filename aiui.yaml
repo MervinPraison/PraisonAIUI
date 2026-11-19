@@ -108,6 +108,7 @@ navigation:
             - features/widget-zones
             - features/seo
             - features/redirects
+            - features/content-security-policy
             - features/analytics
             - features/ai-ready-docs
             - features/i18n

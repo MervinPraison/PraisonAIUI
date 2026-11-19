@@ -525,6 +525,16 @@
   an **Ask AI** row in search and the `aiui:docs-ask` window event; a page with `mode: assistant`
   shows the panel inline. A static host shows it when `assistant.endpoint` is set
   (docs/features/ai-ready-docs.md#what-readers-see).
+- **Content Security Policy for docs builds.** `aiui build` gives every page a strict policy worked
+  out from what the site loads: `script-src 'self'` plus a sha256 hash of each inline script the build
+  writes (no `'unsafe-inline'` or `'unsafe-eval'` for scripts), font, custom CSS/JS and integration hosts,
+  the YouTube/Vimeo/Loom players a page embeds, the OpenAPI servers Try it calls, the Ask AI and feedback
+  endpoints and the GitHub stars API. It is written as a `<meta>` in each page and as a header (with
+  `frame-ancestors 'self'`) in `_headers` for Netlify and Cloudflare Pages; `aiui serve` and `aiui dev`
+  send that header. `site.csp` takes `false`, `report-only` or extra sources per directive; with
+  `integrations.gtm` the default is report-only. The `aiui dev` reload script is now served from
+  `/__aiui/dev.js` (docs/features/content-security-policy.md). **Behaviour change:** a `customJs` script
+  or raw HTML in a page that loads from or calls another host needs that host under `site.csp`.
 
 - **Code block themes and more languages.** `site.theme.code: dracula` (or `{light, dark}`) draws every
   docs code block in any of the 65 bundled Shiki themes, on the theme's own background with the header

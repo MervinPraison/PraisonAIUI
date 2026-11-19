@@ -247,6 +247,32 @@ class SiteConfig(BaseModel):
         default_factory=lambda: ["fetch-retry", "nav-intercept"],
         description="List of frontend plugin names to enable",
     )
+    csp: Union[bool, Literal["report-only"], dict[str, Union[str, list[str], bool]], None] = Field(
+        default=None,
+        description="Content-Security-Policy of a docs build: true, false, report-only, or extra "
+        "sources per directive (docs/features/content-security-policy.md). Default: on for docs",
+    )
+
+    @field_validator("csp")
+    @classmethod
+    def _csp(cls, v):
+        """Directive names and source tokens only: the values end up in an HTTP header."""
+        if not isinstance(v, dict):
+            return v
+        out: dict[str, Union[list[str], bool]] = {}
+        for key, value in v.items():
+            if key == "report-only":
+                if not isinstance(value, bool):
+                    raise ValueError("csp report-only is true or false")
+                out[key] = value
+                continue
+            if not re.fullmatch(r"[a-z][a-z-]*", key) or isinstance(value, bool):
+                raise ValueError(f"csp {key!r}: a directive name (script-src, connect-src, ...) with sources")
+            tokens = value.split() if isinstance(value, str) else [str(t).strip() for t in value]
+            if any(not t or re.search(r"[\s;,\x00-\x1f]", t) for t in tokens):
+                raise ValueError(f"csp {key}: sources without spaces, ';' or ','")
+            out[key] = tokens
+        return out
 
     model_config = ConfigDict(populate_by_name=True)
 
