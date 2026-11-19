@@ -85,7 +85,7 @@ Each finding names `file:line` and how to fix it; `--strict` makes them errors
 for CI. See the [codes](../api/cli.md#aiui-validate).
 
 ```js
-// custom JS (aiui.set_custom_js): read a page's custom keys
+// custom JS (site.customJs, aiui.set_custom_js): read a page's custom keys
 window.addEventListener('aiui:content-loaded', (e) => {
     if (e.detail.meta.product === 'cloud') document.body.dataset.product = 'cloud'
 })
@@ -1105,7 +1105,7 @@ is the article alone, on light paper even when the reader uses dark mode:
 - External links print their address after the link text:
   `link (https://example.com/docs)`.
 
-Site chrome added by custom JS (`site.custom_js`) or a plugin can opt out of
+Site chrome added by custom JS (`site.customJs`) or a plugin can opt out of
 print with `data-print="hide"`. The PDF comes from the reader's browser: no
 build step, no server-side renderer.
 

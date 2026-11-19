@@ -892,7 +892,7 @@ def _build_html(style: str, request: Optional[Request] = None) -> str:
     _css = _custom_css
     if not _css and _site_section:
         _css = _site_section.get("custom_css") or _site_section.get("customCss")
-    if _css:
+    if isinstance(_css, str) and _css:  # a list of files is for `aiui build`
         custom_css_tag = (
             f'<style id="aiui-custom-css">{_css}</style>'
             '<script id="aiui-css-guard">'

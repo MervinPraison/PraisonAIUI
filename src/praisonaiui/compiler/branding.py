@@ -23,16 +23,19 @@ def is_image(value: str) -> bool:
     return v.startswith(("http://", "https://", "data:image/", "/")) or Path(v).suffix.lower() in IMAGE_SUFFIXES
 
 
-def asset_url(value: Optional[str], base: Path, files: dict[str, Path]) -> Optional[str]:
-    """``value`` as a site URL; a config-relative image file is recorded in ``files``
-    (published path -> source) for :func:`publish`. Anything else (an emoji, a
-    missing file, a path outside the config folder) is returned unchanged."""
+def asset_url(
+    value: Optional[str], base: Path, files: dict[str, Path], suffixes: set[str] = IMAGE_SUFFIXES
+) -> Optional[str]:
+    """``value`` as a site URL; a config-relative file with one of ``suffixes``
+    (images by default) is recorded in ``files`` (published path -> source) for
+    :func:`publish`. Anything else (an emoji, a missing file, a path outside the
+    config folder) is returned unchanged."""
     v = (value or "").strip()
     if not v or v.startswith(("http://", "https://", "data:", "/")):
         return value
     root = base.resolve()
     src = (root / v).resolve()
-    if src.suffix.lower() not in IMAGE_SUFFIXES or not src.is_file() or not src.is_relative_to(root):
+    if src.suffix.lower() not in suffixes or not src.is_file() or not src.is_relative_to(root):
         return value
     rel = src.relative_to(root).as_posix()
     files[rel] = src
