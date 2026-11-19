@@ -13,6 +13,21 @@ export interface PageErrors {
   consoleErrors: string[]
 }
 
+/**
+ * Serve the built pages without the manifests `aiui build` inlines in them
+ * (compiler/boot_data.py: the nav and route manifest), as an older build or a
+ * server's pages would, so a spec that replaces `/docs-nav.json` with
+ * `page.route()` changes what the app reads.
+ */
+export async function withoutInlinedManifests(page: Page): Promise<void> {
+  await page.route('**/*', async (route) => {
+    if (route.request().resourceType() !== 'document') return route.fallback()
+    const response = await route.fetch()
+    const body = (await response.text()).replace(/<script type="application\/json" id="aiui-boot-data">[\s\S]*?<\/script>/, '')
+    await route.fulfill({ response, body })
+  })
+}
+
 /** Record uncaught errors and console errors of a page from now on. */
 export function collectPageErrors(page: Page): PageErrors {
   const errors: PageErrors = { pageErrors: [], consoleErrors: [] }

@@ -155,7 +155,7 @@ existing build under the prefix it was built for).
 
 Under a prefix, the legacy plugins that read the URL themselves
 (`content-loader`, `homepage`, `topnav`) are not supported; the default
-`fetch-retry` and `nav-intercept` are.
+`nav-intercept` and `fetch-retry` are.
 
 ## Custom Domain
 
@@ -257,15 +257,18 @@ keeps one such request from freezing the page:
   upgrades when they arrive.
 - **Retry state.** When every attempt fails, the page says "Couldn't load this
   page" with a **Retry** button instead of a loading skeleton.
-- **First load.** The site manifests (`ui-config.json`, `docs-nav.json`,
-  `route-manifest.json`) load with the same time limit and retries, and a link
-  straight to a docs page starts fetching that page's `.md` alongside them
-  rather than after them. If the manifests cannot load, the page says
-  "Couldn't load the docs" with a **Retry** button instead of staying blank.
-
-The legacy `fetch-retry` plugin leaves these requests alone (it skips
-markdown and any request that carries an abort signal), so there is one retry
-layer.
+- **First load.** Every page `aiui build` writes carries the navigation
+  (`docs-nav.json`), the route manifest and the page's own Markdown, so a first
+  visit asks for none of them; `ui-config.json` is preloaded with the page (a
+  live `aiui serve` adds Ask AI, MCP and feedback to it, so it is not baked in).
+  The loader's tag names the plugins, so `plugins/plugins.json` is not
+  requested either: on this site a first docs page went from five JSON requests
+  and three plugin scripts to one and two. A file the page does not carry (a
+  navigation over 100 KB, the navigation of a site with
+  [sign-in](../features/docs-auth.md), a page served without its content)
+  loads with the same time limit and retries as a page. If it cannot load, the
+  page says "Couldn't load the docs" with a **Retry** button instead of
+  staying blank.
 
 This site, https://ui.praison.ai, is built the same way: see
 [`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).
@@ -274,12 +277,16 @@ This site, https://ui.praison.ai, is built the same way: see
 
 The docs app renders code (Shiki), mermaid diagrams, MkDocs tabs and
 admonitions, "On this page" and the header tabs itself. By default a build
-loads only two of the vanilla plugins in `plugins/`:
+loads only one of the vanilla plugins in `plugins/`:
 
 | Plugin | Why it loads |
 |---|---|
-| `fetch-retry` | Retries a failed request for the site manifests (`ui-config.json`, `docs-nav.json`, `route-manifest.json`) |
 | `nav-intercept` | Keeps in-article `/docs` links on in-app navigation (no full page load) |
+
+`fetch-retry` (retry a failed request for the site manifests) is no longer in
+the default list: the app reads the navigation and route manifest from the
+page and fetches `ui-config.json` with its own time limit and retries, which
+`fetch-retry` leaves alone. List it under `site.plugins` to keep it.
 
 `mermaid`, `syntax-highlight`, `code-copy`, `toc`, `mkdocs-compat`,
 `content-loader`, `homepage` and `topnav` no longer load by default: they skip
@@ -289,6 +296,8 @@ is another connection that can stall). A site can still list any of them under
 `site.plugins` in `aiui.yaml`.
 
 `index.html` loads `plugins/plugin-loader.js?v=<version>`, where the version
-is a hash of the plugin files in the build (also in `plugins/plugins.json`).
+is a hash of the plugin files in the build (also in `plugins/plugins.json`),
+and names the plugins on the same tag (`data-plugins`), so the loader does not
+fetch `plugins.json` (a server's pages, which lack it, still do).
 The loader imports every plugin with the same `?v=`, so browsers and the CDN
 cache them until a build changes a plugin.

@@ -144,16 +144,19 @@ def is_public_http(scope: dict) -> bool:
 
 
 _PAGE_CONTENT = re.compile(
-    r'<noscript>.*?</noscript>|<script type="application/json" id="aiui-initial-doc">.*?</script>',
+    r'<noscript>.*?</noscript>|<script type="application/json" id="aiui-(?:initial-doc|boot-data)">.*?</script>'
+    r'|\s*<link rel="preload" href="[^"]*/ui-config\.json" as="fetch" crossorigin>',
     re.S | re.I,
 )
 
 
 def strip_page_content(html: str) -> str:
-    """A built docs page without its body: the ``<noscript>`` copy and the
-    inlined markdown (``#aiui-initial-doc``) are removed, so the page is the
-    app shell, which then fetches the markdown with credentials. The title
-    and description stay; ``/docs-nav.json`` lists them anyway."""
+    """A built docs page without its body: the ``<noscript>`` copy, the
+    inlined markdown (``#aiui-initial-doc``) and the inlined nav and route
+    manifest (``#aiui-boot-data``, compiler/boot_data.py) are removed, so the
+    page is the app shell, which then fetches them with credentials; so is the
+    ``ui-config.json`` preload, which could not send them. The title and
+    description stay."""
     return _PAGE_CONTENT.sub("", html)
 
 

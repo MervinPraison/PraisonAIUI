@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from praisonaiui.compiler import access as docs_access
 from praisonaiui.compiler import agent_markdown as am
+from praisonaiui.compiler import boot_data
 from praisonaiui.compiler import branding, changelog, code_theme, csp, integrations, site_assets
 from praisonaiui.compiler import components as site_components
 from praisonaiui.compiler import languages as lang
@@ -910,7 +911,7 @@ class Compiler:
             # version goes on the loader's URL (it imports them with it).
             plugins_root = frontend_dir if (frontend_dir / "plugins").is_dir() else packaged_dir
             plugins_version = self._copy_plugins(output_dir, plugins_root)
-            self._patch_static_shell(output_dir / "index.html", plugins_version)
+            self._patch_static_shell(output_dir / "index.html", plugins_version, self._plugin_names)
             if self.config.favicon:
                 page = output_dir / "index.html"
                 fav = self.config.favicon
@@ -940,7 +941,13 @@ class Compiler:
                 output_dir / "assets",
                 version_entry=(frontend_dir / "aiui-manifest.json").is_file(),
             )
+            page.write_text(boot_data.patch_head(page.read_text(encoding="utf-8")), encoding="utf-8")
             self._patch_url_base(output_dir / "index.html")
+            # The nav and route manifest in the page (compiler/boot_data.py), after the base
+            # path patch so it never touches the JSON. Every page below is a copy of this one.
+            docs = self.config.content.docs if self.config.content else None
+            block = boot_data.script(output_dir, private_nav=bool(docs and docs.auth))
+            page.write_text(boot_data.patch_body(page.read_text(encoding="utf-8"), block), encoding="utf-8")
             # Create 404.html as a copy of patched index.html
             # for SPA routing on static hosts like GitHub Pages
             not_found = output_dir / "404.html"
@@ -1167,7 +1174,9 @@ class Compiler:
 
     _LOADER_RE = re.compile(r"""(/plugins/plugin-loader\.js)(?:\?[^"']*)?(["'])""")
 
-    def _patch_static_shell(self, html_path: Path, plugins_version: str = "") -> None:
+    def _patch_static_shell(
+        self, html_path: Path, plugins_version: str = "", plugin_names: list[str] | None = None
+    ) -> None:
         """Patch built index.html for static hosts (GitHub Pages).
 
         - Strip trailing slashes from the URL bar before React hydrates.
@@ -1175,6 +1184,8 @@ class Compiler:
           ``plugin-loader.js?v=<plugins_version>``: the loader imports every
           plugin with that ``?v=``, so a build's plugins are cached and the
           next build's are not mistaken for them.
+        - Name the plugins on the loader's tag (``data-plugins``), so it
+          loads them without first fetching ``plugins.json``.
         """
         html = html_path.read_text(encoding="utf-8")
         canonical_script = (
@@ -1199,6 +1210,9 @@ class Compiler:
             )
         if plugins_version:
             html = self._LOADER_RE.sub(rf"\1?v={plugins_version}\2", html)
+        if plugin_names is not None and "data-plugins=" not in html:
+            names = self._escape_html(",".join(plugin_names))
+            html = re.sub(r"(<script\b[^>]*?plugin-loader\.js[^\"']*[\"'])", rf'\1 data-plugins="{names}"', html, count=1)
         html_path.write_text(html, encoding="utf-8")
 
     def _copy_plugins(self, output_dir: Path, frontend_dir: Path) -> str:
@@ -1211,6 +1225,7 @@ class Compiler:
         import hashlib
         import shutil
 
+        self._plugin_names: list[str] | None = None
         plugins_src = frontend_dir / "plugins"
         if not plugins_src.exists():
             return ""
@@ -1250,6 +1265,7 @@ class Compiler:
             digest.update(f.name.encode("utf-8") + b"\0" + f.read_bytes())
         version = digest.hexdigest()[:10]
 
+        self._plugin_names = ordered
         plugins_config = {"plugins": ordered, "version": version}
         (plugins_dst / "plugins.json").write_text(
             json.dumps(plugins_config, indent=2), encoding="utf-8"
