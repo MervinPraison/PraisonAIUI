@@ -2080,7 +2080,7 @@ dialog.aiui-zoom img {
 @media print {
   html[data-aiui-docs] { color-scheme: light; }
   .aiui-docs { min-height: 0; font-size: 11pt; }
-  html[data-aiui-docs] :is(.aiui-docs-header, .aiui-docs-sidebar, .aiui-docs-toc, .aiui-docs-mtoc, .aiui-docs-footer,
+  html[data-aiui-docs] :is(.aiui-docs-banner, .aiui-docs-header, .aiui-docs-sidebar, .aiui-docs-toc, .aiui-docs-mtoc, .aiui-docs-footer,
     .aiui-docs-actions-menu, .aiui-docs-pager, .aiui-docs-pagefoot > :not(.aiui-docs-pagefoot-meta),
     .aiui-docs-pagefoot-meta > a, .aiui-heading-anchor, .aiui-code-more, .aiui-code-flag, .aiui-zoom-actions,
     .aiui-prompt-actions, [data-streamdown$='-actions'], [data-streamdown$='-button'], [data-streamdown$='-fullscreen'],

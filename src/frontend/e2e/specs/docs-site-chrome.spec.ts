@@ -48,6 +48,8 @@ test('the banner shows Markdown in its tone, and a dismissal lasts until the con
   await withChrome(page, { ...BANNER, content: 'Version 3 is out.', id: 'v3' })
   await page.reload()
   await expect(page.getByRole('region', { name: 'Announcement' })).toContainText('Version 3 is out.')
+  await page.emulateMedia({ media: 'print' }) // a printed page leaves the banner out
+  await expect(page.getByRole('region', { name: 'Announcement' })).toBeHidden()
   expect(errors.pageErrors).toEqual([])
 })
 
