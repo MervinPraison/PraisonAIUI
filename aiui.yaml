@@ -103,6 +103,7 @@ navigation:
             - features/content-sources
             - features/navigation
             - features/openapi
+            - features/api-reference-python
             - concepts/templates
             - concepts/slots
             - features/widget-zones
