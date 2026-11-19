@@ -184,7 +184,8 @@ if (PAPER_FONTS.length !== 3) {
 
 // Try it on endpoint pages (docs/ApiPlayground.tsx, its CSS and what it alone
 // imports): a lazy chunk the endpoint bar loads on first hover, focus or click.
-// Measured 4.83 kB + 10%.
+// Measured 4.83 kB + 10%. 7,161 B (+1,861 B, exactly the overage): authentication
+// inputs, file inputs and streamed responses (sessionStorage, FormData, SSE list).
 const tryItKey = Object.keys(manifest).find((key) => key === 'src/docs/ApiPlayground.tsx')
 if (!tryItKey) throw new Error('.size-limit.mjs: no src/docs/ApiPlayground.tsx chunk in the build')
 const legacyAll = new Set(filesOf(manifest, staticClosure(manifest, [chunks.entry, chunks.legacyApp]), { css: true }))
@@ -297,7 +298,7 @@ export default [
   { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '5.3 kB', gzip: true },
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7161 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -389,5 +390,7 @@ export default [
   // sidebar anchors and the dropdown switcher (docs/DivisionNav.tsx, the lazy NavMenu chunk).
   // 9,645,651 B (+1,704 B, exactly the overage): the docs MCP items in the page menu
   // (docs/PageActions.tsx, two lucide icons).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9645651 B', brotli: false },
+  // 9,653,102 B (+7,451 B, exactly the overage): Try it authentication, file inputs and
+  // streamed responses (the ApiPlayground chunk, playground.css, the endpoint bar's auth mode).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9653102 B', brotli: false },
 ]
