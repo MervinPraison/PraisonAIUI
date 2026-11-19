@@ -483,6 +483,15 @@
   for `aiui docs feedback`, under the same rate limit and size caps as the page's vote button.
   Not listed when page feedback is off or posted to an `endpoint`. See
   [MCP server](docs/features/ai-ready-docs.md#mcp-server).
+- **Fonts and your own CSS and JS in a docs build.** `site.theme.fonts: Inter` sets the
+  site's font from Google Fonts in one line (one stylesheet request, `display=swap`);
+  `{body, heading, code}` sets each role, as a family name or a font file of the project
+  (`{family, source: fonts/brand.woff2, weight}`), which the build publishes, declares and
+  preloads. `site.customCss` (CSS text, `.css` files or URLs, one or a list) and
+  `site.customJs` (`.js`/`.mjs` files or URLs) go on every built page, after every
+  built-in style and script, cache-busted with a content hash; `site.customCss` was
+  ignored by `aiui build` before. `aiui validate` reports a file that is not in the
+  project (7014). See [Theming](docs/features/theming.md#fonts).
 - **Page actions you choose, and a page read aloud.** `content.docs.pageActions` picks and
   orders the menu above each docs page, adds Perplexity, Grok, Google AI Mode, Copilot, Le Chat
   and Cursor, and takes links of your own (`{label, href, icon}` with `{url}`, `{md}`, `{title}`

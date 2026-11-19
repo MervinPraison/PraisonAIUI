@@ -15,6 +15,59 @@ class ModeImages(BaseModel):
     dark: Optional[str] = None
 
 
+_FONT_FAMILY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]*$")
+_FONT_WEIGHT = re.compile(r"^[1-9]00( [1-9]00)?$")
+
+
+class FontFace(BaseModel):
+    """A font for docs text: a Google Fonts family, or a font file of the project
+    (``source``: a path beside aiui.yaml, a site path or a URL)."""
+
+    family: str
+    source: Optional[str] = None
+    weight: Optional[Union[int, str, list[int]]] = Field(
+        default=None,
+        description="400, a range '100 900' (a variable font) or, for Google Fonts, [400, 700]. "
+        "Default: Google Fonts 400-700, a file 400",
+    )
+    format: Optional[Literal["woff2", "woff", "truetype", "opentype"]] = Field(
+        default=None, description="Font file format (default: from the file extension)"
+    )
+
+    @field_validator("family")
+    @classmethod
+    def _family(cls, v: str) -> str:
+        if not _FONT_FAMILY.match(v.strip()):
+            raise ValueError("a font family is letters, digits, spaces, '.', '_' and '-'")
+        return v.strip()
+
+    @field_validator("weight")
+    @classmethod
+    def _weight(cls, v):
+        weights = v if isinstance(v, list) else [v] if isinstance(v, int) else []
+        if any(w not in range(100, 1000, 100) for w in weights) or (
+            isinstance(v, str) and not _FONT_WEIGHT.match(v.strip())
+        ):
+            raise ValueError("a font weight is 100-900 in hundreds, or a range such as '100 900'")
+        return v.strip() if isinstance(v, str) else v
+
+
+FontSlot = Union[str, FontFace, list[FontFace]]
+
+
+class FontsConfig(BaseModel):
+    """Docs site fonts per role; a string is a Google Fonts family."""
+
+    body: Optional[FontSlot] = None
+    heading: Optional[FontSlot] = None
+    code: Optional[FontSlot] = None
+
+    @field_validator("body", "heading", "code")
+    @classmethod
+    def _family_name(cls, v):
+        return FontFace(family=v).family if isinstance(v, str) else v
+
+
 class ThemeConfig(BaseModel):
     """Theme configuration."""
 
@@ -81,6 +134,18 @@ class ThemeConfig(BaseModel):
         default=None,
         description="Control density of the React app shell (style 'app').",
     )
+    fonts: Optional[Union[str, FontsConfig]] = Field(
+        default=None,
+        description=(
+            "Docs site fonts: a Google Fonts family for all text, or {body, heading, code}, "
+            "each a family or {family, source, weight, format} for a font file."
+        ),
+    )
+
+    @field_validator("fonts")
+    @classmethod
+    def _font_family(cls, v):
+        return FontFace(family=v).family if isinstance(v, str) else v
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -103,10 +168,15 @@ class SiteConfig(BaseModel):
         default=None,
         description="Logo emoji or image path for sidebar branding",
     )
-    custom_css: Optional[str] = Field(
+    custom_css: Optional[Union[str, list[str]]] = Field(
         default=None,
         alias="customCss",
-        description="Custom CSS string injected into the page as an inline <style> tag",
+        description="Custom CSS: inline CSS, or (docs build) .css files and URLs, one or a list",
+    )
+    custom_js: Optional[Union[str, list[str]]] = Field(
+        default=None,
+        alias="customJs",
+        description="Docs build: .js files (beside aiui.yaml) or URLs that every page loads",
     )
     # The React docs app renders code (Shiki), mermaid, tabs, the TOC and the
     # header tabs itself; the other legacy plugins (mermaid, syntax-highlight,

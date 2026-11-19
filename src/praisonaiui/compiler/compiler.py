@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from praisonaiui.compiler import agent_markdown as am
-from praisonaiui.compiler import branding, changelog
+from praisonaiui.compiler import branding, changelog, site_assets
 from praisonaiui.compiler import og_image as og
 from praisonaiui.compiler import redirects as rd
 from praisonaiui.compiler import seo as head
@@ -91,6 +91,7 @@ class Compiler:
         self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
         self._brand_files: dict[str, Path] = {}  # logo/favicon/background images to publish (branding.py)
+        self._site_assets: site_assets.SiteAssets | None = None  # fonts, custom CSS/JS (site_assets.py)
         self._feeds: dict[str, str] = {}  # page path -> its RSS feed URL (changelog.py)
         self._og_cards: dict[str, og.Card] = {}  # page path -> its social card (og_image.py)
         # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
@@ -174,6 +175,7 @@ class Compiler:
         files.append("route-manifest.json")
 
         # Copy viewer.html for serve command
+        self._site_assets = None  # resolved again with this build's base path
         self._copy_viewer(output_dir)
         files.append("index.html")
 
@@ -193,6 +195,13 @@ class Compiler:
             background_image_dark=self._css_url(self._asset(bg_dark)),
         )
         files.append("assets/theme.css")
+        extras = self._assets()
+        if extras.css:  # site.theme.fonts
+            with (output_dir / "assets" / "theme.css").open("a", encoding="utf-8") as f:
+                f.write(f"\n{extras.css}")
+        if extras.inline_css:  # site.customCss as CSS text
+            (output_dir / site_assets.CUSTOM_CSS).write_text(extras.inline_css, encoding="utf-8")
+            files.append(site_assets.CUSTOM_CSS)
 
         # OpenAPI specs (loaded and checked once, by validate_config)
         files.extend(self._write_api_specs(output_dir, validation.api_specs, indent))
@@ -200,6 +209,7 @@ class Compiler:
 
         # Copy docs markdown files for content loading
         warnings = [w.message for w in validation.warnings if w.category in ("navigation", "i18n")]
+        warnings += [f"{i.file}: {i.message}" for i in extras.issues]
         if self.config.content and self.config.content.docs:
             copied = self._copy_docs(output_dir)
             if self._snippets.errors():  # a missing snippet, or one that includes itself
@@ -251,7 +261,7 @@ class Compiler:
         nav = self._generate_docs_nav() if pages else {}
         items = walk_nav(nav.get("items", []))
         listed = frozenset(i["path"].removeprefix(base) for i in items if i.get("directory") and i.get("path") and i.get("children"))
-        issues += branding.missing_images(self.config, self.base_path)
+        issues += branding.missing_images(self.config, self.base_path) + self._assets().issues
         moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
         divisions = [d for d, _ in self.config.navigation.divisions()] if self.config.navigation else []
         from praisonaiui.compiler.related import issues as related_issues
@@ -843,6 +853,10 @@ class Compiler:
                 fav = self.config.favicon
                 page.write_text(branding.patch_favicon(page.read_text(encoding="utf-8"),
                                 self._asset(fav.light), self._asset(fav.dark)), encoding="utf-8")
+            # Fonts in <head>, custom CSS/JS last in <body> (after the plugin loader)
+            page = output_dir / "index.html"
+            page.write_text(site_assets.patch_page(page.read_text(encoding="utf-8"), self._assets()),
+                            encoding="utf-8")
             # Copy assets folder if exists
             assets_src = frontend_dir / "assets"
             if assets_src.exists():
@@ -929,6 +943,17 @@ class Compiler:
     def _asset(self, value: str | None) -> str | None:
         """A logo, favicon or background image as a site URL (branding.asset_url)."""
         return branding.asset_url(value, self.base_path, self._brand_files)
+
+    def _assets(self) -> site_assets.SiteAssets:
+        """Fonts and custom CSS/JS of the site (site_assets.collect), once per build."""
+        if self._site_assets is None:
+            self._site_assets = site_assets.collect(self.config.site, self.base_path, self._brand_files, self.url_base)
+        return self._site_assets
+
+    def external_origins(self) -> dict[str, list[str]]:
+        """Other hosts the built pages load from, per CSP directive (``font-src``,
+        ``style-src``, ``script-src``): Google Fonts and customCss/customJs/font URLs."""
+        return self._assets().origins
 
     def _color_mode(self) -> str:
         """``site.theme.mode`` (light, dark or system), else from ``darkMode``."""

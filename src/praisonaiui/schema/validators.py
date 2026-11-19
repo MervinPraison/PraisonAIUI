@@ -187,6 +187,8 @@ def validate_config(config: Config, base_path: Path | None = None, strict: bool 
 
     # Legacy HSL-triple theme variables in site.custom_css (warning only)
     custom_css = getattr(getattr(config, "site", None), "custom_css", None)
+    if isinstance(custom_css, list):  # files and URLs, and CSS text (site_assets.is_inline_css)
+        custom_css = "\n".join(c for c in custom_css if isinstance(c, str) and "{" in c)
     css_warning = legacy_hsl_warning(custom_css, "site.custom_css")
     if css_warning:
         found_warnings.append(

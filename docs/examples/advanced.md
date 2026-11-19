@@ -80,6 +80,6 @@ site:
     darkMode: true
 ```
 
-`site.custom_css` is applied by the runtime server (`aiui run`), not by the
-static docs output of `aiui build`/`aiui serve`; see
-[Theming](../features/theming.md#custom-css-variables).
+`site.customCss` applies to both the runtime server (`aiui run`, CSS text) and
+the static docs output of `aiui build` (CSS text, files and URLs); see
+[Theming](../features/theming.md#custom-css-and-js).
