@@ -34,8 +34,8 @@ PraisonAI Pro design: the same colours, type, radii and hairlines as the app
 shell's layouts. The preset picks the accent: a neutral preset (`zinc`,
 `slate`, `stone`, `gray`, `neutral`) or `indigo` gives the indigo accent,
 `blue` and `teal` their Pro swatches, and any other colour its own accent,
-derived so links and focus rings keep AA contrast. `site.custom_css` still
-overrides everything. Details: `src/frontend/DESIGN.md`, "Docs style".
+derived so links and focus rings keep AA contrast. `site.customCss`
+([below](#custom-css-and-js)) still overrides everything. Details: `src/frontend/DESIGN.md`, "Docs style".
 
 ### The Paper preset
 
@@ -154,6 +154,96 @@ site:
   reader's stored choice, so the site always shows `mode` (`system` still
   follows the OS).
 
+## Fonts
+
+One line sets the font of a docs site (`aiui build`), loaded from
+[Google Fonts](https://fonts.google.com):
+
+```yaml
+site:
+  theme:
+    fonts: Inter
+```
+
+Or one per role, each a Google Fonts family or a font file of your project:
+
+```yaml
+site:
+  theme:
+    fonts:
+      body: Inter
+      heading: { family: Fraunces, weight: "100 900" }
+      code: JetBrains Mono
+      # a file beside aiui.yaml; a list of faces for separate weight files
+      # body: { family: Brand Sans, source: fonts/brand.woff2, weight: 400 }
+```
+
+| Key | Value |
+|-----|-------|
+| `body` | Text, navigation and the UI (`--aiui-font-sans`) |
+| `heading` | Page titles and headings (`--aiui-font-display`); a single family name sets body and headings |
+| `code` | Code blocks and inline code (`--aiui-font-mono`) |
+| `family` | The family name (letters, digits, spaces, `.`, `_`, `-`) |
+| `source` | A font file beside `aiui.yaml` (`.woff2`, `.woff`, `.ttf`, `.otf`), a site path or a URL. Without it the family loads from Google Fonts |
+| `weight` | `400`, a range `"100 900"` for a variable font, or for Google Fonts a list `[400, 700]`. Default: Google Fonts 400 to 700; a file 400 |
+| `format` | `woff2`, `woff`, `truetype` or `opentype` (default: from the file extension) |
+
+- **One request for Google Fonts.** Every Google family goes in one stylesheet
+  link with `display=swap`, after a preconnect to both Google hosts, so text
+  shows at once in the fallback font.
+- **Files are self-hosted.** A `source` file is published at the same path
+  (with `site.basePath`), declared with `@font-face` and `font-display: swap`,
+  and a `.woff2` body font is preloaded. Nothing loads from another host.
+- **Your font, the theme's fallbacks.** The fonts set the theme's own
+  variables in `assets/theme.css`, with the system stack behind them, so they
+  win over the preset's fonts (also `paper`) in light and dark.
+- `aiui validate` reports a `source` file that is not in the project (7014).
+  A family name with quotes or braces, or a weight such as `450`, is a config
+  error.
+
+## Custom CSS and JS
+
+Add your own stylesheets and scripts to every page of a docs build:
+
+```yaml
+site:
+  customCss: styles/brand.css        # or a list of files, URLs and CSS text
+  customJs:
+    - scripts/analytics.js           # .js runs deferred; .mjs as a module
+    - https://plausible.io/js/script.js
+```
+
+- **`customCss`** takes CSS text (anything with a `{`), a `.css` file beside
+  `aiui.yaml`, a site path or a URL, one or a list. Files are published at the
+  same path; CSS text goes into `assets/custom.css`. They load in the order
+  listed, **after every built-in stylesheet** (at the end of `<body>`, where the
+  browser still applies them before the app paints), so a rule as specific as
+  a built-in one wins, and theme variables such as `--seed-accent` or
+  `--aiui-font-sans` just work.
+- **`customJs`** takes `.js` or `.mjs` files or URLs. Each runs once per page
+  load, after the app's own scripts, in the order listed.
+- Local files get a `?v=` content hash, so a new build is never served from a
+  stale cache.
+- `aiui validate` reports a file that is not in the project (7014). `aiui run`
+  keeps applying `customCss` CSS text as before.
+
+Pages switch without a reload, so a script that works on the page listens
+for these events on `window`:
+
+| Event | `detail` | When |
+|-------|----------|------|
+| `aiui:navigate` | `{ path }` | A link, the sidebar, search or back/forward moves to another page |
+| `aiui:content-loaded` | `{ path, meta }` | The page's article is in the document, including the first page; `meta` holds the page's custom front matter keys |
+
+```js
+window.addEventListener('aiui:content-loaded', (e) => {
+  window.plausible?.('pageview', { u: location.href })
+})
+```
+
+To change pages from a script, push the URL and send the same event:
+`history.pushState({}, '', '/docs/guide'); window.dispatchEvent(new CustomEvent('aiui:navigate', { detail: { path: '/docs/guide' } }))`.
+
 ## Examples
 
 ### Minimal (Default)
@@ -230,7 +320,7 @@ A plugin page in the app shell (`--style app`) reads the current mode with
 
 ## Custom CSS Variables
 
-Presets set CSS variables you can override with `site.custom_css` or
+Presets set CSS variables you can override with `site.customCss` or
 `aiui.set_custom_css()`. Each variable holds a complete CSS colour:
 
 ```css
