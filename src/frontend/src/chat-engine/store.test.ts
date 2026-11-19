@@ -167,6 +167,19 @@ test('elements are deduped by url (WS sends message_element and tool_call_comple
   assert.equal(els.length, 1)
 })
 
+test('message_update and message_remove edit only their message of the turn', async () => {
+  const f = fakeTransport()
+  void threadStore.send(f.t, 'S', 'hi')
+  await tick()
+  f.emit('S', { type: 'run_started', session_id: 'S', run_id: 'R1' })
+  f.emit('S', { type: 'run_content', run_id: 'R1', content: 'draft', message_id: 'm1' })
+  f.emit('S', { type: 'message_update', run_id: 'R1', message_id: 'm1', content: 'final' })
+  f.emit('S', { type: 'run_content', run_id: 'R1', content: 'gone', message_id: 'm2' })
+  f.emit('S', { type: 'message_remove', run_id: 'R1', message_id: 'm2' })
+  f.emit('S', { type: 'run_content', run_id: 'R1', content: 'kept', message_id: 'm3' })
+  assert.deepEqual(assistant('S').parts.flatMap((p) => (p.type === 'text' ? [p.text] : [])), ['final', 'kept'])
+})
+
 test('approval: resolving the gate records the decision and returns the message to running', async () => {
   const f = fakeTransport()
   void threadStore.send(f.t, 'S', 'hi')

@@ -21,6 +21,9 @@ Keywords in the user's message select what the scripted run does:
               and raises
     cbask     a real ``@reply`` callback asks "Pick one" (A or B) with
               ``aiui.ask`` and then says which was picked
+    cbmulti   a real ``@reply`` callback pops a toast (``aiui.notify``) and
+              sends three messages: one plain, one by "Helper" with an
+              image (``add_image``), one streamed and then finalized
 
 The exact message ``Compare sorting algorithms`` (or one containing
 ``sortdemo``) runs the layouts' design fixture (ADR 0003 plan §5.1): 2 s of
@@ -242,9 +245,36 @@ async def callback_ask(text: str, session_id):
         yield event
 
 
+async def callback_messages(text: str, session_id):
+    """A ``@reply`` app that sends several messages, through the real callback mode."""
+    from praisonaiui.callbacks import _set_context
+    from praisonaiui.providers import PraisonAIProvider
+
+    async def several(msg):
+        _set_context(msg)
+        await aiui.notify("Saved to your notes", type="success")
+        await aiui.Message(content="First message").send()
+        helper = aiui.Message(content="Second message", author="Helper")
+        helper.add_image(url=CHART_IMAGE, name="chart")
+        await helper.send()
+        streamed = aiui.Message(content="")
+        for tok in ("Streamed ", "reply"):
+            await streamed.stream_token(tok)
+        await streamed.send()
+
+    async for event in PraisonAIProvider()._run_callback_mode(
+        text, several, session_id, "Mock"
+    ):
+        yield event
+
+
 class MockProvider(BaseProvider):
     async def run(self, message, *, session_id=None, agent_name=None, **kw):
         text = str(message)
+        if "cbmulti" in text:
+            async for event in callback_messages(text, session_id):
+                yield event
+            return
         if "cbfail" in text:
             async for event in callback_failure(text, session_id):
                 yield event

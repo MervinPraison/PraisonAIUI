@@ -10,6 +10,8 @@
  *   - approval run_paused carries extra_data (+ top-level copies) and tool_call_id
  *   - the first run_started carries the resolved agent_name (and is sent once)
  *   - persisted cancelled replies carry status: 'cancelled'
+ *   - reply text carries the message_id of the message it belongs to (a run
+ *     can send several, each its own block: see messageText)
  *
  * No React, no DOM: runs under `node --test` (scripts/run-tests.mjs).
  */
@@ -19,7 +21,8 @@ export type WireEvent = { type: string } & JSONObject
 
 export type AiuiTiming = { startedAt: number; completedAt?: number }
 
-export type AiuiTextPart = { type: 'text'; id: string; text: string }
+/** `mid`: the reply message (wire `message_id`) a text, element or actions part belongs to. */
+export type AiuiTextPart = { type: 'text'; id: string; text: string; mid?: string }
 export type AiuiReasoningPart = { type: 'reasoning'; id: string; text: string; done: boolean; timing?: AiuiTiming }
 export type AiuiToolPart = {
   type: 'tool-call'
@@ -46,7 +49,7 @@ export type AiuiToolPart = {
   }
 }
 /** Rendered by our own components (data-<name>): element, a2ui, references, memory */
-export type AiuiDataPart = { type: 'data'; id: string; name: string; data: unknown }
+export type AiuiDataPart = { type: 'data'; id: string; name: string; data: unknown; mid?: string }
 export type AiuiPart = AiuiTextPart | AiuiReasoningPart | AiuiToolPart | AiuiDataPart
 
 export type AiuiStatus =
@@ -109,12 +112,47 @@ function settleGate(m: AiuiMessage): AiuiMessage {
 function appendText(m: AiuiMessage, text: string): AiuiMessage {
   if (!text) return m
   const tail = last(m.parts)
-  if (tail?.type === 'text') {
+  if (tail?.type === 'text' && !tail.mid) {
     return { ...m, parts: [...m.parts.slice(0, -1), { ...tail, text: tail.text + text }] }
   }
   // text after tools/reasoning starts a new segment, so interleaving is preserved
   return { ...m, parts: [...m.parts, { type: 'text', id: genId('t'), text }] }
 }
+
+/** Data part that starts one more message of the same reply ({ author? }). */
+export const SEGMENT = 'segment'
+
+const ofMessage = (p: AiuiPart, mid: string) => (p.type === 'text' || p.type === 'data') && p.mid === mid
+
+/**
+ * A message the reply has not shown yet starts its own block: a `segment`
+ * divider after earlier content, or first with an author other than the agent.
+ */
+function openMessage(m: AiuiMessage, mid: string, author?: string): AiuiMessage {
+  if (m.parts.some((p) => ofMessage(p, mid))) return m
+  if (!author && !m.parts.some((p) => p.type !== 'text' || p.text.trim())) return m
+  return { ...m, parts: [...m.parts, { type: 'data', id: `seg_${mid}`, name: SEGMENT, mid, data: { author } }] }
+}
+
+/** A token appends to its message; a whole text (`set`) replaces that message's text. */
+function messageText(m0: AiuiMessage, mid: string, text: string, set: boolean, author?: string): AiuiMessage {
+  const m = openMessage(m0, mid, author)
+  const at = m.parts.findIndex((p) => p.type === 'text' && p.mid === mid)
+  const tail = last(m.parts)
+  if (!set && tail?.type === 'text' && tail.mid === mid) {
+    return { ...m, parts: [...m.parts.slice(0, -1), { ...tail, text: tail.text + text }] }
+  }
+  if (set && at >= 0) {
+    return { ...m, parts: m.parts.flatMap((p, i) => (i === at ? [{ ...p, text } as AiuiPart] : p.type === 'text' && p.mid === mid ? [] : [p])) }
+  }
+  return { ...m, parts: [...m.parts, { type: 'text', id: genId('t'), mid, text }] }
+}
+
+/** Put a part in place of the one with its id, or append it. */
+const upsertPart = (m: AiuiMessage, part: AiuiPart): AiuiMessage =>
+  m.parts.some((p) => p.id === part.id)
+    ? { ...m, parts: m.parts.map((p) => (p.id === part.id ? part : p)) }
+    : { ...m, parts: [...m.parts, part] }
 
 function openReasoning(m: AiuiMessage): AiuiMessage {
   const tail = last(m.parts)
@@ -146,13 +184,15 @@ function elementKey(el: JSONObject): string {
   return s(el.url) ?? s(el.id) ?? s(el.path) ?? JSON.stringify(el)
 }
 
-function addElement(m: AiuiMessage, el: unknown): AiuiMessage {
+function addElement(m0: AiuiMessage, el: unknown): AiuiMessage {
   const e = obj(el)
-  if (!Object.keys(e).length) return m
+  if (!Object.keys(e).length) return m0
   const key = elementKey(e)
   // The WS path sends BOTH message_element and tool_call_completed.elements -> dedupe by url.
-  if (m.parts.some((p) => p.type === 'data' && p.name === 'element' && elementKey(obj(p.data)) === key)) return m
-  return { ...m, parts: [...m.parts, { type: 'data', id: `el_${key}`, name: 'element', data: e }] }
+  if (m0.parts.some((p) => p.type === 'data' && p.name === 'element' && elementKey(obj(p.data)) === key)) return m0
+  const mid = s(e.message_id)
+  const m = mid ? openMessage(m0, mid) : m0
+  return { ...m, parts: [...m.parts, { type: 'data', id: `el_${key}`, name: 'element', mid, data: e }] }
 }
 
 function upsertTool(m: AiuiMessage, ev: WireEvent, completed: boolean, now = Date.now()): AiuiMessage {
@@ -341,7 +381,8 @@ function withSuggestions(m: AiuiMessage, raw: unknown): AiuiMessage {
 
 function finalize(m: AiuiMessage, content: string | undefined): AiuiMessage {
   let next = closeReasoning(m)
-  if (content && content !== 'None') {
+  // A reply sent as messages keeps them: its text is already final, message by message.
+  if (content && content !== 'None' && !next.parts.some((p) => p.type === 'text' && p.mid)) {
     const streamed = next.parts.filter((p): p is AiuiTextPart => p.type === 'text').map((p) => p.text).join('')
     if (streamed.trim() !== content.trim()) {
       // Server semantics: the final content REPLACES the accumulated tokens.
@@ -374,7 +415,15 @@ export function applyEvent(
     case 'run_content':
     case 'team_run_content': {
       const tok = s(ev.token) ?? (ev.token == null ? s(ev.content) : undefined) ?? ''
-      let out = settleGate(appendText(closeReasoning(m), tok === 'None' ? '' : tok))
+      const mid = s(ev.message_id)
+      const open = closeReasoning(m)
+      let out = settleGate(
+        !mid
+          ? appendText(open, tok === 'None' ? '' : tok)
+          : typeof ev.token === 'string'
+            ? (tok ? messageText(open, mid, tok, false, s(ev.author)) : open)
+            : messageText(open, mid, typeof ev.content === 'string' ? ev.content : '', true, s(ev.author)),
+      )
       // When run_started named no agent (WP3 sends the resolved name only if it knows it), the stream does.
       if (!out.agentName && s(ev.agent_name)) out = { ...out, agentName: s(ev.agent_name) }
       return { message: out, signals: ev.metrics ? { metrics: obj(ev.metrics) } : undefined }
@@ -399,7 +448,29 @@ export function applyEvent(
     case 'team_tool_call_completed':
       return { message: upsertTool(m, ev, true) }
     case 'message_element':
+      // An element of one reply message names it (element.message_id).
       return { message: addElement(m, ev.element ?? obj(ev.extra_data).element) }
+    case 'message_update': {
+      const mid = s(ev.message_id)
+      const known = mid && m.parts.some((p) => ofMessage(p, mid))
+      return { message: known && typeof ev.content === 'string' ? messageText(m, mid, ev.content, true) : m }
+    }
+    case 'message_remove': {
+      const mid = s(ev.message_id)
+      return { message: mid ? { ...m, parts: m.parts.filter((p) => !ofMessage(p, mid)) } : m }
+    }
+    case 'message_actions': {
+      const actions = ev.actions ?? obj(ev.extra_data).actions
+      if (!Array.isArray(actions) || !actions.length) return { message: m }
+      const mid = s(ev.message_id)
+      return { message: upsertPart(mid ? openMessage(m, mid) : m, { type: 'data', id: `act_${mid ?? genId('a')}`, name: 'actions', mid, data: { actions } }) }
+    }
+    case 'action_remove': {
+      const id = s(ev.action_id) ?? s(obj(ev.extra_data).action_id)
+      const drop = (p: AiuiPart): AiuiPart =>
+        p.type === 'data' && p.name === 'actions' ? { ...p, data: { actions: (obj(p.data).actions as JSONObject[]).filter((a) => a.id !== id) } } : p
+      return { message: id ? { ...m, parts: m.parts.map(drop) } : m }
+    }
     case 'a2ui_surface':
       return {
         message: {
@@ -505,8 +576,16 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
       // persisted calls carry no wall-clock timing worth showing
       m = { ...m, parts: m.parts.map((p) => (p.type === 'tool-call' ? { ...p, timing: undefined } : p)) }
     }
-    for (const el of (raw.elements as unknown[] | undefined) ?? []) m = addElement(m, el)
+    const segments = historySegments(raw)
+    const elements = (raw.elements as unknown[] | undefined) ?? []
+    // The reply's messages as they were sent, each with its elements.
+    for (const g of segments) {
+      m = messageText(m, g.id, g.text, true, g.author)
+      for (const el of elements) if (obj(el).message_id === g.id) m = addElement(m, el)
+    }
+    for (const el of elements) m = addElement(m, el)
     m = withSuggestions(m, raw.suggestions)
+    if (segments.length) return m
   } else if (role === 'user') {
     const attachments = historyAttachments(raw.attachments)
     if (attachments.length) m.attachments = attachments
@@ -514,6 +593,12 @@ export function fromHistory(raw: JSONObject, i: number): AiuiMessage {
   const content = s(raw.content) ?? s(raw.message) ?? ''
   if (content) m = { ...m, parts: [...m.parts, { type: 'text', id: `${m.id}_t`, text: content }] }
   return m
+}
+
+/** A saved reply's messages, `segments: [{id, text, author?}]` (one block each). */
+function historySegments(raw: JSONObject): { id: string; text: string; author?: string }[] {
+  if (!Array.isArray(raw.segments)) return []
+  return raw.segments.map(obj).flatMap((g) => (s(g.id) ? [{ id: s(g.id)!, text: s(g.text) ?? '', author: s(g.author) }] : []))
 }
 
 /**
@@ -526,6 +611,7 @@ export function reconcileFromHistory(m: AiuiMessage, raw: JSONObject): AiuiMessa
   for (const tc of (raw.toolCalls as JSONObject[] | undefined) ?? []) {
     next = upsertTool(next, { ...tc, type: 'tool_call_completed' } as WireEvent, true)
   }
+  for (const g of historySegments(raw)) next = messageText(next, g.id, g.text, true, g.author)
   for (const el of (raw.elements as unknown[] | undefined) ?? []) next = addElement(next, el)
   next = finalize(next, s(raw.content))
   const st = historyStatus(raw)

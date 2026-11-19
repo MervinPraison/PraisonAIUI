@@ -21,9 +21,72 @@ import sys
 import uuid
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-from praisonaiui.provider import BaseProvider, RunEvent, RunEventType
+from praisonaiui.provider import BaseProvider, ReplyText, RunEvent, RunEventType
 
 logger = logging.getLogger(__name__)
+
+
+def element_dict(el: Any) -> Optional[Dict[str, Any]]:
+    """A message element as a plain dict: a dict, a typed element (pydantic
+    ``ImageElement`` and the rest) or any object with ``to_dict()``."""
+    if isinstance(el, dict):
+        return {k: v for k, v in el.items() if v is not None}
+    dump = getattr(el, "model_dump", None) or getattr(el, "to_dict", None)
+    if not callable(dump):
+        return None
+    try:
+        d = dump(exclude_none=True, by_alias=True) if hasattr(el, "model_dump") else dump()
+    except Exception:  # noqa: BLE001 - a broken element is skipped, not the reply
+        logger.warning("could not serialise message element %r", el, exc_info=True)
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def _author(event: Dict[str, Any]) -> Optional[str]:
+    """The message's author when it is not the agent's own default."""
+    author = event.get("author")
+    return author if isinstance(author, str) and author and author != "assistant" else None
+
+
+def _message_events(event: Dict[str, Any], reply: ReplyText) -> List[RunEvent]:
+    """The wire events for one ``message`` / ``message_update`` queue event.
+
+    The text goes as ``run_content`` with the whole ``content`` and the
+    message id (it sets that message's text), only when the text changed: the
+    final ``send()`` of a streamed message repeats nothing. Elements (typed
+    or dict) follow as ``message_element`` and actions as ``message_actions``.
+    """
+    mid = event.get("message_id") or uuid.uuid4().hex
+    author = _author(event)
+    update = event.get("type") == "message_update"
+    out: List[RunEvent] = []
+    content = event.get("content")
+    content = "" if content is None else str(content)
+    if reply.message(mid, content, author):
+        out.append(
+            RunEvent(
+                type=RunEventType.MESSAGE_UPDATE if update else RunEventType.RUN_CONTENT,
+                content=content,
+                message_id=mid,
+                author=author,
+            )
+        )
+    for raw in event.get("elements") or []:
+        el = element_dict(raw)
+        if el:
+            out.append(
+                RunEvent(
+                    type=RunEventType.MESSAGE_ELEMENT,
+                    message_id=mid,
+                    extra_data={"element": {**el, "message_id": mid}},
+                )
+            )
+    actions = [a for a in (element_dict(a) for a in event.get("actions") or []) if a]
+    if actions:
+        out.append(
+            RunEvent(type=RunEventType.MESSAGE_ACTIONS, message_id=mid, extra_data={"actions": actions})
+        )
+    return out
 
 #: Seconds a ``@reply`` callback may send nothing before its run fails with
 #: a timeout. ``AIUI_REPLY_IDLE_TIMEOUT`` overrides it; ``0`` turns it off.
@@ -861,7 +924,7 @@ class PraisonAIProvider(BaseProvider):
             _active_tasks[session_id] = task
 
         idle_timeout = reply_idle_timeout()
-        full_response = ""
+        reply = ReplyText()  # the reply's text, per message
         # Exactly one terminal event per run: once an error or cancel is
         # yielded, no RUN_COMPLETED follows (it overwrote the error in the
         # chat, the saved history and the run ledger).
@@ -892,24 +955,41 @@ class PraisonAIProvider(BaseProvider):
                     yield RunEvent(type=RunEventType.RUN_CANCELLED)
                     break
 
-                # Map queue events → RunEvent
+                # Map queue events → RunEvent. Every piece of reply text
+                # names its message (message_id), so each message sent is
+                # its own on the wire, in the chat and in the saved reply.
                 if evt_type == "token":
-                    tok = event.get("token", "")
-                    full_response += tok
-                    yield RunEvent(type=RunEventType.RUN_CONTENT, token=tok)
-                elif evt_type == "message":
-                    content = event.get("content", "")
-                    if content:
-                        if full_response:
-                            full_response += "\n"
-                        full_response += content
-                    yield RunEvent(type=RunEventType.RUN_CONTENT, content=content)
-                    for el in event.get("elements") or []:
-                        if isinstance(el, dict):
-                            yield RunEvent(
-                                type=RunEventType.MESSAGE_ELEMENT,
-                                extra_data={"element": el},
-                            )
+                    tok = str(event.get("token") or "")
+                    if tok:
+                        mid = reply.token(tok, event.get("message_id"))
+                        yield RunEvent(type=RunEventType.RUN_CONTENT, token=tok, message_id=mid)
+                elif evt_type in ("message", "message_update"):
+                    for out in _message_events(event, reply):
+                        yield out
+                elif evt_type == "run_started" and event.get("message_id"):
+                    # A streamed Message's first send(): open it (its author shows).
+                    if reply.message(event["message_id"], "", _author(event)):
+                        yield RunEvent(
+                            type=RunEventType.RUN_CONTENT,
+                            content="",
+                            message_id=event["message_id"],
+                            author=_author(event),
+                        )
+                elif evt_type == "message_remove" and event.get("message_id"):
+                    reply.remove(event["message_id"])
+                    yield RunEvent(type=RunEventType.MESSAGE_REMOVE, message_id=event["message_id"])
+                elif evt_type == "action_remove":
+                    yield RunEvent(
+                        type=RunEventType.ACTION_REMOVE,
+                        message_id=event.get("message_id"),
+                        extra_data={"action_id": event.get("action_id")},
+                    )
+                elif evt_type == "actions":  # aiui.actions(buttons)
+                    actions = [a for a in (element_dict(b) for b in event.get("buttons") or []) if a]
+                    if actions:  # extra_data keeps the old {type, buttons} for SSE readers
+                        yield RunEvent(
+                            type=RunEventType.MESSAGE_ACTIONS, extra_data={**event, "actions": actions}
+                        )
                 elif evt_type in ("image", "video", "audio", "file"):
                     from praisonaiui.media_utils import queue_event_to_element
 
@@ -967,7 +1047,7 @@ class PraisonAIProvider(BaseProvider):
                     else:
                         yield RunEvent(type=RunEventType.RUN_CONTENT, extra_data=event)
             if drained:
-                handler_context.record_reply(chat_session, full_response)
+                handler_context.record_reply(chat_session, reply.text)
         finally:
             _live_reply_contexts.pop(run_key, None)
             if session_id and _active_tasks.get(session_id) is task:
@@ -984,7 +1064,7 @@ class PraisonAIProvider(BaseProvider):
         if not task.done():
             await task
 
-        yield RunEvent(type=RunEventType.RUN_COMPLETED, content=full_response)
+        yield RunEvent(type=RunEventType.RUN_COMPLETED, content=reply.text)
 
     async def submit_ask_response(
         self, session_id: Optional[str], run_id: Optional[str], response: Any

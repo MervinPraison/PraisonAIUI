@@ -627,6 +627,14 @@
   `aiui build` name each one with the nearest allowed class (7022;
   docs/features/writing-docs.md#styling-with-classes).
 
+- **Each message a reply sends is its own.** Every `aiui.Message(...).send()` and `aiui.say()` shows at once as
+  its own block under the answer (with its author, elements and actions), also after a reload; a streamed
+  message's final `send()` no longer repeats its text. Typed elements from `add_image()` and the other `add_*()`
+  methods now reach the chat, `update()`, `remove()` and `Action.remove()` arrive as their own events, and
+  `aiui.notify` shows a toast in both built-in chats. Wire: `run_content.message_id` / `author`, new
+  `message_actions`, `message_update`, `message_remove`, `action_remove`; protocol 1.1.0
+  (docs/features/message-elements.md#several-messages-in-one-reply).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,
