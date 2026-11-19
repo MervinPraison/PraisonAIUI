@@ -181,6 +181,11 @@ class ContentSourceConfig(BaseModel):
     edit_link: Optional[EditLinkConfig] = Field(default=None, alias="editLink")
     last_updated: bool = Field(default=False, alias="lastUpdated")
     feedback: Union[FeedbackConfig, bool, None] = None
+    related: Union[bool, int] = Field(
+        default=True,
+        description="Related pages under each docs page: the number shown (default 3, at most 10), "
+        "or false for none (docs/features/writing-docs.md#related-pages)",
+    )
     mcp: bool = Field(
         default=True,
         description="Serve a read-only MCP server at /mcp from aiui serve and aiui dev "

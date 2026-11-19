@@ -95,6 +95,8 @@ class Compiler:
         self._og_cards: dict[str, og.Card] = {}  # page path -> its social card (og_image.py)
         # Page -> git date, kept across builds by `aiui dev` (a date only moves on commit).
         self.git_dates: dict[Path, str | None] | None = None
+        self._related: dict[str, list] = {}  # page path -> its related pages (_annotate_related)
+        self._titles: dict[str, str] = {}
 
     def compile(self, output_dir: Path, minify: bool = False) -> CompileResult:
         """
@@ -153,6 +155,7 @@ class Compiler:
         if self.config.content and self.config.content.docs:
             nav = self._generate_docs_nav()
             self._annotate_page_footer(nav)
+            self._related = self._annotate_related(nav)
             notes = self._plan_og_cards(nav)
             self._write_json(output_dir / "docs-nav.json", nav, indent)
             files.append("docs-nav.json")
@@ -251,7 +254,12 @@ class Compiler:
         issues += branding.missing_images(self.config, self.base_path)
         moved = rd.redirect_issues(self.config.redirects, self._page_routes(nav), base, config_file)
         divisions = [d for d, _ in self.config.navigation.divisions()] if self.config.navigation else []
-        return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved
+        from praisonaiui.compiler.related import issues as related_issues
+
+        related = related_issues(pages, base.rstrip("/"), self._page_routes(nav),
+                                lambda p: Path(os.path.relpath(p.path, self.base_path)).as_posix(),
+                                lambda p: self._snippets.read(p.path))
+        return issues + nav_icons(manual_entries(self.config)) + nav_icons(divisions) + check_pages(pages, self.base_path, listed, self._page_text) + self._snippets.issues + moved + related
 
     def _page_routes(self, nav: dict) -> set[str]:
         """Every published page path, and the site root and docs root when there is a home page."""
@@ -605,6 +613,39 @@ class Compiler:
             last_updated=docs.last_updated,
             date_of=date_of,
         )
+
+    def _annotate_related(self, nav: dict) -> dict[str, list]:
+        """Related pages under each page (compiler/related.py); ``{path: related}`` for the ``.md`` export."""
+        from praisonaiui.compiler import related
+
+        base = self.config.site.route_base_docs.rstrip("/")
+        api = {f"{base}/{p.slug}": p.text for p in (self._api.pages if self._api else [])}
+        scanner, texts = DocsScanner(docs_dir=self.base_path), {}
+        self._titles = {p["path"]: p["title"] for p in self._collect_nav_pages(nav)}
+
+        def text(path: str) -> str | None:
+            if path not in texts:
+                src = None if path in api else self._resolve_md_source(path)
+                texts[path] = api.get(path) or (self._page_text(src) if src else None)
+            return texts[path]
+
+        def body(path: str) -> str | None:
+            raw = text(path)
+            return None if raw is None else am.visibility(self._strip_frontmatter(raw), "humans")
+
+        return related.annotate(nav, body, lambda path: scanner._extract_frontmatter(text(path) or ""),
+                                limit=related.limit_of(self.config.content.docs.related), base=base)
+
+    def _with_related(self, text: str, path: str) -> str:
+        """A page's agent-ready ``.md`` with its related pages as a closing ``## Related pages`` list."""
+        from praisonaiui.compiler import related
+
+        entries = self._related.get(path)
+        if not entries:
+            return text
+        lines = [f"- [{title}]({target if external else self._md_url(target.split('#')[0])})"
+                 for title, target, external in related.links(entries, self._titles)]
+        return text.rstrip("\n") + "\n\n## Related pages\n\n" + "\n".join(lines) + "\n"
 
     def _generate_docs_nav(self) -> dict:
         """Generate docs-nav.json content."""
@@ -1741,6 +1782,7 @@ class Compiler:
         # `adr/0001-x.md` -> /docs/adr/x) also gets a copy at its route, so a
         # static host with no server logic finds it.
         route_dir = output_dir / self.config.site.route_base_docs.strip("/")
+        base = self.config.site.route_base_docs.rstrip("/")
         scanner = DocsScanner(
             docs_dir=docs_dir,
             include=docs_config.include,
@@ -1757,18 +1799,18 @@ class Compiler:
             md = route_dir / am.page_md_path(f"/{page.slug}", "/").lstrip("/")
             md.parent.mkdir(parents=True, exist_ok=True)
             md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX).write_text(self._page_text(page.path), encoding="utf-8")
-            text = self._agent_markdown(page.path, page.title, page.description)
+            text = self._with_related(self._agent_markdown(page.path, page.title, page.description), f"{base}/{page.slug}".rstrip("/"))
             own = docs_output / page.path.relative_to(docs_dir)
             for target in {md, own} if own.exists() else {md}:
                 target.write_text(text, encoding="utf-8")
         # Endpoint pages generated from OpenAPI specs: published the same way.
-        base = self.config.site.route_base_docs.rstrip("/")
         for api_page in self._api.pages if self._api else []:
             md = route_dir / am.page_md_path(f"/{api_page.slug}", "/").lstrip("/")
             src = md.with_name(md.name[: -len(".md")] + am.SOURCE_SUFFIX)
             md.parent.mkdir(parents=True, exist_ok=True)
             src.write_text(api_page.text, encoding="utf-8")
-            md.write_text(self._agent_markdown(src, api_page.title, api_page.description), encoding="utf-8")
+            text = self._agent_markdown(src, api_page.title, api_page.description)
+            md.write_text(self._with_related(text, f"{base}/{api_page.slug}"), encoding="utf-8")
             self._api_sources[f"{base}/{api_page.slug}"] = src
 
         # Return list of copied files (simplified)
