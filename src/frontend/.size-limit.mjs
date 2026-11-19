@@ -237,7 +237,10 @@ export default [
   // 141,933 B (+24 B, exactly the overage): the SDK modules (sdk/install and what it
   // imports) became their own shared chunk, since docs pages that use a site component
   // load them lazily (docs/customBlocks.ts); the chat route imports them from it.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '141933 B', gzip: true },
+  // 142,278 B (+345 B, exactly the overage): voice input's probe in the composer
+  // (chat-engine/voice.ts, one GET /api/realtime/voice per page view) and the lazy
+  // import of the recorder chunk; the recorder itself is not in the route.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '142278 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -299,7 +302,8 @@ export default [
   // 255,228 B (+768 B, exactly the overage): the SDK modules the shell boots with
   // (sdk/install and its imports) are a chunk of their own now that docs pages with a
   // site component load them lazily (docs/customBlocks.ts); same code, one more file.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '255228 B', gzip: true },
+  // 255,578 B (+350 B, exactly the overage): voice input's probe in the chat route (above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '255578 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -425,5 +429,7 @@ export default [
   // (docs/CustomBlock.tsx, the lazy docs/customBlocks.ts and the SDK chunk split).
   // 11,132,753 B (+463 B, exactly the overage): phone fixes in the chat (an artifact table's
   // actions leave with it; a long app name wraps below the hero's mark).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11132753 B', brotli: false },
+  // 11,138,755 B (+6,002 B, exactly the overage): voice input (the lazy VoiceInput chunk
+  // with its recorder rules, and the probe in the chat route).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11138755 B', brotli: false },
 ]
