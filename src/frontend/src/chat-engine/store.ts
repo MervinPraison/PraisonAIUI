@@ -25,6 +25,7 @@ import {
   APPROVAL_ERROR, APPROVAL_PENDING, applyEvent, fromHistory, genId, hasPendingApprovalNotice, newAssistant, reconcileFromHistory, TERMINAL,
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
+import { notify as toast, type NotifyType } from '@/sdk/notify'
 import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport, type AttachedRun } from './transports'
 
 export interface SessionThread {
@@ -314,6 +315,12 @@ function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
     turn.runId = runId
   }
   if (turn.detached) armWatchdog(sid, turn)
+  if (ev.type === 'toast') {
+    // aiui.notify: a notice for this tab's turn, never part of the reply.
+    const type = ['info', 'success', 'warning', 'error'].includes(ev.variant as string) ? (ev.variant as NotifyType) : 'info'
+    void toast(String(ev.message ?? ''), { type, duration: typeof ev.duration === 'number' && ev.duration > 0 ? ev.duration : undefined })
+    return
+  }
   let signals: Partial<AiuiSessionSignals> | undefined
   patchMessage(sid, turn.messageId, (m) => {
     const r = applyEvent(m, ev)

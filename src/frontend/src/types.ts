@@ -532,6 +532,12 @@ export type RunEventType =
     | 'memory_update_completed'
     | 'updating_memory'
     | 'message_element'
+    // One message of the reply (message_id), and a notice (aiui.notify)
+    | 'message_actions'
+    | 'message_update'
+    | 'message_remove'
+    | 'action_remove'
+    | 'toast'
     // Team events (11 types)
     | 'team_run_started'
     | 'team_run_content'

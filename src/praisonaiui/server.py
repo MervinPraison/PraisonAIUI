@@ -30,7 +30,7 @@ from starlette.routing import Mount, Route, request_response
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.http_guard import ws_ticket_handler
-from praisonaiui.provider import BaseProvider, RunEventType
+from praisonaiui.provider import BaseProvider, ReplyText, RunEventType
 from praisonaiui.schemas import (  # noqa: F401  (re-exported via praisonaiui.__getattr__)
     get_component_schemas,
     register_component_schema,
@@ -3285,6 +3285,7 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
 
         provider = get_provider()
         full_response = ""
+        reply_text = ReplyText()
         tool_step_counter = 0
         seen_tool_ids: set = set()
         collected_tool_calls: list = []  # Collect for persistence
@@ -3334,12 +3335,12 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
             ):
                 # Accumulate full response from content events
                 if run_event.type == RunEventType.RUN_CONTENT:
+                    # Per message: a streamed message's final text never doubles it.
                     if run_event.token:
-                        full_response += run_event.token
+                        reply_text.token(run_event.token, run_event.message_id)
                     elif run_event.content:
-                        if full_response:
-                            full_response += "\n"
-                        full_response += run_event.content
+                        reply_text.message(run_event.message_id or run_event.event_id, run_event.content)
+                    full_response = reply_text.text
                 elif run_event.type == RunEventType.RUN_COMPLETED:
                     # Prefer SDKs final response over accumulated tokens —
                     # this matches what finalizeDelta() shows in the live view.

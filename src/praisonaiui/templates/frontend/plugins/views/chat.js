@@ -1540,13 +1540,34 @@ function openChatSocket(wsUrl) {
   }
 }
 
+// Each message a reply sends (its message_id) starts its own paragraph; a
+// message sent whole (no token) shows at once. The final text of a message
+// already shown is left to run_completed, so it is never doubled.
+let deltaMessageIds = [];
+let deltaLastId = null;
+function deltaText(data) {
+  const mid = data.message_id;
+  if (!mid) return data.token || '';
+  if (data.token == null && deltaMessageIds.includes(mid)) return '';
+  const sep = deltaLastId && deltaLastId !== mid ? '\n\n' : '';
+  if (!deltaMessageIds.includes(mid)) deltaMessageIds.push(mid);
+  deltaLastId = mid;
+  return sep + (data.token != null ? data.token : (data.content || ''));
+}
+
 function handleWsMessage(data) {
   const type = data.type;
 
   switch (type) {
-    case 'run_content':
-      if (data.token) appendDelta(data.token, data.agent_name);
+    case 'run_content': {
+      const text = deltaText(data);
+      if (text) appendDelta(text, data.agent_name);
       setStatus('streaming');
+      break;
+    }
+
+    case 'toast':
+      showToast(String(data.message || ''), ['success', 'error'].includes(data.variant) ? data.variant : 'info', data.duration || 4000);
       break;
 
     case 'run_completed':
@@ -1576,6 +1597,7 @@ function handleWsMessage(data) {
       break;
 
     case 'run_started':
+      if (data.run_id !== currentRunId) { deltaMessageIds = []; deltaLastId = null; }
       isStreaming = true;
       streamingSessionId = data.session_id || currentSessionId;
       currentRunId = data.run_id;

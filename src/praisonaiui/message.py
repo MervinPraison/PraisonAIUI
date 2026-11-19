@@ -193,6 +193,9 @@ class Message:
             return self
 
         self._accumulated_tokens += token
+        if not self.streaming:
+            # A later send() delivers what was streamed (it sets, never repeats).
+            self.content += token
         await self._context._stream_queue.put(
             {
                 "type": "token",

@@ -242,7 +242,12 @@ export default [
   // 142,278 B (+345 B, exactly the overage): voice input's probe in the composer
   // (chat-engine/voice.ts, one GET /api/realtime/voice per page view) and the lazy
   // import of the recorder chunk; the recorder itself is not in the route.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '142278 B', gzip: true },
+  // 143,081 B (+803 B, exactly the overage): each message a reply sends is its own
+  // block (message_id on reply text, the segment divider, message_update / remove /
+  // actions / action_remove, saved segments on reload) and the toast frame through the
+  // lazy toaster (sdk notify). Splitting the edits into a lazy chunk measured +137 B
+  // more (the loader and holding later frames cost more than the code it moves).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143081 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -305,7 +310,8 @@ export default [
   // (sdk/install and its imports) are a chunk of their own now that docs pages with a
   // site component load them lazily (docs/customBlocks.ts); same code, one more file.
   // 255,578 B (+350 B, exactly the overage): voice input's probe in the chat route (above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '255578 B', gzip: true },
+  // 256,385 B (+807 B, exactly the overage): the reply's messages as blocks (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256385 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -435,5 +441,7 @@ export default [
   // with its recorder rules, and the probe in the chat route).
   // 11,160,284 B (+21,529 B, exactly the overage): utility classes on docs pages (the
   // generated docs/utilities.css in the docs stylesheet, 281 classes; docs/docsClasses.ts).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11160284 B', brotli: false },
+  // 11,162,854 B (+2,570 B, exactly the overage): the reply's messages as blocks in the chat
+  // route (above).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11162854 B', brotli: false },
 ]

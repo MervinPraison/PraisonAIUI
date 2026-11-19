@@ -723,6 +723,7 @@ class ChatManager(ChatProtocol):
             and set(last) <= _TOKEN_EVENT_KEYS
             and "token" in event
             and "token" in last
+            and event.get("message_id") == last.get("message_id")
         ):
             last["token"] += event["token"]
             last["seq"] = event["seq"]
@@ -952,7 +953,7 @@ _TERMINAL_RUN_EVENTS = frozenset({"run_completed", "run_error", "run_cancelled"}
 #: Events kept per live run for a tab that reloads mid-run (tokens merged).
 MAX_REPLAY_EVENTS = 2000
 _TOKEN_EVENT_KEYS = frozenset(
-    {"type", "session_id", "run_id", "token", "agent_name", "client_turn_id", "seq"}
+    {"type", "session_id", "run_id", "token", "agent_name", "client_turn_id", "seq", "message_id"}
 )
 
 
@@ -986,7 +987,7 @@ async def _run_and_broadcast(
     ``visible_history``).
     """
     from praisonaiui.features.attachments import current_attachments, prepare_attachments
-    from praisonaiui.provider import RunEventType
+    from praisonaiui.provider import ReplyText, RunEventType
     from praisonaiui.server import _datastore, get_provider
 
     # Text and PDF files go before the message; image paths go to the model;
@@ -998,6 +999,7 @@ async def _run_and_broadcast(
     mgr = get_chat_manager()
     provider = get_provider()
     full_response = ""
+    reply = ReplyText()  # the reply's text per message (a run can send several)
     run_id = str(uuid.uuid4())
     tool_step_counter = 0  # Step numbering (resets per user message)
     # Dedup: both stream deltas AND hook events fire for the same tool call.
@@ -1160,7 +1162,28 @@ async def _run_and_broadcast(
                 token = event.token or ""
                 if token and token != "None":
                     payload["token"] = token
-                    full_response += token
+                    reply.token(token, event.message_id)
+                elif event.content is not None and event.content != "None":
+                    # A whole message (aiui.Message, aiui.say): shown now, not at the end.
+                    reply.message(event.message_id or event.event_id, event.content, event.author)
+                    payload["content"] = event.content
+                full_response = reply.text
+            elif event.type == RunEventType.MESSAGE_UPDATE:
+                payload["content"] = event.content or ""
+                if event.message_id:
+                    reply.message(event.message_id, payload["content"], event.author)
+                    full_response = reply.text
+            elif event.type == RunEventType.MESSAGE_REMOVE:
+                if event.message_id:
+                    reply.remove(event.message_id)
+                    full_response = reply.text
+                    collected_elements[:] = [
+                        e for e in collected_elements if e.get("message_id") != event.message_id
+                    ]
+            elif event.type == RunEventType.MESSAGE_ACTIONS:
+                payload["actions"] = (event.extra_data or {}).get("actions") or []
+            elif event.type == RunEventType.ACTION_REMOVE:
+                payload["action_id"] = (event.extra_data or {}).get("action_id")
             elif event.type == RunEventType.RUN_COMPLETED:
                 content = event.content or full_response
                 if content == "None":
@@ -1326,6 +1349,10 @@ async def _run_and_broadcast(
 
             if event.agent_name:
                 payload["agent_name"] = event.agent_name
+            if event.message_id:
+                payload["message_id"] = event.message_id
+            if event.author:
+                payload["author"] = event.author
 
             await _emit(payload)
 
@@ -1403,6 +1430,10 @@ async def _run_and_broadcast(
                 msg_data["toolCalls"] = list(collected_tool_calls.values())
             if collected_elements:
                 msg_data["elements"] = collected_elements
+            segments = reply.segments() if reply.text == full_response else []
+            if segments:
+                # Each message the reply sent, so a reload shows them apart.
+                msg_data["segments"] = segments
             if cancelled:
                 # A reply cut short by Stop/abort. Without this flag a reload
                 # shows the partial text as a complete answer.

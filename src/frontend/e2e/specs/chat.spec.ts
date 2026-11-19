@@ -209,6 +209,32 @@ test('WebSocket: an aiui.ask in a @reply gets the answer and the reply goes on',
   expect(errors.pageErrors).toEqual([])
 })
 
+test('WebSocket: a reply sent as several messages shows each on its own, with its toast, also after a reload', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  await openChat(page, 'ws')
+  await send(page, 'cbmulti please')
+  // aiui.notify: a toast, not part of the reply.
+  await expect(page.locator('[data-sonner-toast]')).toContainText('Saved to your notes')
+  await waitForRunEnd(page)
+  const check = async (reply: Locator) => {
+    await expect(reply).toContainText('First message')
+    // The second and third messages each start their own block; the second names its author.
+    await expect(reply.locator('[data-part="segment"]')).toHaveCount(2)
+    await expect(reply.locator('[data-part="segment"]').first()).toHaveText('Helper')
+    await expect(reply).toContainText('Second message')
+    await expect(reply.locator('[data-element="image"] img')).toBeVisible()
+    // The streamed message's final send() does not repeat it.
+    await expect(reply).toContainText('Streamed reply')
+    expect((await reply.innerText()).match(/Streamed reply/g)).toHaveLength(1)
+    await expect(reply).not.toContainText('Saved to your notes')
+  }
+  await check(assistant(page).last())
+  await expect(page).toHaveURL(/[?&]session=/)
+  await page.reload()
+  await check(assistant(page).last())
+  expect(errors.pageErrors).toEqual([])
+})
+
 test('SSE: a question explains that answering needs a live connection', async ({ page }) => {
   const errors = collectPageErrors(page)
   await openChat(page, 'sse')

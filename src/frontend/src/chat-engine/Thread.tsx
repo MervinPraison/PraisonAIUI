@@ -48,7 +48,7 @@ import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { useDecision, type InlineGateProps } from './presentation/decision'
 import { commandLabel, commandOf } from './presentation/command'
-import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL } from './protocol'
+import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL, SEGMENT } from './protocol'
 import { formatDuration, safeUrl } from './util'
 import { useVoiceConfig } from './voice'
 
@@ -350,6 +350,11 @@ const ElementPart: FC<DataMessagePartProps<Record<string, unknown>>> = ({ data }
   <LazyBoundary fallback={<Skeleton className="my-2 h-24 w-48 rounded-lg" />}>
     <ElementPartLazy data={data} />
   </LazyBoundary>
+)
+
+/** One more message of the same reply (aiui.Message): its own block, with its author when not the agent. */
+const SegmentPart: FC<DataMessagePartProps<{ author?: string }>> = ({ data }) => (
+  <div className="mt-4 text-xs font-medium text-muted-foreground" data-part="segment">{data.author}</div>
 )
 
 const A2uiPart: FC<DataMessagePartProps<{ surface_id?: string; messages?: Record<string, unknown>[] }>> = ({ data }) => {
@@ -715,7 +720,7 @@ function usePartComponents() {
       data: {
         by_name: {
           element: ElementPart, references: ReferencesPart, memory: MemoryPart, a2ui: A2uiPart,
-          [PENDING_APPROVAL]: PendingApprovalPart,
+          [PENDING_APPROVAL]: PendingApprovalPart, [SEGMENT]: SegmentPart,
         },
       },
     }

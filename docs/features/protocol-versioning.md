@@ -23,7 +23,7 @@ sequenceDiagram
 
     C->>S: POST /api/protocol/negotiate {client_version: "1.0.0"}
     S->>S: Check major version compatibility
-    S-->>C: {compatible: true, server_version: "1.0.0", event_types: [...]}
+    S-->>C: {compatible: true, server_version: "1.1.0", event_types: [...]}
     C->>S: Connect WS /api/chat/ws
     Note over C,S: Both sides use compatible event types
 ```
@@ -47,7 +47,10 @@ The protocol defines these standard event types:
 | `chat` | Client → Server | User sends a message |
 | `chat_abort` | Client → Server | Abort an active run |
 | `ping` / `pong` | Both | Keepalive |
-| `run_content` | Server → Client | Delta token (streaming) |
+| `run_content` | Server → Client | Delta token (streaming), or a whole message's `content`; `message_id` names the reply message it belongs to |
+| `message_element` / `message_actions` | Server → Client | An element or the action buttons of a reply message |
+| `message_update` / `message_remove` / `action_remove` | Server → Client | Edit a reply message already shown |
+| `toast` | Server → Client | A notice (`aiui.notify`), never part of the reply |
 | `run_completed` | Server → Client | Run finished |
 | `run_error` | Server → Client | Run failed |
 | `tool_call_started` | Server → Client | Tool execution began |
@@ -69,7 +72,7 @@ curl http://localhost:8083/api/protocol
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "event_types": ["chat", "run_content", "run_completed", "tool_call_started", ...],
   "features": {
     "streaming": true,
@@ -91,7 +94,7 @@ curl -X POST http://localhost:8083/api/protocol/negotiate \
 ```json
 {
   "compatible": true,
-  "server_version": "1.0.0",
+  "server_version": "1.1.0",
   "client_version": "1.0.0"
 }
 ```

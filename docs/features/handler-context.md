@@ -135,6 +135,6 @@ await aiui.notify("Saved to your notes", type="success", duration=2000)
 `type` is `info`, `success`, `warning` or `error`; `duration` is in
 milliseconds. The notice is never saved with the reply or added to
 `aiui.chat_context`. Clients receive `{type: "toast", session_id, run_id,
-message, variant, duration?}` on the chat WebSocket; the built-in chat views
-do not show it yet. Returns `False` outside a handler. (`aiui.toast(...)`
+message, variant, duration?}` on the chat WebSocket; both built-in chats show
+it as a toast. Returns `False` outside a handler. (`aiui.toast(...)`
 builds a toast component for a page.)
