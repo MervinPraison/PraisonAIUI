@@ -44,6 +44,8 @@ _HTML_ID = re.compile(r"""\b(?:id|name)\s*=\s*["']([^"']+)["']""")
 _IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 _HTTP = re.compile(r"^(?:https?:)?//", re.I)
+# Anchors a page script answers rather than a heading (#cookie-settings: docs/features/analytics.md)
+SCRIPT_ANCHORS = frozenset({"cookie-settings"})
 
 
 @dataclass(frozen=True)
@@ -247,7 +249,7 @@ class _Checker:
 
     def _anchor(self, entry: _Page, frag: str, raw: str, file: str, line: int) -> None:
         frag = unquote(frag)
-        if frag and frag not in entry.ids:
+        if frag and frag not in entry.ids and frag not in SCRIPT_ANCHORS:
             close = difflib.get_close_matches(frag, sorted(entry.ids), n=1, cutoff=0.6)
             where = f" on {entry.url}" if not raw.strip().startswith("#") else ""
             self._broken(file, line, raw, f"anchor #{frag} not found{where}", f"#{close[0]}" if close else "")
