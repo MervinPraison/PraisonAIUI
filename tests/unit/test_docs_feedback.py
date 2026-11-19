@@ -14,8 +14,39 @@ from typer.testing import CliRunner
 
 from praisonaiui import docs_feedback as df
 from praisonaiui.cli import _static_site_app, app
-from praisonaiui.schema.models import ContentSourceConfig
-from tests.unit.test_page_meta import _build, _site
+from praisonaiui.compiler.compiler import Compiler
+from praisonaiui.schema.models import (
+    Config,
+    ContentConfig,
+    ContentSourceConfig,
+    RouteConfig,
+    SiteConfig,
+    TemplateConfig,
+)
+
+
+def _site(tmp_path: Path) -> Path:
+    """A two-page docs folder under ``tmp_path/docs``."""
+    docs = tmp_path / "docs"
+    (docs / "guide").mkdir(parents=True)
+    (docs / "index.md").write_text("# Home\n", encoding="utf-8")
+    (docs / "guide" / "first.md").write_text("# First\n", encoding="utf-8")
+    return docs
+
+
+def _build(tmp_path: Path, **docs_kwargs) -> tuple[dict, dict]:
+    """Compile the docs site under ``tmp_path``; return (docs-nav.json, ui-config.json)."""
+    config = Config(
+        site=SiteConfig(title="Docs"),
+        content=ContentConfig(docs=ContentSourceConfig(dir=str(tmp_path / "docs"), **docs_kwargs)),
+        templates={"docs": TemplateConfig(layout="ThreeColumnLayout", slots={})},
+        routes=[RouteConfig(match="/docs/**", template="docs")],
+    )
+    out = tmp_path / "out"
+    assert Compiler(config, base_path=tmp_path).compile(out).success
+    nav = json.loads((out / "docs-nav.json").read_text(encoding="utf-8"))
+    ui = json.loads((out / "ui-config.json").read_text(encoding="utf-8"))
+    return nav, ui
 
 URL = "/api/docs/feedback"
 SAME_ORIGIN = {"Origin": "http://testserver", "Content-Type": "application/json"}
