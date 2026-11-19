@@ -447,5 +447,7 @@ export default [
   // route (above).
   // 11,164,096 B (+1,242 B, exactly the overage): docs pages that never stay on the skeleton
   // (docLoader body limit, error boundaries for lazy parts, boot-failure Reload).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164096 B', brotli: false },
+  // 11,164,574 B (+478 B, exactly the overage): a stalled page download is retried after
+  // 5 s without a byte (docLoader reads the body chunk by chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11164574 B', brotli: false },
 ]

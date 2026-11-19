@@ -244,6 +244,9 @@ keeps one such request from freezing the page:
   out, which opens a new connection. There are three attempts (5 s, 5 s, then
   10 s for a link that is only slow), with a short random pause between them.
   A network error or a 5xx answer is retried the same way; a 404 is not.
+- **Stalled downloads.** Once the answer starts, a page whose download sends
+  nothing for 5 seconds has stalled and is requested again; one that keeps
+  arriving, however slowly, gets up to 15 seconds.
 - **Prefetch.** Resting the pointer on a sidebar, previous / next or
   in-article docs link for 80 ms, focusing it with the keyboard, or pressing
   it starts loading that page. Once a page has shown, its previous and next
