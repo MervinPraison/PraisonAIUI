@@ -25,7 +25,7 @@ export function versionAt(versions: NavDivision[], path: string): number {
     return Math.max(0, versions.findIndex((v) => v.default))
 }
 
-const firstPath = (item: NavItem): string | undefined => item.path || item.children?.map(firstPath).find(Boolean)
+export const firstPath = (item: NavItem): string | undefined => item.path || item.children?.map(firstPath).find(Boolean)
 
 /** The sidebar entries of version `index` (an entry with no page, such as a link, goes with the default). */
 export function versionItems(items: NavItem[], versions: NavDivision[], index: number): NavItem[] {

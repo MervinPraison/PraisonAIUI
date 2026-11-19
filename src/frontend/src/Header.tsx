@@ -3,7 +3,7 @@
 import { Menu, Search, Sparkles } from 'lucide-react'
 import type { UIConfig } from './types'
 import type { NavDivisions } from './docs/navDivisions'
-import { HeaderTabs } from './docs/DivisionNav'
+import { HeaderTabs, LanguageSwitcher } from './docs/DivisionNav'
 import { LocaleSwitcher } from './i18n'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -128,7 +128,7 @@ export function Header({
                     )}
 
                     {!config.site?.theme?.strict && <ThemeToggle />}
-                    <LocaleSwitcher />
+                    {divisions?.languages?.length ? <LanguageSwitcher divisions={divisions} /> : <LocaleSwitcher />}
                 </div>
             </div>
         </header>

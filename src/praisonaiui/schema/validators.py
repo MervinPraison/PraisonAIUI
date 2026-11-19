@@ -437,7 +437,7 @@ def nav_warnings(config: Any, base: Path) -> list[ValidationError]:
                                        f"{section}.{alias} is accepted but has no effect: {why}"))
     nav = getattr(config, "navigation", None)
     for d, _ in nav.divisions() if nav else []:
-        if not (d.href or getattr(d, "url", None) or d.pages or d.groups or d.children() or hasattr(d, "version")):
+        if not (d.href or getattr(d, "url", None) or d.pages or d.groups or d.children() or hasattr(d, "version") or hasattr(d, "language")):
             kind = type(d).__name__.removeprefix("Nav").removesuffix("Config").removesuffix("Item").lower()
             out.append(ValidationError(2102, "navigation", f"navigation {kind} '{d.label}' has no pages, groups or href",
                                        suggestion="Give it groups or pages to open, or an href to link to"))

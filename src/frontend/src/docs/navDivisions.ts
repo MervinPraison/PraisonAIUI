@@ -26,6 +26,7 @@ export interface DivisionLink {
     active: boolean
     menu?: DivisionLink[]
     tag?: string // a badge after the name (a version's "Latest")
+    lang?: string // a language's code (docs/languages.ts): the entry's lang and hreflang
 }
 
 export interface NavDivisions {
@@ -34,6 +35,8 @@ export interface NavDivisions {
     dropdowns: DivisionLink[]
     /** The version switcher's entries (docs/versions.ts); empty without `navigation.versions`. */
     versions?: DivisionLink[]
+    /** The header's language switcher (docs/languages.ts); empty without `navigation.languages`. */
+    languages?: DivisionLink[]
     /** Go to the division's first page; `stay` (the phone drawer) only swaps the sidebar. */
     open: (link: DivisionLink, stay?: boolean) => void
 }

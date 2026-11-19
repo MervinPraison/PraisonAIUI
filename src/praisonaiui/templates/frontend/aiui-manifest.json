@@ -4426,7 +4426,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-B-cZDfRs.js",
+    "file": "assets/legacy-app-entry-JTpDq7uz.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -4434,8 +4434,8 @@
       "_vendor-react-SCdx8Lck.js",
       "_preload-helper-PPVm8Dsz.js",
       "_slug-DW3kjIpp.js",
-      "_chevron-down-HDxnp2XX.js",
       "_TokenGate-DM7aDEpF.js",
+      "_chevron-down-HDxnp2XX.js",
       "_dropdown-menu-D5ZNkzGX.js",
       "_sparkles-BS6OYFi4.js",
       "_x-DbUO6zg8.js",
@@ -4476,7 +4476,7 @@
       "src/docs/AskAi.tsx"
     ],
     "css": [
-      "assets/legacy-app-entry-DDMhVxiU.css"
+      "assets/legacy-app-entry-BissIEh5.css"
     ],
     "assets": [
       "assets/geist-latin-wght-normal-BgDaEnEv.woff2",

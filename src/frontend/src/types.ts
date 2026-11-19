@@ -141,6 +141,19 @@ export interface NavigationConfig {
     anchors?: NavDivision[]
     dropdowns?: NavDivision[]
     versions?: NavDivision[]
+    /** Content languages (docs/languages.ts); `languageRedirect: false` keeps a first visit in the default one. */
+    languages?: NavLanguage[]
+    languageRedirect?: boolean
+}
+
+/** A content language (`navigation.languages`): its code, name, folder (`""` for the default) and docs-root prefix. */
+export interface NavLanguage {
+    language: string
+    name?: string
+    folder: string
+    prefix: string
+    default?: boolean
+    hidden?: boolean
 }
 
 /** `type`: the network's mark (with no `label`, the mark alone); `icon`: any docsIcon value. */
