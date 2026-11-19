@@ -408,5 +408,9 @@ export default [
   // of your own, per-page lists, the Ctrl+C copy) and the lazy listen-to-page chunk.
   // 9,697,885 B (+15,120 B, exactly the overage): Ask AI in the docs site (the lazy panel
   // chunk, its styles, the header button, selection chip and search row).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '9697885 B', brotli: false },
+  // 11,121,923 B (+1,424,038 B, exactly the overage): docs code block themes (all 65
+  // bundled themes, each a lazy chunk trimmed to what highlighting reads, 707,638 B) and
+  // 46 more lazily loaded grammars with their embedded languages; about 250 kB in the
+  // compressed wheel. No loaded chunk grows.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11121923 B', brotli: false },
 ]

@@ -52,7 +52,7 @@ AIUI_SHELL=legacy aiui run app.py   # always the vanilla dashboard
   When the socket cannot open it falls back to Server-Sent Events (`POST /run`);
   on SSE an agent's question says that answering needs a live connection.
 - **One markdown renderer** (Streamdown) for chat and docs, with lazy code
-  highlighting (28 languages), Mermaid and KaTeX. In chat, external links open
+  highlighting (74 languages), Mermaid and KaTeX. In chat, external links open
   in a new tab with `rel="noopener noreferrer nofollow"`, and remote images
   are shown as a click-to-load placeholder naming their host (same-origin,
   `data:image/` and `blob:` images load directly).
@@ -151,7 +151,7 @@ triples are converted in the browser where possible, but update the CSS.
 |---|---|---|
 | Types | `npx tsc -b` | 0 errors |
 | Unit tests | `npm test`, `npm run test:scripts` | all pass |
-| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 141,909 B, /chat first-screen JS ≤ 254,460 B, `index.css` ≤ 32 kB, Streamdown ≤ 148 kB (146 kB with `gzip -9`), shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,161 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 9,697,885 B uncompressed |
+| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 141,909 B, /chat first-screen JS ≤ 254,460 B, `index.css` ≤ 32 kB, Streamdown ≤ 148 kB (146 kB with `gzip -9`), shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,161 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 11,121,923 B uncompressed |
 | First screen stays light | `npm run check:closure` | no Streamdown, Shiki, Mermaid, KaTeX or assistant-ui in the static closure of the entry, the shell or the legacy App |
 | Committed bundle | `npm run check:bundle` | `templates/frontend` equals a fresh build (pull requests that touch the frontend only) |
 | Browser suites | `npm run test:e2e` | see `src/frontend/e2e/README.md` |

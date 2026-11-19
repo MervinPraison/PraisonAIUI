@@ -201,6 +201,42 @@ site:
   A family name with quotes or braces, or a weight such as `450`, is a config
   error.
 
+## Code blocks
+
+One line picks the colours of every code block on a docs site (`aiui build`),
+from any of the [65 bundled themes](https://shiki.style/themes):
+
+```yaml
+site:
+  theme:
+    code: dracula                                   # both modes
+    # code: { light: github-light, dark: github-dark-dimmed }
+    codeLanguages:
+      - grammars/mylang.tmLanguage.json             # your own TextMate grammar
+      - { source: grammars/rules.json, name: rules, aliases: [rl] }
+```
+
+| Key | Value |
+|-----|-------|
+| `code` | A theme name for light and dark, or `{light, dark}` (each defaults to `github-light` / `github-dark`) |
+| `codeLanguages` | TextMate grammar files (`.json`) beside `aiui.yaml`: a path, or `{source, name, aliases}` |
+
+- **The theme's own background.** A chosen theme draws the block on its
+  background, with the header, hairlines and muted text mixed from its
+  colours, so `code: dracula` stays readable on a light page. Without
+  `code`, blocks keep the site's code background and the GitHub colours.
+- **Loaded only when used.** Each theme and each grammar is its own file; a
+  page downloads only the theme of its mode and the grammars its fences use.
+- **Your own language.** A grammar is published with the site and loaded on
+  the first fence that names it. Its fence name is `name`, else the grammar's
+  `name` field (lowercased), else the file name; `aliases` defaults to the
+  grammar's `fileTypes`. A grammar wins over a built-in language of the same
+  name, and languages it embeds (`embeddedLangs`) highlight too.
+- `aiui validate` warns with the nearest name when a theme is not bundled
+  (7015; that mode keeps the GitHub theme), and when a grammar file is missing
+  (7014) or is not a grammar (7015). Names are lowercased; one with spaces
+  or other punctuation than `+#._-` is a config error.
+
 ## Custom CSS and JS
 
 Add your own stylesheets and scripts to every page of a docs build:

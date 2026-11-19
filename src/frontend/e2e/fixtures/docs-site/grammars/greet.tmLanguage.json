@@ -1,0 +1,10 @@
+{
+  "name": "Greet",
+  "scopeName": "source.greet",
+  "fileTypes": ["greet", "gr"],
+  "patterns": [
+    { "match": "\\b(hello|bye)\\b", "name": "keyword.control.greet" },
+    { "match": "\\b\\d+\\b", "name": "constant.numeric.greet" },
+    { "match": "#.*$", "name": "comment.line.number-sign.greet" }
+  ]
+}

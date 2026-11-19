@@ -536,6 +536,15 @@
   `/__aiui/dev.js` (docs/features/content-security-policy.md). **Behaviour change:** a `customJs` script
   or raw HTML in a page that loads from or calls another host needs that host under `site.csp`.
 
+- **Code block themes and more languages.** `site.theme.code: dracula` (or `{light, dark}`) draws every
+  docs code block in any of the 65 bundled Shiki themes, on the theme's own background with the header
+  and muted text mixed from it; each theme is its own lazy file. 46 more languages highlight (74 in all,
+  among them Terraform, PowerShell, Vue, Svelte, Lua, Elixir, Haskell, Nginx, Protobuf and Solidity),
+  each grammar loaded only when a page uses it. `site.theme.codeLanguages` adds your own TextMate grammar
+  files, published with the site and registered on first use under their name and aliases.
+  `aiui validate` names the nearest theme for a typo (7015) and reports a missing or broken grammar
+  (7014, 7015) (docs/features/theming.md#code-blocks).
+
 ### Deprecated
 
 - `aiui.on_window_message`, `send_window_message`, `on_parent_message`,

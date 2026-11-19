@@ -360,6 +360,10 @@ export default function App() {
           theme?.radius || 'md'
         )
         applyStoredThemePreference(mode, theme?.strict)
+        // site.theme.code / codeLanguages for the lazy highlighter (markdown/codeConfig.ts);
+        // docs.css draws code panels in the theme's colours while <html> is marked.
+        globalThis.__AIUI_CODE__ = { code: theme?.code, codeLanguages: theme?.codeLanguages }
+        document.documentElement.toggleAttribute('data-aiui-code-theme', !!theme?.code)
 
         // Handle initial URL path for SPA routing
         const initialPath = canonicalDocPath(appPathname())

@@ -343,9 +343,21 @@ form, consecutive `=== "Label"` blocks with indented bodies, works too.
 
 ## Code blocks
 
-Fence code with its language for highlighting and a copy button. 28 common
-languages are highlighted; the rest show as plain text. Comments are drawn
-in a colour that keeps 4.5:1 contrast on the code background, light and dark.
+Fence code with its language for highlighting and a copy button. 74
+languages are highlighted, each grammar loaded only when a page uses it; the
+rest show as plain text unless the site adds its own grammar
+([code theme and languages](theming.md#code-blocks)). Comments are drawn in a
+colour that keeps 4.5:1 contrast on the code background, light and dark.
+
+Highlighted: apache, astro, awk, bash, bat, bicep, c, clojure, cmake, cpp,
+csharp, css, csv, dart, diff, docker, dotenv, elixir, elm, fish, fsharp,
+gleam, glsl, go, graphql, groovy, handlebars, haskell, hcl, html, http, ini,
+java, javascript, jinja, json, jsonl, jsx, julia, kotlin, lua, make, markdown,
+matlab, nginx, nix, objective-c, perl, php, powershell, prisma, proto,
+python, r, regexp, ruby, rust, sass, scala, scss, solidity, sql, svelte,
+swift, terraform, toml, tsx, typescript, vb, vue, wgsl, xml, yaml and zig,
+with their common short names (`sh`, `js`, `ts`, `py`, `yml`, `tf`, `ps1`,
+`makefile`, `objc`, `protobuf`, `hs`, `ex` and more).
 
 ````markdown
 ```python

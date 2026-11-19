@@ -872,6 +872,21 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   mask-image: linear-gradient(to bottom, currentColor calc(100% - 5rem), transparent calc(100% - 2.75rem));
 }
 
+/* site.theme.code: a code panel takes the chosen theme's own background and
+   text (assets/theme.css sets --aiui-code-bg / --aiui-code-fg per mode;
+   markdown/codeConfig.ts marks <html>). Its header, hairlines and muted text
+   are mixed from those two, so a dark theme on a light page stays legible. */
+html[data-aiui-code-theme] .aiui-docs article.aiui-doc :is([data-streamdown='code-block'], .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child)) {
+  --ui-code-bg: var(--aiui-code-bg);
+  --ui-panel-head: color-mix(in oklab, var(--aiui-code-fg) 7%, var(--aiui-code-bg));
+  --foreground: var(--aiui-code-fg);
+  --muted: color-mix(in oklab, var(--aiui-code-fg) 8%, var(--aiui-code-bg));
+  --muted-foreground: color-mix(in oklab, var(--aiui-code-fg) 82%, var(--aiui-code-bg));
+  --ui-text-3: color-mix(in oklab, var(--aiui-code-fg) 82%, var(--aiui-code-bg));
+  --border: color-mix(in oklab, var(--aiui-code-fg) 16%, var(--aiui-code-bg));
+  color: var(--aiui-code-fg);
+}
+
 /* Code groups (<CodeGroup>, or tabs that each hold one code block): the tab
    strip is the code panel's header. */
 .aiui-docs article.aiui-doc .aiui-tabs:has(> :is([role='tabpanel'], .aiui-tabs-panel) > :is(.aiui-code-frame, [data-streamdown='code-block']):only-child) {

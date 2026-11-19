@@ -78,3 +78,26 @@ test('code options at 390 px: the wrapped block and the page do not scroll sidew
   expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
   expect(await hasHorizontalOverflow(page)).toBe(false)
 })
+
+// fixtures/docs-site/aiui.yaml: site.theme.code {light: github-light, dark: github-dark-dimmed}
+// and codeLanguages [grammars/greet.tmLanguage.json] (fence `gr`, an alias from its fileTypes).
+const SITE_THEME = {
+  light: { bg: 'rgb(255, 255, 255)', keyword: 'rgb(215, 58, 73)', number: 'rgb(0, 92, 197)' },
+  dark: { bg: 'rgb(34, 39, 46)', keyword: 'rgb(244, 112, 103)', number: 'rgb(108, 182, 255)' },
+}
+for (const mode of ['light', 'dark'] as const) {
+  test(`site code theme (${mode}): the chosen theme's colours on its own background; a site grammar highlights`, async ({ page }) => {
+    const errors = collectPageErrors(page)
+    await setColorMode(page, mode)
+    await page.goto('/docs/markdown')
+    await expect(page.getByRole('heading', { name: 'Site code theme', level: 2 })).toBeVisible()
+    const block = page.locator('#main-content [data-streamdown="code-block"]').filter({ hasText: 'hello world 42' })
+    await block.scrollIntoViewIfNeeded()
+    const token = (text: string) => block.locator('[data-streamdown="code-block-body"] span', { hasText: new RegExp(`^${text}$`) }).first()
+    const want = SITE_THEME[mode]
+    await expect.poll(() => style(token('hello'), 'color')).toBe(want.keyword)
+    expect(await style(token('42'), 'color')).toBe(want.number)
+    expect(await style(block, 'background-color')).toBe(want.bg)
+    expect(errors.pageErrors).toEqual([])
+  })
+}
