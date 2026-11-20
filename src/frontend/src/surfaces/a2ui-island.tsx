@@ -1,6 +1,7 @@
 /**
  * Canvas-only mount of the official A2UI basic catalog.
- * The dashboard loads /assets/a2ui-island.js. Chat does not.
+ * The dashboard loads /plugins/a2ui-island.js when a surface has messages.
+ * It is not part of the default page bundle. Chat does not load it.
  */
 import { createRoot, type Root } from 'react-dom/client'
 import { A2uiSurface, basicCatalog } from '@a2ui/react/v0_9'

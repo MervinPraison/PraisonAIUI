@@ -4,12 +4,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SURFACE = ROOT / "src/praisonaiui/templates/frontend/plugins/surface-utils.js"
-ISLAND = ROOT / "src/praisonaiui/templates/frontend/assets/a2ui-island.js"
+ISLAND = ROOT / "src/praisonaiui/templates/frontend/plugins/a2ui-island.js"
 
 
 def test_canvas_tries_official_catalog_then_the_small_mapper():
     text = SURFACE.read_text(encoding="utf-8")
-    assert "import('/assets/a2ui-island.js')" in text
+    assert "import('/plugins/a2ui-island.js')" in text
     assert "a2ui-mapper.js" in text
     assert "mountA2ui" in text
 
