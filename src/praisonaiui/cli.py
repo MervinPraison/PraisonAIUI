@@ -2539,7 +2539,7 @@ def run(
         set_datastore(store)
 
         # Use standalone server (default)
-        from praisonaiui.server import create_app
+        from praisonaiui._run_factory import build_run_app
         from praisonaiui.server import set_style as _set_style
 
         # Pass the resolved style to the server module so the dynamic
@@ -2548,7 +2548,12 @@ def run(
         _set_style(style)
 
         config_path = config if config is not None and config.exists() else None
-        server_app = create_app(static_dir=static_dir, config_path=config_path)
+        run_user_module = None if is_yaml else user_module
+        server_app = build_run_app(
+            run_user_module,
+            static_dir=static_dir,
+            config_path=config_path,
+        )
 
         # Print startup info
         mode_label = style
