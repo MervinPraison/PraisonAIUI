@@ -1,0 +1,277 @@
+/**
+ * AIUI Navigation Intercept Plugin
+ *
+ * Implements true SPA navigation for docs pages:
+ *   1. Intercepts sidebar clicks in the CAPTURE phase on `document`
+ *      (before React 18's event delegation on `#root` can see them)
+ *   2. Calls stopPropagation() so React Router never learns about the click
+ *   3. Updates URL via native History.prototype.pushState (bypasses
+ *      React Router's monkey-patch of window.history.pushState)
+ *   4. Dispatches `aiui:navigate` custom event so content-loader.js
+ *      fetches & swaps the markdown in-place — no page reload
+ *
+ * Also patches window.history.pushState / replaceState so if React Router
+ * tries to navigate on its own, we intercept that too.
+ */
+
+// ── Native pushState — captured BEFORE React Router can patch it ─────
+const _nativePushState = History.prototype.pushState;
+const _nativeReplaceState = History.prototype.replaceState;
+
+let knownPaths = new Set();
+
+// A site built with `aiui build --base-path /repo` lives under /repo: its
+// paths here (knownPaths, aiui:navigate) are app paths (/docs/x), its URLs
+// carry the base (src/frontend/src/lib/url.ts does the same for the app).
+const BASE = (function () {
+  const meta = document.querySelector('meta[name="aiui-base"]');
+  return meta ? (meta.content || '').replace(/\/+$/, '') : '';
+})();
+
+function toAppPath(pathname) {
+  if (!BASE) return pathname;
+  if (pathname === BASE) return '/';
+  return pathname.startsWith(BASE + '/') ? pathname.slice(BASE.length) : pathname;
+}
+
+function currentAppPath() {
+  return normalizePath(toAppPath(window.location.pathname));
+}
+
+/* ── Load navigation data ────────────────────────────────────────── */
+
+/** The nav `aiui build` inlined in the page (compiler/boot_data.py), or null. */
+function inlinedNav() {
+  try {
+    const el = document.getElementById('aiui-boot-data');
+    return (el && JSON.parse(el.textContent || '')['/docs-nav.json']) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function loadNavData() {
+  try {
+    let data = inlinedNav();
+    if (!data) {
+      const resp = await fetch(BASE + '/docs-nav.json');
+      if (!resp.ok) return;
+      data = await resp.json();
+    }
+
+    function collectPaths(items) {
+      for (const item of items) {
+        if (item.path) {
+          knownPaths.add(normalizePath(item.path));
+        }
+        if (item.children) collectPaths(item.children);
+      }
+    }
+    collectPaths(data.items || []);
+    console.debug('[AIUI:nav] Loaded', knownPaths.size, 'known paths');
+  } catch (e) {
+    // Silently continue — nav data is optional
+  }
+}
+
+/* ── Helpers ──────────────────────────────────────────────────────── */
+
+function normalizePath(p) {
+  const cleaned = (p || '/').replace(/\/+$/, '');
+  return cleaned || '/';
+}
+
+/* ── SPA Navigation ──────────────────────────────────────────────── */
+
+/**
+ * Navigate to a path WITHOUT a page reload.
+ *   - Updates URL via native pushState (React Router can't see it)
+ *   - Dispatches aiui:navigate so content-loader.js swaps content
+ */
+function mainHasVisibleContent() {
+  const main = document.querySelector('main.flex-1');
+  if (!main) return false;
+  return (main.textContent?.trim().length ?? 0) > 30;
+}
+
+function spaNavigate(path) {
+  const target = normalizePath(path);
+  const current = currentAppPath();
+  if (target === current && mainHasVisibleContent()) return;
+
+  // Canonical URL: no trailing slash (matches React pushState)
+  _nativePushState.call(window.history, null, '', BASE + target);
+
+  // Tell content-loader + topnav + homepage plugins to update
+  window.dispatchEvent(new CustomEvent('aiui:navigate', {
+    detail: { path: target, fromPath: current }
+  }));
+
+  // Scroll to top
+  window.scrollTo(0, 0);
+
+  console.debug('[AIUI:nav] SPA:', current, '→', target);
+}
+
+/* ── Click interception ──────────────────────────────────────────── */
+
+function interceptClicks() {
+  // CAPTURE phase on document — fires BEFORE React 18's event delegation on #root
+  document.addEventListener('click', function (e) {
+    // Only intercept sidebar nav buttons/links
+    const btn = e.target.closest(
+      `aside button, aside a, main a[href^="${BASE}/docs"], article a[href^="${BASE}/docs"]`
+    );
+    if (!btn) return;
+
+    // Skip group headers (uppercase section labels like "CONCEPTS", "FEATURES")
+    if (btn.className && /uppercase/.test(btn.className)) return;
+    const text = btn.textContent.trim();
+    if (!text) return;
+
+    // Sidebar links always carry data-nav-path — intercept immediately (no docs-nav.json wait)
+    const navPath = btn.dataset.navPath;
+    if (navPath) {
+      const normalized = normalizePath(navPath);
+      if (normalized.startsWith('/')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        spaNavigate(normalized);
+        return;
+      }
+    }
+
+    // Try to match by <a> href first (most reliable)
+    if (btn.tagName === 'A' && btn.href) {
+      try {
+        const url = new URL(btn.href, window.location.origin);
+        if (url.origin === window.location.origin) {
+          const normalized = normalizePath(toAppPath(url.pathname));
+          if (knownPaths.has(normalized)) {
+            e.preventDefault();
+            e.stopPropagation();        // stops event before it reaches #root
+            e.stopImmediatePropagation();
+            spaNavigate(normalized);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fallback: match button text to a known slug
+    const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    for (const knownPath of knownPaths) {
+      const pathSlug = knownPath.split('/').pop();
+      if (pathSlug === slug) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        spaNavigate(knownPath);
+        return;
+      }
+    }
+  }, true); // true = capture phase
+}
+
+/* ── History monkey-patch (catches React Router's own pushState calls) ── */
+
+function patchHistory() {
+  // Save whatever pushState currently is (may already be wrapped by React Router)
+  const wrappedPush = window.history.pushState;
+  const wrappedReplace = window.history.replaceState;
+
+  window.history.pushState = function (state, title, url) {
+    if (url && typeof url === 'string') {
+      let path;
+      let parsed;
+      try {
+        parsed = new URL(url, window.location.origin);
+        path = parsed.pathname;
+      } catch (_) {
+        path = url;
+      }
+      const normalized = normalizePath(path);
+      const appPath = normalizePath(toAppPath(path));
+
+      if (knownPaths.has(appPath) && appPath !== currentAppPath()) {
+        spaNavigate(appPath);
+        return;
+      }
+      if (parsed && normalized !== path) {
+        parsed.pathname = normalized;
+        url = parsed.pathname + parsed.search + parsed.hash;
+      }
+    }
+    return wrappedPush.call(this, state, title, url);
+  };
+
+  window.history.replaceState = function (state, title, url) {
+    if (url && typeof url === 'string') {
+      let path;
+      let parsed;
+      try {
+        parsed = new URL(url, window.location.origin);
+        path = parsed.pathname;
+      } catch (_) {
+        path = url;
+      }
+      const normalized = normalizePath(path);
+      const appPath = normalizePath(toAppPath(path));
+
+      if (knownPaths.has(appPath) && appPath !== currentAppPath()) {
+        spaNavigate(appPath);
+        return;
+      }
+      if (parsed && normalized !== path) {
+        parsed.pathname = normalized;
+        url = parsed.pathname + parsed.search + parsed.hash;
+      }
+    }
+    return wrappedReplace.call(this, state, title, url);
+  };
+}
+
+/* ── Handle browser back/forward ─────────────────────────────────── */
+
+function handlePopState() {
+  window.addEventListener('popstate', function () {
+    const path = currentAppPath();
+    // Dispatch navigate event so content-loader handles it
+    window.dispatchEvent(new CustomEvent('aiui:navigate', {
+      detail: { path: path, fromPath: '' }
+    }));
+  });
+}
+
+function canonicalizeUrlBar() {
+  const current = window.location.pathname;
+  const normalized = normalizePath(current);
+  if (normalized === current) return;
+
+  const next = normalized + window.location.search + window.location.hash;
+  _nativeReplaceState.call(window.history, null, '', next);
+  window.dispatchEvent(new CustomEvent('aiui:navigate', {
+    detail: { path: currentAppPath(), fromPath: current }
+  }));
+  console.debug('[AIUI:nav] Canonical URL:', current, '→', normalized);
+}
+
+/* ── Plugin export ───────────────────────────────────────────────── */
+
+export default {
+  name: 'nav-intercept',
+  async init() {
+    await loadNavData();
+    canonicalizeUrlBar();
+    interceptClicks();
+    patchHistory();
+    handlePopState();
+    console.debug('[AIUI:nav] SPA navigation active —', knownPaths.size, 'routes');
+  },
+  onContentChange() {
+    // Clean up any leftover overlay from previous approach
+    const overlay = document.getElementById('aiui-nav-overlay');
+    if (overlay) overlay.remove();
+  },
+};

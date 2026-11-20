@@ -1,0 +1,1 @@
+const u="aiui-main";function o(n=globalThis.document){let t=null;return{capture(){const e=n?.activeElement;t=e&&e!==n?.body&&typeof e.focus=="function"?e:null},toMain(){t=n?.getElementById(u)??null},restore(e){e.preventDefault();const l=t;t=null,l?.isConnected&&l.focus({preventScroll:!0})}}}export{o as c};

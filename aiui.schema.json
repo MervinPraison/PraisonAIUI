@@ -1,0 +1,4777 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ui.praison.ai/aiui.schema.json",
+  "$defs": {
+    "A11yConfig": {
+      "description": "Accessibility configuration.",
+      "properties": {
+        "skipToContent": {
+          "default": true,
+          "title": "Skiptocontent",
+          "type": "boolean"
+        },
+        "focusVisible": {
+          "default": true,
+          "title": "Focusvisible",
+          "type": "boolean"
+        },
+        "reduceMotion": {
+          "default": false,
+          "title": "Reducemotion",
+          "type": "boolean"
+        },
+        "ariaLabels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Arialabels",
+          "type": "object"
+        }
+      },
+      "title": "A11yConfig",
+      "type": "object"
+    },
+    "ApiAuthConfig": {
+      "description": "``api.auth``: the credential Try it asks for on ``api:`` pages (a header input).",
+      "properties": {
+        "method": {
+          "default": "bearer",
+          "enum": [
+            "bearer",
+            "basic",
+            "key",
+            "none"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "title": "ApiAuthConfig",
+      "type": "object"
+    },
+    "ApiConfig": {
+      "description": "``api:`` \u2014 API reference settings (OpenAPI specs; see docs/features/openapi.md).",
+      "properties": {
+        "openapi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/OpenApiSourceConfig"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/OpenApiSourceConfig"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openapi"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiParamsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "examples": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiExamplesConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "playground": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiPlaygroundConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "server": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server"
+        },
+        "auth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiAuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ApiConfig",
+      "type": "object"
+    },
+    "ApiExamplesConfig": {
+      "description": "``api.examples``: request examples on endpoint pages.",
+      "properties": {
+        "languages": {
+          "anyOf": [
+            {
+              "const": "all",
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [
+            "curl",
+            "python",
+            "javascript"
+          ],
+          "title": "Languages"
+        },
+        "prefill": {
+          "default": true,
+          "title": "Prefill",
+          "type": "boolean"
+        }
+      },
+      "title": "ApiExamplesConfig",
+      "type": "object"
+    },
+    "ApiParamsConfig": {
+      "description": "``api.params``: how endpoint pages show parameters.",
+      "properties": {
+        "expanded": {
+          "default": "closed",
+          "enum": [
+            "all",
+            "closed"
+          ],
+          "title": "Expanded",
+          "type": "string"
+        }
+      },
+      "title": "ApiParamsConfig",
+      "type": "object"
+    },
+    "ApiPlaygroundConfig": {
+      "description": "``api.playground``: the Try-it panel on endpoint pages (front matter ``playground:`` per page).",
+      "properties": {
+        "display": {
+          "default": "interactive",
+          "enum": [
+            "interactive",
+            "simple",
+            "none",
+            "auth"
+          ],
+          "title": "Display",
+          "type": "string"
+        }
+      },
+      "title": "ApiPlaygroundConfig",
+      "type": "object"
+    },
+    "AssistantConfig": {
+      "description": "Ask AI over the docs (docs/features/ai-ready-docs.md#ask-ai). ``aiui serve`` and\n``aiui dev`` answer with the site owner's model key from the environment and cite\nthe sections they used; ``content.docs.assistant: false`` turns it off.",
+      "properties": {
+        "starters": {
+          "description": "Questions offered before the reader asks anything",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Starters",
+          "type": "array"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The model (default: AIUI_ASSISTANT_MODEL, OPENAI_MODEL_NAME, else gpt-4o-mini); provider/model names use LiteLLM",
+          "title": "Model"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Extra rules for every answer (tone, product names, scope)",
+          "title": "Instructions"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "On a static host: the ask URL of an aiui server, e.g. https://docs-api.example.com/api/docs/ask",
+          "title": "Endpoint"
+        }
+      },
+      "title": "AssistantConfig",
+      "type": "object"
+    },
+    "AuthConfig": {
+      "description": "Authentication configuration.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "providers": {
+          "items": {
+            "enum": [
+              "password",
+              "google",
+              "github",
+              "azure",
+              "auth0",
+              "url_token"
+            ],
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "oauth": {
+          "items": {
+            "$ref": "#/$defs/AuthProviderConfig"
+          },
+          "title": "Oauth",
+          "type": "array"
+        },
+        "requireAuth": {
+          "default": false,
+          "title": "Requireauth",
+          "type": "boolean"
+        },
+        "allowSignup": {
+          "default": false,
+          "title": "Allowsignup",
+          "type": "boolean"
+        },
+        "urlToken": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Urltoken"
+        },
+        "urlTokenEnv": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "AIUI_URL_TOKEN",
+          "title": "Urltokenenv"
+        },
+        "sessionLifetime": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sessionlifetime"
+        },
+        "cookie": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SessionCookieConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "AuthConfig",
+      "type": "object"
+    },
+    "AuthProviderConfig": {
+      "description": "OAuth provider configuration.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clientid"
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clientsecret"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "AuthProviderConfig",
+      "type": "object"
+    },
+    "BannerConfig": {
+      "description": "``banner:`` a strip above the docs header. ``content`` is Markdown;\n``banner: \"text\"`` is the short form.",
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "dismissible": {
+          "default": false,
+          "title": "Dismissible",
+          "type": "boolean"
+        },
+        "type": {
+          "default": "info",
+          "enum": [
+            "info",
+            "warning",
+            "success"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "BannerConfig",
+      "type": "object"
+    },
+    "ChatConfig": {
+      "description": "Chat configuration for AI chat interfaces.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "starters": {
+          "items": {
+            "$ref": "#/$defs/ChatStarterConfig"
+          },
+          "title": "Starters",
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "$ref": "#/$defs/ChatProfileConfig"
+          },
+          "title": "Profiles",
+          "type": "array"
+        },
+        "features": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChatFeaturesConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "input": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChatInputConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ChatConfig",
+      "type": "object"
+    },
+    "ChatFeaturesConfig": {
+      "description": "Chat features configuration.",
+      "properties": {
+        "streaming": {
+          "default": true,
+          "title": "Streaming",
+          "type": "boolean"
+        },
+        "fileUpload": {
+          "default": true,
+          "title": "Fileupload",
+          "type": "boolean"
+        },
+        "audio": {
+          "default": false,
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "reasoning": {
+          "default": true,
+          "title": "Reasoning",
+          "type": "boolean"
+        },
+        "tools": {
+          "default": true,
+          "title": "Tools",
+          "type": "boolean"
+        },
+        "multimedia": {
+          "default": true,
+          "title": "Multimedia",
+          "type": "boolean"
+        },
+        "history": {
+          "default": true,
+          "title": "History",
+          "type": "boolean"
+        },
+        "feedback": {
+          "default": false,
+          "title": "Feedback",
+          "type": "boolean"
+        },
+        "codeExecution": {
+          "default": false,
+          "title": "Codeexecution",
+          "type": "boolean"
+        }
+      },
+      "title": "ChatFeaturesConfig",
+      "type": "object"
+    },
+    "ChatInputConfig": {
+      "description": "Chat input configuration.",
+      "properties": {
+        "multimodal": {
+          "default": true,
+          "title": "Multimodal",
+          "type": "boolean"
+        },
+        "audio": {
+          "default": false,
+          "title": "Audio",
+          "type": "boolean"
+        },
+        "fileUpload": {
+          "default": true,
+          "title": "Fileupload",
+          "type": "boolean"
+        },
+        "placeholder": {
+          "default": "Type a message...",
+          "title": "Placeholder",
+          "type": "string"
+        }
+      },
+      "title": "ChatInputConfig",
+      "type": "object"
+    },
+    "ChatProfileConfig": {
+      "description": "Chat profile configuration for agent selection.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "title": "Default"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ChatProfileConfig",
+      "type": "object"
+    },
+    "ChatStarterConfig": {
+      "description": "Chat starter message configuration.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        }
+      },
+      "required": [
+        "label",
+        "message"
+      ],
+      "title": "ChatStarterConfig",
+      "type": "object"
+    },
+    "CodeLanguageConfig": {
+      "description": "A TextMate grammar (JSON file beside aiui.yaml) that highlights fences of its language.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fence language (default: the grammar's name)",
+          "title": "Name"
+        },
+        "aliases": {
+          "description": "More fence names for it",
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "CodeLanguageConfig",
+      "type": "object"
+    },
+    "CodeThemeConfig": {
+      "description": "Code block theme per colour mode (a bundled Shiki theme name each).",
+      "properties": {
+        "light": {
+          "default": "github-light",
+          "title": "Light",
+          "type": "string"
+        },
+        "dark": {
+          "default": "github-dark",
+          "title": "Dark",
+          "type": "string"
+        }
+      },
+      "title": "CodeThemeConfig",
+      "type": "object"
+    },
+    "ComponentConfig": {
+      "description": "Component definition.",
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": true,
+          "title": "Props",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ComponentConfig",
+      "type": "object"
+    },
+    "ConsentConfig": {
+      "description": "``integrations.consent``: load nothing until the reader accepts.",
+      "properties": {
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "banner": {
+          "default": true,
+          "description": "false: your own consent tool sends the aiui:consent event",
+          "title": "Banner",
+          "type": "boolean"
+        },
+        "text": {
+          "default": "We use cookies to measure how these docs are used.",
+          "maxLength": 500,
+          "title": "Text",
+          "type": "string"
+        },
+        "accept": {
+          "default": "Accept",
+          "maxLength": 40,
+          "title": "Accept",
+          "type": "string"
+        },
+        "decline": {
+          "default": "Decline",
+          "maxLength": 40,
+          "title": "Decline",
+          "type": "string"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/)[^\\s\\\"'<>]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy"
+        },
+        "policyLabel": {
+          "default": "Privacy policy",
+          "maxLength": 60,
+          "title": "Policylabel",
+          "type": "string"
+        }
+      },
+      "title": "ConsentConfig",
+      "type": "object"
+    },
+    "ContentConfig": {
+      "additionalProperties": true,
+      "description": "Content sources configuration.",
+      "properties": {
+        "docs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentSourceConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "blog": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentSourceConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ContentConfig",
+      "type": "object"
+    },
+    "ContentSignalsConfig": {
+      "description": "robots.txt ``Content-Signal`` (contentsignals.org): how crawlers may use the pages.\nUnset keys are left out of the line.",
+      "properties": {
+        "search": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Search"
+        },
+        "aiInput": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aiinput"
+        },
+        "aiTrain": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aitrain"
+        }
+      },
+      "title": "ContentSignalsConfig",
+      "type": "object"
+    },
+    "ContentSourceConfig": {
+      "description": "Configuration for a single content source (docs, blog, etc.).",
+      "properties": {
+        "dir": {
+          "title": "Dir",
+          "type": "string"
+        },
+        "include": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Include",
+          "type": "array"
+        },
+        "exclude": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Exclude",
+          "type": "array"
+        },
+        "indexFiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Indexfiles",
+          "type": "array"
+        },
+        "nav": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NavConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "editLink": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EditLinkConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lastUpdated": {
+          "default": false,
+          "title": "Lastupdated",
+          "type": "boolean"
+        },
+        "feedback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedbackConfig"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feedback"
+        },
+        "related": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": true,
+          "description": "Related pages under each docs page: the number shown (default 3, at most 10), or false for none (docs/features/writing-docs.md#related-pages)",
+          "title": "Related"
+        },
+        "mcp": {
+          "default": true,
+          "description": "Serve a read-only MCP server at /mcp from aiui serve and aiui dev (docs/features/ai-ready-docs.md#mcp-server)",
+          "title": "Mcp",
+          "type": "boolean"
+        },
+        "assistant": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssistantConfig"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": true,
+          "description": "Ask AI over these docs from aiui serve and aiui dev, with cited answers (docs/features/ai-ready-docs.md#ask-ai); false turns it off",
+          "title": "Assistant"
+        },
+        "pageActions": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "copy",
+                      "view",
+                      "pdf",
+                      "listen",
+                      "chatgpt",
+                      "claude",
+                      "perplexity",
+                      "grok",
+                      "google",
+                      "copilot",
+                      "mistral",
+                      "cursor",
+                      "mcp"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/PageActionLink"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "default": true,
+          "description": "The page actions menu above each docs page: the built-in actions and your own links, in order, or false for none (docs/features/writing-docs.md#page-actions)",
+          "title": "Pageactions"
+        },
+        "reference": {
+          "$ref": "#/$defs/ReferenceConfig",
+          "description": "Python API reference from docstrings: where ::: blocks find modules"
+        },
+        "auth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DocsAuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Readers sign in with a password under aiui serve and aiui dev; public patterns, front matter public and groups open or limit pages (docs/features/docs-auth.md)"
+        }
+      },
+      "required": [
+        "dir"
+      ],
+      "title": "ContentSourceConfig",
+      "type": "object"
+    },
+    "CrispIntegration": {
+      "properties": {
+        "websiteId": {
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Websiteid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "websiteId"
+      ],
+      "title": "CrispIntegration",
+      "type": "object"
+    },
+    "DashboardConfig": {
+      "description": "Dashboard layout configuration.",
+      "properties": {
+        "sidebar": {
+          "default": true,
+          "description": "Show the left sidebar navigation",
+          "title": "Sidebar",
+          "type": "boolean"
+        },
+        "pageHeader": {
+          "default": true,
+          "description": "Show page title/description header",
+          "title": "Pageheader",
+          "type": "boolean"
+        },
+        "modules": {
+          "description": "Optional dashboard JS modules to load (jobs, auth, api)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Modules",
+          "type": "array"
+        },
+        "pluginDirs": {
+          "description": "Extra directories to scan for dashboard-plugins manifests",
+          "items": {
+            "type": "string"
+          },
+          "title": "Plugindirs",
+          "type": "array"
+        }
+      },
+      "title": "DashboardConfig",
+      "type": "object"
+    },
+    "DependenciesConfig": {
+      "description": "Component dependencies configuration.",
+      "properties": {
+        "shadcn": {
+          "description": "List of shadcn/ui component names to install",
+          "items": {
+            "type": "string"
+          },
+          "title": "Shadcn",
+          "type": "array"
+        }
+      },
+      "title": "DependenciesConfig",
+      "type": "object"
+    },
+    "DocsAuthConfig": {
+      "description": "Sign-in for the docs when ``aiui serve`` or ``aiui dev`` serves them (docs/features/docs-auth.md).",
+      "properties": {
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "env:NAME: one shared password for every reader",
+          "title": "Password"
+        },
+        "users": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/DocsUserConfig"
+              }
+            ]
+          },
+          "description": "Named readers: {name: env:NAME} or {name: {password, groups}}",
+          "title": "Users",
+          "type": "object"
+        },
+        "public": {
+          "description": "Pages anyone may read: '/' (the home page), page paths and patterns such as 'quickstart' or 'guides/*'",
+          "items": {
+            "type": "string"
+          },
+          "title": "Public",
+          "type": "array"
+        }
+      },
+      "title": "DocsAuthConfig",
+      "type": "object"
+    },
+    "DocsUserConfig": {
+      "description": "A named reader: their password and the groups front matter ``groups`` names.",
+      "properties": {
+        "password": {
+          "description": "env:NAME: the environment variable that holds this reader's password",
+          "title": "Password",
+          "type": "string"
+        },
+        "groups": {
+          "description": "Groups this reader belongs to",
+          "items": {
+            "type": "string"
+          },
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "required": [
+        "password"
+      ],
+      "title": "DocsUserConfig",
+      "type": "object"
+    },
+    "EditLinkConfig": {
+      "description": "\"Edit this page\" under each docs page.",
+      "properties": {
+        "pattern": {
+          "description": "URL with :path for the page's source path, e.g. https://github.com/acme/site/edit/main/docs/:path",
+          "title": "Pattern",
+          "type": "string"
+        },
+        "text": {
+          "default": "Edit this page",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "title": "EditLinkConfig",
+      "type": "object"
+    },
+    "ErrorsConfig": {
+      "description": "Error pages; ``404`` (or ``notFound``) is the page-not-found view.",
+      "properties": {
+        "404": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotFoundConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ErrorsConfig",
+      "type": "object"
+    },
+    "ExtensionsConfig": {
+      "description": "Entry-point plugin policy (group ``praisonaiui.plugins``), YAML ``extensions:``.\n\n- ``enabled`` omitted: every installed plugin is imported (``pip install``\n  means trust). A list makes it a strict allowlist of *third-party*\n  plugins only; it never switches a built-in or a plugin passed to\n  ``aiui.register_plugin()`` off.\n- ``disabled`` always wins, and a disabled plugin is never imported. It\n  also takes built-in record names, ``builtin.<name>`` (for example\n  ``builtin.training``), which removes that built-in's pages and its\n  optional features. A feature the host itself needs (a record listed as\n  ``required``) keeps running. A bare name such as ``training`` means a\n  third-party plugin of that name, never the built-in.\n- A bare list (``extensions: [a, b]``) is shorthand for ``enabled``.\n\nPlugin *browser* surfaces (pages, blocks, tool renderers and the static\n``/_plugins/<name>/`` dir) are default-deny when the server requires auth or\nis reached from a non-loopback address: they are only served for plugins\nnamed in ``enabled``.\n\nDistinct from ``site.plugins`` (docs JS plugins) and ``dashboard.plugins``\n(legacy dashboard-plugin allowlist).",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "disabled": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Disabled",
+          "type": "array"
+        }
+      },
+      "title": "ExtensionsConfig",
+      "type": "object"
+    },
+    "FathomIntegration": {
+      "properties": {
+        "siteId": {
+          "pattern": "^[A-Z0-9]{4,16}$",
+          "title": "Siteid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "siteId"
+      ],
+      "title": "FathomIntegration",
+      "type": "object"
+    },
+    "FeedbackConfig": {
+      "description": "\"Was this page helpful?\" under each docs page. ``aiui serve`` and ``aiui dev``\nstore the votes (``aiui docs feedback`` lists them); a static host posts them\nto ``endpoint``. ``content.docs.feedback: false`` turns it off.",
+      "properties": {
+        "issues": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New-issue URL a \"No\" also offers, e.g. https://github.com/acme/site/issues/new",
+          "title": "Issues"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where votes are POSTed on a static host (an https:// URL); false sends none (only the aiui:docs-feedback browser event). Default: the aiui server stores them",
+          "title": "Endpoint"
+        },
+        "code": {
+          "default": false,
+          "description": "A thumbs-down on each code block, to flag a broken sample",
+          "title": "Code",
+          "type": "boolean"
+        }
+      },
+      "title": "FeedbackConfig",
+      "type": "object"
+    },
+    "FontFace": {
+      "description": "A font for docs text: a Google Fonts family, or a font file of the project\n(``source``: a path beside aiui.yaml, a site path or a URL).",
+      "properties": {
+        "family": {
+          "title": "Family",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "400, a range '100 900' (a variable font) or, for Google Fonts, [400, 700]. Default: Google Fonts 400-700, a file 400",
+          "title": "Weight"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "enum": [
+                "woff2",
+                "woff",
+                "truetype",
+                "opentype"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Font file format (default: from the file extension)",
+          "title": "Format"
+        }
+      },
+      "required": [
+        "family"
+      ],
+      "title": "FontFace",
+      "type": "object"
+    },
+    "FontsConfig": {
+      "description": "Docs site fonts per role; a string is a Google Fonts family.",
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FontFace"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/FontFace"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "heading": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FontFace"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/FontFace"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heading"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FontFace"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/FontFace"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        }
+      },
+      "title": "FontsConfig",
+      "type": "object"
+    },
+    "FooterConfig": {
+      "description": "Footer configuration with socials and link columns.",
+      "properties": {
+        "socials": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Socials",
+          "type": "object"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/FooterLinkColumnConfig"
+          },
+          "title": "Links",
+          "type": "array"
+        }
+      },
+      "title": "FooterConfig",
+      "type": "object"
+    },
+    "FooterLinkColumnConfig": {
+      "description": "A column of links in the footer.",
+      "properties": {
+        "header": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Header"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/FooterLinkItemConfig"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "FooterLinkColumnConfig",
+      "type": "object"
+    },
+    "FooterLinkItemConfig": {
+      "description": "A single link in a footer column.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "href": {
+          "title": "Href",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "href"
+      ],
+      "title": "FooterLinkItemConfig",
+      "type": "object"
+    },
+    "FrontIntegration": {
+      "properties": {
+        "chatId": {
+          "pattern": "^[a-f0-9]{16,64}$",
+          "title": "Chatid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "title": "FrontIntegration",
+      "type": "object"
+    },
+    "Ga4Integration": {
+      "properties": {
+        "measurementId": {
+          "pattern": "^G-[A-Z0-9]{4,16}$",
+          "title": "Measurementid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "measurementId"
+      ],
+      "title": "Ga4Integration",
+      "type": "object"
+    },
+    "GtmIntegration": {
+      "properties": {
+        "tagId": {
+          "pattern": "^GTM-[A-Z0-9]{4,12}$",
+          "title": "Tagid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tagId"
+      ],
+      "title": "GtmIntegration",
+      "type": "object"
+    },
+    "I18nConfig": {
+      "description": "Internationalization configuration.",
+      "properties": {
+        "defaultLocale": {
+          "default": "en",
+          "title": "Defaultlocale",
+          "type": "string"
+        },
+        "locales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Locales",
+          "type": "array"
+        },
+        "rtlLocales": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rtllocales",
+          "type": "array"
+        },
+        "fallbackLocale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallbacklocale"
+        },
+        "translationsDir": {
+          "default": "./translations",
+          "title": "Translationsdir",
+          "type": "string"
+        }
+      },
+      "title": "I18nConfig",
+      "type": "object"
+    },
+    "InputWidgetConfig": {
+      "description": "Input widget configuration for settings panels.",
+      "properties": {
+        "type": {
+          "enum": [
+            "slider",
+            "select",
+            "switch",
+            "text",
+            "number",
+            "color"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "default": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "title": "InputWidgetConfig",
+      "type": "object"
+    },
+    "IntegrationsConfig": {
+      "description": "Analytics and support chat on every built page, gated by cookie consent.",
+      "properties": {
+        "ga4": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ga4Integration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gtm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GtmIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "posthog": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PostHogIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "plausible": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlausibleIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fathom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FathomIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "umami": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UmamiIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SegmentIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mixpanel": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MixpanelIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "intercom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntercomIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "crisp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CrispIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "front": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrontIntegration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scripts": {
+          "description": "Other tracker scripts (https URLs), loaded under the same consent",
+          "items": {
+            "type": "string"
+          },
+          "title": "Scripts",
+          "type": "array"
+        },
+        "consent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConsentConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "respectDoNotTrack": {
+          "default": true,
+          "description": "Skip analytics for readers who send Global Privacy Control or Do Not Track",
+          "title": "Respectdonottrack",
+          "type": "boolean"
+        },
+        "dev": {
+          "default": false,
+          "description": "Also load them in `aiui dev` (off: previews do not count)",
+          "title": "Dev",
+          "type": "boolean"
+        }
+      },
+      "title": "IntegrationsConfig",
+      "type": "object"
+    },
+    "InteractionConfig": {
+      "description": "``interaction:`` \u2014 how the docs sidebar responds.",
+      "properties": {
+        "drilldown": {
+          "default": false,
+          "title": "Drilldown",
+          "type": "boolean"
+        }
+      },
+      "title": "InteractionConfig",
+      "type": "object"
+    },
+    "IntercomIntegration": {
+      "properties": {
+        "appId": {
+          "pattern": "^[a-z0-9]{4,16}$",
+          "title": "Appid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "appId"
+      ],
+      "title": "IntercomIntegration",
+      "type": "object"
+    },
+    "LayoutConfig": {
+      "description": "Layout configuration: chat positioning (``mode``, ``width``, ``height``)\nand, for ``style: app``, the selectable shell layouts (ADR 0003).\n\n- ``default``: the layout a viewer starts with; ``classic`` is the\n  shell's own frame. ``AIUI_LAYOUT`` and ``aiui.set_layout()`` win.\n- ``available``: the layouts offered, in picker order (default: every\n  layout the enabled plugins declare).\n- ``user_choice``: a viewer's own pick may override ``default``.\n- ``primary``: page ids of the primary nav, for every layout.\n- ``options``: per-layout settings, keyed by layout id.\n\nA bare string is shorthand: ``layout: command`` is ``{default: command}``.\nA malformed selection entry (a bad id, a string where a list goes) never\nfails the config: it is dropped, as the server drops it, and listed in\n``rejected`` for ``aiui validate`` (warning 5103).",
+      "properties": {
+        "mode": {
+          "default": "fullscreen",
+          "enum": [
+            "fullscreen",
+            "sidebar",
+            "bottom-right",
+            "bottom-left",
+            "top-right",
+            "top-left",
+            "embedded",
+            "custom"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "available": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Available"
+        },
+        "userChoice": {
+          "default": true,
+          "title": "Userchoice",
+          "type": "boolean"
+        },
+        "primary": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Primary"
+        },
+        "options": {
+          "additionalProperties": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Options",
+          "type": "object"
+        }
+      },
+      "title": "LayoutConfig",
+      "type": "object"
+    },
+    "LogoConfig": {
+      "description": "Logo configuration with light/dark variants.",
+      "properties": {
+        "light": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Light"
+        },
+        "dark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dark"
+        },
+        "href": {
+          "default": "/",
+          "title": "Href",
+          "type": "string"
+        }
+      },
+      "title": "LogoConfig",
+      "type": "object"
+    },
+    "MarkdownConfig": {
+      "description": "``markdown:`` \u2014 the agent-ready Markdown ``aiui build`` publishes (docs/features/ai-ready-docs.md).",
+      "properties": {
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Guidance for AI agents, prepended to every page's .md, llms.txt and llms-full.txt",
+          "title": "Instructions"
+        }
+      },
+      "title": "MarkdownConfig",
+      "type": "object"
+    },
+    "McpAllowConfig": {
+      "description": "What users may add from the UI. Servers in ``mcp.servers`` are always allowed.",
+      "properties": {
+        "urls": {
+          "description": "URL or host patterns, e.g. https://mcp.example.com/, *.example.com, or * for any public host",
+          "items": {
+            "type": "string"
+          },
+          "title": "Urls",
+          "type": "array"
+        },
+        "commands": {
+          "description": "stdio executables, matched exactly (npx does not allow /tmp/npx); * allows any",
+          "items": {
+            "type": "string"
+          },
+          "title": "Commands",
+          "type": "array"
+        }
+      },
+      "title": "McpAllowConfig",
+      "type": "object"
+    },
+    "McpConfig": {
+      "description": "``mcp:``: Model Context Protocol servers (docs/features/mcp.md).",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "false turns MCP off: no startup connections, no connect route",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "servers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/McpServerConfig"
+          },
+          "title": "Servers",
+          "type": "object"
+        },
+        "allow": {
+          "$ref": "#/$defs/McpAllowConfig"
+        }
+      },
+      "title": "McpConfig",
+      "type": "object"
+    },
+    "McpServerConfig": {
+      "additionalProperties": false,
+      "description": "One MCP server the app connects to at startup (docs/features/mcp.md).\n\n``${NAME}`` in ``url``, ``args``, ``env`` and ``headers`` reads the\nenvironment variable, so a token never has to live in the YAML file.",
+      "properties": {
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Streamable HTTP or SSE endpoint",
+          "title": "Url"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "stdio: the executable to run",
+          "title": "Command"
+        },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "stdio: extra environment (never sent to browsers)",
+          "title": "Env",
+          "type": "object"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "HTTP headers (never sent to browsers)",
+          "title": "Headers",
+          "type": "object"
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "enum": [
+                "streamable-http",
+                "sse",
+                "stdio"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default: stdio for command; Streamable HTTP for url (SSE when the path ends in /sse, or as a fallback)",
+          "title": "Transport"
+        }
+      },
+      "title": "McpServerConfig",
+      "type": "object"
+    },
+    "MixpanelIntegration": {
+      "properties": {
+        "projectToken": {
+          "pattern": "^[A-Za-z0-9]{16,64}$",
+          "title": "Projecttoken",
+          "type": "string"
+        },
+        "region": {
+          "default": "us",
+          "enum": [
+            "us",
+            "eu",
+            "in"
+          ],
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectToken"
+      ],
+      "title": "MixpanelIntegration",
+      "type": "object"
+    },
+    "ModeImages": {
+      "description": "An image per colour mode (favicon, page background).",
+      "properties": {
+        "light": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Light"
+        },
+        "dark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dark"
+        }
+      },
+      "title": "ModeImages",
+      "type": "object"
+    },
+    "NavAnchorConfig": {
+      "description": "A link pinned at the top of the sidebar on every page; with ``groups``/``pages`` it opens its own sidebar.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "anchor": {
+          "title": "Anchor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "anchor"
+      ],
+      "title": "NavAnchorConfig",
+      "type": "object"
+    },
+    "NavConfig": {
+      "description": "Navigation configuration for content sources.",
+      "properties": {
+        "mode": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "manual"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "sort": {
+          "default": "filesystem",
+          "enum": [
+            "filesystem",
+            "alpha",
+            "date"
+          ],
+          "title": "Sort",
+          "type": "string"
+        },
+        "collapsible": {
+          "default": true,
+          "title": "Collapsible",
+          "type": "boolean"
+        },
+        "maxDepth": {
+          "default": 4,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Maxdepth",
+          "type": "integer"
+        },
+        "directory": {
+          "anyOf": [
+            {
+              "enum": [
+                "card",
+                "accordion"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Directory"
+        }
+      },
+      "title": "NavConfig",
+      "type": "object"
+    },
+    "NavDropdownConfig": {
+      "description": "An entry of the switcher at the top of the sidebar (a product or a section), with its own sidebar or tabs.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "product": {
+          "title": "Product",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "tabs": {
+          "items": {
+            "$ref": "#/$defs/NavTabConfig"
+          },
+          "title": "Tabs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "product"
+      ],
+      "title": "NavDropdownConfig",
+      "type": "object"
+    },
+    "NavGlobalConfig": {
+      "description": "``navigation.global``: links shown on every page, whatever tab or dropdown is open.",
+      "properties": {
+        "anchors": {
+          "items": {
+            "$ref": "#/$defs/NavAnchorConfig"
+          },
+          "title": "Anchors",
+          "type": "array"
+        }
+      },
+      "title": "NavGlobalConfig",
+      "type": "object"
+    },
+    "NavGroupConfig": {
+      "description": "A navigation group within a tab.\n\n``pages`` lists page slugs (``getting-started/quickstart``, ``index``); an\nentry may also be a nested group (``{group: Layouts, pages: [...]}``) or a\nlink (``{label: GitHub, href: https://github.com/...}``). With\n``content.docs.nav.mode: manual`` the sidebar is built from these lists, in\nthis order; otherwise they only assign folders to tabs.",
+      "properties": {
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prefix"
+        },
+        "root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root"
+        },
+        "expanded": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expanded"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        },
+        "directory": {
+          "anyOf": [
+            {
+              "enum": [
+                "card",
+                "accordion"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Directory"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "boost": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0.1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boost"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "openapi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/OpenApiSourceConfig"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/OpenApiSourceConfig"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openapi"
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "title": "NavGroupConfig",
+      "type": "object"
+    },
+    "NavLanguageConfig": {
+      "description": "A content language (``navigation.languages``): the default one is served at the docs root, every\nother one from its folder (``docs/fr/`` at ``/docs/fr/...``; inside a version, ``docs/v1/fr/``).",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "language": {
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "title": "Language",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "title": "Default"
+        },
+        "index": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Index"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "NavLanguageConfig",
+      "type": "object"
+    },
+    "NavLinkConfig": {
+      "description": "A link in a nav group's ``pages`` (``{label, href}``): an external site opens in a new tab.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "href": {
+          "pattern": "^(https?://|/|mailto:)",
+          "title": "Href",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        }
+      },
+      "required": [
+        "label",
+        "href"
+      ],
+      "title": "NavLinkConfig",
+      "type": "object"
+    },
+    "NavMenuItemConfig": {
+      "description": "An item of a tab's dropdown menu.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "item": {
+          "title": "Item",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "item"
+      ],
+      "title": "NavMenuItemConfig",
+      "type": "object"
+    },
+    "NavTabConfig": {
+      "description": "A top-level navigation tab: its own sidebar, a link (``href``), or a ``menu`` of items.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "tab": {
+          "title": "Tab",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "menu": {
+          "items": {
+            "$ref": "#/$defs/NavMenuItemConfig"
+          },
+          "title": "Menu",
+          "type": "array"
+        },
+        "openapi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/OpenApiSourceConfig"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/OpenApiSourceConfig"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openapi"
+        }
+      },
+      "required": [
+        "tab"
+      ],
+      "title": "NavTabConfig",
+      "type": "object"
+    },
+    "NavVersionConfig": {
+      "description": "A version of the docs (``navigation.versions``): the default one is served at the docs root,\nevery other one from its folder (``docs/v1/`` at ``/docs/v1/...``), with a switcher above the sidebar.",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "pattern": "^(https?://|/|mailto:)",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "version": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "title": "Default"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        },
+        "index": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Index"
+        },
+        "tabs": {
+          "items": {
+            "$ref": "#/$defs/NavTabConfig"
+          },
+          "title": "Tabs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "NavVersionConfig",
+      "type": "object"
+    },
+    "NavbarConfig": {
+      "description": "Top navbar configuration.",
+      "properties": {
+        "primary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NavbarPrimaryConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/NavbarLinkConfig"
+          },
+          "title": "Links",
+          "type": "array"
+        }
+      },
+      "title": "NavbarConfig",
+      "type": "object"
+    },
+    "NavbarLinkConfig": {
+      "description": "A link in the top navbar. ``type: github|discord`` draws that mark and\nnames the link (``label`` optional); ``icon`` is any icon value.",
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "href": {
+          "title": "Href",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "github",
+                "discord"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "required": [
+        "href"
+      ],
+      "title": "NavbarLinkConfig",
+      "type": "object"
+    },
+    "NavbarPrimaryConfig": {
+      "description": "Primary navbar action button (``github`` also shows the repo's stars).",
+      "properties": {
+        "type": {
+          "default": "button",
+          "enum": [
+            "button",
+            "github",
+            "discord"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "href": {
+          "title": "Href",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        }
+      },
+      "required": [
+        "href"
+      ],
+      "title": "NavbarPrimaryConfig",
+      "type": "object"
+    },
+    "NavigationConfig": {
+      "description": "Top-level navigation: header tabs, sidebar anchors and a dropdown switcher, or a sidebar listed at the root.",
+      "properties": {
+        "tabs": {
+          "items": {
+            "$ref": "#/$defs/NavTabConfig"
+          },
+          "title": "Tabs",
+          "type": "array"
+        },
+        "anchors": {
+          "items": {
+            "$ref": "#/$defs/NavAnchorConfig"
+          },
+          "title": "Anchors",
+          "type": "array"
+        },
+        "products": {
+          "items": {
+            "$ref": "#/$defs/NavDropdownConfig"
+          },
+          "title": "Products",
+          "type": "array"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/NavVersionConfig"
+          },
+          "title": "Versions",
+          "type": "array"
+        },
+        "languages": {
+          "items": {
+            "$ref": "#/$defs/NavLanguageConfig"
+          },
+          "title": "Languages",
+          "type": "array"
+        },
+        "languageRedirect": {
+          "default": true,
+          "title": "Languageredirect",
+          "type": "boolean"
+        },
+        "global": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NavGlobalConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pages": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/NavGroupConfig"
+              },
+              {
+                "$ref": "#/$defs/NavLinkConfig"
+              }
+            ]
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/NavGroupConfig"
+          },
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "title": "NavigationConfig",
+      "type": "object"
+    },
+    "NotFoundConfig": {
+      "description": "The page a URL with no page shows (``errors: {404: \u2026}``).",
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Heading, default 'Page not found'",
+          "title": "Title"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Markdown under the heading",
+          "title": "Description"
+        },
+        "redirect": {
+          "default": false,
+          "description": "Send readers to the home page instead",
+          "title": "Redirect",
+          "type": "boolean"
+        }
+      },
+      "title": "NotFoundConfig",
+      "type": "object"
+    },
+    "OpenApiSourceConfig": {
+      "description": "``{source, directory}`` form of an ``openapi`` entry.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "directory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Directory"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "OpenApiSourceConfig",
+      "type": "object"
+    },
+    "PageActionLink": {
+      "description": "A page action of your own: a link with ``{url}`` (the page), ``{md}`` (its\nMarkdown), ``{title}`` and ``{prompt}`` (the \"read this page\" prompt) filled in,\nURL-encoded.",
+      "properties": {
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "href": {
+          "description": "URL; {url}, {md}, {title} and {prompt} are filled in, URL-encoded",
+          "title": "Href",
+          "type": "string"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A lucide icon name, an emoji or an image URL",
+          "title": "Icon"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The line under the label",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "label",
+        "href"
+      ],
+      "title": "PageActionLink",
+      "type": "object"
+    },
+    "PlausibleIntegration": {
+      "properties": {
+        "domain": {
+          "pattern": "^[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*$",
+          "title": "Domain",
+          "type": "string"
+        },
+        "server": {
+          "default": "https://plausible.io",
+          "pattern": "^https://[A-Za-z0-9.-]+(:\\d{1,5})?/?$",
+          "title": "Server",
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "title": "PlausibleIntegration",
+      "type": "object"
+    },
+    "PostHogIntegration": {
+      "properties": {
+        "apiKey": {
+          "pattern": "^phc_[A-Za-z0-9_-]{8,80}$",
+          "title": "Apikey",
+          "type": "string"
+        },
+        "apiHost": {
+          "default": "https://us.i.posthog.com",
+          "pattern": "^https://[A-Za-z0-9.-]+(:\\d{1,5})?/?$",
+          "title": "Apihost",
+          "type": "string"
+        },
+        "sessionRecording": {
+          "default": false,
+          "title": "Sessionrecording",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "apiKey"
+      ],
+      "title": "PostHogIntegration",
+      "type": "object"
+    },
+    "RedirectConfig": {
+      "description": "One redirect (docs/features/redirects.md): ``source`` and ``destination``\nare site paths; ``:name`` matches one path segment and a final ``:name*``\nthe rest of the path, and ``destination`` reuses them.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "permanent": {
+          "default": true,
+          "description": "301 (default); false for a temporary 302",
+          "title": "Permanent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "source",
+        "destination"
+      ],
+      "title": "RedirectConfig",
+      "type": "object"
+    },
+    "ReferenceConfig": {
+      "description": "``content.docs.reference``: where ``::: package.module`` blocks find Python source.",
+      "properties": {
+        "paths": {
+          "description": "Folders, relative to the project folder, searched in order for the modules ::: blocks name (docs/features/api-reference-python.md)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "title": "ReferenceConfig",
+      "type": "object"
+    },
+    "RouteConfig": {
+      "description": "Route rule mapping glob patterns to templates.",
+      "properties": {
+        "match": {
+          "title": "Match",
+          "type": "string"
+        },
+        "template": {
+          "title": "Template",
+          "type": "string"
+        },
+        "slots": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/SlotRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slots"
+        }
+      },
+      "required": [
+        "match",
+        "template"
+      ],
+      "title": "RouteConfig",
+      "type": "object"
+    },
+    "SEOConfig": {
+      "description": "SEO configuration.",
+      "properties": {
+        "titleTemplate": {
+          "default": "%s | %s",
+          "title": "Titletemplate",
+          "type": "string"
+        },
+        "defaultImage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Defaultimage"
+        },
+        "twitter": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Twitter"
+        },
+        "siteUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Siteurl"
+        },
+        "robots": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Robots"
+        },
+        "indexing": {
+          "default": "navigable",
+          "description": "navigable: hidden pages stay out of the sitemap, llms.txt and search; all: every page that is not noindex is indexed",
+          "enum": [
+            "navigable",
+            "all"
+          ],
+          "title": "Indexing",
+          "type": "string"
+        },
+        "trailingSlash": {
+          "default": false,
+          "title": "Trailingslash",
+          "type": "boolean"
+        },
+        "ogImages": {
+          "default": true,
+          "description": "Draw a 1200x630 social card per docs page as its og:image (needs Pillow); false keeps defaultImage",
+          "title": "Ogimages",
+          "type": "boolean"
+        },
+        "contentSignals": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentSignalsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "metatags": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "description": "Extra head tags on every page (google-site-verification, og:locale, ...); og:* keys are written as property=, the rest as name=",
+          "title": "Metatags",
+          "type": "object"
+        },
+        "paths": {
+          "description": "Head tags for the pages under a folder; the longest path wins",
+          "items": {
+            "$ref": "#/$defs/SEOPathConfig"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SEOOrganizationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The JSON-LD Organization (default: the site title, URL and logo)"
+        }
+      },
+      "title": "SEOConfig",
+      "type": "object"
+    },
+    "SEOOrganizationConfig": {
+      "description": "``seo.organization``: the JSON-LD Organization every page names as publisher.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logo"
+        },
+        "sameAs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sameas",
+          "type": "array"
+        }
+      },
+      "title": "SEOOrganizationConfig",
+      "type": "object"
+    },
+    "SEOPathConfig": {
+      "description": "``seo.paths`` entry: head tags for every page under ``path`` (``/docs/v1``, ``v1`` or ``v1/*``).",
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "metatags": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "title": "Metatags",
+          "type": "object"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "SEOPathConfig",
+      "type": "object"
+    },
+    "SearchConfig": {
+      "description": "Search configuration.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "provider": {
+          "default": "fusejs",
+          "enum": [
+            "fusejs",
+            "lunrjs",
+            "pagefind"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        },
+        "maxResults": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maxresults"
+        }
+      },
+      "title": "SearchConfig",
+      "type": "object"
+    },
+    "SegmentIntegration": {
+      "properties": {
+        "key": {
+          "pattern": "^[A-Za-z0-9]{8,64}$",
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "SegmentIntegration",
+      "type": "object"
+    },
+    "SessionCookieConfig": {
+      "description": "The httpOnly session cookie set by sign-in (``auth.cookie``).",
+      "properties": {
+        "name": {
+          "default": "aiui_session",
+          "title": "Name",
+          "type": "string"
+        },
+        "sameSite": {
+          "default": "lax",
+          "enum": [
+            "lax",
+            "strict",
+            "none"
+          ],
+          "title": "Samesite",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "secure": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Secure"
+        }
+      },
+      "title": "SessionCookieConfig",
+      "type": "object"
+    },
+    "SiteComponentsConfig": {
+      "description": "``site.components``: the site's own React components, used in pages as tags.",
+      "properties": {
+        "src": {
+          "description": "An ES module beside aiui.yaml that registers the components",
+          "title": "Src",
+          "type": "string"
+        },
+        "tags": {
+          "description": "The tag names it registers (default: found in the module)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "title": "SiteComponentsConfig",
+      "type": "object"
+    },
+    "SiteConfig": {
+      "description": "Site-level configuration.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "routeBaseDocs": {
+          "default": "/docs",
+          "title": "Routebasedocs",
+          "type": "string"
+        },
+        "basePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL path a static build is published under (/docs, /my-repo), or 'auto' for a GitHub Pages project site. Default: the path of seo.siteUrl, else the root",
+          "title": "Basepath"
+        },
+        "ui": {
+          "default": "shadcn",
+          "enum": [
+            "shadcn",
+            "mui",
+            "chakra"
+          ],
+          "title": "Ui",
+          "type": "string"
+        },
+        "theme": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "logo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Logo emoji or image path for sidebar branding",
+          "title": "Logo"
+        },
+        "customCss": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Custom CSS: inline CSS, or (docs build) .css files and URLs, one or a list",
+          "title": "Customcss"
+        },
+        "customJs": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Docs build: .js files (beside aiui.yaml) or URLs that every page loads",
+          "title": "Customjs"
+        },
+        "components": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SiteComponentsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Docs build: an ES module of your own React components, used in pages as tags (<Pricing plan=\"pro\" />); a path, or {src, tags}",
+          "title": "Components"
+        },
+        "plugins": {
+          "description": "List of frontend plugin names to enable",
+          "items": {
+            "type": "string"
+          },
+          "title": "Plugins",
+          "type": "array"
+        },
+        "csp": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "report-only",
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Content-Security-Policy of a docs build: true, false, report-only, or extra sources per directive (docs/features/content-security-policy.md). Default: on for docs",
+          "title": "Csp"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "SiteConfig",
+      "type": "object"
+    },
+    "SlotRef": {
+      "description": "Reference to a component in a slot.",
+      "properties": {
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "title": "SlotRef",
+      "type": "object"
+    },
+    "StylingConfig": {
+      "description": "``styling:`` \u2014 page chrome.",
+      "properties": {
+        "eyebrows": {
+          "default": "section",
+          "enum": [
+            "section",
+            "breadcrumbs"
+          ],
+          "title": "Eyebrows",
+          "type": "string"
+        }
+      },
+      "title": "StylingConfig",
+      "type": "object"
+    },
+    "TemplateConfig": {
+      "description": "Template definition with layout, slots (legacy), and zones (widget arrays).",
+      "properties": {
+        "layout": {
+          "title": "Layout",
+          "type": "string"
+        },
+        "slots": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SlotRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Slots",
+          "type": "object"
+        },
+        "zones": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ZonesConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "layout"
+      ],
+      "title": "TemplateConfig",
+      "type": "object"
+    },
+    "ThemeConfig": {
+      "description": "Theme configuration.",
+      "properties": {
+        "preset": {
+          "default": "zinc",
+          "enum": [
+            "zinc",
+            "slate",
+            "stone",
+            "gray",
+            "neutral",
+            "red",
+            "orange",
+            "amber",
+            "yellow",
+            "lime",
+            "green",
+            "emerald",
+            "teal",
+            "cyan",
+            "sky",
+            "blue",
+            "indigo",
+            "violet",
+            "purple",
+            "fuchsia",
+            "pink",
+            "rose",
+            "paper"
+          ],
+          "title": "Preset",
+          "type": "string"
+        },
+        "radius": {
+          "default": "md",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ],
+          "title": "Radius",
+          "type": "string"
+        },
+        "darkMode": {
+          "default": true,
+          "title": "Darkmode",
+          "type": "boolean"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "light",
+                "dark",
+                "system"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Colour mode before the viewer picks one; wins over darkMode. 'system' follows the OS.",
+          "title": "Mode"
+        },
+        "accent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Accent colour (any CSS colour) that overrides the preset's accent (docs site and the React app shell). Links and focus rings are derived from it with AA contrast.",
+          "title": "Accent"
+        },
+        "accentDark": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Accent colour in dark mode (docs site; default: derived from accent).",
+          "title": "Accentdark"
+        },
+        "strict": {
+          "default": false,
+          "description": "Docs site: keep the configured mode and hide the light/dark toggle.",
+          "title": "Strict",
+          "type": "boolean"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/ModeImages"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Docs site page background: 'gradient', 'grid', an image path or URL, or {light, dark} images.",
+          "title": "Background"
+        },
+        "density": {
+          "anyOf": [
+            {
+              "enum": [
+                "compact",
+                "comfortable",
+                "spacious"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Control density of the React app shell (style 'app').",
+          "title": "Density"
+        },
+        "fonts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FontsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Docs site fonts: a Google Fonts family for all text, or {body, heading, code}, each a family or {family, source, weight, format} for a font file.",
+          "title": "Fonts"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/CodeThemeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Docs site code blocks: a Shiki theme name for both modes, or {light, dark}. Default: github-light / github-dark on the site's own code background.",
+          "title": "Code"
+        },
+        "codeLanguages": {
+          "description": "Docs site: TextMate grammar files (JSON) for more fence languages, each a path or {source, name, aliases}.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/CodeLanguageConfig"
+              }
+            ]
+          },
+          "title": "Codelanguages",
+          "type": "array"
+        }
+      },
+      "title": "ThemeConfig",
+      "type": "object"
+    },
+    "UmamiIntegration": {
+      "properties": {
+        "websiteId": {
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Websiteid",
+          "type": "string"
+        },
+        "src": {
+          "default": "https://cloud.umami.is/script.js",
+          "pattern": "^https://[A-Za-z0-9.-]+(:\\d{1,5})?(/[A-Za-z0-9._~%/-]*)?$",
+          "title": "Src",
+          "type": "string"
+        }
+      },
+      "required": [
+        "websiteId"
+      ],
+      "title": "UmamiIntegration",
+      "type": "object"
+    },
+    "WidgetConfig": {
+      "description": "Widget configuration for zone-based layouts.",
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": true,
+          "title": "Props",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "WidgetConfig",
+      "type": "object"
+    },
+    "ZonesConfig": {
+      "description": "Widget zones configuration - WordPress-style layout areas.",
+      "properties": {
+        "header": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Header"
+        },
+        "topNav": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Topnav"
+        },
+        "hero": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hero"
+        },
+        "leftSidebar": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Leftsidebar"
+        },
+        "main": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Main"
+        },
+        "rightSidebar": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rightsidebar"
+        },
+        "bottomNav": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bottomnav"
+        },
+        "footer": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WidgetConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footer"
+        }
+      },
+      "title": "ZonesConfig",
+      "type": "object"
+    }
+  },
+  "description": "Root configuration model for aiui.yaml.",
+  "properties": {
+    "schemaVersion": {
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "site": {
+      "$ref": "#/$defs/SiteConfig"
+    },
+    "style": {
+      "default": "docs",
+      "enum": [
+        "docs",
+        "chat",
+        "agents",
+        "playground",
+        "dashboard",
+        "custom",
+        "app"
+      ],
+      "title": "Style",
+      "type": "string"
+    },
+    "layout": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LayoutConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "content": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "components": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ComponentConfig"
+      },
+      "title": "Components",
+      "type": "object"
+    },
+    "templates": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TemplateConfig"
+      },
+      "title": "Templates",
+      "type": "object"
+    },
+    "routes": {
+      "items": {
+        "$ref": "#/$defs/RouteConfig"
+      },
+      "title": "Routes",
+      "type": "array"
+    },
+    "chat": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ChatConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "auth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "widgets": {
+      "items": {
+        "$ref": "#/$defs/InputWidgetConfig"
+      },
+      "title": "Widgets",
+      "type": "array"
+    },
+    "dashboard": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DashboardConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "extensions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExtensionsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mcp": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/McpConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "MCP servers and what users may add (docs/features/mcp.md)"
+    },
+    "seo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SEOConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "markdown": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MarkdownConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "i18n": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/I18nConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "a11y": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/A11yConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "dependencies": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DependenciesConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "logo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LogoConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "favicon": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModeImages"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "navigation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NavigationConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "navbar": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NavbarConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "footer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FooterConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "banner": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BannerConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "search": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SearchConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "api": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApiConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "interaction": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InteractionConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "styling": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StylingConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "redirects": {
+      "description": "Moved pages (docs/features/redirects.md)",
+      "items": {
+        "$ref": "#/$defs/RedirectConfig"
+      },
+      "title": "Redirects",
+      "type": "array"
+    },
+    "errors": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "integrations": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IntegrationsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Analytics, support chat and cookie consent (docs/features/analytics.md)"
+    },
+    "variables": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "description": "Values for {{name}} in docs pages (docs/features/writing-docs.md#reusable-snippets-and-variables)",
+      "title": "Variables",
+      "type": "object"
+    }
+  },
+  "required": [
+    "site"
+  ],
+  "title": "Config",
+  "type": "object"
+}

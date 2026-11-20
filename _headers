@@ -1,0 +1,2 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-DKeuG1WwxgOpbA91FyYv5sx9XItuR137MlEMGrfrsRA=' 'sha256-mZVZkaTHZtxDEI+6fuAduuZPr3aJab1+SpK3w+thIkE='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob: https:; frame-src 'self' https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
