@@ -15,6 +15,40 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
+
+def build_run_app(
+    user_module: Any | None,
+    *,
+    static_dir: Optional[Path],
+    config_path: Optional[Path],
+) -> Any:
+    """Return the ASGI app for ``aiui run`` (user factory when present)."""
+    from inspect import signature
+
+    from praisonaiui.server import create_app as default_create_app
+
+    if user_module is not None:
+        factory = getattr(user_module, "create_app", None)
+        if callable(factory):
+            kwargs: dict[str, Any] = {}
+            try:
+                params = signature(factory).parameters
+            except (TypeError, ValueError):
+                params = {}
+            resolved_static = (
+                static_dir if static_dir and static_dir.exists() else None
+            )
+            if "static_dir" in params:
+                kwargs["static_dir"] = resolved_static
+            if config_path is not None and "config_path" in params:
+                kwargs["config_path"] = config_path
+            if kwargs:
+                return factory(**kwargs)
+            return factory()
+
+    resolved_static = static_dir if static_dir and static_dir.exists() else None
+    return default_create_app(static_dir=resolved_static, config_path=config_path)
+
 SPEC_ENV = "AIUI_RUN_SPEC"
 
 
@@ -50,16 +84,19 @@ def create() -> Any:
     spec = json.loads(raw)
 
     from praisonaiui.cli import _apply_chat_yaml, _load_user_module, _make_datastore
-    from praisonaiui.server import create_app, set_datastore, set_style
+    from praisonaiui.server import set_datastore, set_style
 
     app_file = Path(spec["app_file"])
+    user_module: Any | None = None
     if spec.get("is_yaml"):
         import yaml
 
         with open(app_file, encoding="utf-8") as fh:
             _apply_chat_yaml(yaml.safe_load(fh) or {})
-    elif _load_user_module(app_file) is None:
-        raise RuntimeError(f"Could not load {app_file}")
+    else:
+        user_module = _load_user_module(app_file)
+        if user_module is None:
+            raise RuntimeError(f"Could not load {app_file}")
 
     store, _label = _make_datastore(spec.get("datastore") or "sdk")
     set_datastore(store)
@@ -72,7 +109,8 @@ def create() -> Any:
 
     static_dir = Path(spec["static_dir"]) if spec.get("static_dir") else None
     config_path = Path(spec["config_path"]) if spec.get("config_path") else None
-    return create_app(
-        static_dir=static_dir if static_dir and static_dir.exists() else None,
+    return build_run_app(
+        user_module,
+        static_dir=static_dir,
         config_path=config_path,
     )
