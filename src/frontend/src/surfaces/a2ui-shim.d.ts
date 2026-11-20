@@ -1,8 +1,22 @@
 /** Optional A2UI packages — installed via npm when using agent-driven surfaces. */
 declare module '@a2ui/web_core/v0_9' {
     export class MessageProcessor {
-        constructor(catalogs: unknown[])
+        constructor(
+            catalogs: unknown[],
+            actionHandler?: (action: {
+                name?: string
+                surfaceId?: string
+                sourceComponentId?: string
+                context?: Record<string, unknown>
+            }) => void,
+        )
         processMessages(messages: unknown[]): void
+        readonly model: {
+            getSurface(id: string): {
+                componentsModel: { entries: Iterable<[string, { type?: string }]> }
+            } | undefined
+            readonly surfacesMap: Map<string, unknown>
+        }
         getSurfaces?(): unknown[]
         surfaces?: unknown[]
     }
