@@ -412,30 +412,23 @@ function decodeURIComponentSafe(s: string): string {
   }
 }
 
-/** Everything one message shows, in order; an A2UI entry holds this message's messages for its surface. */
+/** Everything one message shows, in order.
+
+A2UI is a live surface, not an artifact. Those messages stay on the chat
+surface and are not turned into canvas tabs.
+*/
 function scanMessage(m: DeriveMessage, opts: Required<DeriveOptions>): Found[] {
   const found: Found[] = []
-  const surface = (id: string, messages: unknown) => {
-    const list = Array.isArray(messages) ? messages : []
-    if (!list.length) return
-    const prev = found.find((f) => f.key === `a2ui:${id}`)
-    if (prev) prev.a2ui = [...(prev.a2ui ?? []), ...list]
-    else found.push({ key: `a2ui:${id}`, kind: 'a2ui', title: id === 'main' ? 'Interactive view' : `Interactive view: ${id}`, a2ui: list })
-  }
   for (const p of m.parts) {
     if (p.type === 'text' && 'text' in p) {
       for (const b of scanMarkdown(p.text)) {
         if (b.type === 'fence' && b.lines >= opts.minLines) found.push(fromFence(b))
         else if (b.type === 'table' && b.rows.length >= opts.minRows) found.push(fromTable(b))
       }
-    } else if (p.type === 'data' && 'name' in p) {
+    } else if (p.type === 'data' && 'name' in p && p.name === 'element') {
       const data = (p.data && typeof p.data === 'object' ? p.data : {}) as Record<string, unknown>
-      if (p.name === 'element') {
-        const f = fromElement(data)
-        if (f) found.push(f)
-      } else if (p.name === 'a2ui') surface(str(data.surface_id) ?? 'main', data.messages)
-    } else if (p.type === 'tool-call' && 'artifact' in p && p.artifact && Array.isArray(p.artifact.a2ui)) {
-      surface(str(p.artifact.surface_id) ?? 'main', p.artifact.a2ui)
+      const f = fromElement(data)
+      if (f) found.push(f)
     }
   }
   return found

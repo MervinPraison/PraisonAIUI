@@ -181,23 +181,26 @@ test('elements: images, files, pdf, video, code; keyed by name, else url', () =>
   assert.equal(versions[4].content, 'select 1')
 })
 
-test('A2UI: one artifact per surface; later turns are cumulative versions; tool a2ui counts', () => {
+test('A2UI surfaces are not artifacts; a code block in the same chat still is', () => {
   const a2 = (surface: string, messages: unknown[]) => ({ type: 'data', name: 'a2ui', data: { surface_id: surface, messages } })
-  const m1: DeriveMessage = { id: 'm1', role: 'assistant', createdAt: T0, parts: [a2('main', [{ beginRendering: {} }]), a2('main', [{ surfaceUpdate: 1 }])] }
+  const m1: DeriveMessage = {
+    id: 'm1',
+    role: 'assistant',
+    createdAt: T0,
+    parts: [
+      a2('main', [{ beginRendering: {} }]),
+      { type: 'text', text: '```python title="s.py"\nprint(1)\nprint(2)\nprint(3)\n```' },
+    ],
+  }
   const m2: DeriveMessage = {
     id: 'm2',
     role: 'assistant',
     createdAt: T0 + 1,
-    parts: [{ type: 'tool-call', artifact: { a2ui: [{ dataModelUpdate: 2 }], surface_id: 'main' } }, a2('side', [{ beginRendering: {} }])],
+    parts: [{ type: 'tool-call', artifact: { a2ui: [{ dataModelUpdate: 2 }], surface_id: 'main' } }],
   }
   const { versions } = deriveArtifacts([m1, m2], 's')
-  assert.deepEqual(versions.map((v) => [v.key, v.version, v.title]), [
-    ['a2ui:main', 1, 'Interactive view'],
-    ['a2ui:main', 2, 'Interactive view'],
-    ['a2ui:side', 1, 'Interactive view: side'],
-  ])
-  assert.deepEqual(JSON.parse(versions[0].content ?? ''), [{ beginRendering: {} }, { surfaceUpdate: 1 }])
-  assert.deepEqual(JSON.parse(versions[1].content ?? ''), [{ beginRendering: {} }, { surfaceUpdate: 1 }, { dataModelUpdate: 2 }])
+  assert.deepEqual(versions.map((v) => v.kind), ['code'])
+  assert.equal(versions[0].key, 's.py')
 })
 
 test('streaming: an unclosed fence still counts and grows in place', () => {
