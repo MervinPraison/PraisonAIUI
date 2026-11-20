@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --config a2ui-island.vite.config.ts && esbuild dist-a2ui-island/a2ui-island.js --minify --format=esm --outfile=dist/assets/a2ui-island.js",
     "postbuild": "node scripts/prune-katex-fonts.mjs && node scripts/gen-externals.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
