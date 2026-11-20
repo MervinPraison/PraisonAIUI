@@ -40,7 +40,7 @@ let _official = undefined;
 
 function loadOfficial() {
   if (_official !== undefined) return _official;
-  _official = import('/assets/a2ui-island.js')
+  _official = import('/plugins/a2ui-island.js')
     .then((mod) => (typeof mod.mountA2ui === 'function' ? mod.mountA2ui : null))
     .catch(() => null);
   return _official;
