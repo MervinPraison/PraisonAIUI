@@ -49,6 +49,62 @@ def test_empty_steps_still_fail_fast():
     assert result["error"] == "Workflow has no steps"
 
 
+def test_log_plus_instruction_keeps_both(monkeypatch):
+    calls = {}
+
+    class Agent:
+        def __init__(self, name, instructions, llm):
+            calls["agent"] = (name, instructions, llm)
+
+    class AgentFlow:
+        def __init__(self, steps, name):
+            calls["count"] = len(steps)
+
+        def run(self, text):
+            return {"result": text}
+
+    module = types.ModuleType("praisonaiagents")
+    module.Agent = Agent
+    module.AgentFlow = AgentFlow
+    monkeypatch.setitem(sys.modules, "praisonaiagents", module)
+
+    result = run_workflow(
+        "wf1",
+        workflow=_workflow([
+            {"type": "log", "message": "before"},
+            "do the work",
+        ]),
+        input_data={"text": "go"},
+    )
+    assert result["status"] == "completed"
+    assert result["output"]["result"] == "go"
+    assert result["output"]["logs"] == ["before"]
+    assert calls["count"] == 1
+    assert calls["agent"][1] == "do the work"
+
+
+def test_agent_object_is_still_passed_through(monkeypatch):
+    sentinel = object()
+    calls = {}
+
+    class AgentFlow:
+        def __init__(self, steps, name):
+            calls["steps"] = steps
+
+        def run(self, text):
+            return "done"
+
+    module = types.ModuleType("praisonaiagents")
+    module.Agent = object
+    module.AgentFlow = AgentFlow
+    monkeypatch.setitem(sys.modules, "praisonaiagents", module)
+
+    result = run_workflow("wf1", workflow=_workflow([sentinel]))
+    assert result["status"] == "completed"
+    assert calls["steps"] == [sentinel]
+    assert result["output"] == {"result": "done"}
+
+
 def test_string_steps_still_call_agentflow(monkeypatch):
     calls = {}
 
