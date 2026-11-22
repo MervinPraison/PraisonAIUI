@@ -392,6 +392,8 @@ export default function App() {
           manifest<RouteManifest>('/route-manifest.json'),
         ])
         setConfig(configData)
+        // Opt-in load telemetry: its own chunk, fetched only when the site turned it on.
+        if (configData.telemetry) void import('./docs/fieldTelemetry').then((m) => m.startFieldTelemetry(configData.telemetry, configData.docsTelemetry?.url, appPathname), () => {})
         setNav(navData)
         setRoutes(routesData)
 

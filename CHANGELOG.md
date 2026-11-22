@@ -4,6 +4,13 @@
 
 ### Breaking changes
 
+- **`aiui run app.py` keeps each app's chats in its own folder.** Sessions go
+  to `~/.praisonaiui/apps/<app>-<hash>/sessions/` (under `$AIUI_DATA_DIR`
+  when set) instead of `~/.praisonai/sessions/`, which every praisonai agent
+  and app on the machine shared, so an app's sidebar no longer lists other
+  apps' chats. `aiui run app.py --datastore sdk` keeps the shared history.
+  A YAML chat config and `create_app()` are unchanged. See
+  [Sessions](docs/features/sessions.md#where-aiui-run-keeps-chats).
 - **`aiui.set_pages([...])` lists every page source, not only built-ins.**
   The app shell's layout pages (`start`, `artifacts`, `templates`,
   `connect`, `api-reference`) and dashboard-plugin folders (including
@@ -142,6 +149,9 @@
   every group listed in the sidebar of whatever layout is on (the legacy
   dashboard's tabs, in the app shell), and the layout picker still works.
   `--pages chat,sessions` takes a list of ids.
+- **`aiui doctor` checks the installed version.** Its first check compares
+  the installed `aiui` with the latest release on PyPI and prints the upgrade
+  command when it is behind (a warning, never a failure; offline is fine).
 - **`aiui.only_my_pages(*keep)`** shows only the app's own pages, plus the
   built-in ids in `keep` (`aiui.only_my_pages("chat")`). Same as
   `set_pages(list(keep))`.

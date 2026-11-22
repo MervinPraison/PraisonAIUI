@@ -4259,6 +4259,12 @@
       "_TokenGate-DVunYKt5.js"
     ]
   },
+  "src/docs/fieldTelemetry.ts": {
+    "file": "assets/fieldTelemetry-Dfe88xF6.js",
+    "name": "fieldTelemetry",
+    "src": "src/docs/fieldTelemetry.ts",
+    "isDynamicEntry": true
+  },
   "src/docs/listen.ts": {
     "file": "assets/listen-BmRlkdE8.js",
     "name": "listen",
@@ -4553,7 +4559,7 @@
     ]
   },
   "src/legacy-app-entry.tsx": {
-    "file": "assets/legacy-app-entry-NJWS_D0Y.js",
+    "file": "assets/legacy-app-entry-B5oz9XK9.js",
     "name": "legacy-app-entry",
     "src": "src/legacy-app-entry.tsx",
     "isDynamicEntry": true,
@@ -4593,7 +4599,8 @@
       "src/layouts/PlaygroundLayout.tsx",
       "src/layouts/CopilotWidget.tsx",
       "src/docs/DocsSearch.tsx",
-      "src/docs/AskAi.tsx"
+      "src/docs/AskAi.tsx",
+      "src/docs/fieldTelemetry.ts"
     ],
     "css": [
       "assets/legacy-app-entry-B_eSy2l7.css"
