@@ -1,0 +1,72 @@
+name: Pre-QA check
+
+# Builds this repo's docs with the PR's code, serves them like production
+# (max-age=600, ETag, gzip, 404.html) and runs the headless pre-QA tracker
+# (tools/preqa). Any breach of tools/preqa/budgets.json fails the job:
+# held, stalled or failed requests, console errors, a skeleton over the limit,
+# bytes or request counts. Timing limits use the looser `ci` target.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "docs/**"
+      - "aiui.yaml"
+      - "tools/preqa/**"
+      - ".github/workflows/preqa.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: preqa-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preqa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      AIUI_NO_BROWSER: "1"
+      BROWSER: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install aiui and the tracker
+        run: |
+          pip install -e .
+          pip install -r tools/preqa/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Build the docs site
+        run: aiui build --output site --minify
+
+      - name: Serve like production
+        run: |
+          (cd tools/preqa && python -m preqa serve --site ../../site --host 127.0.0.1 --port 8700 > ../../serve.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8700/ > /dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8700/ > /dev/null
+
+      - name: Run the pre-QA tracker (fails on any budget breach)
+        working-directory: tools/preqa
+        run: |
+          python -m preqa track --target ci=http://127.0.0.1:8700 \
+            --runs 2 --fail-fast --history "" --out preqa-run.json
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preqa-report
+          path: |
+            tools/preqa/preqa-run.json
+            serve.log
+          retention-days: 14
