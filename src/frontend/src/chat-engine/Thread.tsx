@@ -7,6 +7,7 @@
  * - Tool calls: compact collapsible rows (icon, name, status pill, duration)
  *   that expand to arguments/result; an approval gate is an inline card.
  * - Reasoning: a collapsible "Thought for Ns" row.
+ * - Steps (aiui.Step): a collapsible tree (lazy ./parts/StepTree).
  * - Markdown is the WP1 `<Markdown variant="chat">` contract; it is mounted
  *   only for non-empty text, so the renderer chunk is not fetched before the
  *   first text arrives.
@@ -48,12 +49,13 @@ import { cn } from '@/lib/utils'
 import { LazyBoundary } from './parts/LazyBoundary'
 import { useDecision, type InlineGateProps } from './presentation/decision'
 import { commandLabel, commandOf } from './presentation/command'
-import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL, SEGMENT } from './protocol'
+import { APPROVAL_ERROR, APPROVAL_PENDING, PENDING_APPROVAL, SEGMENT, STEP, type AiuiStep } from './protocol'
 import { formatDuration, safeUrl } from './util'
 import { useVoiceConfig } from './voice'
 
 const AskToolLazy = lazy(() => import('./parts/AskTool'))
 const ElementPartLazy = lazy(() => import('./parts/ElementPart'))
+const StepTreeLazy = lazy(() => import('./parts/StepTree'))
 const A2uiPartLazy = lazy(() => import('./parts/A2uiPart'))
 const VoiceInputLazy = lazy(() => import('./VoiceInput'))
 
@@ -349,6 +351,13 @@ const AskTool: FC<ToolCallMessagePartProps> = (props) => (
 const ElementPart: FC<DataMessagePartProps<Record<string, unknown>>> = ({ data }) => (
   <LazyBoundary fallback={<Skeleton className="my-2 h-24 w-48 rounded-lg" />}>
     <ElementPartLazy data={data} />
+  </LazyBoundary>
+)
+
+/** The reply's steps (aiui.Step): a collapsible tree, in a lazy chunk. */
+const StepPart: FC<DataMessagePartProps<{ steps?: AiuiStep[] }>> = ({ data }) => (
+  <LazyBoundary fallback={<Skeleton className="my-1.5 h-7 w-48" />}>
+    <StepTreeLazy data={data} />
   </LazyBoundary>
 )
 
@@ -720,7 +729,7 @@ function usePartComponents() {
       data: {
         by_name: {
           element: ElementPart, references: ReferencesPart, memory: MemoryPart, a2ui: A2uiPart,
-          [PENDING_APPROVAL]: PendingApprovalPart, [SEGMENT]: SegmentPart,
+          [PENDING_APPROVAL]: PendingApprovalPart, [SEGMENT]: SegmentPart, [STEP]: StepPart,
         },
       },
     }

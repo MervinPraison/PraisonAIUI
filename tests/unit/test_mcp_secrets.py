@@ -26,6 +26,7 @@ def _reset(monkeypatch):
     mcp._mcp_servers.clear()
     yield
     srv.reset_state()
+    mcp_servers.configure(None)
     mcp._mcp_servers.clear()
 
 
@@ -148,7 +149,8 @@ def _connected(cfg, session_context=None):
 
 
 def test_routes_never_send_secrets():
-    c = TestClient(create_app(), raise_server_exceptions=False)
+    app = create_app(config={"mcp": {"allow": {"urls": ["api.example.com"]}}})
+    c = TestClient(app, raise_server_exceptions=False)
     with patch.object(mcp, "connect_mcp_server", AsyncMock(side_effect=_connected)):
         r = c.post(
             "/api/mcp/connect",
@@ -165,7 +167,7 @@ def test_routes_never_send_secrets():
 
 
 def test_connect_rejects_unknown_transport():
-    c = TestClient(create_app(), raise_server_exceptions=False)
+    c = TestClient(create_app(config={"mcp": {"allow": {"urls": ["h"]}}}), raise_server_exceptions=False)
     r = c.post("/api/mcp/connect", json={"name": "x", "url": "https://h/mcp", "transport": "ws"})
     assert r.status_code == 400 and "Unknown MCP transport" in r.json()["error"]
 
@@ -198,8 +200,7 @@ def test_require_auth_gates_mcp_routes():
 
 
 def test_handlers_still_importable_from_server():
-    from praisonaiui.server import _mcp_stdio_connect_allowed, api_mcp_connect, api_mcp_servers
+    from praisonaiui.server import api_mcp_connect, api_mcp_servers
 
     assert api_mcp_connect is mcp_servers.api_mcp_connect
     assert api_mcp_servers is mcp_servers.api_mcp_servers
-    assert _mcp_stdio_connect_allowed is mcp_servers._mcp_stdio_connect_allowed

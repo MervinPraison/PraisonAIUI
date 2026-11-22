@@ -42,6 +42,10 @@
   publishable and `build:lib` is removed; import UI components from the
   in-repo barrel `src/frontend/src/components/index.ts`, and write app-shell
   plugins against `@aiui/sdk`.
+- MCP: a request from 127.0.0.1 or with an API key can no longer start any stdio command or
+  connect any URL from the MCP page (behind a local reverse proxy every visitor looks local).
+  List them in `mcp.allow.commands` / `mcp.allow.urls`, or declare the server under
+  `mcp.servers`. `PRAISONAIUI_ALLOW_REMOTE_MCP_STDIO=true` still admits any command.
 
 ### Security
 
@@ -114,6 +118,10 @@
   or query values to the browser (they show as `***`), and connect errors no longer echo the
   server config. MCP header and env values and any `Bearer` token are redacted from logs and
   tracebacks (`http_guard.register_secret`).
+- MCP: users may add only the URLs in `mcp.allow.urls` (a wildcard never reaches a private,
+  loopback or link-local address) and the stdio executables in `mcp.allow.commands`, matched
+  exactly; a user-added stdio server cannot set `env`, and a user cannot redirect a declared
+  server's name.
 
 ### New
 
@@ -643,6 +651,16 @@
   URL, and a path ending in `/sse` still means SSE. Each session runs in a task of its own, so a
   disconnect from another request closes it cleanly. The MCP page offers Streamable HTTP, SSE and
   stdio. See `docs/features/mcp.md`.
+- **Steps show in the chat.** `aiui.Step` works as `async with` and `with`, `@aiui.step` bare or with arguments on
+  sync and async functions (input from the arguments, output from the return value), and a step opened inside another
+  nests under it on its own, across awaits, tasks and `aiui.make_async` threads. The React chat shows the steps as a
+  collapsible tree with name, status and duration (server times), saved with the reply so a reload shows the same
+  tree; the dashboard chat lists them. New types `run`, `tool`, `llm`, `embedding`, `rerank`, `undefined`. Wire:
+  `step_start` / `step_update` / `step_end`; protocol 1.2.0 (docs/features/steps.md).
+- MCP servers in the config: `mcp: {servers: {name: {url|command, args, env, headers, transport}}}`
+  connect in the background at startup (`${NAME}` reads an environment variable) and disconnect
+  on shutdown; `mcp.enabled: false` turns MCP off. The MCP page marks declared servers and can
+  connect them again. See `docs/features/mcp.md`.
 
 - **Sign-ins survive restarts and work on every worker.** Session tokens are signed (HMAC-SHA256)
   instead of held in memory. Zero config: a secret is generated into `<data dir>/auth_secret` (0600);
@@ -668,6 +686,21 @@
   `⌘K` search hint was drawn in the code face, so every page fetched it
   (JetBrains Mono, 40 KB, in the Paper look; Geist Mono, 23 KB, otherwise). It
   now uses the UI face, as the `Kbd` primitive does.
+- **Docs pages load a third less markdown renderer.** The HTML parser
+  (rehype-raw and parse5, about 48 kB gzip) left the renderer chunk (147 kB to
+  98 kB) and loads only for pages whose markdown has HTML or docs components;
+  the renderer's small shared helpers are one chunk instead of four to six
+  requests.
+- Docs sites: search no longer downloads the whole index the first time it
+  opens. `aiui build` also writes it in parts under `search-index/`: the
+  headings and word list on first open, then only the word files a query's
+  words fall in and the text of the pages it lists. Ranking is unchanged
+  (BM25, keywords, boost, tab chips, `?q=` links). On this repository's docs
+  the first open fetches 35 KB gzipped instead of 181 KB, and a first query
+  about 13 KB more. `search-index.json` is still written and read by the MCP
+  server, Ask AI and older pages; a site built before the parts, or a part
+  gone after a deploy, falls back to it. See
+  [Writing docs → Search](docs/features/writing-docs.md#search).
 - Docs sites, first load: each page `aiui build` writes carries `docs-nav.json`
   and `route-manifest.json` (as it already carried the page's Markdown) and
   preloads `ui-config.json`, and the plugin loader's tag names the plugins, so

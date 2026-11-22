@@ -227,10 +227,10 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 143,081 B |
-| `/chat` first-screen JS (boot + chat route) | 256,563 B |
+| Chat route (added by `/chat`) | 143,579 B |
+| `/chat` first-screen JS (boot + chat route) | 257,066 B |
 | `index.css` | 26 kB |
-| Streamdown renderer chunk (collapsible chat code blocks included) | 148 kB (146 kB with `gzip -9`) |
+| Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,162 B |
@@ -241,11 +241,12 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,164,896 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,173,363 B |
 
 Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
-Accepted exception: the docs style preloads Streamdown (~355 kB). Every
+Accepted exception: the docs style preloads Streamdown (~98 kB gzip, plus the
+~48 kB HTML parser on pages whose markdown has HTML). Every
 budgeted layout and the kit must exist in the build (`npm run size` fails
 otherwise); a layout track raises its own budget up to the ADR cap, with the
 reason. Never reference
@@ -384,6 +385,7 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | `streamdown` | 2.7.1 | The one markdown renderer (`markdown/Markdown.tsx`), always behind `React.lazy` | Never react-markdown, react-syntax-highlighter or a second renderer; keep `rehype-sanitize`; never `allowedTags` |
 | `shiki` | 4.6.0 | Code highlighting via the curated `markdown/shikiPlugin.ts` (74 languages, each its own lazy chunk; docs code themes in `virtual:aiui-code-themes`, JS regex engine) | Never `@streamdown/code` or a full Shiki import |
 | `mermaid` | ^11.17.2 | Diagrams, lazy `import('mermaid')` in `streamdownPlugins.ts` | Never import it statically |
+| `rehype-raw` | 7.0.0 | HTML in markdown (raw tags, docs components), lazy (`pluginLoaders.ts`); Streamdown's own import of it resolves to `markdown/rehypeRawGate.ts` (`vite.config.ts`) | Never import statically |
 | `@streamdown/math` + `katex` | 1.0.3, 0.16.47 | Math, lazy (`pluginLoaders.ts`) | Never import statically |
 | `@a2ui/react`, `@a2ui/web_core` | optional peer (>=0.10.0) | Agent-driven surfaces (`surfaces/`, `chat-engine/parts/A2uiPart.tsx`) | Lazy only; the app must work without them |
 | `@playwright/test`, `size-limit` | 1.65.0, 14.3.0 | e2e suites, budgets | One gate per concern; extend `.size-limit.mjs`, do not add a second size tool |

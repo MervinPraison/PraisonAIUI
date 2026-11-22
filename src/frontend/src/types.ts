@@ -540,6 +540,10 @@ export type RunEventType =
     | 'message_remove'
     | 'action_remove'
     | 'toast'
+    // A step of the reply (aiui.Step), by step_id
+    | 'step_start'
+    | 'step_update'
+    | 'step_end'
     // Team events (11 types)
     | 'team_run_started'
     | 'team_run_content'

@@ -1,323 +1,214 @@
-"""Tests for the Step/Chain-of-Thought UI component.
-
-This module tests the Step class and step decorator to ensure they properly
-emit events for the frontend to render collapsible step hierarchies.
-"""
+"""Steps on the wire: aiui.Step (async with / with), @aiui.step (bare, args,
+sync, async), implicit nesting across awaits, tasks and threads, timing,
+errors, step_* events and the steps saved with the reply."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+import time
+from unittest.mock import MagicMock
 
 import pytest
 
-from praisonaiui.message import Step, step
-from praisonaiui.server import MessageContext
+import praisonaiui as aiui
+from praisonaiui.message import MAX_CODE_SIZE, Step, step
+from praisonaiui.provider import ReplySteps, RunEvent, RunEventType
 
 
 @pytest.fixture
-def mock_context():
-    """Create a mock MessageContext with stream queue."""
-    context = MagicMock(spec=MessageContext)
-    context._stream_queue = AsyncMock()
-    return context
+def queue(monkeypatch):
+    """The reply stream every step of the test puts its events on."""
+    q: asyncio.Queue = asyncio.Queue()
+    ctx = MagicMock()
+    ctx._stream_queue = q
+    monkeypatch.setattr("praisonaiui.callbacks._get_context", lambda: ctx)
+    return q
 
 
-@pytest.fixture
-def mock_get_context(mock_context, monkeypatch):
-    """Mock the _get_context function to return our mock context."""
-    def _mock_get_context():
-        return mock_context
+def drain(q: asyncio.Queue) -> list:
+    out = []
+    while not q.empty():
+        out.append(q.get_nowait())
+    return out
 
-    monkeypatch.setattr("praisonaiui.callbacks._get_context", _mock_get_context)
-    return mock_context
 
-
-class TestStep:
-    """Test the Step class functionality."""
-
-    def test_step_initialization(self):
-        """Test Step class initialization with different parameters."""
-        # Basic step
-        step1 = Step(name="Test Step")
-        assert step1.name == "Test Step"
-        assert step1.type == "reasoning"  # default type
-        assert step1.parent is None
-        assert step1.metadata == {}
-        assert step1._id is not None
-
-        # Step with all parameters
-        parent_step = Step(name="Parent")
-        metadata = {"key": "value"}
-        step2 = Step(
-            name="Child Step",
-            type="tool_call",
-            parent=parent_step,
-            metadata=metadata
-        )
-        assert step2.name == "Child Step"
-        assert step2.type == "tool_call"
-        assert step2.parent is parent_step
-        assert step2.metadata == metadata
-
-    @pytest.mark.asyncio
-    async def test_step_context_manager(self, mock_get_context):
-        """Test Step as async context manager emits proper events."""
-        mock_context = mock_get_context
-
-        async with Step(name="Test Step", type="tool_call") as step:
-            # Check step started event
-            assert mock_context._stream_queue.put.call_count == 1
-            start_event = mock_context._stream_queue.put.call_args[0][0]
-            assert start_event["type"] == "reasoning_started"
-            assert start_event["name"] == "Test Step"
-            assert start_event["step_type"] == "tool_call"
-            assert start_event["step_id"] == step._id
-            assert start_event["parent_id"] is None
-            assert "metadata" in start_event
-
-        # Check step completed event
-        assert mock_context._stream_queue.put.call_count == 2
-        end_event = mock_context._stream_queue.put.call_args[0][0]
-        assert end_event["type"] == "reasoning_completed"
-        assert end_event["name"] == "Test Step"
-        assert end_event["step_type"] == "tool_call"
-        assert end_event["step_id"] == step._id
-        assert end_event["error"] is None
-        assert "duration" in end_event
-        assert "metadata" in end_event
-
-    @pytest.mark.asyncio
-    async def test_nested_steps(self, mock_get_context):
-        """Test nested step hierarchy with parent_id tracking."""
-        mock_context = mock_get_context
-
-        async with Step(name="Parent Step", type="reasoning") as parent:
-            parent_id = parent._id
-
-            async with Step(name="Child Step", type="tool_call", parent=parent) as child:
-                # Check that child step references parent
-                child_start_event = mock_context._stream_queue.put.call_args[0][0]
-                assert child_start_event["parent_id"] == parent_id
-                assert child_start_event["step_id"] == child._id
-
-    @pytest.mark.asyncio
-    async def test_step_stream_token(self, mock_get_context):
-        """Test streaming tokens within a step."""
-        mock_context = mock_get_context
-
-        async with Step(name="Streaming Step", type="reasoning") as step:
-            await step.stream_token("First token")
-            await step.stream_token("Second token")
-
-        # Should have: start, token1, token2, end = 4 calls
-        assert mock_context._stream_queue.put.call_count == 4
-
-        # Check token events
-        token1_call = mock_context._stream_queue.put.call_args_list[1][0][0]
-        assert token1_call["type"] == "reasoning_step"
-        assert token1_call["step"] == "First token"
-        assert token1_call["step_id"] == step._id
-        assert token1_call["step_type"] == "reasoning"
-
-        token2_call = mock_context._stream_queue.put.call_args_list[2][0][0]
-        assert token2_call["type"] == "reasoning_step"
-        assert token2_call["step"] == "Second token"
-
-    @pytest.mark.asyncio
-    async def test_step_with_error(self, mock_get_context):
-        """Test step error handling."""
-        mock_context = mock_get_context
-
-        try:
-            async with Step(name="Error Step", type="tool_call") as step:
-                raise ValueError("Test error")
-        except ValueError:
-            pass
-
-        # Check completion event has error
-        end_event = mock_context._stream_queue.put.call_args[0][0]
-        assert end_event["type"] == "reasoning_completed"
-        assert end_event["error"] == "Test error"
-
-    @pytest.mark.asyncio
-    async def test_step_types(self, mock_get_context):
-        """Test all supported step types."""
-        mock_context = mock_get_context
-        step_types = ["tool_call", "reasoning", "sub_agent", "retrieval", "custom"]
-
-        for step_type in step_types:
-            mock_context._stream_queue.reset_mock()
-            async with Step(name=f"Test {step_type}", type=step_type) as step:
-                pass
-
-            start_event = mock_context._stream_queue.put.call_args_list[0][0][0]
-            assert start_event["step_type"] == step_type
-
-            end_event = mock_context._stream_queue.put.call_args_list[1][0][0]
-            assert end_event["step_type"] == step_type
-
-    def test_step_without_context(self):
-        """Test Step behavior when no context is available."""
-        # This should not crash even without context
-        step = Step(name="No Context Step")
-        assert step._context is None
-
-    @pytest.mark.asyncio
-    async def test_step_metadata(self, mock_get_context):
-        """Test step metadata is included in events."""
-        mock_context = mock_get_context
-        metadata = {"tool": "web_search", "version": "1.0"}
-
-        async with Step(name="Metadata Step", metadata=metadata) as step:
-            pass
-
-        start_event = mock_context._stream_queue.put.call_args_list[0][0][0]
-        assert start_event["metadata"] == metadata
-
-        end_event = mock_context._stream_queue.put.call_args_list[1][0][0]
-        assert end_event["metadata"] == metadata
-
-
-class TestStepDecorator:
-    """Test the @step decorator functionality."""
-
-    @pytest.mark.asyncio
-    async def test_step_decorator_basic(self, mock_get_context):
-        """Test basic step decorator usage."""
-        mock_context = mock_get_context
-
-        @step("Tool Search", type="tool_call")
-        async def search_tool(query: str):
-            return f"Results for: {query}"
-
-        result = await search_tool("test query")
-        assert result == "Results for: test query"
-
-        # Check events were emitted
-        assert mock_context._stream_queue.put.call_count == 2
-        start_event = mock_context._stream_queue.put.call_args_list[0][0][0]
-        assert start_event["name"] == "Tool Search"
-        assert start_event["step_type"] == "tool_call"
-
-    @pytest.mark.asyncio
-    async def test_step_decorator_with_metadata(self, mock_get_context):
-        """Test step decorator with metadata."""
-        mock_context = mock_get_context
-
-        @step("Custom Step", type="custom", version="1.0", author="test")
-        async def custom_function():
-            return "done"
-
-        result = await custom_function()
-        assert result == "done"
-
-        start_event = mock_context._stream_queue.put.call_args_list[0][0][0]
-        assert start_event["metadata"]["version"] == "1.0"
-        assert start_event["metadata"]["author"] == "test"
-
-    @pytest.mark.asyncio
-    async def test_step_decorator_error_handling(self, mock_get_context):
-        """Test step decorator error handling."""
-        mock_context = mock_get_context
-
-        @step("Error Function", type="tool_call")
-        async def error_function():
-            raise RuntimeError("Function failed")
-
-        with pytest.raises(RuntimeError, match="Function failed"):
-            await error_function()
-
-        # Check error was captured in completion event
-        end_event = mock_context._stream_queue.put.call_args_list[1][0][0]
-        assert end_event["error"] == "Function failed"
-
-    @pytest.mark.asyncio
-    async def test_step_decorator_preserves_function_metadata(self):
-        """Test that decorator preserves original function metadata."""
-        @step("Test Function")
-        async def documented_function(param: str) -> str:
-            """This function has documentation."""
-            return param
-
-        # Check that function metadata is preserved
-        assert documented_function.__name__ == "documented_function"
-        assert "This function has documentation" in documented_function.__doc__
-
-
-class TestStepIntegration:
-    """Integration tests for Step functionality."""
-
-    @pytest.mark.asyncio
-    async def test_complex_step_hierarchy(self, mock_get_context):
-        """Test complex nested step hierarchy."""
-        mock_context = mock_get_context
-
-        async with Step(name="Main Task", type="reasoning") as main:
-            await main.stream_token("Starting main task...")
-
-            async with Step(name="Subtask A", type="tool_call", parent=main) as sub_a:
-                await sub_a.stream_token("Running tool A")
-
-                async with Step(name="Sub-subtask", type="retrieval", parent=sub_a) as sub_sub:
-                    await sub_sub.stream_token("Retrieving data")
-
-            async with Step(name="Subtask B", type="sub_agent", parent=main) as sub_b:
-                await sub_b.stream_token("Agent processing")
-
-        # Verify event sequence and hierarchy
-        calls = mock_context._stream_queue.put.call_args_list
-
-        # Should have: main_start, main_token, sub_a_start, sub_a_token,
-        # sub_sub_start, sub_sub_token, sub_sub_end, sub_a_end,
-        # sub_b_start, sub_b_token, sub_b_end, main_end = 12 events
-        assert len(calls) == 12
-
-        # Check hierarchy relationships
-        main_id = main._id
-        sub_a_id = sub_a._id
-        sub_sub_id = sub_sub._id
-
-        # Sub A should reference main as parent
-        sub_a_start = calls[2][0][0]
-        assert sub_a_start["parent_id"] == main_id
-
-        # Sub-sub should reference sub A as parent
-        sub_sub_start = calls[4][0][0]
-        assert sub_sub_start["parent_id"] == sub_a_id
-
-    @pytest.mark.asyncio
-    async def test_mixed_decorator_and_context_manager(self, mock_get_context):
-        """Test mixing decorator and context manager approaches."""
-        mock_context = mock_get_context
-
-        @step("Decorated Task", type="tool_call")
-        async def decorated_task():
-            async with Step("Inner Step", type="reasoning") as inner:
-                await inner.stream_token("Inner processing")
-            return "task complete"
-
-        result = await decorated_task()
-        assert result == "task complete"
-
-        # Should have events from both decorator and inner context manager
-        calls = mock_context._stream_queue.put.call_args_list
-        assert len(calls) >= 4  # decorated_start, inner_start, inner_token, inner_end, decorated_end
-
-
-# Test with actual asyncio event loop (mimics real usage)
 @pytest.mark.asyncio
-async def test_step_timing_realistic(mock_get_context):
-    """Test step timing with realistic delays."""
-    mock_context = mock_get_context
+async def test_step_input_output_tokens_and_timing(queue):
+    before = time.time() * 1000
+    async with Step("search", type="tool") as s:
+        s.input = {"query": "rust"}  # set inside the block: arrives with the end
+        await s.stream_token("Hello ")
+        await s.stream_token("world")
+        await asyncio.sleep(0.02)
+    start, t1, t2, end = drain(queue)
+    assert (start["type"], start["step_type"], t1["token"], t2["token"]) == ("step_start", "tool", "Hello ", "world")
+    assert end["type"] == "step_end" and end["status"] == "done" and end["input"] == '{"query": "rust"}'
+    assert "output" not in end and s.output == "Hello world"  # streamed, not repeated
+    assert before - 1 <= start["start"] <= end["end"] - 15
+    assert end["duration"] == pytest.approx((s.end - s.start) / 1000)
 
-    async with Step(name="Timed Step", type="tool_call") as step:
-        await asyncio.sleep(0.01)  # 10ms delay
-
-    end_event = mock_context._stream_queue.put.call_args_list[1][0][0]
-    duration = end_event["duration"]
-    assert duration is not None
-    assert duration >= 0.01  # Should be at least 10ms
-    assert duration < 0.1   # Should be less than 100ms (reasonable upper bound)
+    async with Step("calc") as s:
+        s.output = {"answer": 42}
+    assert drain(queue)[-1]["output"] == '{"answer": 42}'
 
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+@pytest.mark.asyncio
+async def test_error_and_cancel_status(queue):
+    with pytest.raises(RuntimeError):
+        async with Step("fails"):
+            raise RuntimeError("boom")
+    end = drain(queue)[-1]
+    assert end["status"] == "error" and end["error"] == "boom"
+
+    started = asyncio.Event()
+
+    async def work():
+        async with Step("slow"):
+            started.set()
+            await asyncio.sleep(10)
+
+    task = asyncio.create_task(work())
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    end = drain(queue)[-1]
+    assert end["status"] == "stopped" and "error" not in end
+
+
+@pytest.mark.asyncio
+async def test_sync_with(queue):
+    with Step("sync") as s:
+        s.stream_token("a")  # sync code need not await
+    assert [e["type"] for e in drain(queue)] == ["step_start", "step_update", "step_end"]
+
+
+def test_without_a_reply_a_step_still_times_itself():
+    with Step("alone") as s:
+        s.stream_token("x")
+    assert s._context is None and s.status == "done" and s.duration is not None and s.output == "x"
+
+
+@pytest.mark.asyncio
+async def test_implicit_nesting_across_awaits_and_tasks(queue):
+    async def branch(name: str) -> Step:
+        async with Step(name) as s:
+            await asyncio.sleep(0.01)
+        return s
+
+    async with Step("outer") as outer:
+        async with Step("inner") as inner:
+            await asyncio.sleep(0)
+            async with Step("leaf") as leaf:
+                pass
+        a, b = await asyncio.gather(branch("a"), branch("b"))
+    async with Step("next root") as root:
+        async with Step("explicit", parent=leaf) as explicit:
+            pass
+    assert explicit.parent is leaf
+    assert (inner.parent, leaf.parent, a.parent, b.parent, root.parent) == (outer, inner, outer, outer, None)
+    starts = {e["name"]: e.get("parent_id") for e in drain(queue) if e["type"] == "step_start"}
+    assert starts == {
+        "outer": None, "inner": outer.id, "leaf": inner.id, "a": outer.id, "b": outer.id,
+        "next root": None, "explicit": leaf.id,
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_step_in_a_make_async_thread_nests_and_reaches_the_reply(queue):
+    def blocking() -> Step:
+        with Step("in thread", type="tool") as s:
+            s.stream_token("from a thread")
+        return s
+
+    async with Step("outer") as outer:
+        child = await aiui.make_async(blocking)()
+    await asyncio.sleep(0.05)  # the thread's events arrive through the loop
+    events = drain(queue)
+    assert child.parent is outer
+    assert [(e["type"], e.get("name")) for e in events][::len(events) - 1] == [("step_start", "outer"), ("step_end", "outer")]
+    assert next(e for e in events if e.get("name") == "in thread")["parent_id"] == outer.id
+    assert any(e.get("token") == "from a thread" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_decorator_forms_capture_arguments_and_return_value(queue):
+    @step
+    async def web_search(query: str, limit: int = 3):
+        return add(query, "!") * limit
+
+    @step("Add", type="tool", version="1.0")
+    def add(a, b):
+        return a + b
+
+    class Agent:
+        @step()
+        def plan(self, goal):
+            return "x" * (MAX_CODE_SIZE + 10)
+
+    assert web_search.__name__ == "web_search" and await web_search("rust", limit=2) == "rust!rust!"
+    outer_start, inner_start, inner_end, outer_end = drain(queue)
+    assert (outer_start["name"], outer_start["input"]) == ("web_search", '{"query": "rust", "limit": 2}')
+    assert (inner_start["name"], inner_start["step_type"], inner_start["metadata"]) == ("Add", "tool", {"version": "1.0"})
+    assert inner_start["parent_id"] == outer_start["step_id"]
+    assert (inner_end["output"], outer_end["output"]) == ("rust!", "rust!rust!")
+    Agent().plan("ship")
+    start, end = drain(queue)
+    assert start["input"] == '{"goal": "ship"}' and len(end["output"]) == MAX_CODE_SIZE + 1
+
+
+def test_wire_fields_and_saved_steps():
+    ev = RunEvent(type=RunEventType.STEP_START, extra_data={"type": "step_start", "step_id": "s1", "start": 1.0})
+    assert ev.to_dict()["step_id"] == "s1" and ev.to_dict()["start"] == 1.0  # flat, for SSE readers
+    steps = ReplySteps()
+    for fields in ({"step_id": "s1", "name": "a", "start": 1.0}, {"step_id": "s1", "token": "he"},
+                   {"step_id": "s1", "token": "llo"}, {"step_id": "s1", "end": 2.0, "status": "done", "duration": 1},
+                   {"token": "no id"}):
+        steps.apply(fields)
+    assert steps.saved() == [{"step_id": "s1", "status": "done", "name": "a", "start": 1.0, "output": "hello", "end": 2.0}]
+
+
+@pytest.mark.asyncio
+async def test_chat_run_broadcasts_steps_and_saves_the_tree(tmp_path, monkeypatch):
+    import praisonaiui.server as server
+    from praisonaiui.datastore import MemoryDataStore
+    from praisonaiui.features import chat as chat_mod
+    from praisonaiui.features import guardrails
+    from praisonaiui.provider import BaseProvider
+
+    class Provider(BaseProvider):
+        async def run(self, message, **kw):
+            for data in (
+                {"type": "step_start", "step_id": "p", "name": "plan", "start": 1000.0},
+                {"type": "step_start", "step_id": "c", "parent_id": "p", "name": "search", "start": 1001.0},
+                {"type": "step_update", "step_id": "c", "token": "3 hits"},
+                {"type": "step_end", "step_id": "c", "end": 1250.0, "status": "error", "error": "timeout"},
+                {"type": "step_end", "step_id": "p", "end": 1400.0, "status": "done", "output": "ok"},
+            ):
+                yield RunEvent(type=RunEventType(data["type"]), extra_data=data)
+            yield RunEvent(type=RunEventType.RUN_COMPLETED, content="Answer")
+
+    async def _no_guardrail(*_a, **_kw):
+        return None
+
+    monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(guardrails, "check_guardrails", _no_guardrail)
+    store = MemoryDataStore()
+    monkeypatch.setattr(server, "_datastore", store)
+    monkeypatch.setattr(server, "get_provider", lambda: Provider())
+    monkeypatch.setattr(chat_mod, "_chat_manager", chat_mod.ChatManager())
+    sent: list = []
+
+    async def broadcast(sid, event):
+        sent.append(dict(event))
+
+    monkeypatch.setattr(chat_mod.get_chat_manager(), "broadcast", broadcast)
+    await store.create_session("s-steps")
+    await chat_mod._run_and_broadcast("hi", "s-steps", None, None)
+
+    frames = [e for e in sent if e["type"].startswith("step_")]
+    assert [e["type"] for e in frames] == ["step_start", "step_start", "step_update", "step_end", "step_end"]
+    assert frames[1]["parent_id"] == "p" and frames[3]["error"] == "timeout"
+    assert (await store.get_messages("s-steps"))[-1]["steps"] == [
+        {"step_id": "p", "status": "done", "name": "plan", "start": 1000.0, "end": 1400.0, "output": "ok"},
+        {"step_id": "c", "status": "error", "parent_id": "p", "name": "search", "start": 1001.0,
+         "output": "3 hits", "end": 1250.0, "error": "timeout"},
+    ]

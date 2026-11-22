@@ -1184,8 +1184,24 @@ search:
 ```
 
 `aiui build` writes the index (`search-index.json`, up to 6,000 characters
-per section); the dialog downloads it the first time a reader opens search.
-This repository's 103 pages make 547 KB, 186 KB gzipped.
+per section) and the same index in parts under `search-index/`, so the dialog
+downloads only what a query needs:
+
+| Part | Holds | Fetched |
+|---|---|---|
+| `search-index/meta.json` | each page's path, keywords, boost and section headings with their word counts, and the sorted list of every word | the first time a reader opens search |
+| `search-index/<key>/w<n>.json` | for a run of those words, the sections each appears in and how often | when a query has a word in that run (by stem, prefix or one typo) |
+| `search-index/<key>/p<i>.json` | page `i`'s section text | when the page is in the results, for its snippets |
+
+Ranking is the same as over the whole file: BM25, stems, prefixes, typos,
+keywords, `boost` and the tab chips. On this repository's 99 searchable pages
+the first open downloads 35 KB gzipped instead of 181 KB, and a first query
+about 13 KB more. `<key>` is a hash of the index, so a page cached from an
+older deploy never mixes parts; a missing part, or a site built before the
+parts existed, makes the dialog read `search-index.json` whole, which every
+other reader (the [MCP server](ai-ready-docs.md#mcp-server), Ask AI, older
+pages) still uses. A site with [sign-in](docs-auth.md) gets no parts: its
+`search-index.json` is cut per reader.
 
 ## Links between pages
 
@@ -1400,6 +1416,7 @@ window.addEventListener('aiui:docs-feedback', (e) => console.log(e.detail.path, 
 | `/docs/<page>.md` | one page's agent-ready Markdown ([AI-ready docs](ai-ready-docs.md)) |
 | `/docs/<page>.source.md` | the page source the site renders |
 | `/search-index.json` | headings and text per page, for the site's own search |
+| `/search-index/` | the same index in parts, fetched as a query needs them ([Search](#search)) |
 | `/sitemap.xml`, `/robots.txt` | for search engines |
 
 Each page's HTML also carries that page's source (a JSON script,

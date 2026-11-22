@@ -314,14 +314,14 @@ class TestStep:
 
             async with step:
                 assert step._started is True
-                # Check reasoning_started event
+                # Check step_start event
                 event = await queue.get()
-                assert event["type"] == "reasoning_started"
+                assert event["type"] == "step_start"
                 assert event["name"] == "Processing"
 
-            # Check reasoning_completed event
+            # Check step_end event
             event = await queue.get()
-            assert event["type"] == "reasoning_completed"
+            assert event["type"] == "step_end"
             assert event["name"] == "Processing"
 
     @pytest.mark.asyncio
@@ -341,5 +341,5 @@ class TestStep:
             assert result is step
 
             event = await queue.get()
-            assert event["type"] == "reasoning_step"
-            assert event["step"] == "Processing data..."
+            assert event["type"] == "step_update"
+            assert event["token"] == "Processing data..."

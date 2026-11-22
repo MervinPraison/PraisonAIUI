@@ -59,6 +59,10 @@ test('more curated languages, and their common aliases, highlight', async () => 
         ['makefile', 'all:\n\techo $(CC)'],
     ]) {
         assert.equal(plugin.supportsLanguage(lang), true, lang)
+        // The first highlight loads the grammar and compiles its patterns inside
+        // the tokenize time limit, which a busy machine can overrun (the line then
+        // comes back plain). Await that load, then check a fresh (uncached) block.
+        await highlight(plugin, `${code}\n`, lang)
         assert.ok(colours(await highlight(plugin, code, lang)).size >= 2, `${lang} is highlighted`)
     }
 })

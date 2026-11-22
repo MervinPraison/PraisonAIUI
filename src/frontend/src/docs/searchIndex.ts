@@ -2,7 +2,8 @@
 // compiler/search_index.py) and the ranking the search dialog shows: BM25
 // over each section's heading and text, with stems, prefixes and one-typo
 // matches (searchRank.ts), tiered page title > heading > text and multiplied
-// by the page's (or its nav group's) `boost` within a tier. Pure
+// by the page's (or its nav group's) `boost` within a tier. The split index
+// (search-index/, searchShards.ts) ranks through the same code. Pure
 // functions plus one cached fetch; imported only by the lazy DocsSearch chunk,
 // so it imports nothing of the App's (that would merge the App into this chunk).
 import type { NavItem, SearchGroup } from '../types'
@@ -101,12 +102,16 @@ const K1 = 1.2
 const B = 0.75
 const HEADING_WEIGHT = 2
 
-interface Doc { page: IndexPage; sec: IndexSection; len: number; head: string[] }
-interface Prepared { docs: Doc[]; postings: Map<string, Map<number, number>>; avgLen: number }
+/** A section as ranked: its page, its words (`len`, heading counted twice) and its heading's words. */
+export interface Doc { page: IndexPage; sec: IndexSection; len: number; head: string[] }
+/** Every section, and word → section id → count (only the words a query can match need be there). */
+export interface Prepared { docs: Doc[]; postings: Map<string, Map<number, number>>; avgLen: number }
+/** An index that loads in parts (searchShards.ts): `prepared` is null until a query's words are in. */
+export interface PartialIndex extends SearchIndex { prepared(terms: string[]): Prepared | null }
 const preparedIndexes = new WeakMap<SearchIndex, Prepared>()
 
 /** An inverted index over every section (word → section → count), built once per loaded index. */
-function prepare(index: SearchIndex): Prepared {
+export function prepare(index: SearchIndex): Prepared {
     const cached = preparedIndexes.get(index)
     if (cached) return cached
     const docs: Doc[] = []
@@ -176,7 +181,7 @@ export interface SearchOptions {
  * section at most, and `limit` caps the list.
  */
 export function searchDocs(
-    index: SearchIndex | null,
+    index: SearchIndex | PartialIndex | null,
     groups: SearchGroup[],
     query: string,
     { limit = 24, tab }: SearchOptions = {},
@@ -201,9 +206,10 @@ export function searchDocs(
             out.push({ kind: 'page', page, group, heading: '', anchor: '', snippet: page.description ?? '', score: 3 + inTier(2 * s * boost) })
         }
     }
-    if (index) {
-        const prepared = prepare(index)
-        for (const [id, score] of bm25(prepared, terms)) {
+    const prepared = !index ? null : 'prepared' in index ? index.prepared(terms) : prepare(index)
+    if (prepared) {
+        // In section order, so equal scores rank the same however the index was loaded.
+        for (const [id, score] of [...bm25(prepared, terms)].sort((a, b) => a[0] - b[0])) {
             const { page: entry, sec, head } = prepared.docs[id]
             const path = normalizeDocPath(entry.p)
             const known = byPath.get(path)

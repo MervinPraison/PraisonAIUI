@@ -1,6 +1,6 @@
 [project]
 name = "aiui"
-version = "0.3.172"
+version = "0.3.174"
 description = "YAML-driven website generator - CLI and compiler"
 readme = "README.md"
 license = {text = "MIT"}
@@ -118,6 +118,11 @@ a2ui = [
     "praisonaiagents[a2ui]>=1.6.38",
 ]
 
+# Social cards: `aiui build` draws a 1200x630 og:image per docs page
+og = [
+    "pillow>=10.1",
+]
+
 all = [
     "aiui[memory]",
     "aiui[knowledge]",
@@ -134,6 +139,7 @@ all = [
     "aiui[discord]",
     "aiui[teams]",
     "aiui[a2ui]",
+    "aiui[og]",
 ]
 
 dev = [
