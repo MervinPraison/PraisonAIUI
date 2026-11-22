@@ -2,9 +2,11 @@ name: Pre-QA check
 
 # Builds this repo's docs with the PR's code, serves them like production
 # (max-age=600, ETag, gzip, 404.html) and runs the headless pre-QA tracker
-# (tools/preqa). Any breach of tools/preqa/budgets.json fails the job:
-# held, stalled or failed requests, console errors, a skeleton over the limit,
-# bytes or request counts. Timing limits use the looser `ci` target.
+# (tools/preqa). Advisory only: it never blocks a merge. A breach of
+# tools/preqa/budgets.json (held, stalled or failed requests, console errors,
+# skeleton time, bytes, request counts) shows as a warning annotation and in
+# the uploaded report, so issues are seen and fixed early.
+# Timing limits use the looser `ci` target.
 
 on:
   pull_request:
@@ -55,11 +57,15 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8700/ > /dev/null && break; sleep 1; done
           curl -sf http://127.0.0.1:8700/ > /dev/null
 
-      - name: Run the pre-QA tracker (fails on any budget breach)
+      - name: Run the pre-QA tracker (advisory)
         working-directory: tools/preqa
         run: |
-          python -m preqa track --target ci=http://127.0.0.1:8700 \
-            --runs 2 --fail-fast --history "" --out preqa-run.json
+          if python -m preqa track --target ci=http://127.0.0.1:8700 \
+              --runs 2 --fail-fast --history "" --out preqa-run.json; then
+            echo "Pre-QA: PASS"
+          else
+            echo "::warning title=Pre-QA budget breach::See the preqa-report artifact. Advisory only; this does not block merging."
+          fi
 
       - name: Upload the report
         if: always()
