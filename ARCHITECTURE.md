@@ -238,6 +238,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,566 B |
+| Chart block chunk (lazy; recharts, minus boot and the blocks page) | 140.6 kB |
 | Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.373 / 10.5 / 15.2 / 18.6 / 13.207 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
@@ -245,9 +246,9 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,180,139 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,573,449 B |
 
-Streamdown, Shiki, Mermaid, KaTeX and `@assistant-ui` never enter the static
+Streamdown, Shiki, Mermaid, KaTeX, `@assistant-ui` and recharts never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
 Accepted exception: the docs style preloads Streamdown (~98 kB gzip, plus the
 ~48 kB HTML parser on pages whose markdown has HTML). Every
@@ -391,6 +392,7 @@ Versions from `src/frontend/package.json` (resolved in `package-lock.json`) and
 | `mermaid` | ^11.17.2 | Diagrams, lazy `import('mermaid')` in `streamdownPlugins.ts` | Never import it statically |
 | `rehype-raw` | 7.0.0 | HTML in markdown (raw tags, docs components), lazy (`pluginLoaders.ts`); Streamdown's own import of it resolves to `markdown/rehypeRawGate.ts` (`vite.config.ts`) | Never import statically |
 | `@streamdown/math` + `katex` | 1.0.3, 0.16.47 | Math, lazy (`pluginLoaders.ts`) | Never import statically |
+| `recharts` | 3.10.1 | Charts: the `chart` block (`blocks/chart/ChartBlock.tsx`), colours from the `--chart-*` tokens | Lazy chunk only; never on the boot path (`npm run check:closure`). No second chart library |
 | `@a2ui/react`, `@a2ui/web_core` | optional peer (>=0.10.0) | Agent-driven surfaces (`surfaces/`, `chat-engine/parts/A2uiPart.tsx`) | Lazy only; the app must work without them |
 | `@playwright/test`, `size-limit` | 1.65.0, 14.3.0 | e2e suites, budgets | One gate per concern; extend `.size-limit.mjs`, do not add a second size tool |
 | Starlette | >=0.37 | HTTP/WS server, routes, middleware | Routes through features/plugins (R11); auth via `http_guard` (R8) |

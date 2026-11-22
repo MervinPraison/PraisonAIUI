@@ -85,25 +85,96 @@ def board(*, columns: Sequence[dict]) -> dict:
     return {"type": "board", "columns": list(columns)}
 
 
+CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram")
+CHART_FORMATS = ("number", "compact", "percent", "multiplier", "duration")
+
+
+def _chart_reference(reference: Any) -> list[dict]:
+    """A value, a list of values or a list of ``{value, label}`` → a list of dicts."""
+    def is_num(v: Any) -> bool:
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    items = reference if isinstance(reference, (list, tuple)) else [reference]
+    out = [
+        {k: i[k] for k in ("value", "label") if k in i} if isinstance(i, dict) else {"value": i}
+        for i in items
+        if is_num(i.get("value") if isinstance(i, dict) else i)
+    ]
+    if not out:
+        raise ValueError("chart reference must be a number, a list of numbers or a list of {value, label}")
+    return out
+
+
 def chart(
-    title: str,
+    title: str = "",
     *,
-    data: Sequence[dict] | None = None,
+    data: Sequence[Any] | None = None,
     chart_type: str = "bar",
+    x: str | None = None,
+    y: str | Sequence[str] | None = None,
+    y2: str | None = None,
+    labels: dict[str, str] | None = None,
+    label: str | None = None,
+    stacked: bool = False,
+    reference: Any = None,
+    color_by_reference: bool = False,
+    x_format: str | None = None,
+    y_format: str | None = None,
+    y_domain: Sequence[float] | None = None,
+    bins: int | None = None,
+    height: int | None = None,
+    caption: str | None = None,
+    legend: bool | None = None,
 ) -> dict:
-    """A chart placeholder.
+    """A chart drawn in the browser (tooltips, theme colours, responsive width).
 
     Args:
-        title: Chart title
-        data: List of data point dicts
-        chart_type: Type of chart (bar, line, pie)
+        data: Rows as dicts (a histogram also takes plain numbers).
+        chart_type: One of ``CHART_KINDS``; ``bar`` is columns, ``barh`` horizontal bars.
+        x: Category key (scatter: x value; histogram: measured value). Default: first text column.
+        y: Series key or keys. Default: every numeric column.
+        y2: Secondary series drawn as faint bars on its own scale (counts behind a line).
+        labels: Display names for keys. label: key naming each scatter point.
+        stacked: Stack the series (bar, barh, area).
+        reference: A value, values or ``{value, label}`` dicts drawn as dashed lines.
+        color_by_reference: Bars below the first reference are muted.
+        x_format / y_format: One of ``CHART_FORMATS`` (k/M, %, x, seconds → 1:05).
+        y_domain: ``[min, max]`` of the value axis, e.g. ``[0, 1]`` for a 0-100% curve.
+        bins: Histogram bin count (default: Sturges' rule, at most 30).
+        height: Plot height in px. caption: muted line under the chart.
+        legend: Show the legend (default: more than one series).
+        See docs/api/components.md for examples.
     """
-    return {
-        "type": "chart",
-        "title": title,
-        "data": list(data or []),
-        "chart_type": chart_type,
+    if chart_type not in CHART_KINDS:
+        raise ValueError(f"chart_type must be one of {', '.join(CHART_KINDS)}")
+    for name, fmt in (("x_format", x_format), ("y_format", y_format)):
+        if fmt is not None and fmt not in CHART_FORMATS:
+            raise ValueError(f"{name} must be one of {', '.join(CHART_FORMATS)}")
+    rows = list(data or [])
+    if chart_type == "histogram" and rows and not isinstance(rows[0], dict):
+        rows = [{"value": v} for v in rows]
+        x = x or "value"
+    comp: dict[str, Any] = {"type": "chart", "title": title, "data": rows, "chart_type": chart_type}
+    # Only options that were given: a plain chart keeps the original dict shape.
+    opts = {
+        "x": x,
+        "y": None if y is None else [y] if isinstance(y, str) else list(y),
+        "y2": y2,
+        "labels": dict(labels) if labels else None,
+        "label": label,
+        "stacked": True if stacked else None,
+        "reference": None if reference is None else _chart_reference(reference),
+        "color_by_reference": True if color_by_reference else None,
+        "x_format": x_format,
+        "y_format": y_format,
+        "y_domain": None if y_domain is None else [y_domain[0], y_domain[1]],
+        "bins": None if bins is None else int(bins),
+        "height": None if height is None else int(height),
+        "caption": caption or None,
+        "legend": None if legend is None else bool(legend),
     }
+    comp.update({k: v for k, v in opts.items() if v is not None})
+    return comp
 
 
 def table(

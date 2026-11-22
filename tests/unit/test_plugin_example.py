@@ -111,7 +111,7 @@ def test_blocks_endpoint_and_action(client):
     comps = r.json()["_components"]
     types = [c["type"] for c in comps]
     assert {"header", "text", "stat_group", "columns", "table", "button_group", "hello_badge"} <= set(types)
-    assert "chart" in types  # not a core block: exercises the legacy fallback
+    assert "chart" in types  # a core block (lazy chart chunk); a plugin may override it
     button = next(c for c in comps if c["type"] == "button_group")["buttons"][0]
     assert button["action"] == "greet"
 

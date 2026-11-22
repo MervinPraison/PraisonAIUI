@@ -240,8 +240,10 @@ test('framed blocks nested in a card render flat (no card-in-card)', () => {
 test('an unknown block type renders the legacy fallback container', () => {
   const html = render(tree({ _components: [{ type: 'mystery_widget', foo: 1 }, { type: 'chart', title: 'C' }] }))
   assert.match(html, /data-aiui-block-fallback="mystery_widget"/)
-  assert.match(html, /data-aiui-block-fallback="chart"/)
   assert.match(html, /data-status="loading"/)
+  // chart is a core block now: its lazy chunk suspends (skeleton), never the legacy fallback.
+  assert.doesNotMatch(html, /data-aiui-block-fallback="chart"/)
+  assert.ok(getCoreBlock('chart'), 'chart is a core block')
 })
 
 test('prototype keys are not block types', () => {

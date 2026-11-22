@@ -66,7 +66,7 @@ async def analytics():
             aiui.card("Revenue", value="$12,340"),
             aiui.card("Users", value="1,204"),
         ]),
-        aiui.chart(data=[10, 20, 30], type="line"),
+        aiui.chart("Signups", data=[{"day": "Mon", "n": 10}, {"day": "Tue", "n": 20}], chart_type="line"),
     ])
 ```
 

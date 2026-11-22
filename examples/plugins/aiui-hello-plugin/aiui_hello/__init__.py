@@ -91,9 +91,9 @@ def _blocks(greeting: str | None = None, count: int = 0) -> dict:
     ]
     if greeting:
         components.append({"type": "alert", "variant": "success", "title": "Server says", "message": greeting})
-    # Not a core block: rendered by the legacy dashboard renderer (fallback).
+    # A core block drawn from its own lazy chunk (a plugin may override it with registerBlock).
     components.append(
-        {"type": "chart", "title": "Legacy-rendered block", "data": [{"x": 1}, {"x": 2}], "chart_type": "bar"}
+        {"type": "chart", "title": "Chart block", "data": [{"day": "Mon", "x": 1}, {"day": "Tue", "x": 2}], "chart_type": "bar"}
     )
     return {"_components": components}
 

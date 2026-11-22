@@ -92,7 +92,7 @@ function fakeDist(manifest = fakeManifest(), overrides = {}) {
     'index.html': '<script src="/assets/index.js"></script>',
     'assets/index.css': 'body{}',
     'assets/mount-1.css': '.a{}',
-    'assets/md-1.js': 'x="data-streamdown";y="mermaidAPI";z="KaTeX parse error"',
+    'assets/md-1.js': 'x="data-streamdown";y="mermaidAPI";z="KaTeX parse error";w="recharts-wrapper"',
     'assets/shiki-1.js': 'throw new ShikiError()',
     'assets/ChatPage-1.js': 'import "@assistant-ui/react"',
   }
