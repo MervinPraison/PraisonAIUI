@@ -1409,10 +1409,6 @@ window.addEventListener('aiui:docs-feedback', (e) => console.log(e.detail.path, 
 
 ### Load telemetry
 
-**(planned)** The page side (sending the records) and the pre-QA dashboard
-view land in a follow-up change; the config key, the `aiui serve` endpoint
-and `aiui docs telemetry` below are in place.
-
 Off by default. Every docs page records how each of its requests went
 (`aiui:docs-load` records: retries, time-outs, failures, timings). Turn on
 telemetry and the page also sends the ones that went wrong, plus a sample of
