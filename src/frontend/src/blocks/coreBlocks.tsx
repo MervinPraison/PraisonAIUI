@@ -55,6 +55,7 @@ import { LazySection, StatusBlock } from './pageBlocks'
 import { LinkBlock, mediaBlocks } from './mediaBlocks'
 import { isSearchable, optionList } from './formState'
 import { useFormSubmit } from './useFormSubmit'
+import { TableBlock } from './table/DataTable'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -444,105 +445,7 @@ function AccordionBlock({ node, page }: CoreBlockProps) {
 
 // ── data ─────────────────────────────────────────────────────────────
 
-function TableBlock({ node }: CoreBlockProps) {
-  const p = propsOf(node)
-  const headers = arr(p.headers)
-  const rows = arr(p.rows).map((r) => (Array.isArray(r) ? r : isRecord(r) ? headers.map((h) => r[str(h)]) : [r]))
-  const rowIds = Array.isArray(p.row_ids) && p.row_ids.length === rows.length ? p.row_ids.map((x) => str(x)) : null
-  const actions = rowIds ? arr(p.actions).map((a) => str(a)).filter(Boolean) : []
-  const [selected, setSelected] = useState<string | null>(null)
-  const nested = useInFrame()
-
-  // Same bubbling DOM events as the legacy table (#336).
-  const emit = (el: HTMLElement, name: string, detail: Record<string, unknown>) =>
-    el.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }))
-
-  if (rows.length === 0 && headers.length === 0) return null
-  return (
-    <div data-nested={nested || undefined} className={cn('min-w-0 overflow-x-auto', !nested && FRAME)}>
-      <table className="w-full border-collapse text-sm tabular-nums">
-        {headers.length > 0 && (
-          <thead>
-            <tr>
-              {headers.map((h, i) => (
-                <th key={i} scope="col" className="h-9 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground">
-                  {display(h)}
-                </th>
-              ))}
-              {actions.length > 0 && (
-                <th scope="col" className="h-9 px-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              )}
-            </tr>
-          </thead>
-        )}
-        <tbody>
-          {rows.map((row, index) => {
-            const rowId = rowIds?.[index]
-            const isSelected = rowId !== undefined && rowId === selected
-            const select = (el: HTMLElement) => {
-              if (rowId === undefined) return
-              setSelected(rowId)
-              emit(el, 'aiui:table-select', { rowId, index })
-            }
-            return (
-              <tr
-                key={rowId ?? index}
-                data-row-id={rowId}
-                aria-selected={rowId !== undefined ? isSelected : undefined}
-                tabIndex={rowId !== undefined ? 0 : undefined}
-                onClick={rowId !== undefined ? (e) => select(e.currentTarget) : undefined}
-                onKeyDown={
-                  rowId !== undefined
-                    ? (e) => {
-                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                          e.preventDefault()
-                          select(e.currentTarget)
-                        }
-                      }
-                    : undefined
-                }
-                className={cn(
-                  'border-t border-border',
-                  rowId !== undefined && 'cursor-pointer outline-none hover:bg-muted focus-visible:bg-muted',
-                  isSelected && 'bg-accent text-accent-foreground hover:bg-accent',
-                )}
-              >
-                {row.map((cell, i) => (
-                  <td key={i} className="px-3 py-2 align-top text-foreground">
-                    {display(cell)}
-                  </td>
-                ))}
-                {actions.length > 0 && (
-                  <td className="whitespace-nowrap px-3 py-1 text-right">
-                    <div className="inline-flex gap-1">
-                      {actions.map((action) => (
-                        <Button
-                          key={action}
-                          type="button"
-                          size="xs"
-                          variant="ghost"
-                          aria-label={`${action} ${display(row[0] ?? rowId)}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            emit(e.currentTarget, 'aiui:table-action', { action, rowId })
-                          }}
-                        >
-                          {action}
-                        </Button>
-                      ))}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+// `table`: blocks/table/DataTable.tsx (typed cells, sorting, search, paging, row detail).
 
 function KeyValueBlock({ node }: CoreBlockProps) {
   const p = propsOf(node)
