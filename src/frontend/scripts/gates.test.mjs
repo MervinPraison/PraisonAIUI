@@ -11,6 +11,7 @@ import path from 'node:path'
 import { after, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { carryForward, LEDGER, previousAssets } from './carry-forward-assets.mjs'
+import { HASH_FILE, readHash, siteHash } from './site-hash.mjs'
 import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
 import { ICON_BUCKETS, ICON_NAMES_FILE, iconBucket, inlineIconsModule, lucideIconNodes, lucideIcons } from './lib/lucide-icons.mjs'
 import { ManifestError, filesOf, findKey, loadManifest, namedChunks, staticClosure } from './lib/build-manifest.mjs'
@@ -352,6 +353,46 @@ test('carry-forward is a no-op on the first deploy', () => {
   const { code, out } = run('carry-forward-assets.mjs', [path.join(tmpdir(), 'nothing-here'), site])
   assert.equal(code, 0, out)
   assert.match(out, /no previous site/)
+})
+
+// ── site-hash (deploy only a changed site) ──────────────────────────
+
+test('site-hash is stable across copies and changes with any file', () => {
+  const files = { 'index.html': '<p>a</p>', 'docs/x.html': 'x', 'assets/index.js': 'js' }
+  const a = write(tmpdir(), files)
+  const b = write(tmpdir(), { 'assets/index.js': 'js', 'docs/x.html': 'x', 'index.html': '<p>a</p>' })
+  assert.equal(siteHash(a), siteHash(b), 'same files, any write order')
+  assert.notEqual(siteHash(write(tmpdir(), { ...files, 'docs/x.html': 'y' })), siteHash(a), 'content')
+  assert.notEqual(siteHash(write(tmpdir(), { ...files, 'docs/y.html': 'x' })), siteHash(a), 'a new file')
+  const moved = write(tmpdir(), { 'index.html': '<p>a</p>', 'docs/z.html': 'x', 'assets/index.js': 'js' })
+  assert.notEqual(siteHash(moved), siteHash(a), 'a renamed file')
+  write(a, { [HASH_FILE]: 'anything' })
+  assert.equal(siteHash(a), siteHash(b), 'the hash file itself is left out')
+})
+
+test('site-hash ignores sitemap lastmod dates (file times, not content) but not the URLs', () => {
+  const map = (date, loc = 'https://x.dev/a') => `<urlset><url><loc>${loc}</loc><lastmod>${date}</lastmod></url></urlset>`
+  const a = write(tmpdir(), { 'sitemap.xml': map('2026-11-01') })
+  assert.equal(siteHash(write(tmpdir(), { 'sitemap.xml': map('2026-11-22') })), siteHash(a))
+  assert.notEqual(siteHash(write(tmpdir(), { 'sitemap.xml': map('2026-11-01', 'https://x.dev/b') })), siteHash(a))
+  const page = (date) => `<p>Last updated <lastmod>${date}</lastmod></p>`
+  assert.notEqual(siteHash(write(tmpdir(), { 'p.html': page('1') })), siteHash(write(tmpdir(), { 'p.html': page('2') })),
+    'only sitemaps are normalised')
+})
+
+test('site-hash CLI writes the hash file and says whether the site changed', () => {
+  const site = write(tmpdir(), { 'index.html': 'v1' })
+  const first = run('site-hash.mjs', [site, '--previous', path.join(tmpdir(), 'missing.txt')])
+  assert.equal(first.code, 0, first.out)
+  assert.match(first.out, /^hash=[0-9a-f]{64}\nchanged=true$/m, 'no previous deploy: changed')
+  const hash = readHash(path.join(site, HASH_FILE))
+  assert.equal(hash, siteHash(site))
+  const prev = write(tmpdir(), { 'h.txt': `${hash}\n` })
+  assert.match(run('site-hash.mjs', [site, '--previous', path.join(prev, 'h.txt')]).out, /changed=false/)
+  write(site, { 'index.html': 'v2' })
+  assert.match(run('site-hash.mjs', [site, '--previous', path.join(prev, 'h.txt')]).out, /changed=true/)
+  assert.equal(readHash(write(tmpdir(), { 'bad.txt': 'not a hash' }) + '/bad.txt'), null)
+  assert.equal(run('site-hash.mjs', []).code, 2)
 })
 
 // ── check-layout-isolation (ADR 0003 R17) ────────────────────────────
