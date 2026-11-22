@@ -82,6 +82,7 @@ async function load() {
   let r
   try { r = await (await fetch('report.json', { cache: 'no-store' })).json() }
   catch (e) { $('meta').textContent = 'No report yet (report.json missing).'; return }
+  field(r.telemetry)
   $('status').textContent = r.status
   $('status').className = 'badge ' + (r.status === 'PASS' ? 'pass' : 'fail')
   $('meta').textContent = `Generated ${r.generated} · ${r.runs} runs · refreshes every 60 s`
@@ -130,8 +131,7 @@ function field(t) {
       el('td', {}, `${r.attempt}/${r.of}`), el('td', {}, fmt(r.ms))))
       : [el('tr', {}, el('td', { colspan: '7', class: 'muted' }, 'None.'))]))
 }
-const loadAll = async () => { await load(); try { field((await (await fetch('report.json', { cache: 'no-store' })).json()).telemetry) } catch {} }
-loadAll(); setInterval(loadAll, 60000)
+load(); setInterval(load, 60000)
 </script>
 </body>
 </html>

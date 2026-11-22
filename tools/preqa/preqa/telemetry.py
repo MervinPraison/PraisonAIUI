@@ -23,7 +23,10 @@ def default_paths(home: str | Path | None = None) -> list[Path]:
     if env:
         return [Path(p) for p in env.split(os.pathsep) if p]
     home = Path(home or os.environ.get("PREQA_HOME", Path.home() / "preqa"))
-    return [home / "telemetry.jsonl", Path.home() / ".praisonaiui" / "docs-telemetry" / "telemetry.jsonl"]
+    # Where aiui serve writes (docs_telemetry.store_path): $PRAISONAI_HOME, else $AIUI_DATA_DIR, else ~/.praisonaiui.
+    data = next((os.environ[v].strip() for v in ("PRAISONAI_HOME", "AIUI_DATA_DIR") if os.environ.get(v, "").strip()), "")
+    aiui = Path(data).expanduser() if data else Path.home() / ".praisonaiui"
+    return [home / "telemetry.jsonl", aiui / "docs-telemetry" / "telemetry.jsonl"]
 
 
 def summary(paths: list[Path], days: int = 7, now: datetime | None = None) -> dict | None:

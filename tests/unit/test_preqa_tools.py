@@ -120,4 +120,8 @@ def test_report_shows_field_telemetry_when_a_store_exists(tmp_path, monkeypatch)
     assert t["by_url"][0]["url"] == "/docs/a.source.md" and t["by_url"][0]["reasons"] == {"headers-timeout": 1}
     assert t["recent"][0]["reason"] == "headers-timeout"
     assert telemetry.default_paths() == [store]
+    monkeypatch.delenv("PREQA_TELEMETRY")
+    monkeypatch.delenv("PRAISONAI_HOME", raising=False)
+    monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path / "data"))  # where aiui serve writes then
+    assert telemetry.default_paths(tmp_path)[1] == tmp_path / "data" / "docs-telemetry" / "telemetry.jsonl"
     assert 'id="field"' in (tmp_path / "dash" / "index.html").read_text()
