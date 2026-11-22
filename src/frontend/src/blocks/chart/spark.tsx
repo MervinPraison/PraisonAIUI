@@ -8,6 +8,7 @@ import type { JSX } from 'react'
 /** Upper bound on drawn sparkline points (a page payload is untrusted). */
 export const MAX_SPARK_POINTS = 500
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function sparkValues(v: unknown): number[] {
   if (!Array.isArray(v)) return []
   const out: number[] = []
@@ -22,6 +23,7 @@ export function sparkValues(v: unknown): number[] {
  * SVG path for `values` in a `w` × `h` box (y grows down), with `pad` px
  * kept free at top and bottom. `domain` shares one scale between lines.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function sparkPath(values: number[], w: number, h: number, domain?: [number, number], pad = 2): string {
   if (values.length === 0) return ''
   const lo = domain ? domain[0] : Math.min(...values)
@@ -60,6 +62,7 @@ export function Sparkline({ values, height = 32, color = 'var(--chart-1)', label
  * percentage. `sign` is +1 above, -1 below, 0 level or not comparable
  * (either side missing, zero or negative).
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function benchmarkText(value: unknown, benchmark: unknown, label = 'benchmark'): { text: string; sign: number } | null {
   const v = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
   const b = typeof benchmark === 'number' ? benchmark : typeof benchmark === 'string' && benchmark.trim() !== '' ? Number(benchmark) : NaN

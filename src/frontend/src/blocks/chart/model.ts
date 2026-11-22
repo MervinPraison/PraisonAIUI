@@ -236,14 +236,23 @@ export function heatGrid(spec: Pick<ChartSpec, 'rows' | 'x' | 'row' | 'series' |
     const c = str(r[spec.x])
     const y = str(r[spec.row ?? 'y'])
     if (!c || !y) continue
-    if (!seenC.has(c)) seenC.add(c), cols.push(c)
-    if (!seenR.has(y)) seenR.add(y), rows.push(y)
+    if (!seenC.has(c)) {
+      seenC.add(c)
+      cols.push(c)
+    }
+    if (!seenR.has(y)) {
+      seenR.add(y)
+      rows.push(y)
+    }
     const v = toNumber(r[vKey])
     if (v !== null) cells.set(cellKey(y, c), (cells.get(cellKey(y, c)) ?? 0) + v)
   }
   let min = Infinity
   let max = -Infinity
-  for (const v of cells.values()) (min = Math.min(min, v)), (max = Math.max(max, v))
+  for (const v of cells.values()) {
+    min = Math.min(min, v)
+    max = Math.max(max, v)
+  }
   if (spec.yDomain) [min, max] = spec.yDomain
   if (!Number.isFinite(min)) [min, max] = [0, 0]
   return { cols, rows, cells, min, max }
@@ -270,7 +279,10 @@ export function sharedDomain(specs: ChartSpec[]): [number, number] | undefined {
     for (const r of s.rows) {
       const vals = s.series.map((x) => toNumber(r[x.key])).filter((v): v is number => v !== null)
       const parts = s.stacked ? [vals.filter((v) => v > 0).reduce((a, b) => a + b, 0), vals.filter((v) => v < 0).reduce((a, b) => a + b, 0)] : vals
-      for (const v of parts) (lo = Math.min(lo, v)), (hi = Math.max(hi, v))
+      for (const v of parts) {
+        lo = Math.min(lo, v)
+        hi = Math.max(hi, v)
+      }
     }
   }
   if (!Number.isFinite(lo)) return undefined

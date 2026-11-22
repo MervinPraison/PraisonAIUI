@@ -59,7 +59,7 @@ def test_1100_rows_serialise():
     [
         ({"rows": []}, ValueError),
         ({"columns": [{"type": "number"}], "rows": []}, ValueError),
-        ({"columns": [{"key": "a", "type": "sparkline"}], "rows": []}, ValueError),
+        ({"columns": [{"key": "a", "type": "chart"}], "rows": []}, ValueError),
         ({"columns": [1], "rows": []}, TypeError),
         ({"headers": ["A", "B"], "columns": ["A"], "rows": []}, ValueError),
         ({"headers": ["A"], "rows": [], "page_size": -1}, ValueError),
