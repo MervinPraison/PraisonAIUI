@@ -7,6 +7,21 @@
  * a bookmark or a shared link restores the view. Writes use replaceState.
  */
 
+/** Query values: a key given more than once is a list. */
+export type PageParams = Record<string, string | string[]>
+
+/** `?a=1&b=2&b=3` → `{a: '1', b: ['2', '3']}`. */
+export function paramsFromSearch(search: string): PageParams {
+  const out: PageParams = {}
+  new URLSearchParams(search).forEach((value, key) => {
+    const prev = out[key]
+    if (prev === undefined) out[key] = value
+    else if (Array.isArray(prev)) prev.push(value)
+    else out[key] = [prev, value]
+  })
+  return out
+}
+
 /** `endpoint` with the query of `search` appended (keeps any query it has). */
 export function withQuery(endpoint: string, search: string): string {
   const q = search.replace(/^\?/, '')

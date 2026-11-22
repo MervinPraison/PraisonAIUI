@@ -269,6 +269,7 @@ aiui.tabs([
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `items` | `Sequence[dict]` | ✅ | List of `{"label": str, "children": [comp_dicts]}` |
+| `lazy` | `bool` | ❌ | App shell: an item without `children` loads when first opened (key: its `load`, else its `label`). See [Server pages](../guides/server-pages.md#4-lazy-tabs-and-expanders) |
 
 ### `aiui.accordion(items)`
 
@@ -490,7 +491,7 @@ aiui.container([aiui.text("Inside"), aiui.badge("Tag")], title="Section")
 | `children` | `Sequence[dict]` | ✅ | — | Child component dicts |
 | `title` | `str` | ❌ | `None` | Optional heading |
 
-### `aiui.expander(title, *, children, expanded)`
+### `aiui.expander(title, *, children, expanded, lazy, load)`
 
 A collapsible section.
 
@@ -501,8 +502,10 @@ aiui.expander("Advanced Settings", children=[aiui.text("Hidden content")], expan
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `title` | `str` | ✅ | — | Section heading |
-| `children` | `Sequence[dict]` | ✅ | — | Content components |
+| `children` | `Sequence[dict]` | ❌ | `()` | Content components |
 | `expanded` | `bool` | ❌ | `False` | Initially expanded? |
+| `lazy` | `bool` | ❌ | `False` | App shell: fetch the body when first opened (`{"_lazy": load}` to the page action) |
+| `load` | `str` | ❌ | `title` | Key sent as `_lazy` |
 
 ### `aiui.divider(text)`
 

@@ -1,4 +1,4 @@
-"""Page parameters, auto refresh and the status block (server pages)."""
+"""Page parameters, auto refresh, lazy sections and the status block (server pages)."""
 
 import pytest
 from starlette.testclient import TestClient
@@ -88,6 +88,28 @@ def test_page_endpoints_stay_auth_guarded(monkeypatch, path):
     assert client.request(method, path, json={"_lazy": "x"}).status_code == 401
     ok = client.request(method, path, json={"_lazy": "x"}, headers={"Authorization": "Bearer pk_params"})
     assert ok.status_code == 200
+
+
+def test_lazy_action_reply_contract():
+    @srv.register_page_action("yt")
+    def act(data):
+        if data.get("_lazy") == "retention":
+            return aiui.layout([aiui.text(f"days={data['_params'].get('days')}")])
+        return {"message": "ok"}
+
+    res = TestClient(srv.create_app()).post(
+        "/api/pages/yt/action", json={"_lazy": "retention", "_params": {"days": "7"}}
+    )
+    assert res.json()["_components"][0]["content"] == "days=7"
+
+
+def test_lazy_tabs_and_expander_shapes():
+    assert aiui.tabs([{"label": "A"}]) == {"type": "tabs", "items": [{"label": "A"}]}
+    assert aiui.tabs([{"label": "A"}], lazy=True)["lazy"] is True
+    exp = aiui.expander("Retention", lazy=True)
+    assert (exp["lazy"], exp["load"], exp["children"]) == (True, "Retention", [])
+    assert "lazy" not in aiui.expander("T", children=[])
+    assert aiui.expander("T", lazy=True, load="k")["load"] == "k"
 
 
 def test_ui_helpers_shapes_are_additive():

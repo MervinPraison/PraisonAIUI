@@ -8,7 +8,8 @@
  * `register_page_action`); for plugin pages served under `/api/plugins/`,
  * `<apiEndpoint>/action`; otherwise `/api/pages/<id>/action`.
  * The URL query string is the page's params (pageParams.ts); `_refresh_every`
- * re-fetches while the tab is visible (docs/guides/server-pages.md).
+ * re-fetches while the tab is visible; lazy tabs and expanders load through
+ * `loadSection` (docs/guides/server-pages.md).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { CircleX, RefreshCw } from 'lucide-react'
@@ -21,7 +22,7 @@ import { BlockList } from './BlockRenderer'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 import { notify } from '@/sdk/notify'
 import { hasBlockTree, isRecord, str, toBlockTree } from './normalize'
-import { nextRefreshDelay, refreshSeconds, withQuery, writeParams } from './pageParams'
+import { nextRefreshDelay, paramsFromSearch, refreshSeconds, withQuery, writeParams } from './pageParams'
 
 type PageState =
   | { status: 'loading'; key: string }
@@ -229,7 +230,27 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
     [postUrl, endpoint, load],
   )
 
-  const ctx = useMemo<BlockContextValue>(() => ({ page, runAction }), [page, runAction])
+  const loadSection = useCallback(
+    async (key: string, signal: AbortSignal): Promise<BlockNode[]> => {
+      const res = await fetch(postUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ _lazy: key, _params: paramsFromSearch(window.location.search) }),
+        signal,
+      })
+      const data = await readJson(res)
+      if (!res.ok || (isRecord(data) && str(data.error))) throw new Error(errorText(data, res))
+      return toBlockTree(data).nodes
+    },
+    [postUrl],
+  )
+
+  const version = state.status === 'ready' ? state.updatedAt : 0
+  const ctx = useMemo<BlockContextValue>(
+    () => ({ page, runAction, loadSection, version }),
+    [page, runAction, loadSection, version],
+  )
 
   // A new endpoint (navigation to another blocks page) shows its own loading
   // state until its data arrives, never the previous page's blocks.

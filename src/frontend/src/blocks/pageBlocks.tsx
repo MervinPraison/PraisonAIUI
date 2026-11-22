@@ -1,17 +1,98 @@
 /**
- * Blocks for live server pages (docs/guides/server-pages.md).
+ * Blocks for live server pages (docs/guides/server-pages.md):
  *
- * `StatusBlock`: `{type: "status", label, state, detail, progress, log}`, a
- * job row (queued, running, done, failed) with an optional log tail.
+ * - `LazySection`: the body of a lazy tab or expander, fetched through the
+ *   page's `loadSection` the first time it opens; a skeleton while loading, an
+ *   error with "Try again" on failure. After a page reload it re-fetches when
+ *   open (a closed section re-fetches on its next open).
+ * - `StatusBlock`: `{type: "status", label, state, detail, progress, log}`, a
+ *   job row (queued, running, done, failed) with an optional log tail.
  */
-import type { JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { CircleCheck, CircleX, Clock, LoaderCircle, type LucideIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
-import { useInFrame } from './context'
+import { useBlockContext, useInFrame } from './context'
 import { arr, num, str } from './normalize'
+
+type SectionState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready'; nodes: BlockNode[] }
+  | { status: 'error'; error: string }
+
+export function LazySection({ loadKey, open, page }: { loadKey: string; open: boolean; page?: ShellPage }): JSX.Element | null {
+  const { loadSection, version } = useBlockContext()
+  // Once opened, stays loaded (closing a tab or expander keeps its body).
+  const [opened, setOpened] = useState(open)
+  const [state, setState] = useState<SectionState>({ status: open ? 'loading' : 'idle' })
+  const [attempt, setAttempt] = useState(0)
+  if (open && !opened) {
+    setOpened(true)
+    setState({ status: 'loading' })
+  }
+
+  // Which (key, page version, attempt) the body was last fetched for. A closed
+  // section that already loaded waits for its next open before re-fetching.
+  const fetched = useRef('')
+
+  useEffect(() => {
+    if (!opened) return
+    const want = `${loadKey}:${version ?? 0}:${attempt}`
+    if (fetched.current === want || (!open && fetched.current)) return
+    const ac = new AbortController()
+    // A reload (page data changed) keeps the loaded body on screen until the new one arrives.
+    const run = loadSection
+      ? loadSection(loadKey, ac.signal)
+      : Promise.reject(new Error('Lazy sections need a server page'))
+    run.then(
+      (nodes) => {
+        if (ac.signal.aborted) return
+        fetched.current = want
+        setState({ status: 'ready', nodes })
+      },
+      (err: unknown) => {
+        if (ac.signal.aborted) return
+        fetched.current = want
+        const error = err instanceof Error ? err.message || err.name : String(err)
+        setState((prev) => (prev.status === 'ready' ? prev : { status: 'error', error }))
+      },
+    )
+    return () => ac.abort()
+  }, [opened, open, loadKey, loadSection, version, attempt])
+
+  if (!opened || state.status === 'idle') return null
+  if (state.status === 'loading')
+    return (
+      <div className="flex min-w-0 flex-col gap-3" aria-busy="true" data-lazy={loadKey}>
+        <span className="sr-only">Loading</span>
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
+  if (state.status === 'error')
+    return (
+      <div role="alert" className="flex min-w-0 flex-col items-start gap-2" data-lazy={loadKey}>
+        <p className="flex items-center gap-2 text-sm text-foreground">
+          <CircleX aria-hidden className="size-4 shrink-0 text-destructive" />
+          Couldn't load this section
+        </p>
+        <p className="break-words text-xs text-muted-foreground">{state.error}</p>
+        <Button type="button" size="sm" variant="outline" onClick={() => {
+            setState({ status: 'loading' })
+            setAttempt((n) => n + 1)
+          }}>
+          Try again
+        </Button>
+      </div>
+    )
+  if (state.nodes.length === 0) return <p className="text-sm text-muted-foreground">Nothing to show.</p>
+  return <BlockList nodes={state.nodes} page={page} />
+}
 
 const STATES: Record<string, { icon: LucideIcon; tone: string; text: string }> = {
   queued: { icon: Clock, tone: 'text-muted-foreground', text: 'Queued' },

@@ -1,4 +1,4 @@
-// Page params, auto refresh back-off and the status block
+// Page params, auto refresh back-off, lazy sections and the status block
 // (blocks/pageParams.ts, blocks/pageBlocks.tsx). No DOM: pure functions, a
 // minimal window fake and static markup.
 import { test } from 'node:test'
@@ -6,9 +6,22 @@ import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
 import '@/blocks/coreBlocks'
 import { getCoreBlock } from '@/blocks/coreBlocks'
-import { MAX_BACKOFF_MS, mergeSearch, nextRefreshDelay, refreshSeconds, withQuery, writeParams } from '@/blocks/pageParams'
-import { StatusBlock } from '@/blocks/pageBlocks'
+import {
+  MAX_BACKOFF_MS,
+  mergeSearch,
+  nextRefreshDelay,
+  paramsFromSearch,
+  refreshSeconds,
+  withQuery,
+  writeParams,
+} from '@/blocks/pageParams'
+import { LazySection, StatusBlock } from '@/blocks/pageBlocks'
 import type { BlockNode } from '@/sdk/registry'
+
+test('paramsFromSearch: repeated keys become lists', () => {
+  assert.deepEqual(paramsFromSearch('?channel=foo&fmt=a&fmt=b&fmt=c'), { channel: 'foo', fmt: ['a', 'b', 'c'] })
+  assert.deepEqual(paramsFromSearch(''), {})
+})
 
 test('withQuery appends to an endpoint with or without a query', () => {
   assert.equal(withQuery('/api/pages/x/data', '?a=1'), '/api/pages/x/data?a=1')
@@ -70,4 +83,40 @@ test('status block: state, detail, progress and log', () => {
   assert.match(failed, /data-state="running"/) // unknown state falls back
   assert.doesNotMatch(failed, /progressbar/)
   assert.ok(getCoreBlock('status'), 'status is a core block')
+})
+
+test('lazy section: closed renders nothing, open shows a skeleton until loaded', () => {
+  assert.equal(renderToStaticMarkup(<LazySection loadKey="k" open={false} />), '')
+  const open = renderToStaticMarkup(<LazySection loadKey="retention" open />)
+  assert.match(open, /aria-busy="true"/)
+  assert.match(open, /data-lazy="retention"/)
+})
+
+test('lazy tabs: the active lazy tab loads, eager tabs render children', () => {
+  const Tabs = getCoreBlock('tabs')!
+  const html = renderToStaticMarkup(
+    <Tabs
+      node={node('tabs', {
+        lazy: true,
+        items: [
+          { label: 'Retention', load: 'retention' },
+          { label: 'Overview', children: [{ type: 'text', content: 'eager body' }] },
+          { label: 'Traffic' },
+        ],
+      })}
+    />,
+  )
+  assert.match(html, /data-lazy="retention"/)
+  assert.doesNotMatch(html, /data-lazy="Traffic"/) // not opened yet
+  assert.match(html, /eager body/)
+})
+
+test('lazy expander: closed by default, loads when expanded', () => {
+  const Expander = getCoreBlock('expander')!
+  const closed = renderToStaticMarkup(<Expander node={node('expander', { title: 'Detail', lazy: true, load: 'd1', children: [] })} />)
+  assert.doesNotMatch(closed, /data-lazy/)
+  const open = renderToStaticMarkup(
+    <Expander node={node('expander', { title: 'Detail', lazy: true, load: 'd1', expanded: true, children: [] })} />,
+  )
+  assert.match(open, /data-lazy="d1"/)
 })

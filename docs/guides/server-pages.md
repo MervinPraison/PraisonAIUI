@@ -1,6 +1,6 @@
 ---
 nav_title: Server pages
-description: Pages built in Python with @aiui.page and aiui blocks - filters in the URL, forms and page actions, auto refresh and job status.
+description: Pages built in Python with @aiui.page and aiui blocks - filters in the URL, forms and page actions, lazy tabs, auto refresh and job status.
 ---
 
 # Server pages
@@ -99,7 +99,7 @@ What the reply can hold:
 | `message` (or `status`) | A success toast. With `_components`, both happen. |
 | `error` | An error toast; the page is left as it was. |
 | `_params` | Written into the page URL's query string (`aiui.layout([...], params={...})`); `None` or `""` removes a key. |
-| `_refresh_every` | Starts or changes auto refresh (section 4). |
+| `_refresh_every` | Starts or changes auto refresh (section 5). |
 
 `aiui.form(..., update_url=True)` writes the submitted values into the URL
 after a successful POST, as `method="get"` does. Use it when the action both
@@ -107,7 +107,48 @@ does something and changes the view; a reply's `_params` wins over it.
 
 A button posts `{**payload, "action": action}`. A form posts its values only.
 
-## 4. Auto refresh and job status
+## 4. Lazy tabs and expanders
+
+Heavy sections can load when they are first opened instead of with the page:
+
+```python
+@aiui.page("youtube", title="YouTube", icon="▶️", group="Research")
+async def youtube(params):
+    return aiui.layout([
+        aiui.tabs([
+            {"label": "Overview", "children": [aiui.metric("Views", value="1.2M")]},  # eager
+            {"label": "Retention", "load": "retention"},                              # lazy
+            {"label": "Traffic", "load": "traffic"},
+        ], lazy=True),
+        aiui.expander("Every video", lazy=True, load="videos"),
+    ])
+
+
+@aiui.register_page_action("youtube")
+async def youtube_action(data):
+    key = data.get("_lazy")
+    params = data.get("_params", {})       # the page URL's query string
+    if key == "retention":
+        return aiui.layout([retention_chart(params)])
+    if key == "traffic":
+        return aiui.layout([traffic_table(params)])
+    if key == "videos":
+        return aiui.layout([videos_table(params)])
+    return {"error": f"Unknown section {key!r}"}
+```
+
+- With `lazy=True`, a tab item without `children` is lazy; its key is its
+  `load` value, or its `label`. An item with `children` renders at once.
+- `aiui.expander(title, lazy=True, load=key)`: the key defaults to the title.
+- The body is fetched with `POST /api/pages/{id}/action` and the JSON body
+  `{"_lazy": key, "_params": {...}}`. Reply with `_components`, as for any
+  action. A reply with `error` (or an HTTP error) shows the message and a
+  "Try again" button; a skeleton shows while it loads.
+- Once loaded, a section stays loaded. When the page data reloads (Refresh,
+  auto refresh, an action that re-renders), open sections fetch again; a
+  closed one fetches again the next time it opens.
+
+## 5. Auto refresh and job status
 
 `refresh_every` (seconds, at least 1) re-fetches the page while its browser
 tab is visible. It pauses while the tab is hidden and resumes when it is shown
@@ -147,5 +188,5 @@ reply carries it as `_refresh_every` unless the handler set that key.
 ## Shell support
 
 The app shell supports everything in this guide. The legacy `dashboard`
-style renders the page and its forms. It ignores `params`, `method="get"`
-and `refresh_every`, and shows a status as plain text.
+style renders the page and its forms. It ignores `params`, `method="get"`,
+lazy loading and `refresh_every`, and shows a status as plain text.
