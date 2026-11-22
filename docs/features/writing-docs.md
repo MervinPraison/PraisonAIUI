@@ -1407,6 +1407,57 @@ own script can send to analytics:
 window.addEventListener('aiui:docs-feedback', (e) => console.log(e.detail.path, e.detail.value))
 ```
 
+### Load telemetry
+
+**(planned)** The page side (sending the records) and the pre-QA dashboard
+view land in a follow-up change; the config key, the `aiui serve` endpoint
+and `aiui docs telemetry` below are in place.
+
+Off by default. Every docs page records how each of its requests went
+(`aiui:docs-load` records: retries, time-outs, failures, timings). Turn on
+telemetry and the page also sends the ones that went wrong, plus a sample of
+the good timings, home, so a reader's stalled page shows up without anyone
+watching that tab:
+
+```yaml
+content:
+  docs:
+    telemetry: true                 # aiui serve / aiui dev store the records
+    # or, for a static host (GitHub Pages, any CDN), your own collector:
+    # telemetry:
+    #   endpoint: "https://collect.example.com/docs-load"
+    #   sampleRate: 0.1             # share of good loads sent for timings (0-1); problems always
+```
+
+Read what `aiui serve` stored with:
+
+```bash
+aiui docs telemetry                              # per file: records, problems, reasons, p50 / p95 ms
+aiui docs telemetry --outcome problems --since 24h
+aiui docs telemetry --format json                # or csv; --site <title>
+```
+
+What is sent: the requested file, its kind (`doc` or `manifest`), the
+attempt, the time it took, the outcome and reason, the HTTP status and the
+page path. Query strings and fragments are dropped. No user or session id and
+no user agent is sent, and the server stores no IP address or header. The
+page collects records while it is open and sends them in batches of up to 50
+with `navigator.sendBeacon` when it is hidden or left, so nothing is sent
+while it loads. A post is JSON sent as `text/plain` (no preflight on another
+origin): `{"v": 1, "records": [{"url", "kind", "attempt", "of", "ms",
+"outcome", "reason", "status", "page", "sampled"}]}`.
+
+With `telemetry: true` only `aiui serve` and `aiui dev` receive records: they
+name `/api/docs/telemetry` in the `ui-config.json` they serve
+(`docsTelemetry.url`). A static host serves the built file, which has no such
+entry, so the page sends nothing and asks nothing. The endpoint takes
+same-origin requests (plus `--cors-origins`, `AIUI_ALLOWED_ORIGINS`), checks
+the Host header, takes 16 KiB and 30 posts a minute per client, and stops at
+20 MB; on a site with [sign-in](docs-auth.md) it needs a signed-in reader.
+Records are lines of `docs-telemetry/telemetry.jsonl` in the data directory
+(`$AIUI_DATA_DIR`, default `~/.praisonaiui`). The pre-QA dashboard
+(`tools/preqa`) shows them when that file exists.
+
 ## What the build publishes for assistants
 
 | File | What it holds |

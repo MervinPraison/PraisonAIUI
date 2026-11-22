@@ -125,6 +125,14 @@
 
 ### New
 
+- **Opt-in docs load telemetry.** `content.docs.telemetry: true` makes docs
+  pages send their page-load problems (retries, time-outs, failures) and a
+  sample of good timings to `aiui serve`, which stores them; `aiui docs
+  telemetry` lists them and the pre-QA dashboard shows them. Or set
+  `telemetry.endpoint` for your own collector on a static host. Off by
+  default; no IP address, id or query string is kept. See
+  [Writing docs → Load telemetry](docs/features/writing-docs.md#load-telemetry).
+
 - **Voice input in the chat.** An app that sets a realtime manager able to
   transcribe (`aiui.set_realtime_manager(OpenAIRealtimeManager())`) gets a
   microphone button in the composer: record, stop, and the text lands in the
