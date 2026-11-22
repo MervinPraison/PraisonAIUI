@@ -58,6 +58,25 @@ curl -X POST http://127.0.0.1:8000/run \
   -d '{"message":"Hello", "session_id":"<session_id>"}'
 ```
 
+## Where `aiui run` keeps chats
+
+Each app has its own chat history. `aiui run app.py` stores the sessions of
+that app file in
+`~/.praisonaiui/apps/<file name>-<hash of its path>/sessions/` (under
+`$AIUI_DATA_DIR` when it is set), so one app never lists the chats of
+another app or agent on the machine, and nothing is written into the app's
+own folder.
+
+| You want | Run |
+|---|---|
+| This app's own history (default) | `aiui run app.py` |
+| The history shared with every praisonai agent (`~/.praisonai/sessions/`, the old default) | `aiui run app.py --datastore sdk` |
+| A folder you choose | `aiui run app.py --datastore sdk:/path` or `--datastore json:/path` |
+| Nothing kept | `aiui run app.py --datastore memory` |
+
+A YAML chat config (`aiui run chat.yaml`) keeps its `datastore:` key, and
+without one uses the shared SDK store as before.
+
 ## CLI Commands
 
 Every API endpoint has a CLI equivalent:
@@ -83,7 +102,7 @@ Chat thumbs up/down (`POST /api/feedback`, listed with totals by
 
 | Store | Where votes go |
 |-------|----------------|
-| SDK (default) | `feedback/feedback.jsonl` in the session folder (`~/.praisonai/sessions/` by default) |
+| SDK (default) | `feedback/feedback.jsonl` in the session folder (the app's own folder under `aiui run app.py`, else `~/.praisonai/sessions/`) |
 | JSON files | `feedback/feedback.jsonl` in the session folder; an older `feedback.json` is moved into it on start |
 | SQL | The `feedback` table |
 | Memory | Memory (lost on restart) |

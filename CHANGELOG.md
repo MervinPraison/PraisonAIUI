@@ -4,6 +4,14 @@
 
 ### Breaking changes
 
+- **`aiui run app.py` keeps each app's chats in its own folder.** Sessions go
+  to `~/.praisonaiui/apps/<app>-<hash>/sessions/` (under `$AIUI_DATA_DIR`
+  when set) instead of `~/.praisonai/sessions/`, which every praisonai agent
+  and app on the machine shared, so an app's sidebar no longer lists other
+  apps' chats. `aiui run app.py --datastore sdk` keeps the shared history.
+  A YAML chat config and `create_app()` are unchanged. See
+  [Sessions](docs/features/sessions.md#where-aiui-run-keeps-chats).
+
 - **`aiui run app.py` opens the React app shell.** A plain chat app (a
   `@reply`, no `--style`, no `set_style()`, no YAML `style:`) now runs in
   `style: app` with the new `chat` layout: the Chat and Canvas frame without
@@ -124,6 +132,10 @@
   server's name.
 
 ### New
+
+- **`aiui doctor` checks the installed version.** Its first check compares
+  the installed `aiui` with the latest release on PyPI and prints the upgrade
+  command when it is behind (a warning, never a failure; offline is fine).
 
 - **Opt-in docs load telemetry.** `content.docs.telemetry: true` makes docs
   pages send their page-load problems (retries, time-outs, failures) and a
