@@ -18,6 +18,12 @@ export interface NavGroupsConfig {
   last?: string
   folded?: readonly string[]
   /**
+   * Groups every layout frame lists like a plugin's declared group: the
+   * app's own pages (`register_page`), or every group under
+   * `set_pages("all")`. Manifest `layout.groups.shown`.
+   */
+  shown?: readonly string[]
+  /**
    * Positions plugins declared for their own groups (registerNavGroup, a
    * plugin's nav_groups()), on the scale where `order[i]` sits at
    * (i + 1) * 100. See withDeclaredGroups().
@@ -62,8 +68,10 @@ export function navGroups(manifest: Pick<ShellManifest, 'layout'>): NavGroupsCon
   const out: NavGroupsConfig = {}
   const order = stringList(g.order)
   const folded = stringList(g.folded)
+  const shown = stringList(g.shown)
   if (order) out.order = order
   if (folded) out.folded = folded
+  if (shown) out.shown = shown
   if (typeof g.last === 'string' && g.last) out.last = g.last
   return out
 }

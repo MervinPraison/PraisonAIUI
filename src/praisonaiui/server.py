@@ -54,6 +54,7 @@ _pages: dict[str, dict[str, Any]] = {}
 _page_actions: dict[str, Callable] = {}
 # User-defined page whitelist — None means "show all built-in pages"
 _enabled_pages: Optional[set[str]] = None
+_all_pages_listed = False  # set_pages("all"): every layout lists every group
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
 # Built-in page ids the last create_app() put into _pages (from plugin records)
@@ -131,6 +132,7 @@ def reset_state() -> None:
     _page_actions.clear()
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
+    _enabled_pages_ref["_all_pages_listed"] = False
     _custom_page_ids.clear()
     _builtin_page_ids.clear()
     _active_tasks.clear()
@@ -186,12 +188,19 @@ def reset_state() -> None:
         pass
 
 
+#: The style of a server nobody chose one for (``create_app``, ``aiui run``).
+DEFAULT_STYLE = "app"
+#: Printed when the legacy ``dashboard`` style is chosen.
+LEGACY_DASHBOARD_NOTICE = "dashboard is the legacy UI; use --style app for the new shell"
+
+
 def set_style(style: str) -> None:
     """Set the UI style from Python code (call before server starts).
 
-    Valid values: 'chat', 'agents', 'playground', 'dashboard', 'docs', 'custom',
-    and 'app' (the React shell, opt-in). ``AIUI_SHELL=app`` turns 'dashboard'
-    into 'app'; ``AIUI_SHELL=legacy`` turns 'app' back into 'dashboard'.
+    Valid values: 'app' (the React app shell, the default), 'dashboard' (the
+    legacy vanilla UI), 'chat', 'agents', 'playground', 'docs', 'custom'.
+    ``AIUI_SHELL=app`` turns 'dashboard' into 'app'; ``AIUI_SHELL=legacy``
+    turns 'app' back into 'dashboard'.
     This takes priority over auto-detection but is overridden by CLI --style.
     """
     global _style
@@ -717,7 +726,7 @@ def register_theme(name: str, variables: dict[str, str]) -> None:
     get_theme_manager().register_theme(name, variables)
 
 
-def set_pages(page_ids: list[str]) -> None:
+def set_pages(page_ids: "list[str] | str") -> None:
     """Choose which pages the app shows, besides its own.
 
     Only the listed page ids appear: built-in pages, the app shell's layout
@@ -735,9 +744,20 @@ def set_pages(page_ids: list[str]) -> None:
 
     Pass an empty list (or call :func:`only_my_pages`) to show only the
     app's own pages. If never called, every page is shown.
+
+    ``set_pages("all")`` shows every page and makes every layout's sidebar
+    list them all, grouped (Agent, Work, Control, ...), as the legacy
+    dashboard did: each page in its React version where there is one, else
+    the legacy view inside the app shell.
     """
-    global _enabled_pages
+    global _enabled_pages, _all_pages_listed
+    if isinstance(page_ids, str):
+        if page_ids != "all":
+            raise ValueError(f'set_pages() takes a list of page ids or "all", not {page_ids!r}')
+        _enabled_pages, _all_pages_listed = None, True
+        return
     _enabled_pages = set(page_ids)
+    _all_pages_listed = False
 
 
 def only_my_pages(*keep: str) -> None:
@@ -819,9 +839,12 @@ def detect_style() -> str:
 
     Detection heuristics (in priority order):
       1. profiles callback + registered agents → 'agents'
-      2. page:* callbacks registered → 'dashboard'
+      2. page:* callbacks registered → 'app' (the app shell lists the pages)
       3. reply callback → 'chat'
       4. fallback → 'chat'
+
+    ``aiui run`` turns 'chat' into 'app' too; 'dashboard' is never detected
+    (it is the legacy UI: ask for it with ``--style dashboard``).
     """
     has_profiles = "profiles" in _callbacks
     has_agents = bool(_agents)
@@ -830,7 +853,7 @@ def detect_style() -> str:
     if has_profiles and has_agents:
         return "agents"
     if has_pages:
-        return "dashboard"
+        return "app"
     return "chat"
 
 
@@ -1504,6 +1527,14 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
     extra_dirs = dash.get("pluginDirs") or dash.get("plugin_dirs") or []
     records = _page_records(restricted, extra_dirs, log_shadows=True)
     pages = [r.shell_row for r in records]
+    groups: dict[str, Any] = {**NAV_GROUPS, **(dash.get("groups") or {})}
+    # Groups every layout's sidebar lists like a plugin's declared group:
+    # the app's own pages, or every group under set_pages("all").
+    shown = sorted(
+        {str(p.get("group") or "Other") for p in pages if _all_pages_listed or p.get("source") == "app"}
+    )
+    if shown:
+        groups["shown"] = shown
     site_section = _get_site_section()
     return {
         "sdk": SDK_API_VERSION,
@@ -1521,7 +1552,7 @@ def _build_shell_manifest(*, restricted: bool = True, include_errors: bool = Tru
         "layout": {
             "sidebar": dash.get("sidebar", True),
             "pageHeader": dash.get("pageHeader", dash.get("page_header", True)),
-            "groups": {**NAV_GROUPS, **(dash.get("groups") or {})},
+            "groups": groups,
         },
         "pages": pages,
         "blocks": [b.to_dict() for b in reg.blocks(restricted=restricted)],
@@ -3904,7 +3935,9 @@ def create_app(
     # In docs mode the compiler generates static files. In dashboard/chat/agents
     # modes we serve dynamic responses so the frontend knows which style to use.
     global _effective_style
-    effective_style = _style or "dashboard"  # default when running server directly
+    # The React app shell is the default (owner decision, 2026-11-22);
+    # "dashboard" (the legacy UI) only when asked for, or AIUI_SHELL=legacy.
+    effective_style = _style or DEFAULT_STYLE
     if config and isinstance(config, dict):
         effective_style = config.get("style", effective_style)
     from praisonaiui.plugin_registry import get_plugin_registry, resolve_shell_style

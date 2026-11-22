@@ -4,6 +4,13 @@
 
 ### Breaking changes
 
+- **`aiui run app.py` keeps each app's chats in its own folder.** Sessions go
+  to `~/.praisonaiui/apps/<app>-<hash>/sessions/` (under `$AIUI_DATA_DIR`
+  when set) instead of `~/.praisonai/sessions/`, which every praisonai agent
+  and app on the machine shared, so an app's sidebar no longer lists other
+  apps' chats. `aiui run app.py --datastore sdk` keeps the shared history.
+  A YAML chat config and `create_app()` are unchanged. See
+  [Sessions](docs/features/sessions.md#where-aiui-run-keeps-chats).
 - **`aiui.set_pages([...])` lists every page source, not only built-ins.**
   The app shell's layout pages (`start`, `artifacts`, `templates`,
   `connect`, `api-reference`) and dashboard-plugin folders (including
@@ -13,6 +20,14 @@
   and an app that never calls `set_pages` sees no change. To keep a folder,
   add its page id to the list, or name it in `set_dashboard(plugins=[...])`,
   which still wins. An id that names no page now logs a warning at startup.
+- **The React app shell is the default style.** `create_app()`, `aiui run
+  app.py` and an app that registers pages (`@aiui.page`, which used to be
+  auto-detected as `dashboard`) now open `style: app`. The legacy vanilla
+  dashboard is one switch away: `--style dashboard`,
+  `aiui.set_style("dashboard")`, YAML `style: dashboard` or
+  `AIUI_SHELL=legacy`; `aiui run --style dashboard` prints a one-line notice
+  that it is the legacy UI. See
+  [React app shell](docs/features/react-shell.md).
 
 - **`aiui run app.py` opens the React app shell.** A plain chat app (a
   `@reply`, no `--style`, no `set_style()`, no YAML `style:`) now runs in
@@ -135,6 +150,16 @@
 
 ### New
 
+- **Every layout lists the app's own pages.** Pages from `register_page` /
+  `@aiui.page` show in their group in the sidebar of every layout (the
+  `chat` layout of `aiui run` showed only Chat and hid them under More).
+- **`aiui.set_pages("all")` / `aiui run --pages all`** shows every page with
+  every group listed in the sidebar of whatever layout is on (the legacy
+  dashboard's tabs, in the app shell), and the layout picker still works.
+  `--pages chat,sessions` takes a list of ids.
+- **`aiui doctor` checks the installed version.** Its first check compares
+  the installed `aiui` with the latest release on PyPI and prints the upgrade
+  command when it is behind (a warning, never a failure; offline is fine).
 - **`aiui.only_my_pages(*keep)`** shows only the app's own pages, plus the
   built-in ids in `keep` (`aiui.only_my_pages("chat")`). Same as
   `set_pages(list(keep))`.

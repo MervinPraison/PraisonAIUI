@@ -1846,6 +1846,32 @@ def _load_user_module(app_file: Path):
     return user_module
 
 
+def _apply_pages_flag(pages: str) -> None:
+    """``aiui run --pages all|id,id``: the same as ``aiui.set_pages()``."""
+    from praisonaiui.server import set_pages
+
+    value = pages.strip()
+    set_pages("all" if value == "all" else [p.strip() for p in value.split(",") if p.strip()])
+
+
+def app_sessions_dir(app_file: Path) -> Path:
+    """The chat-history folder of one app under ``aiui run`` (per app).
+
+    ``<AIUI_DATA_DIR or ~/.praisonaiui>/apps/<file stem>-<hash of its path>/sessions``:
+    two apps never list each other's chats, and the app's own folder (often
+    a git checkout) gets no files. ``--datastore sdk`` shares
+    ``~/.praisonai/sessions`` with every praisonai agent, as before.
+    """
+    import hashlib
+    import os
+
+    path = app_file.resolve()
+    digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:8]
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", path.stem).strip("-") or "app"
+    base = Path(os.environ.get("AIUI_DATA_DIR") or Path.home() / ".praisonaiui").expanduser()
+    return base / "apps" / f"{slug}-{digest}" / "sessions"
+
+
 def _make_datastore(name: str):
     """``(store, label)`` for an ``aiui run --datastore`` value.
 
@@ -1865,9 +1891,14 @@ def _make_datastore(name: str):
 
             return JSONFileDataStore(), "json (sdk fallback)"
     if name.startswith("sdk:"):
-        from praisonaiui.datastore_sdk import SDKFileDataStore
+        try:
+            from praisonaiui.datastore_sdk import SDKFileDataStore
 
-        return SDKFileDataStore(session_dir=name[4:]), name
+            return SDKFileDataStore(session_dir=name[4:]), name
+        except ImportError:
+            from praisonaiui.datastore import JSONFileDataStore
+
+            return JSONFileDataStore(data_dir=name[4:]), f"json:{name[4:]} (sdk fallback)"
     if name == "json":
         from praisonaiui.datastore import JSONFileDataStore
 
@@ -2162,13 +2193,18 @@ def run(
         None,
         "--datastore",
         "-d",
-        help="Data persistence: 'sdk' (unified with praisonai-agents, default), 'json', 'memory', 'json:/path', or 'sdk:/path'. Overrides a chat YAML's datastore: key",
+        help="Data persistence: 'sdk' (shared with praisonai-agents in ~/.praisonai/sessions), 'json', 'memory', 'json:/path', or 'sdk:/path'. Default for app.py: this app's own folder, ~/.praisonaiui/apps/<app>-<hash>/sessions. Overrides a chat YAML's datastore: key",
+    ),
+    pages: Optional[str] = typer.Option(
+        None,
+        "--pages",
+        help="Pages to show besides the app's own: 'all' (every page, every group in the sidebar) or comma-separated ids such as 'chat,sessions'. Same as aiui.set_pages(); wins over it",
     ),
     style: Optional[str] = typer.Option(
         None,
         "--style",
         "-s",
-        help="UI style: 'app' (default: the React app shell, Chat layout), 'chat' (classic chat), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom'",
+        help="UI style: 'app' (default: the React app shell, Chat layout), 'chat' (classic chat), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard' (the legacy UI), 'custom'",
     ),
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
@@ -2267,11 +2303,14 @@ def run(
                         # If source inspection fails, continue with standalone
                         pass
 
+    if pages is not None:
+        _apply_pages_flag(pages)
+
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI --style > YAML style > aiui.set_style() > auto-detect >
     # the app shell. Auto-detect only picks a style an app clearly asks for
-    # (agents, dashboard pages); a plain chat app gets the app shell.
-    from praisonaiui.server import detect_style, get_style
+    # (agents); a chat app or an app with pages gets the app shell.
+    from praisonaiui.server import LEGACY_DASHBOARD_NOTICE, detect_style, get_style
 
     if style is None:
         explicit = get_style()
@@ -2279,11 +2318,13 @@ def run(
             style = explicit
         else:
             detected = detect_style()
-            if detected != "chat":
+            if detected not in ("chat", "app"):
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
                 style = detected
             else:
                 style = "app"
+    if style == "dashboard":
+        console.print(f"[yellow]Note:[/yellow] {LEGACY_DASHBOARD_NOTICE}")
     if style == "app":
         # `aiui run` opens the chat without a canvas unless the app, its YAML
         # or AIUI_LAYOUT picks a layout.
@@ -2400,7 +2441,11 @@ def run(
         else:
             asyncio.run(gateway.start())
     else:
-        # Set up datastore (--datastore, else the YAML's, else the SDK store)
+        # Set up datastore (--datastore, else the YAML's, else the SDK store).
+        # A Python app gets its own sessions folder, so it never lists the
+        # chats of other apps or agents on this machine.
+        if datastore is None and not is_yaml:
+            datastore = f"sdk:{app_sessions_dir(app_file)}"
         datastore = datastore or "sdk"
         from praisonaiui.server import set_datastore
 
@@ -2461,6 +2506,7 @@ def run(
                 is_yaml=is_yaml,
                 style=style,
                 datastore=datastore_requested,
+                pages=pages,
                 static_dir=static_dir,
                 config_path=config_path,
             )
@@ -3854,6 +3900,41 @@ def pages_ids(server: str = _SERVER_OPT) -> None:
 # ---------------------------------------------------------------------------
 
 
+PYPI_JSON_URL = "https://pypi.org/pypi/aiui/json"
+
+
+def _pypi_latest_aiui(timeout: float = 3.0) -> Optional[str]:
+    """The newest ``aiui`` release on PyPI, or ``None`` when PyPI is unreachable."""
+    import json as _json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(PYPI_JSON_URL, timeout=timeout) as resp:  # noqa: S310 - fixed https URL
+            return str(_json.load(resp)["info"]["version"])
+    except Exception:  # noqa: BLE001 - offline is not an error
+        return None
+
+
+def _version_check() -> dict:
+    """``aiui doctor``: is the installed aiui the latest release?"""
+    from praisonaiui import __version__ as installed
+
+    def _key(v: str) -> tuple[int, ...]:
+        return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+    latest = _pypi_latest_aiui()
+    name = "aiui Version"
+    if latest is None:
+        return {"name": name, "status": "warn", "detail": f"{installed} (could not reach PyPI)"}
+    if _key(installed) < _key(latest):
+        return {
+            "name": name,
+            "status": "warn",
+            "detail": f"{installed} installed, {latest} on PyPI: uv pip install -U aiui",
+        }
+    return {"name": name, "status": "pass", "detail": f"{installed} (latest)"}
+
+
 @app.command()
 def doctor(
     server: str = typer.Option(
@@ -3871,7 +3952,7 @@ def doctor(
     """Run structured diagnostics against a running AIUI server."""
     import json as _json
 
-    checks = []
+    checks = [_version_check()]
 
     def _check(name: str, path: str, extractor=None):
         """Run a single diagnostic check."""
