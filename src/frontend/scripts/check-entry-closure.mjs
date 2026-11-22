@@ -12,7 +12,7 @@
  *   legacy app   legacy-app-entry (styles chat, docs, agents, playground, custom)
  *
  * It fails when a chunk in one of those closures is, or contains, Streamdown,
- * Shiki, Mermaid, KaTeX or assistant-ui. Each library is recognised two ways,
+ * Shiki, Mermaid, KaTeX, assistant-ui or recharts. Each library is recognised two ways,
  * because the manifest lists chunks, not the modules inside them:
  *
  *   - by manifest key (node_modules/<lib>/...), for chunks that are a module
@@ -36,6 +36,7 @@ const HEAVY = [
   { name: 'mermaid', key: /node_modules\/mermaid\//, fingerprint: 'mermaidAPI' },
   { name: 'katex', key: /node_modules\/katex\//, fingerprint: 'KaTeX parse error' },
   { name: '@assistant-ui', key: /node_modules\/@assistant-ui\//, fingerprint: '@assistant-ui' },
+  { name: 'recharts', key: /node_modules\/recharts\//, fingerprint: 'recharts-wrapper' },
 ]
 
 function argValue(flag) {

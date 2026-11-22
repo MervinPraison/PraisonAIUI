@@ -1,8 +1,9 @@
 /**
  * Core block renderers: React + design tokens for the `_components` types
  * page handlers use most (praisonaiui/ui.py; dashboard.js renderComponent*).
- * Types not listed here (chart, pagination, dialog, popover, html_embed,
- * a2ui_surface, ...) render through LegacyBlockFallback.
+ * Types not listed here (pagination, dialog, popover, html_embed,
+ * a2ui_surface, ...) render through LegacyBlockFallback. `chart` is a lazy
+ * chunk of its own (blocks/chart, with the chart library).
  *
  * The page-template types (`board`, `gallery`, `list_detail`, `log_viewer`,
  * `code_editor`) render with components/page. Each is a lazy chunk, fetched
@@ -1015,6 +1016,8 @@ const LogViewerTemplate = templateBlock(() =>
 const CodeEditorTemplate = templateBlock(() =>
   import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock })),
 )
+// The chart library loads with this chunk only, never with the blocks chunk.
+const ChartBlockLazy = templateBlock(() => import('./chart/ChartBlock').then((m) => ({ default: m.ChartBlock })))
 
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
@@ -1076,6 +1079,7 @@ const CORE: Record<string, CoreBlock> = {
   list_detail: ListDetailTemplate,
   log_viewer: LogViewerTemplate,
   code_editor: CodeEditorTemplate,
+  chart: ChartBlockLazy,
 }
 
 /** Own-property lookup (a type named "constructor" must not hit Object.prototype). */

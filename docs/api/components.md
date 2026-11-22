@@ -131,19 +131,61 @@ aiui.text("Last updated 30 seconds ago.")
 |-----------|------|----------|-------------|
 | `content` | `str` | ✅ | Text content |
 
-### `aiui.chart(title, *, data, chart_type)`
+### `aiui.chart(title, *, data, chart_type, x, y, ...)`
 
-A chart.
+A chart with tooltips, colours from the theme's `--chart-1..5` tokens (light
+and dark) and the full width of its column, down to a phone. The chart
+library loads in its own chunk the first time a page shows a chart.
 
 ```python
-aiui.chart("Revenue", data=[{"month": "Jan", "value": 100}], chart_type="line")
+# Horizontal bars with a reference line; bars below it are muted.
+aiui.chart(
+    "Median lift by day", chart_type="barh",
+    data=[{"day": "Mon", "lift": 1.4}, {"day": "Tue", "lift": 0.8}],
+    x="day", y="lift",
+    reference={"value": 1, "label": "usual"}, color_by_reference=True,
+    y_format="multiplier",
+)
+
+# A line with faint count bars behind it, on a scale of their own.
+aiui.chart(
+    "Usual views per month", chart_type="line",
+    data=[{"month": "Jan", "views": 12000, "posts": 4}, {"month": "Feb", "views": 15400, "posts": 7}],
+    x="month", y="views", y2="posts", labels={"views": "Usual views", "posts": "Posts"},
+    y_format="compact",
+)
+
+aiui.chart("Retention", chart_type="area", data=points, x="t", y="share", y_format="percent", y_domain=[0, 1])
+aiui.chart("Formats mix", data=rows, x="quarter", y=["video", "carousel", "text"], stacked=True)
+aiui.chart("Reach", chart_type="scatter", data=channels, x="subs", y="ratio", label="channel")
+aiui.chart("Spread of lift", chart_type="histogram", data=[0.4, 1.2, 0.9, 2.5], bins=12)
 ```
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `title` | `str` | ✅ | — | Chart title |
-| `data` | `Sequence[dict]` | ❌ | `[]` | Data points |
-| `chart_type` | `str` | ❌ | `"bar"` | `bar`, `line`, or `pie` |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `title` | `str` | `""` | Chart title |
+| `data` | `list[dict]` | `[]` | Rows, e.g. `[{"month": "Jan", "views": 1200}]`. A histogram also takes plain numbers |
+| `chart_type` | `str` | `"bar"` | `bar` (columns), `barh` (horizontal bars), `line`, `area`, `scatter`, `pie`, `donut`, `histogram` |
+| `x` | `str` | first text column | Category key. Scatter: the x value (default: first numeric column). Histogram: the measured value |
+| `y` | `str \| list[str]` | every numeric column | Series key, or keys for several series |
+| `y2` | `str` | — | A secondary series drawn as faint bars on its own scale (vertical charts) |
+| `labels` | `dict[str, str]` | — | Display names for keys in the legend and tooltip |
+| `label` | `str` | — | Scatter: key naming each point in the tooltip |
+| `stacked` | `bool` | `False` | Stack the series (`bar`, `barh`, `area`) |
+| `reference` | number, list of numbers, `{value, label}` or a list of them | — | Dashed reference lines (a vertical line on `barh`) |
+| `color_by_reference` | `bool` | `False` | Bars at or above the first reference keep the series colour; bars below it are muted |
+| `x_format`, `y_format` | `str` | — | `number` (1,234.5), `compact` (1.2k, 3.4M), `percent` (0.25 → 25%), `multiplier` (1.5x), `duration` (seconds → 1:05). Axis ticks default to `compact`, tooltips to `number` |
+| `y_domain` | `[min, max]` | auto | Value axis range, e.g. `[0, 1]` with `y_format="percent"` |
+| `bins` | `int` | Sturges' rule (max 30) | Histogram bin count |
+| `height` | `int` | 240 | Plot height in px; `barh` grows with its rows, pie and donut are 260 |
+| `caption` | `str` | — | A line of muted text under the chart |
+| `legend` | `bool` | more than one series | Show the legend |
+
+An unknown `chart_type` or format raises `ValueError`. A dict written by hand
+(`{"type": "chart", "data": [...], "chart_type": "line"}`) works too: missing
+keys are inferred from the first row, and `column`, `hbar` and `doughnut` are
+accepted as kind names. At most 5,000 rows are drawn. The legacy `dashboard`
+style shows a summary card instead of the chart.
 
 ---
 

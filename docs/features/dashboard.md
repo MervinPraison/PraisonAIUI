@@ -199,6 +199,8 @@ aiui.chart("Revenue Over Time", data=[
 ], chart_type="line")
 ```
 
+Kinds, reference lines, value formats and every option: `aiui.chart` in the [Component API Reference](../api/components.md).
+
 ### Layout
 
 Wrap all components in a layout container:
