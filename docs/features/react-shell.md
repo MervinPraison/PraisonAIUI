@@ -73,7 +73,7 @@ AIUI_SHELL=legacy aiui run app.py   # always the vanilla dashboard
 | `set_theme`, `set_brand_color`, `register_theme` | unchanged | converted to theme seeds |
 | dashboard plugins | unchanged | hosted pages; `dashboard.plugins` allowlist honoured |
 | `chat`, `docs`, `agents`, `playground`, `custom` styles | same app, now lazy-loaded with the new markdown renderer and tokens | n/a |
-| `aiui build` static docs | same app; `index.js`/`index.css` get a `?v=` content hash | n/a |
+| `aiui build` static docs | same app; loads content-named copies `index-<hash>.js`/`.css` | n/a |
 
 ## Theme seeds (migration)
 
@@ -121,11 +121,18 @@ triples are converted in the browser where possible, but update the CSS.
 
 - Code chunks are content-hashed (`assets/<name>-<hash>.js`) and served with
   `Cache-Control: immutable`. `assets/index.js` and `assets/index.css` keep
-  fixed names and are referenced as `?v=<hash>`, so a release never mixes an
-  old entry with new chunks.
-- `aiui build` writes `index.html` (and every route page) with
-  `/assets/index.js?v=<sha256[:10]>` and the same for `index.css`, and copies
-  `aiui-manifest.json` next to it.
+  fixed names in the bundle; the server references them as `?v=<hash>`, so a
+  release never mixes an old entry with new chunks.
+- `aiui build` writes content-named copies of both,
+  `assets/index-<sha256[:10]>.js` and `assets/index-<sha256[:10]>.css`, and
+  loads them from `index.html` and every route page. A static host such as
+  GitHub Pages ignores the query string, so `?v=` alone could pair a cached
+  old page with the new entry. `index.js` and `index.css` stay in the build,
+  so a page cached before the switch still loads, and the copies are listed in
+  the site's `aiui-manifest.json` (keys `aiui-entry-copy:<file>`), so the
+  deploy's carry-forward keeps them next to the chunks. When a chunk imports
+  the entry module (none does today) the build keeps `index.js?v=`, which
+  would otherwise load the entry twice.
 - The docs deploy keeps the previous build's chunks, and with its ledger
   (`aiui-carried.json`) older builds' chunks for `--keep-days` (default 2)
   (`src/frontend/scripts/carry-forward-assets.mjs`), so a reader with an

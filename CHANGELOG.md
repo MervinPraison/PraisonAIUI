@@ -693,6 +693,15 @@
   another URL than the app requests. See
   [GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
 
+- **A built site never pairs an old page with a new app entry.** `aiui build`
+  now loads content-named copies of the entry files
+  (`/assets/index-<sha256[:10]>.js` and `.css`) instead of
+  `/assets/index.js?v=<hash>`. GitHub Pages ignores the query string, so a page
+  cached for up to 10 minutes could get the next deploy's `index.js` (or the
+  reverse). `index.js` and `index.css` are still written, so a page cached
+  before this release loads; the copies are listed in the site's
+  `aiui-manifest.json`, so the deploy keeps them like the hashed chunks.
+
 - **Docs pages without code no longer download the code font.** The header's
   `⌘K` search hint was drawn in the code face, so every page fetched it
   (JetBrains Mono, 40 KB, in the Paper look; Geist Mono, 23 KB, otherwise). It
