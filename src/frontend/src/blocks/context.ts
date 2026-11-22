@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { ShellPage } from '@/sdk/manifest'
+import type { BlockNode } from '@/sdk/registry'
 
 export interface BlockActionRequest {
   /** JSON body POSTed to the page's action endpoint. */
@@ -20,6 +21,13 @@ export interface BlockContextValue {
    * Resolves true on success.
    */
   runAction(req: BlockActionRequest): Promise<boolean>
+  /**
+   * Fetch a lazy section: POST `{_lazy: key, _params}` to the page's action
+   * endpoint and return the reply's blocks. Rejects with a readable message.
+   */
+  loadSection?(key: string, signal: AbortSignal): Promise<BlockNode[]>
+  /** Changes each time the page data is (re)loaded; open lazy sections re-fetch. */
+  version?: number
 }
 
 const noPage: BlockContextValue = {

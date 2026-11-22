@@ -47,7 +47,7 @@ import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
-import { StatusBlock } from './pageBlocks'
+import { LazySection, StatusBlock } from './pageBlocks'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -299,7 +299,14 @@ function SeparatorBlock({ node }: CoreBlockProps) {
   )
 }
 
+/** A lazy item (`tabs(lazy=True)` without children, or any item with `load`) → its key. */
+function lazyKey(item: Record<string, unknown>, lazy: boolean): string {
+  if (Array.isArray(item.children)) return ''
+  return str(item.load) || (lazy ? str(item.label) : '')
+}
+
 function TabsBlock({ node, page }: CoreBlockProps) {
+  const lazy = propsOf(node).lazy === true
   const items = arr(propsOf(node).items).filter(isRecord)
   const [active, setActive] = useState(0)
   const id = useId()
@@ -343,7 +350,11 @@ function TabsBlock({ node, page }: CoreBlockProps) {
           hidden={i !== current}
           className="flex min-w-0 flex-col gap-4"
         >
-          <BlockList nodes={toBlockNodes(arr(item.children))} page={page} />
+          {lazyKey(item, lazy) ? (
+            <LazySection loadKey={lazyKey(item, lazy)} open={i === current} page={page} />
+          ) : (
+            <BlockList nodes={toBlockNodes(arr(item.children))} page={page} />
+          )}
         </div>
       ))}
     </div>
@@ -355,14 +366,20 @@ function Disclosure({
   open,
   children,
   className,
+  onToggle,
 }: {
   title: string
   open?: boolean
   children: JSX.Element | JSX.Element[] | null
   className?: string
+  onToggle?: (open: boolean) => void
 }) {
   return (
-    <details open={open} className={cn('group min-w-0', className)}>
+    <details
+      open={open}
+      className={cn('group min-w-0', className)}
+      onToggle={onToggle && ((e) => onToggle(e.currentTarget.open))}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <ChevronRight
           aria-hidden
@@ -378,10 +395,17 @@ function Disclosure({
 function ExpanderBlock({ node, page }: CoreBlockProps) {
   const p = propsOf(node)
   const nested = useInFrame()
+  const load = p.lazy === true ? str(p.load) || str(p.title) : ''
+  const [open, setOpen] = useState(p.expanded === true)
   return (
-    <Disclosure title={str(p.title)} open={p.expanded === true} className={nested ? undefined : FRAME}>
+    <Disclosure
+      title={str(p.title)}
+      open={p.expanded === true}
+      className={nested ? undefined : FRAME}
+      onToggle={load ? setOpen : undefined}
+    >
       <InFrame>
-        <BlockList nodes={childNodes(node)} page={page} />
+        {load ? <LazySection loadKey={load} open={open} page={page} /> : <BlockList nodes={childNodes(node)} page={page} />}
       </InFrame>
     </Disclosure>
   )

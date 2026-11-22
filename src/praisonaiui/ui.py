@@ -305,13 +305,20 @@ def separator() -> dict:
     return {"type": "separator"}
 
 
-def tabs(items: Sequence[dict]) -> dict:
+def tabs(items: Sequence[dict], *, lazy: bool = False) -> dict:
     """A tabbed container.
 
     Args:
         items: List of ``{"label": str, "children": [comp_dicts]}``
+        lazy: App shell: an item without ``children`` is fetched when its tab
+            is first opened. The page's action handler receives
+            ``{"_lazy": item.get("load", label), "_params": {...}}`` and
+            returns ``aiui.layout([...])``.
     """
-    return {"type": "tabs", "items": list(items)}
+    comp: dict[str, Any] = {"type": "tabs", "items": list(items)}
+    if lazy:
+        comp["lazy"] = True
+    return comp
 
 
 def accordion(items: Sequence[dict]) -> dict:
@@ -589,15 +596,32 @@ def container(children: Sequence[dict], *, title: str | None = None) -> dict:
     return comp
 
 
-def expander(title: str, *, children: Sequence[dict], expanded: bool = False) -> dict:
+def expander(
+    title: str,
+    *,
+    children: Sequence[dict] = (),
+    expanded: bool = False,
+    lazy: bool = False,
+    load: str | None = None,
+) -> dict:
     """A collapsible section.
 
     Args:
         title: Section heading
         children: Content components
         expanded: Whether initially expanded
+        lazy: App shell: fetch the body when first opened. The page's action
+            handler receives ``{"_lazy": load, "_params": {...}}`` and returns
+            ``aiui.layout([...])``.
+        load: Key sent as ``_lazy`` (default: ``title``)
     """
-    return {"type": "expander", "title": title, "children": list(children), "expanded": expanded}
+    comp: dict[str, Any] = {
+        "type": "expander", "title": title, "children": list(children), "expanded": expanded,
+    }
+    if lazy:
+        comp["lazy"] = True
+        comp["load"] = load or title
+    return comp
 
 
 def divider(text: str | None = None) -> dict:
