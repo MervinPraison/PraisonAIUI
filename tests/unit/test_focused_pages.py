@@ -91,3 +91,40 @@ def test_unknown_set_pages_id_warns_at_startup(machine, caplog):
     msgs = [r.getMessage() for r in caplog.records]
     assert any("no-such-page" in m for m in msgs)
     assert not any("'chat'" in m and "set_pages" in m for m in msgs)
+
+
+def _groups(client):
+    return client.get("/api/shell/manifest").json()["layout"]["groups"]
+
+
+def test_the_apps_own_groups_are_shown_in_every_layout(machine):
+    srv.set_pages(["chat"])
+    client, _ = _manifest_ids()
+    assert _groups(client)["shown"] == ["My posts"]
+
+
+def test_no_shown_groups_without_app_pages():
+    srv.reset_state()
+    try:
+        srv.set_style("app")
+        client = TestClient(srv.create_app())
+        assert "shown" not in _groups(client)
+    finally:
+        srv.reset_state()
+
+
+def test_set_pages_all_lists_every_page_and_every_group(machine):
+    from praisonaiui.builtin.catalog import BUILTIN_PLUGINS
+
+    srv.set_pages("all")
+    client, ids = _manifest_ids()
+    builtin_ids = {spec.id for rec in BUILTIN_PLUGINS for spec in rec.pages()}
+    pages = client.get("/api/shell/manifest").json()["pages"]
+    assert builtin_ids - ids == set()
+    assert {"own", "global-board", "chat", "start", "connect"} <= ids
+    assert set(_groups(client)["shown"]) == {p.get("group") or "Other" for p in pages}
+
+
+def test_set_pages_rejects_another_string():
+    with pytest.raises(ValueError):
+        srv.set_pages("chat")

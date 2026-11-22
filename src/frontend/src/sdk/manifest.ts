@@ -246,8 +246,12 @@ export interface ShellManifest {
   layout: {
     sidebar?: unknown
     pageHeader?: unknown
-    /** Sidebar group order, the group pinned last, and the groups that start folded. */
-    groups?: { order?: string[]; last?: string; folded?: string[] }
+    /**
+     * Sidebar group order, the group pinned last, the groups that start
+     * folded, and the groups every layout lists like a declared group
+     * (`shown`: the app's own pages, or all of them under `set_pages("all")`).
+     */
+    groups?: { order?: string[]; last?: string; folded?: string[]; shown?: string[] }
   }
   pages: ShellPage[]
   blocks: { type: string; module: string; integrity?: string; source: string }[]

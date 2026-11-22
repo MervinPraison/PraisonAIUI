@@ -142,6 +142,13 @@
 
 ### New
 
+- **Every layout lists the app's own pages.** Pages from `register_page` /
+  `@aiui.page` show in their group in the sidebar of every layout (the
+  `chat` layout of `aiui run` showed only Chat and hid them under More).
+- **`aiui.set_pages("all")` / `aiui run --pages all`** shows every page with
+  every group listed in the sidebar of whatever layout is on (the legacy
+  dashboard's tabs, in the app shell), and the layout picker still works.
+  `--pages chat,sessions` takes a list of ids.
 - **`aiui doctor` checks the installed version.** Its first check compares
   the installed `aiui` with the latest release on PyPI and prints the upgrade
   command when it is behind (a warning, never a failure; offline is fine).
