@@ -2,7 +2,7 @@
 
 uvicorn can only reload an application it imports itself (an import string),
 not an app object built by the CLI. ``aiui run --reload`` therefore stores
-what it resolved (app file, style, datastore, static dir, config path) in the
+what it resolved (app file, style, datastore, pages, static dir, config path) in the
 ``AIUI_RUN_SPEC`` environment variable and starts uvicorn with
 ``praisonaiui._run_factory:create`` and ``factory=True``. Each reload worker
 re-executes the app file and builds the same app.
@@ -26,6 +26,7 @@ def encode_spec(
     datastore: str,
     static_dir: Optional[Path],
     config_path: Optional[Path],
+    pages: Optional[str] = None,
 ) -> str:
     return json.dumps(
         {
@@ -33,6 +34,7 @@ def encode_spec(
             "is_yaml": bool(is_yaml),
             "style": style,
             "datastore": datastore,
+            "pages": pages,
             "static_dir": str(Path(static_dir).resolve()) if static_dir else None,
             "config_path": str(Path(config_path).resolve()) if config_path else None,
         }
@@ -49,7 +51,12 @@ def create() -> Any:
         )
     spec = json.loads(raw)
 
-    from praisonaiui.cli import _apply_chat_yaml, _load_user_module, _make_datastore
+    from praisonaiui.cli import (
+        _apply_chat_yaml,
+        _apply_pages_flag,
+        _load_user_module,
+        _make_datastore,
+    )
     from praisonaiui.server import create_app, set_datastore, set_style
 
     app_file = Path(spec["app_file"])
@@ -61,6 +68,8 @@ def create() -> Any:
     elif _load_user_module(app_file) is None:
         raise RuntimeError(f"Could not load {app_file}")
 
+    if spec.get("pages") is not None:
+        _apply_pages_flag(spec["pages"])
     store, _label = _make_datastore(spec.get("datastore") or "sdk")
     set_datastore(store)
     set_style(spec["style"])

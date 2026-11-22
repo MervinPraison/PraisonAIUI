@@ -7,7 +7,7 @@
  * AIUI_TEMPLATES_DIR. Run `npm run build` first.
  *
  *   project            server                                   specs
- *   dashboard-legacy   default style (vanilla dashboard)        legacy-parity, legacy-dashboard
+ *   dashboard-legacy   style dashboard (the legacy vanilla UI)  legacy-parity, legacy-dashboard
  *   app-shell          AIUI_SHELL=app + the example plugin      shell-sweep, chat, plugins
  *   chat-style         style chat, presets zinc and rose, and   theme-presets, chat-os-theme, chat-reply
  *                      one with no set_theme() (follows the OS)
@@ -121,7 +121,8 @@ export default defineConfig({
     timezoneId: 'UTC',
   },
   webServer: [
-    server(PORTS.legacy, ''),
+    // The legacy vanilla dashboard, asked for explicitly (app is the default).
+    server(PORTS.legacy, '-- --style dashboard'),
     // The classic frame (ADR 0003 `layout: classic`): these suites and their
     // baselines pin the app shell's own sidebar and header. The layouts have
     // their own server below.
@@ -141,7 +142,7 @@ export default defineConfig({
     // The React app pages that write data (agents): their own server, so what
     // they create never shows in another suite's screenshots.
     layoutServer(PORTS.appPages),
-    ...(BASELINE_SRC ? [server(PORTS.baseline, `--src "${BASELINE_SRC}"`)] : []),
+    ...(BASELINE_SRC ? [server(PORTS.baseline, `--src "${BASELINE_SRC}" -- --style dashboard`)] : []),
   ],
   projects: [
     {

@@ -275,7 +275,9 @@ In short, a frame:
   rest, `footer`) and navigates with `nav.go(pageId)`;
 - uses `chrome.openPalette()` for search and commands (there is one palette),
 - lists the groups plugins declared (`nav.groups` entries with `declared: true`,
-  kept in order and `folded` as given) even when it keeps other groups in
+  kept in order and `folded` as given; the groups of the app's own pages and,
+  under `set_pages("all")`, every group are marked the same way from the
+  manifest's `layout.groups.shown`) even when it keeps other groups in
   More, and shows a settings entry calling `chrome.openSettings()` when it is
   set (only while some plugin contributes a settings section); the kit's
   `DeclaredNavGroups` and `PluginSettingsRow` draw both,

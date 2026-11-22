@@ -20,6 +20,14 @@
   and an app that never calls `set_pages` sees no change. To keep a folder,
   add its page id to the list, or name it in `set_dashboard(plugins=[...])`,
   which still wins. An id that names no page now logs a warning at startup.
+- **The React app shell is the default style.** `create_app()`, `aiui run
+  app.py` and an app that registers pages (`@aiui.page`, which used to be
+  auto-detected as `dashboard`) now open `style: app`. The legacy vanilla
+  dashboard is one switch away: `--style dashboard`,
+  `aiui.set_style("dashboard")`, YAML `style: dashboard` or
+  `AIUI_SHELL=legacy`; `aiui run --style dashboard` prints a one-line notice
+  that it is the legacy UI. See
+  [React app shell](docs/features/react-shell.md).
 
 - **`aiui run app.py` opens the React app shell.** A plain chat app (a
   `@reply`, no `--style`, no `set_style()`, no YAML `style:`) now runs in
@@ -142,6 +150,13 @@
 
 ### New
 
+- **Every layout lists the app's own pages.** Pages from `register_page` /
+  `@aiui.page` show in their group in the sidebar of every layout (the
+  `chat` layout of `aiui run` showed only Chat and hid them under More).
+- **`aiui.set_pages("all")` / `aiui run --pages all`** shows every page with
+  every group listed in the sidebar of whatever layout is on (the legacy
+  dashboard's tabs, in the app shell), and the layout picker still works.
+  `--pages chat,sessions` takes a list of ids.
 - **`aiui doctor` checks the installed version.** Its first check compares
   the installed `aiui` with the latest release on PyPI and prints the upgrade
   command when it is behind (a warning, never a failure; offline is fine).

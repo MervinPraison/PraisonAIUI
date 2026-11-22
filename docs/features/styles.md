@@ -10,12 +10,13 @@ code when you do not name it.
 | `chat` | React chat interface: sessions, streaming, starters, profiles |
 | `agents` | React multi-agent view with a tabbed agent/session sidebar |
 | `playground` | React side-by-side input and output panels for prompt testing |
-| `dashboard` | Vanilla-JS admin dashboard with built-in and custom pages |
+| `dashboard` | The legacy vanilla-JS admin dashboard with built-in and custom pages (only when asked for) |
 | `docs` | React documentation site (sidebar, table of contents, search) |
 | `custom` | React site built from your YAML templates and components, with an optional floating chat widget |
-| `app` | The React app shell with selectable layouts (the `aiui run` default) |
+| `app` | The React app shell with selectable layouts (the default) |
 
-`app` is what `aiui run` opens when nothing else picks a style; it starts in
+`app` is what `create_app()` and `aiui run` open when nothing else picks a
+style (owner decision, 2026-11-22); `aiui run` starts it in
 the `chat` layout (no canvas) unless the app, its YAML or `AIUI_LAYOUT` picks
 another. See [React app shell](react-shell.md) for what it contains and
 [Layouts](layouts.md) for its layouts.
@@ -32,7 +33,7 @@ After loading `app.py`, the CLI looks at the callbacks and agents it registered
 | Your code registers | Detected style |
 |---------------------|----------------|
 | `@aiui.profiles` and at least one `aiui.register_agent()` | `agents` |
-| one or more `@aiui.page(...)` callbacks | `dashboard` |
+| one or more `@aiui.page(...)` callbacks | `app` (it lists the pages; `dashboard` before 2026-11-22) |
 | anything else, such as `@aiui.reply` only | `app` (the React app shell, `chat` layout) |
 
 ### Example: detected as `agents`
@@ -117,7 +118,7 @@ other styles.
 1. `style:` in a YAML chat app
 2. CLI `--style`
 3. `aiui.set_style()` in Python
-4. Auto-detection (`agents` or `dashboard`)
+4. Auto-detection (`agents`)
 5. Default: `app`
 
 ## Chat Positioning

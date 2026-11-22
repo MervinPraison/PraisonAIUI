@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ShellPage } from '@/sdk/manifest'
 import { buildLayoutNav, MAX_PRIMARY, navPagesForLayout, resolveRoutePage } from './layoutNav'
-import { defaultPageId } from './nav'
+import { defaultPageId, navGroups } from './nav'
 
 const page = (id: string, extra: Partial<ShellPage> = {}): ShellPage => ({ id, title: id.toUpperCase(), kind: 'native', ...extra })
 
@@ -124,6 +124,23 @@ test('a group a plugin declared is marked declared, keeping its order and folded
     [
       ['Ops', true, true],
       ['Main', false, false],
+    ],
+  )
+})
+
+test('the manifest’s shown groups (the app’s own pages, or set_pages("all")) are listed like declared ones', () => {
+  const nav = buildLayoutNav({
+    pages: PAGES,
+    groups: navGroups({ layout: { groups: { order: ['Ops', 'Main'], shown: ['Main'] } } }),
+    spec: { id: 'alpha' },
+    activeId: '',
+    go: () => {},
+  })
+  assert.deepEqual(
+    nav.groups.map((g) => [g.name, g.declared ?? false]),
+    [
+      ['Ops', false],
+      ['Main', true],
     ],
   )
 })

@@ -85,7 +85,10 @@ export interface LayoutNavInput {
   /** The routed page id (the URL's first segment). */
   activeId: string
   go(pageId: string): void
-  /** Group names plugins declared (registerNavGroup, nav_groups()): their groups get `declared: true`. */
+  /**
+   * Group names plugins declared (registerNavGroup, nav_groups()): their
+   * groups get `declared: true`, as do the manifest's `groups.shown`.
+   */
   declared?: readonly string[]
 }
 
@@ -106,7 +109,7 @@ export function buildLayoutNav({ pages, groups, spec, activeId, go, declared = [
     groups: groupPages(rest, groups).map((g) => ({
       name: g.name,
       folded: folded.includes(g.name),
-      ...(declared.includes(g.name) ? { declared: true } : {}),
+      ...(declared.includes(g.name) || groups.shown?.includes(g.name) ? { declared: true } : {}),
       items: g.pages.map((p) => toItem(p, activeId)),
     })),
     footer: footerPages(rest).map((p) => toItem(p, activeId)),
