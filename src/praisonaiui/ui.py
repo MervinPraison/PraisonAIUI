@@ -100,7 +100,7 @@ def board(*, columns: Sequence[dict]) -> dict:
     return {"type": "board", "columns": list(columns)}
 
 
-CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram")
+CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram", "heatmap", "sparkline")
 CHART_FORMATS = ("number", "compact", "percent", "multiplier", "duration")
 
 
@@ -140,6 +140,9 @@ def chart(
     height: int | None = None,
     caption: str | None = None,
     legend: bool | None = None,
+    value: str | None = None,
+    facet: str | None = None,
+    kind: str | None = None,
 ) -> dict:
     """A chart drawn in the browser (tooltips, theme colours, responsive width).
 
@@ -158,15 +161,21 @@ def chart(
         bins: Histogram bin count (default: Sturges' rule, at most 30).
         height: Plot height in px. caption: muted line under the chart.
         legend: Show the legend (default: more than one series).
+        value: Heatmap cell value key (default ``value``); ``x`` is the column key and
+            ``y`` the row key (defaults ``x`` and ``y``).
+        facet: Key whose values split the rows into small charts sharing one value scale.
+        kind: Alias of ``chart_type``.
         See docs/api/components.md for examples.
     """
+    if kind is not None:
+        chart_type = kind
     if chart_type not in CHART_KINDS:
         raise ValueError(f"chart_type must be one of {', '.join(CHART_KINDS)}")
     for name, fmt in (("x_format", x_format), ("y_format", y_format)):
         if fmt is not None and fmt not in CHART_FORMATS:
             raise ValueError(f"{name} must be one of {', '.join(CHART_FORMATS)}")
     rows = list(data or [])
-    if chart_type == "histogram" and rows and not isinstance(rows[0], dict):
+    if chart_type in ("histogram", "sparkline") and rows and not isinstance(rows[0], dict):
         rows = [{"value": v} for v in rows]
         x = x or "value"
     comp: dict[str, Any] = {"type": "chart", "title": title, "data": rows, "chart_type": chart_type}
@@ -187,6 +196,8 @@ def chart(
         "height": None if height is None else int(height),
         "caption": caption or None,
         "legend": None if legend is None else bool(legend),
+        "value": value,
+        "facet": facet,
     }
     comp.update({k: v for k, v in opts.items() if v is not None})
     return comp
@@ -250,6 +261,9 @@ def metric(
     delta_color: str = "normal",
     caption: str | None = None,
     help: str | None = None,
+    sparkline: Sequence[float] | None = None,
+    benchmark: float | None = None,
+    benchmark_label: str | None = None,
 ) -> dict:
     """A metric card with optional delta indicator.
 
@@ -261,6 +275,10 @@ def metric(
             "-3 days" to ship) or "off" (never coloured)
         caption: A neutral note under the value (e.g. "median", "last 30
             days"), never coloured. ``help`` is an alias.
+        sparkline: Numbers drawn as a tiny trend line under the value.
+        benchmark: A number the value is compared with, shown as e.g.
+            "17x below median" (coloured like ``delta``, ``delta_color`` applies).
+        benchmark_label: Name of the benchmark (default "benchmark").
     """
     comp: dict[str, Any] = {"type": "metric", "label": label, "value": value}
     if delta is not None:
@@ -270,6 +288,12 @@ def metric(
     note = caption if caption is not None else help
     if note is not None:
         comp["caption"] = note
+    if sparkline is not None:
+        comp["sparkline"] = [float(v) for v in sparkline]
+    if benchmark is not None:
+        comp["benchmark"] = float(benchmark)
+    if benchmark_label is not None:
+        comp["benchmark_label"] = benchmark_label
     return comp
 
 

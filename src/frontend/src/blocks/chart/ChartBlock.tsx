@@ -7,16 +7,19 @@
  * from `--muted-foreground` / `--border`, so light and dark follow the theme.
  * The plot takes the container's measured width, so it fits a phone.
  *
- * Kinds: `KINDS` maps each kind to its renderer. A new kind (heatmap,
- * sparkline, small multiples) is one entry there plus its name in
- * model.ts `CHART_KINDS`.
+ * Kinds: `KINDS` maps each kind to its renderer. A new kind is one entry
+ * there plus its name in model.ts `CHART_KINDS`. `heatmap` and `sparkline`
+ * are plain SVG (Heatmap.tsx, spark.tsx). A `facet` key draws one small
+ * chart per facet value in a grid, all on one value scale.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type ReactNode, type RefObject } from 'react'
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { cn } from '@/lib/utils'
 import type { BlockNode } from '@/sdk/registry'
 import { useInFrame } from '../context'
-import { formatValue, isBelowReference, MUTED_COLOR, seriesColor, toChartSpec, truncate, type ChartKind, type ChartSpec, type Row, type ValueFormat } from './model'
+import { HeatLegend, Heatmap } from './Heatmap'
+import { facetSpecs, formatValue, isBelowReference, MUTED_COLOR, seriesColor, toChartSpec, toNumber, truncate, type ChartKind, type ChartSpec, type Row, type ValueFormat } from './model'
+import { Sparkline } from './spark'
 
 const TICK = { fill: 'var(--muted-foreground)', fontSize: 11 }
 const AXIS_LINE = { stroke: 'var(--border)' }
@@ -201,11 +204,30 @@ const radial: KindRenderer = (spec, width) => {
   )
 }
 
-const KINDS: Record<ChartKind, KindRenderer> = { bar: cartesian, barh: cartesian, line: cartesian, area: cartesian, histogram: cartesian, scatter, pie: radial, donut: radial }
+const heatmap: KindRenderer = (spec, width) => <Heatmap spec={spec} width={width} />
+
+/** A tiny line with no axes; the last value is printed beside it. */
+const sparkline: KindRenderer = (spec) => {
+  const s = spec.series[0]
+  const values = spec.rows.map((r) => toNumber(r[s.key])).filter((v): v is number => v !== null)
+  return (
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <Sparkline values={values} height={spec.height} color={s.color} domain={spec.yDomain} label={`${spec.title || s.label}: ${values.map((v) => formatValue(v, spec.yFormat)).join(', ')}`} />
+      </div>
+      {values.length > 0 && <span className="shrink-0 text-xs font-medium tabular-nums text-foreground">{formatValue(values[values.length - 1], spec.yFormat ?? 'compact')}</span>}
+    </div>
+  )
+}
+
+const KINDS: Record<ChartKind, KindRenderer> = {
+  bar: cartesian, barh: cartesian, line: cartesian, area: cartesian, histogram: cartesian, scatter, pie: radial, donut: radial, heatmap, sparkline,
+}
 
 // ── block ─────────────────────────────────────────────────────────────
 
 function Legend({ spec }: { spec: ChartSpec }) {
+  if (spec.kind === 'heatmap') return <HeatLegend spec={spec} />
   const pie = spec.kind === 'pie' || spec.kind === 'donut'
   const items: { label: string; color: string; faint?: boolean }[] = pie
     ? spec.rows.map((r, i) => ({ label: String(r[spec.x] ?? ''), color: seriesColor(i) }))
@@ -235,22 +257,47 @@ function useMeasureSpanCleanup(): void {
   }, [])
 }
 
-export function ChartBlock({ node }: { node: BlockNode }): JSX.Element {
-  useMeasureSpanCleanup()
-  const spec = toChartSpec(node.props ?? {})
-  const nested = useInFrame()
+const isEmpty = (spec: ChartSpec) => spec.rows.length === 0 || (spec.series.length === 0 && spec.kind !== 'histogram')
+
+/** One plot at its container's measured width (a heatmap sets its own height). */
+function Plot({ spec }: { spec: ChartSpec }): JSX.Element {
   const [ref, width] = useWidth()
-  const empty = spec.rows.length === 0 || (spec.series.length === 0 && spec.kind !== 'histogram')
+  const empty = isEmpty(spec)
   let plot: ReactNode = null
   if (empty) plot = <p className="py-6 text-center text-sm text-muted-foreground">No data</p>
   else if (width > 0) plot = KINDS[spec.kind](spec, width)
   return (
+    <div ref={ref} className="w-full min-w-0" style={empty || spec.kind === 'heatmap' ? undefined : { height: spec.height }}>
+      {plot}
+    </div>
+  )
+}
+
+export function ChartBlock({ node }: { node: BlockNode }): JSX.Element {
+  useMeasureSpanCleanup()
+  const props = node.props ?? {}
+  const spec = toChartSpec(props)
+  const facets = facetSpecs(props)
+  const nested = useInFrame()
+  const empty = isEmpty(spec)
+  // Small multiples share the value scale; the legend is the first panel's.
+  const legendSpec = facets[0]?.spec ?? spec
+  return (
     <figure className={cn('m-0 flex min-w-0 flex-col gap-3', !nested && 'rounded-xl border border-border p-4')} data-aiui-chart={spec.kind} aria-label={spec.title || 'Chart'}>
       {spec.title && <figcaption className="text-sm font-medium text-foreground">{spec.title}</figcaption>}
-      <div ref={ref} className="w-full min-w-0" style={empty ? undefined : { height: spec.height }}>
-        {plot}
-      </div>
-      {spec.legend && !empty && <Legend spec={spec} />}
+      {facets.length > 0 ? (
+        <ul className="m-0 grid min-w-0 list-none grid-cols-[repeat(auto-fill,minmax(min(100%,14rem),1fr))] gap-4 p-0" data-aiui-facets={facets.length}>
+          {facets.map((f) => (
+            <li key={f.label} className="flex min-w-0 flex-col gap-1" aria-label={f.label}>
+              <div className="truncate text-xs font-medium text-muted-foreground">{f.label || '(none)'}</div>
+              <Plot spec={f.spec} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Plot spec={spec} />
+      )}
+      {legendSpec.legend && !empty && <Legend spec={legendSpec} />}
       {spec.caption && <p className="text-xs text-muted-foreground">{spec.caption}</p>}
     </figure>
   )

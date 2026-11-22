@@ -514,5 +514,6 @@ export default [
   // 11,580,023 B (+112 B, exactly the overage, 2026-11-22): LazySection skips re-fetching closed sections until reopened.
   // 11,584,787 B (+4,764 B, exactly the overage, 2026-11-22): the sandboxed html block, Markdown callouts and metric captions (blocks chunk).
   // 11,598,491 B (+13,704 B, exactly the overage, 2026-11-22): native media, navigation and overlay blocks (blocks/mediaBlocks.tsx), card_grid, gallery links.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11598491 B', brotli: false },
+  // 11,606,723 B (+8,232 B, exactly the overage, 2026-11-22): heatmap and sparkline chart kinds, small multiples, metric sparkline and benchmark.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11606723 B', brotli: false },
 ]

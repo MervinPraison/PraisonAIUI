@@ -56,3 +56,12 @@ def test_metric_without_caption_is_unchanged():
         "value": 1,
         "delta": "+5%",
     }
+
+
+def test_metric_sparkline_and_benchmark():
+    m = ui.metric("Engagement", value=0.024, sparkline=[1, "2", 3.5], benchmark=0.41, benchmark_label="median")
+    assert m["sparkline"] == [1.0, 2.0, 3.5]
+    assert (m["benchmark"], m["benchmark_label"]) == (0.41, "median")
+    plain = ui.metric("Posts", value=51)
+    for absent in ("sparkline", "benchmark", "benchmark_label"):
+        assert absent not in plain
