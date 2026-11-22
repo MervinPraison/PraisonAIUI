@@ -336,7 +336,7 @@ test('after a deploy, a chunk the old page asks for is gone: one cache-busting r
   await page.route(/\/docs\/guide\/first$/, async (route, request) => {
     if (request.resourceType() !== 'fetch') return route.continue()
     const response = await route.fetch()
-    const body = (await response.text()).replace(/\/assets\/index\.js\?v=[\w.-]+/, '/assets/index.js?v=nextbuild')
+    const body = (await response.text()).replace(/\/assets\/index(?:-[0-9a-f]{10}\.js|\.js\?v=[\w.-]+)/, '/assets/index.js?v=nextbuild')
     return route.fulfill({ response, body })
   })
   await page.goto('/docs/guide/first')
@@ -354,7 +354,7 @@ test('a chunk that stays missing reloads once at most, then says so', async ({ p
   await page.route(/\/docs\/guide\/first$/, async (route, request) => {
     if (request.resourceType() !== 'fetch') return route.continue()
     const response = await route.fetch()
-    const body = (await response.text()).replace(/\/assets\/index\.js\?v=[\w.-]+/, '/assets/index.js?v=nextbuild')
+    const body = (await response.text()).replace(/\/assets\/index(?:-[0-9a-f]{10}\.js|\.js\?v=[\w.-]+)/, '/assets/index.js?v=nextbuild')
     return route.fulfill({ response, body })
   })
   let documents = 0
