@@ -270,9 +270,9 @@ keeps one such request from freezing the page:
   it or pick another. What a page can do, it does: each attempt is cancelled
   at its time limit and a fresh request goes out, and when the browser comes
   back online or the tab becomes visible again while a request has waited
-  half a second or more, that attempt ends at once (`network-change`) and a
+  half a second or more with nothing received, that attempt ends at once (`network-change`) and a
   new request goes out on the browser's fresh connection, since browsers drop
-  their pooled connections when the network changes. The last attempt is
+  their pooled connections when the network changes. A body still arriving, and the last attempt, are
   never cut short.
 - **Prefetch.** Resting the pointer on a sidebar, previous / next or
   in-article docs link for 80 ms, focusing it with the keyboard, or pressing

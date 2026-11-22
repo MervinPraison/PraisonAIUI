@@ -384,6 +384,31 @@ describe('a network change during an attempt (a dead shared connection)', () => 
         logged().length = 0
     })
 
+    test('a body still arriving is left alone (the connection is alive)', async () => {
+        logged().length = 0
+        const net = network()
+        let sent = 0
+        let timer: ReturnType<typeof setInterval>
+        const body = new Response(new ReadableStream({
+            start(c) {
+                timer = setInterval(() => {
+                    if (sent++ < 8) c.enqueue(new TextEncoder().encode('x'))
+                    else { clearInterval(timer); c.close() }
+                }, 100)
+            },
+            cancel() { clearInterval(timer) },
+        }))
+        const { impl, calls } = scriptedFetch([body])
+        const opts = { timeouts: [10_000, 10_000], bodyTimeoutMs: 5_000, bodyIdleTimeoutMs: 1_000, backoff: () => 0, fetchImpl: impl, watchNetwork: net.watch }
+        const result = fetchWithRetry('/docs/a.source.md', opts)
+        await new Promise((r) => setTimeout(r, NETWORK_CHANGE_MIN_MS + 150))
+        net.change()
+        assert.equal((await result).text, 'xxxxxxxx')
+        assert.equal(calls.length, 1)
+        assert.equal(calls[0].aborted, false)
+        logged().length = 0
+    })
+
     test('an attempt that just started, or the last one, is left alone', async () => {
         const net = network()
         const { impl, calls } = scriptedFetch([new Error('reset'), new Error('reset'), 'hang'])

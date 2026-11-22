@@ -35,7 +35,6 @@ import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath, stripHtmlSuffix } from './docSource'
 import { appPathname, stripBase, withBase } from '../lib/url'
 import { devAlarm, recordDocsLoad, type DocsLoadReason } from './loadEvents'
-import { afterLoad } from './afterLoad'
 import { onNetworkChange } from './networkChange'
 
 export interface DocResult {
@@ -176,6 +175,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         if (signal.aborted) throw abortError()
         onAttempt?.(attempt + 1, of)
         const started = now()
+        let active = started // last time this attempt heard anything (start, headers or a body chunk: progress())
         // One controller per attempt: a time limit (headers, then body) aborts
         // this request, which also cancels its stalled connection or body.
         const request = new AbortController()
@@ -188,7 +188,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         // A dead shared connection holds this attempt until its limit; after a network change a
         // new request gets a new connection, so end this one now (never the last attempt).
         const unwatch = attempt < of - 1
-            ? watchNetwork(() => { if (now() - started >= NETWORK_CHANGE_MIN_MS) timeoutFor('network-change')() })
+            ? watchNetwork(() => { if (now() - active >= NETWORK_CHANGE_MIN_MS) timeoutFor('network-change')() })
             : () => {}
         let idle: ReturnType<typeof setTimeout> | undefined
         const s = anySignal([signal, request.signal])
@@ -206,6 +206,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
                 timer = setTimeout(timeoutFor('body-timeout'), bodyTimeoutMs)
                 // Each chunk restarts the idle limit; the total limit keeps running.
                 const progress = () => {
+                    active = now()
                     clearTimeout(idle)
                     idle = setTimeout(timeoutFor('body-idle'), bodyIdleTimeoutMs)
                 }
@@ -501,12 +502,4 @@ export function installDocPrefetch(root: Document = document): () => void {
         root.removeEventListener('pointerdown', onNow)
         root.removeEventListener('focusin', onFocus)
     }
-}
-
-/**
- * Run `fn` after the page's `load` event, at idle (afterLoad.ts): a prefetch
- * never makes `load` wait.
- */
-export function whenIdle(fn: () => void): () => void {
-    return afterLoad(fn)
 }

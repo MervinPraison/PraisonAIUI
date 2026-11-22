@@ -22,7 +22,8 @@ import './docs/utilities.css'
 import { FlaggedPre, PageFooter } from './docs/PageFooter'
 import { CodeFeedback } from './docs/feedbackContext'
 import { relatedLinks } from './docs/related'
-import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, whenIdle, type DocResult } from './docs/docLoader'
+import { installDocPrefetch, loadDoc, peekDoc, prefetchDoc, type DocResult } from './docs/docLoader'
+import { afterLoad } from './docs/afterLoad'
 import { Button } from '@/components/ui/button'
 import { PageActions } from './docs/PageActions'
 import { OptionalPart } from './docs/PartBoundary'
@@ -124,8 +125,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             setMarkdown(result.ok ? content : `*Content for **${pageTitle}** not found.*`)
             setLoadedPath(urlPath)
             setLoadingContent(false)
-            // Warm the previous and next pages while the reader reads this one.
-            cancelIdle = whenIdle(() => {
+            // Warm the previous and next pages while the reader reads this one (after `load`, at idle).
+            cancelIdle = afterLoad(() => {
                 const docsNav = navRef.current
                 const { prev, next } = docsNav ? docNeighbours(docsNav, sourcePath) : {}
                 for (const item of [prev, next]) {
