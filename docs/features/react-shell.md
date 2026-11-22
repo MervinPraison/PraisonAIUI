@@ -153,7 +153,11 @@ triples are converted in the browser where possible, but update the CSS.
 - A docs page never waits for good: each markdown request has a time limit
   for its headers and one for its body, a stalled request is sent again,
   and a page that still cannot load shows "Couldn't load this page" with
-  Retry (`src/frontend/src/docs/docLoader.ts`).
+  Retry (`src/frontend/src/docs/docLoader.ts`). A retry also moves to a
+  fresh connection (it switches between requests with and without
+  credentials, which the browser keeps on separate connection pools), so a
+  connection that a router dropped while idle costs one 3 s attempt, not the
+  page. `python -m preqa netfault` reproduces that dead connection.
 - Static files are sent gzip-compressed. Each file is compressed once per
   version (path, mtime, size) in a worker thread and kept in memory (at most
   64 MB), so a cold page load does not compress the bundle again on the
