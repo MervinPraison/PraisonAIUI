@@ -156,8 +156,14 @@ triples are converted in the browser where possible, but update the CSS.
   Retry (`src/frontend/src/docs/docLoader.ts`). A retry also moves to a
   fresh connection (it switches between requests with and without
   credentials, which the browser keeps on separate connection pools), so a
-  connection that a router dropped while idle costs one 3 s attempt, not the
-  page. `python -m preqa netfault` reproduces that dead connection.
+  connection that a router dropped while idle does not cost the page. An
+  attempt with no response headers after 1 s (0.4 s after 10 s without a
+  request) also goes out on the other pool and the first answer wins; a
+  request that fails outright switches at once. A visitor coming back after
+  10 s without input sends one small request (`ui-config.json`) the same way,
+  so the next click already uses a working connection.
+  `python -m preqa netfault` reproduces the dead connection (budget 2.5 s;
+  measured 0.15-0.19 s).
 - Static files are sent gzip-compressed. Each file is compressed once per
   version (path, mtime, size) in a worker thread and kept in memory (at most
   64 MB), so a cold page load does not compress the bundle again on the

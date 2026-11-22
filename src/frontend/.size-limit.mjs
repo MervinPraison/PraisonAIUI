@@ -489,5 +489,6 @@ export default [
   // 11,180,139 B (+909 B, exactly the overage): optional docs work after load (docs/afterLoad.ts) and the
   // network-change retry (docs/networkChange.ts).
   // 11,180,375 B (+236 B, exactly the overage): docs retries move to a fresh connection pool.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11180375 B', brotli: false },
+  // 11,181,896 B (+1,521 B, exactly the overage): hedged docs requests and the connection warm-up.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11181896 B', brotli: false },
 ]
