@@ -37,14 +37,18 @@ export function stripCacheBust(href: string): string | null {
   return url.toString()
 }
 
-/** The `?v=` build id of `/assets/index.js` in a URL or an HTML document, or null. */
+/**
+ * The build id of the entry in a URL or an HTML document, or null: the
+ * content name `aiui build` gives it (`/assets/index-<sha256[:10]>.js`), or
+ * the `?v=` of `/assets/index.js` (the `aiui run` server, older builds).
+ */
 export function entryBuild(text: string): string | null {
-  const m = /\/assets\/index\.js\?v=([A-Za-z0-9._-]+)/.exec(text)
-  return m ? m[1] : null
+  const m = /\/assets\/index(?:-([0-9a-f]{10})\.js|\.js\?v=([A-Za-z0-9._-]+))/.exec(text)
+  return m ? (m[1] ?? m[2]) : null
 }
 
 export interface ChunkReloadDeps {
-  /** URL of the running entry (import.meta.url: `/assets/index.js?v=<build>`). */
+  /** URL of the running entry (import.meta.url: `/assets/index-<build>.js` or `/assets/index.js?v=<build>`). */
   entryUrl: string
   isOnline(): boolean
   /** The server's HTML for the current page, fetched without the cache. */

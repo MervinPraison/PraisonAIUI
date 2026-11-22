@@ -292,6 +292,21 @@ keeps one such request from freezing the page:
 
 This site, https://ui.praison.ai, is built the same way: see
 [`.github/workflows/deploy-pages.yml`](https://github.com/MervinPraison/PraisonAIUI/blob/main/.github/workflows/deploy-pages.yml).
+It deploys only when the built site changed: every deploy replaces the
+branch and empties the CDN cache, so a merge that does not change the site
+(tests, CI, Python code the docs do not show) publishes nothing.
+`src/frontend/scripts/site-hash.mjs` hashes the fresh build (every path and
+its bytes; a sitemap's `<lastmod>` dates are left out because they are file
+times, the checkout time in CI) and writes `aiui-site-hash.txt` into it. The
+workflow compares that with the file the last deploy published and skips the
+deploy when they match. Run the workflow by hand with **force** to deploy
+anyway.
+
+```bash
+node src/frontend/scripts/site-hash.mjs site --previous previous-hash.txt
+# hash=<sha256>
+# changed=true|false
+```
 
 ## Legacy plugins
 

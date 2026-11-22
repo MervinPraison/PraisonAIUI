@@ -550,6 +550,12 @@ class Compiler:
                 **({"feedback": fb} if fb is False or fb else {}),
             }
 
+        # `content.docs.telemetry`: opt-in page-load telemetry (docs_telemetry.py, docs/fieldTelemetry.ts).
+        # `true` is {}: only aiui serve, which names its endpoint in the ui-config.json it serves, gets records.
+        if docs and docs.telemetry:
+            tel = docs.telemetry if not isinstance(docs.telemetry, bool) else None
+            result["telemetry"] = tel.model_dump(by_alias=True, exclude_none=True) if tel else {}
+
         # `content.docs.mcp: false`: aiui serve answers no MCP (docs_mcp.py)
         if docs and not docs.mcp:
             result["mcp"] = False
@@ -957,13 +963,15 @@ class Compiler:
                 if assets_dst.exists():
                     shutil.rmtree(assets_dst)
                 shutil.copytree(assets_src, assets_dst)
-            # index.js and index.css keep fixed names (their chunks are
-            # content-hashed), so give them a content hash in the URL. Must run
-            # before 404.html and the per-route pages are copied from index.html.
-            self._patch_asset_versions(
+            # index.js and index.css keep fixed names in the bundle (their chunks
+            # are content-hashed), so the site loads content-named copies of them
+            # (assets/index-<sha256[:10]>.js). Must run before 404.html and the
+            # per-route pages are copied from index.html.
+            entry_copies = self._patch_asset_versions(
                 output_dir / "index.html",
                 output_dir / "assets",
                 version_entry=(frontend_dir / "aiui-manifest.json").is_file(),
+                manifest=frontend_dir / "aiui-manifest.json",
             )
             page.write_text(boot_data.patch_head(page.read_text(encoding="utf-8")), encoding="utf-8")
             self._patch_url_base(output_dir / "index.html")
@@ -994,46 +1002,100 @@ class Compiler:
             build_manifest = frontend_dir / "aiui-manifest.json"
             if build_manifest.is_file():
                 shutil.copy(build_manifest, output_dir / build_manifest.name)
+                if entry_copies:
+                    self._list_entry_copies(output_dir / build_manifest.name, entry_copies)
 
 
     _ENTRY_ASSET_RE = re.compile(
         r"""(?P<attr>\b(?:src|href)=)(?P<q>["'])/assets/(?P<name>index\.(?:js|css))(?:\?[^"']*)?(?P=q)"""
     )
+    #: Key prefix of the entry copies listed in the site's aiui-manifest.json.
+    ENTRY_COPY_KEY = "aiui-entry-copy:"
+
+    @staticmethod
+    def _entry_is_imported(manifest: Path) -> bool:
+        """Whether a chunk imports the entry module (``./index.js``).
+
+        Then a renamed copy of the entry would be a second module URL and the
+        entry would run twice, so the site keeps ``index.js?v=`` instead.
+        """
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return True
+        if not isinstance(data, dict):
+            return True
+        keys = {k for k, c in data.items() if isinstance(c, dict) and c.get("file") == "assets/index.js"}
+        return any(
+            keys & set(c.get("imports") or []) or keys & set(c.get("dynamicImports") or [])
+            for c in data.values()
+            if isinstance(c, dict)
+        )
 
     def _patch_asset_versions(
-        self, html_path: Path, assets_dir: Path, *, version_entry: bool = True
-    ) -> None:
-        """Rewrite ``/assets/index.js`` and ``/assets/index.css`` in index.html
-        to ``...?v=<first 10 hex of the file's sha256>``.
+        self, html_path: Path, assets_dir: Path, *, version_entry: bool = True,
+        manifest: Path | None = None,
+    ) -> list[str]:
+        """Point index.html's ``/assets/index.js`` and ``/assets/index.css`` at
+        files named by their content: ``/assets/index-<sha256[:10]>.js``.
 
-        Both files have fixed names, so a static host would otherwise serve a
-        stale copy from cache after a deploy while the hashed chunks they
-        import have changed. A missing file leaves its reference untouched.
+        Both files have fixed names in the bundle, and a static host such as
+        GitHub Pages ignores the query string, so ``?v=`` alone let a cached
+        old page get the new entry (or the reverse) for as long as the HTML
+        was cached. The copies are written next to the originals, which stay
+        so an older page's ``/assets/index.js`` still resolves. Returns the
+        copies written (``assets/``-relative) for the site's manifest, which
+        the deploy's carry-forward step reads to keep them one release longer.
+
+        Without ``manifest`` (an older caller) or when a chunk imports the
+        entry, the URL gets ``?v=<sha256[:10]>`` as before. A missing file
+        leaves its reference untouched.
 
         ``version_entry=False`` leaves index.js alone. That is for bundles
         built before chunks were hashed (no ``aiui-manifest.json``): their
         chunks import ``./index.js``, which is a different module URL from
         ``index.js?v=...``, so the entry would be evaluated twice.
         """
-        import hashlib
+        import shutil
 
         if not html_path.is_file():
-            return
+            return []
+        copy_names = bool(version_entry and manifest and manifest.is_file()
+                          and not self._entry_is_imported(manifest))
+        copies: list[str] = []
 
         def versioned(match: re.Match[str]) -> str:
-            asset = assets_dir / match.group("name")
+            name = match.group("name")
+            asset = assets_dir / name
             if not asset.is_file():
                 return match.group(0)
             if asset.suffix == ".js" and not version_entry:
                 return match.group(0)
             digest = hashlib.sha256(asset.read_bytes()).hexdigest()[:10]
             q = match.group("q")
-            return f"{match.group('attr')}{q}/assets/{match.group('name')}?v={digest}{q}"
+            if copy_names:
+                copy = f"{asset.stem}-{digest}{asset.suffix}"
+                shutil.copyfile(asset, assets_dir / copy)
+                copies.append(copy)
+                return f"{match.group('attr')}{q}/assets/{copy}{q}"
+            return f"{match.group('attr')}{q}/assets/{name}?v={digest}{q}"
 
         html = html_path.read_text(encoding="utf-8")
         patched = self._ENTRY_ASSET_RE.sub(versioned, html)
         if patched != html:
             html_path.write_text(patched, encoding="utf-8")
+        return copies
+
+    @classmethod
+    def _list_entry_copies(cls, manifest: Path, copies: list[str]) -> None:
+        """Add the entry copies to the site's aiui-manifest.json, so the
+        deploy's carry-forward (scripts/carry-forward-assets.mjs) keeps them
+        for pages cached before the next deploy, and ``aiui serve`` marks
+        them immutable."""
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        for copy in copies:
+            data[cls.ENTRY_COPY_KEY + copy] = {"file": f"assets/{copy}"}
+        manifest.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     def _css_url(self, url: str | None) -> str | None:
         """A site path with ``site.basePath`` applied (for CSS, which the HTML rewrite misses)."""
@@ -1112,7 +1174,8 @@ class Compiler:
             for directive, hosts in csp.PLUGINS.get(name, {}).items():
                 add(directive, *hosts)
         docs = self.config.content.docs if self.config.content else None
-        endpoints = [getattr(docs.feedback, "endpoint", None), getattr(docs.assistant, "endpoint", None)] if docs else []
+        endpoints = [getattr(docs.feedback, "endpoint", None), getattr(docs.assistant, "endpoint", None),
+                     getattr(docs.telemetry, "endpoint", None)] if docs else []
         add("connect-src", *(site_assets.origin(e) for e in endpoints if isinstance(e, str) and site_assets.is_url(e)))
         primary = self.config.navbar.primary if self.config.navbar else None
         if primary and primary.type == "github":  # the star count (docs/githubStars.ts)

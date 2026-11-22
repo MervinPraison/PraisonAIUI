@@ -139,6 +139,14 @@
   built-in ids in `keep` (`aiui.only_my_pages("chat")`). Same as
   `set_pages(list(keep))`.
 
+- **Opt-in docs load telemetry.** `content.docs.telemetry: true` makes docs
+  pages send their page-load problems (retries, time-outs, failures) and a
+  sample of good timings to `aiui serve`, which stores them; `aiui docs
+  telemetry` lists them and the pre-QA dashboard shows them. Or set
+  `telemetry.endpoint` for your own collector on a static host. Off by
+  default; no IP address, id or query string is kept. See
+  [Writing docs → Load telemetry](docs/features/writing-docs.md#load-telemetry).
+
 - **Voice input in the chat.** An app that sets a realtime manager able to
   transcribe (`aiui.set_realtime_manager(OpenAIRealtimeManager())`) gets a
   microphone button in the composer: record, stop, and the text lands in the
@@ -706,6 +714,15 @@
   `aiui build --strict` fails when a page's inlined Markdown is keyed by
   another URL than the app requests. See
   [GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
+
+- **A built site never pairs an old page with a new app entry.** `aiui build`
+  now loads content-named copies of the entry files
+  (`/assets/index-<sha256[:10]>.js` and `.css`) instead of
+  `/assets/index.js?v=<hash>`. GitHub Pages ignores the query string, so a page
+  cached for up to 10 minutes could get the next deploy's `index.js` (or the
+  reverse). `index.js` and `index.css` are still written, so a page cached
+  before this release loads; the copies are listed in the site's
+  `aiui-manifest.json`, so the deploy keeps them like the hashed chunks.
 
 - **Docs pages without code no longer download the code font.** The header's
   `⌘K` search hint was drawn in the code face, so every page fetched it

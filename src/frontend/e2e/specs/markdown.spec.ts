@@ -65,23 +65,25 @@ for (const variant of VARIANTS) {
   })
 }
 
-test('the built site cache-busts its fixed-name entry files', async ({ request }) => {
-  // index.js and index.css keep their names between releases; `aiui build`
-  // must give them a content hash in the URL (their chunks are hashed already).
+test('the built site loads its entry files by content name', async ({ request }) => {
+  // index.js and index.css keep their names in the bundle; `aiui build` must
+  // load content-named copies (a static host ignores ?v=), and keep the old
+  // names so a page cached before a deploy still finds them.
   const html = await (await request.get('/docs/markdown')).text()
-  const js = html.match(/src="(\/assets\/index\.js\?v=[0-9a-f]{10})"/)
-  const css = html.match(/href="(\/assets\/index\.css\?v=[0-9a-f]{10})"/)
-  expect(js, 'index.js?v=<hash> in the page').not.toBeNull()
-  expect(css, 'index.css?v=<hash> in the page').not.toBeNull()
+  const js = html.match(/src="(\/assets\/index-[0-9a-f]{10}\.js)"/)
+  const css = html.match(/href="(\/assets\/index-[0-9a-f]{10}\.css)"/)
+  expect(js, 'index-<hash>.js in the page').not.toBeNull()
+  expect(css, 'index-<hash>.css in the page').not.toBeNull()
   expect((await request.get(js![1])).ok()).toBe(true)
   expect((await request.get(css![1])).ok()).toBe(true)
+  expect((await request.get('/assets/index.js')).ok()).toBe(true)
 })
 
 test('navigating between docs pages keeps the app loaded once', async ({ page }) => {
   const errors = collectPageErrors(page)
   const entryLoads: string[] = []
   page.on('request', (r) => {
-    if (/\/assets\/index\.js(\?|$)/.test(r.url())) entryLoads.push(r.url())
+    if (/\/assets\/index(?:-[0-9a-f]{10})?\.js(\?|$)/.test(r.url())) entryLoads.push(r.url())
   })
   await page.goto('/docs')
   await page.getByRole('link', { name: 'Markdown sample' }).first().click()
