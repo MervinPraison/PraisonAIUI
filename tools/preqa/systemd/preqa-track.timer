@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the pre-QA checks every 30 minutes
+
+[Timer]
+OnBootSec=10min
+OnCalendar=*:00/30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

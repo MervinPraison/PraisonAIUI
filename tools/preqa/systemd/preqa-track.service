@@ -1,0 +1,11 @@
+[Unit]
+Description=PraisonAIUI pre-QA: scheduled checks against pre-QA and production
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/preqa/tool
+EnvironmentFile=-%h/preqa/env
+Environment=AIUI_NO_BROWSER=1 BROWSER=true
+ExecStart=%h/preqa/venv-tool/bin/python -m preqa track
+TimeoutStartSec=40min
+SuccessExitStatus=1

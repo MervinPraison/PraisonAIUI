@@ -544,7 +544,10 @@ Canvas.dc.html): warm paper neutrals and a navy accent.
 Type: Newsreader (`font-display`), Source Sans 3 (`font-sans`) and JetBrains
 Mono (`font-mono`), self-hosted from `@fontsource-variable` (OFL 1.1, latin
 woff2, one file each, the "Paper fonts" budget), fetched only while the look
-is on. Body line height 1.5. The brand tile is ink on paper with a serif "P" (the default mark only; a site logo stays). Chat + Canvas and Chat (the same frame) declare it, and the docs site wears it for preset `paper` ([Docs style](#docs-style)). Two tokens exist
+is on, and the code face only on a page that shows code (keyboard hints such
+as the docs header's `⌘K` use the UI face, as the `Kbd` primitive does). No
+preload: on a slow link the faces finish before the article paints (it waits
+for the markdown renderer), so a preload would only take bandwidth from it. Body line height 1.5. The brand tile is ink on paper with a serif "P" (the default mark only; a site logo stays). Chat + Canvas and Chat (the same frame) declare it, and the docs site wears it for preset `paper` ([Docs style](#docs-style)). Two tokens exist
 only under Paper, so read them with a fallback: `--ui-panel-head` (panel
 header fill) and `--ui-accent-line` (accent outline). `src/styles/paper.test.ts`
 checks the scope and AA contrast of every text pair; text 3 is not used on

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-QA tracker</title>
+<style>
+  :root { --bg:#fbfaf7; --fg:#1d1d1b; --muted:#6b6a65; --line:#e3e1da; --card:#fff;
+          --pass:#1f7a3a; --fail:#b42318; --a:#2f5fb3; --b:#c2410c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141413; --fg:#ecebe6; --muted:#a3a29c; --line:#2e2d2a; --card:#1c1c1a;
+            --pass:#4ade80; --fail:#f87171; --a:#7aa2f7; --b:#fb923c; } }
+  * { box-sizing: border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, sans-serif }
+  main { max-width:1200px; margin:0 auto; padding:16px }
+  h1 { font-size:20px; margin:0 0 4px } h2 { font-size:16px; margin:28px 0 8px }
+  .muted { color:var(--muted) } .pass { color:var(--pass) } .fail { color:var(--fail) }
+  .badge { font-weight:700; padding:2px 10px; border-radius:6px; border:2px solid currentColor }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)) }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; min-width:0 }
+  .card h3 { margin:0 0 6px; font-size:13px; font-weight:600 }
+  .alert { border-color:var(--fail); border-width:2px }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); vertical-align:top }
+  td.url { word-break:break-all } .scroll { overflow-x:auto }
+  svg { width:100%; height:70px; display:block }
+  .key { display:inline-block; width:10px; height:3px; vertical-align:middle; margin-right:4px }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pre-QA tracker <span id="status" class="badge"></span></h1>
+  <div id="meta" class="muted"></div>
+  <div id="alerts"></div>
+  <h2>Targets</h2><div id="targets" class="grid"></div>
+  <h2>Trends <span class="muted" style="font-weight:400"><span class="key" style="background:var(--a)"></span>preqa
+    <span class="key" style="background:var(--b)"></span>prod</span></h2>
+  <div id="trends" class="grid"></div>
+  <h2>Slowest pages (latest run)</h2><div class="scroll"><table id="slowest"></table></div>
+  <h2>Held, stalled and failed requests, skeletons, errors (last 7 days)</h2>
+  <div class="scroll"><table id="issues"></table></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id)
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag)
+  for (const [k, v] of Object.entries(attrs)) k === 'class' ? (e.className = v) : e.setAttribute(k, v)
+  for (const k of kids) e.append(k instanceof Node ? k : document.createTextNode(k ?? ''))
+  return e
+}
+const get = (m, key) => key.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), m)
+const fmt = (v) => v == null ? '–' : typeof v === 'number' ? v.toLocaleString() : String(v)
+const COLORS = { preqa: 'var(--a)', prod: 'var(--b)' }
+const describe = (b) => b.kind === 'missing' ? `${b.metric}: not measured` : `${b.metric} = ${fmt(b.value)} ${b.kind === 'max' ? '>' : '<'} ${fmt(b.limit)}`
+const KEY = ['first_content_cold_ms.p95', 'first_content_warm_ms.p95', 'nav_ms.p95', 'reload_ms.p95',
+  'skeleton_max_ms', 'held_requests', 'stalled_requests', 'failed_requests', 'console_errors', 'bytes.js']
+
+function spark(series) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 200 60'); svg.setAttribute('preserveAspectRatio', 'none')
+  const all = Object.values(series).flat()
+  if (!all.length) return svg
+  const ts = all.map((p) => Date.parse(p[0])), vs = all.map((p) => p[1])
+  const t0 = Math.min(...ts), t1 = Math.max(...ts) || t0 + 1, vmax = Math.max(...vs, 1)
+  for (const [target, pts] of Object.entries(series)) {
+    const line = document.createElementNS(svg.namespaceURI, 'polyline')
+    line.setAttribute('points', pts.map((p) => `${((Date.parse(p[0]) - t0) / (t1 - t0 || 1)) * 196 + 2},${58 - (p[1] / vmax) * 54}`).join(' '))
+    line.setAttribute('fill', 'none'); line.setAttribute('stroke', COLORS[target] || 'var(--muted)')
+    line.setAttribute('stroke-width', '1.5'); line.setAttribute('vector-effect', 'non-scaling-stroke')
+    svg.append(line)
+  }
+  return svg
+}
+
+async function load() {
+  let r
+  try { r = await (await fetch('report.json', { cache: 'no-store' })).json() }
+  catch (e) { $('meta').textContent = 'No report yet (report.json missing).'; return }
+  $('status').textContent = r.status
+  $('status').className = 'badge ' + (r.status === 'PASS' ? 'pass' : 'fail')
+  $('meta').textContent = `Generated ${r.generated} · ${r.runs} runs · refreshes every 60 s`
+  const alerts = $('alerts'); alerts.replaceChildren()
+  const targets = $('targets'); targets.replaceChildren()
+  for (const [name, t] of Object.entries(r.latest)) {
+    const bad = (t.breaches || []).map(describe).concat(t.error ? [t.error] : [])
+    if (bad.length) alerts.append(el('div', { class: 'card alert', style: 'margin-top:12px' },
+      el('h3', { class: 'fail' }, `FAILED: ${name} @ ${(t.sha || '').slice(0, 8)} (${t.ts})`),
+      el('ul', {}, ...bad.map((b) => el('li', {}, b)))))
+    const rows = KEY.map((k) => el('tr', {}, el('td', { class: 'muted' }, k), el('td', {}, fmt(get(t.metrics || {}, k)))))
+    targets.append(el('div', { class: 'card' + (t.status === 'PASS' ? '' : ' alert') },
+      el('h3', {}, `${name} `, el('span', { class: t.status === 'PASS' ? 'pass' : 'fail' }, t.status)),
+      el('div', { class: 'muted' }, `${t.base || ''} · ${(t.sha || '').slice(0, 8)} · ${t.ts}`),
+      el('table', {}, ...rows)))
+  }
+  const trends = $('trends'); trends.replaceChildren()
+  for (const [metric, series] of Object.entries(r.trends)) {
+    if (!Object.keys(series).length) continue
+    const last = Object.entries(series).map(([t, pts]) => `${t} ${fmt(pts[pts.length - 1][1])}`).join(' · ')
+    trends.append(el('div', { class: 'card' }, el('h3', {}, metric), spark(series), el('div', { class: 'muted' }, last)))
+  }
+  $('slowest').replaceChildren(el('tr', {}, ...['target', 'page', 'cold p95 ms', 'warm p95 ms', 'reload p95 ms'].map((h) => el('th', {}, h))),
+    ...r.slowest.map((s) => el('tr', {}, el('td', {}, s.target), el('td', { class: 'url' }, s.path),
+      el('td', {}, fmt(s.cold_p95)), el('td', {}, fmt(s.warm_p95)), el('td', {}, fmt(s.reload_p95)))))
+  $('issues').replaceChildren(el('tr', {}, ...['time', 'target', 'kind', 'flow', 'url', 'ms', 'detail'].map((h) => el('th', {}, h))),
+    ...(r.issues.length ? r.issues.map((i) => el('tr', {}, el('td', {}, i.ts), el('td', {}, `${i.target} ${i.sha}`),
+      el('td', {}, i.kind + (i.open ? ' (open)' : '')), el('td', {}, i.flow), el('td', { class: 'url' }, i.url),
+      el('td', {}, fmt(i.ms)), el('td', { class: 'url' }, i.text || i.reason || '')))
+      : [el('tr', {}, el('td', { colspan: '7', class: 'muted' }, 'None.'))]))
+}
+load(); setInterval(load, 60000)
+</script>
+</body>
+</html>
