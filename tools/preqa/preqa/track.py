@@ -173,7 +173,8 @@ class Collector:
             m[k] = len(self.issues[n])
         m["aborted_requests"] = self.aborted
         ms = [e["ms"] for e in self.docs_load if isinstance(e.get("ms"), (int, float))]
-        bad = [e for e in self.docs_load if e.get("outcome") not in (None, "ok", "success", "hit", "cached")]
+        # "inline": the page's Markdown came in its HTML, no request (aiui:docs-load v1).
+        bad = [e for e in self.docs_load if e.get("outcome") not in (None, "ok", "inline", "success", "hit", "cached")]
         m["docs_load_events"] = len(self.docs_load)
         m["docs_load_problems"] = len(bad)
         if ms:

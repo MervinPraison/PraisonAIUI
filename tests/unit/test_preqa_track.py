@@ -28,7 +28,7 @@ def test_collector_counts_issues_and_ignores():
     col.issue("console", flow="x", text="GET /favicon.ico 404")
     col.issue("console", flow="x", text="TypeError: boom")
     col.issue("held", flow="x", url="/a.md", ms=1200)
-    col.docs_load += [{"ms": 50, "outcome": "ok"}, {"ms": 9000, "outcome": "timeout"}]
+    col.docs_load += [{"ms": 50, "outcome": "ok"}, {"ms": 0, "outcome": "inline"}, {"ms": 9000, "outcome": "timeout"}]
     m = col.metrics()
     assert (m["console_errors"], m["held_requests"], m["skeleton_max_ms"]) == (1, 1, 0)
-    assert (m["docs_load_events"], m["docs_load_problems"], m["docs_load_ms"]["max"]) == (2, 1, 9000)
+    assert (m["docs_load_events"], m["docs_load_problems"], m["docs_load_ms"]["max"]) == (3, 1, 9000)

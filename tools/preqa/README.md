@@ -82,7 +82,7 @@ moment `#main-content h1` is on screen and no `.aiui-docs-skeleton` is left.
 | `failed_requests`, `console_errors` | network failures and HTTP >= 400 (navigation aborts excluded); console errors and page errors |
 | `skeleton_max_ms`, `skeleton_over_3s` | longest loading-skeleton stretch; stretches over 3 s |
 | `content_timeouts` | content never appeared within 20 s |
-| `docs_load_*` | the app's `aiui:docs-load` events (`window.__aiuiDocsLoad`, the DOM event, or console lines), when the build emits them; `docs_load_problems` counts outcomes other than ok |
+| `docs_load_*` | the app's `aiui:docs-load` events (`window.__aiuiDocsLoad`, the DOM event, or console lines), when the build emits them; `docs_load_problems` counts outcomes other than ok or inline (Markdown inlined in the page HTML) |
 
 Each issue (held, stalled, failed, skeleton, timeout, console) is stored with
 its URL, flow and time, and listed on the dashboard.
