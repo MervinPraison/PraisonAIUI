@@ -1,31 +1,116 @@
 {
   "defaults": {
-    "first_content_cold_ms.p95": {"max": 3000},
-    "first_content_warm_ms.p95": {"max": 2000},
-    "reload_ms.p95": {"max": 2000},
-    "nav_ms.p95": {"max": 800},
-    "hover_nav_ms.p95": {"max": 800},
-    "back_forward_ms.p95": {"max": 500},
-    "rapid_final_ms.p95": {"max": 1000},
-    "two_tabs_ms.p95": {"max": 2500},
-    "search_open_ms.p95": {"max": 1500},
-    "search_query_ms.p95": {"max": 800},
-    "skeleton_max_ms": {"max": 3000},
-    "held_requests": {"max": 0},
-    "stalled_requests": {"max": 0},
-    "content_timeouts": {"max": 0},
-    "failed_requests": {"max": 0},
-    "console_errors": {"max": 0},
-    "docs_load_problems": {"max": 0, "required": false},
-    "bytes.js": {"max": 480000},
-    "bytes.css": {"max": 52000},
-    "bytes.font": {"max": 135000},
-    "bytes.json": {"max": 8000},
-    "bytes.md": {"max": 20000},
-    "bytes.html": {"max": 50000},
-    "requests.total": {"max": 65}
+    "first_content_cold_ms.p95": {
+      "max": 3000
+    },
+    "first_content_warm_ms.p95": {
+      "max": 2000
+    },
+    "reload_ms.p95": {
+      "max": 2000
+    },
+    "nav_ms.p95": {
+      "max": 800
+    },
+    "hover_nav_ms.p95": {
+      "max": 800
+    },
+    "back_forward_ms.p95": {
+      "max": 500
+    },
+    "rapid_final_ms.p95": {
+      "max": 1000
+    },
+    "two_tabs_ms.p95": {
+      "max": 2500
+    },
+    "search_open_ms.p95": {
+      "max": 1500
+    },
+    "search_query_ms.p95": {
+      "max": 800
+    },
+    "skeleton_max_ms": {
+      "max": 3000
+    },
+    "held_requests": {
+      "max": 0
+    },
+    "stalled_requests": {
+      "max": 0
+    },
+    "content_timeouts": {
+      "max": 0
+    },
+    "failed_requests": {
+      "max": 0
+    },
+    "console_errors": {
+      "max": 0
+    },
+    "docs_load_problems": {
+      "max": 0,
+      "required": false
+    },
+    "bytes.js": {
+      "max": 480000
+    },
+    "bytes.css": {
+      "max": 52000
+    },
+    "bytes.font": {
+      "max": 135000
+    },
+    "bytes.json": {
+      "max": 8000
+    },
+    "bytes.md": {
+      "max": 20000
+    },
+    "bytes.html": {
+      "max": 50000
+    },
+    "requests.total": {
+      "max": 65
+    }
   },
-  "targets": {},
+  "targets": {
+    "ci": {
+      "first_content_cold_ms.p95": {
+        "max": 6000
+      },
+      "first_content_warm_ms.p95": {
+        "max": 4000
+      },
+      "reload_ms.p95": {
+        "max": 4000
+      },
+      "nav_ms.p95": {
+        "max": 1600
+      },
+      "hover_nav_ms.p95": {
+        "max": 1600
+      },
+      "back_forward_ms.p95": {
+        "max": 1000
+      },
+      "rapid_final_ms.p95": {
+        "max": 2000
+      },
+      "two_tabs_ms.p95": {
+        "max": 5000
+      },
+      "search_open_ms.p95": {
+        "max": 3000
+      },
+      "search_query_ms.p95": {
+        "max": 1600
+      },
+      "skeleton_max_ms": {
+        "max": 6000
+      }
+    }
+  },
   "ignore": {
     "failed": [],
     "console": []
