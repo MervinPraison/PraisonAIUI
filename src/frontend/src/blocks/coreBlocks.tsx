@@ -47,6 +47,7 @@ import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
+import { StatusBlock } from './pageBlocks'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -821,7 +822,8 @@ function FormBlock({ node, page }: CoreBlockProps) {
     const body = collectFormValues(e.currentTarget)
     setBusy(true)
     try {
-      await ctx.runAction({ body, label: submitLabel })
+      const method = str(p.method).toLowerCase() === 'get' ? 'get' : undefined
+      await ctx.runAction({ body, label: submitLabel, method, updateUrl: p.update_url === true })
     } finally {
       setBusy(false)
     }
@@ -1080,6 +1082,7 @@ const CORE: Record<string, CoreBlock> = {
   log_viewer: LogViewerTemplate,
   code_editor: CodeEditorTemplate,
   chart: ChartBlockLazy,
+  status: StatusBlock,
 }
 
 /** Own-property lookup (a type named "constructor" must not hit Object.prototype). */

@@ -326,6 +326,7 @@ def __getattr__(name: str):
         "popover",
         "form",
         "form_action",
+        "status",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -776,4 +777,5 @@ __all__ = [
     "popover",
     "form",
     "form_action",
+    "status",
 ]

@@ -33,6 +33,7 @@ navigation:
             - getting-started/installation
             - getting-started/quickstart
             - guides/focused-app
+            - guides/server-pages
             - getting-started/cli
             - getting-started/github-pages
         - group: "Examples"

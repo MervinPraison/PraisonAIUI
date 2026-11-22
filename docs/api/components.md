@@ -29,6 +29,8 @@ aiui.layout([
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `children` | `Sequence[dict]` | ✅ | List of component dicts |
+| `refresh_every` | `float` | ❌ | App shell: re-fetch the page every N seconds while visible (`_refresh_every`) |
+| `params` | `dict` | ❌ | In an action reply: values written into the page URL's query string (`_params`) |
 
 **Returns:** `dict` with `_components` key — triggers structured rendering in the frontend.
 
@@ -774,6 +776,42 @@ aiui.tooltip_wrap(aiui.badge("Beta"), content="This feature is in beta")
 
 ---
 
+### `aiui.form(action, *, children, submit_label, method, update_url)`
+
+Collects the inputs inside it by `name` and submits them. Full contract and a
+filter-page example: [Server pages](../guides/server-pages.md).
+
+```python
+aiui.form("channels", method="get", submit_label="Apply", children=[
+    aiui.select_input("Format", name="format", options=["all", "shorts"], value=fmt),
+])
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `action` | `str` | ✅ | — | Action id, normally the page id |
+| `children` | `Sequence[dict]` | ✅ | — | Inputs and any other blocks |
+| `submit_label` | `str` | ❌ | `"Submit"` | Submit button text |
+| `method` | `str` | ❌ | `"post"` | `"post"`: POST to `/api/pages/{id}/action`. `"get"` (app shell): write the values into the URL and re-fetch the page (`params`) |
+| `update_url` | `bool` | ❌ | `False` | App shell: after a successful POST, also write the values into the URL |
+
+### `aiui.status(label, *, state, detail, progress, log)`
+
+A job status row with an icon per state, an optional progress bar and a log
+tail. Pair it with `refresh_every` so it updates while the job runs.
+
+```python
+aiui.status("Sync YouTube", state="running", detail="12 of 40 channels", progress=30, log=lines[-20:])
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `label` | `str` | ✅ | — | What runs |
+| `state` | `str` | ❌ | `"running"` | `"queued"`, `"running"`, `"done"` or `"failed"` |
+| `detail` | `str` | ❌ | `None` | One line under the label |
+| `progress` | `int \| float` | ❌ | `None` | Percent done (0-100, clamped); shows a bar |
+| `log` | `Sequence[str]` | ❌ | `None` | Recent log lines (shown with the log viewer) |
+
 ## Navigation Components
 
 ### `aiui.breadcrumb(items)`
@@ -889,9 +927,9 @@ async def overview():
 | Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |
 | Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 12 |
 | Media | `audio_player`, `video_player`, `file_download`, `gallery` | 4 |
-| Dashboard | `toast`, `dialog`, `caption`, `html_embed`, `skeleton`, `tooltip_wrap` | 6 |
+| Dashboard | `toast`, `dialog`, `caption`, `html_embed`, `skeleton`, `tooltip_wrap`, `form`, `status` | 8 |
 | Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |
-| **Total** | | **54** |
+| **Total** | | **56** |
 
 ## Custom Component Types
 

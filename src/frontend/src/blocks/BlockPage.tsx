@@ -7,6 +7,8 @@
  * Action endpoint: `page.actionEndpoint` (set by the server for
  * `register_page_action`); for plugin pages served under `/api/plugins/`,
  * `<apiEndpoint>/action`; otherwise `/api/pages/<id>/action`.
+ * The URL query string is the page's params (pageParams.ts); `_refresh_every`
+ * re-fetches while the tab is visible (docs/guides/server-pages.md).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { CircleX, RefreshCw } from 'lucide-react'
@@ -19,10 +21,11 @@ import { BlockList } from './BlockRenderer'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 import { notify } from '@/sdk/notify'
 import { hasBlockTree, isRecord, str, toBlockTree } from './normalize'
+import { nextRefreshDelay, refreshSeconds, withQuery, writeParams } from './pageParams'
 
 type PageState =
   | { status: 'loading'; key: string }
-  | { status: 'ready'; key: string; nodes: BlockNode[]; updatedAt: number }
+  | { status: 'ready'; key: string; nodes: BlockNode[]; updatedAt: number; refreshEvery: number }
   | { status: 'error'; key: string; error: string }
 
 // eslint-disable-next-line react-refresh/only-export-components -- exported for tests and the shell
@@ -83,21 +86,36 @@ function LoadingSkeleton() {
   )
 }
 
+function readyState(key: string, data: unknown): PageState {
+  const refreshEvery = isRecord(data) ? refreshSeconds(data._refresh_every) : 0
+  return { status: 'ready', key, nodes: toBlockTree(data).nodes, updatedAt: Date.now(), refreshEvery }
+}
+
+/** Write a reply's `_params` (or the submitted values) into the page URL. */
+function writeUrlFrom(data: unknown, req: BlockActionRequest): void {
+  if (isRecord(data) && isRecord(data._params)) writeParams(data._params)
+  else if (req.updateUrl) writeParams(req.body)
+}
+
 export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
   const endpoint = dataEndpoint(page)
   const postUrl = actionEndpoint(page)
   const [state, setState] = useState<PageState>({ status: 'loading', key: endpoint })
   const [refreshing, setRefreshing] = useState(false)
   const inflight = useRef<AbortController | null>(null)
+  /** Consecutive failed auto refreshes (back-off). */
+  const failures = useRef(0)
+  const lastLoad = useRef(0)
 
   const load = useCallback(
-    async (mode: 'initial' | 'refresh' | 'retry') => {
+    async (mode: 'initial' | 'refresh' | 'retry' | 'auto') => {
       inflight.current?.abort()
       const ac = new AbortController()
       inflight.current = ac
-      if (mode !== 'initial') setRefreshing(true)
+      lastLoad.current = Date.now()
+      if (mode !== 'initial' && mode !== 'auto') setRefreshing(true)
       try {
-        const res = await fetch(endpoint, {
+        const res = await fetch(withQuery(endpoint, window.location.search), {
           headers: { Accept: 'application/json' },
           credentials: 'same-origin',
           signal: ac.signal,
@@ -105,16 +123,19 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         const data = await readJson(res)
         if (!res.ok) throw new Error(errorText(data, res))
         if (ac.signal.aborted) return
-        setState({ status: 'ready', key: endpoint, nodes: toBlockTree(data).nodes, updatedAt: Date.now() })
+        failures.current = 0
+        setState(readyState(endpoint, data))
       } catch (err) {
         if (ac.signal.aborted) return
         const error = describe(err)
-        // A failed refresh keeps the content on screen and reports via toast.
-        if (mode === 'refresh') void notify(`Couldn't refresh ${page.title}`, { type: 'error', description: error })
+        const keep = mode === 'refresh' || mode === 'auto'
+        // A failed refresh keeps the content on screen and reports via toast
+        // (an auto refresh only on its first failure, then backs off quietly).
+        if (mode === 'auto') failures.current += 1
+        if (mode === 'refresh' || (mode === 'auto' && failures.current === 1))
+          void notify(`Couldn't refresh ${page.title}`, { type: 'error', description: error })
         setState((prev) =>
-          mode === 'refresh' && prev.status === 'ready' && prev.key === endpoint
-            ? prev
-            : { status: 'error', key: endpoint, error },
+          keep && prev.status === 'ready' && prev.key === endpoint ? prev : { status: 'error', key: endpoint, error },
         )
       } finally {
         if (inflight.current === ac) {
@@ -128,14 +149,56 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
 
   useEffect(() => {
     void load('initial')
+    // Back/forward between query strings of this page re-fetches with them.
+    const path = window.location.pathname
+    const onPop = () => {
+      if (window.location.pathname === path) void load('refresh')
+    }
+    window.addEventListener('popstate', onPop)
     return () => {
+      window.removeEventListener('popstate', onPop)
       inflight.current?.abort()
       inflight.current = null
     }
   }, [load])
 
+  // Auto refresh (`_refresh_every`): only while the tab is visible.
+  const refreshEvery = state.status === 'ready' && state.key === endpoint ? state.refreshEvery : 0
+  useEffect(() => {
+    if (!refreshEvery) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let stopped = false
+    const schedule = (ms: number) => {
+      clearTimeout(timer)
+      if (!stopped) timer = setTimeout(() => void tick(), ms)
+    }
+    const tick = async () => {
+      if (document.visibilityState === 'hidden') return // resumed by visibilitychange
+      if (!inflight.current) await load('auto')
+      schedule(nextRefreshDelay(refreshEvery, failures.current))
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') return clearTimeout(timer)
+      const due = lastLoad.current + nextRefreshDelay(refreshEvery, failures.current) - Date.now()
+      schedule(Math.max(0, due))
+    }
+    schedule(nextRefreshDelay(refreshEvery, failures.current))
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [refreshEvery, load])
+
   const runAction = useCallback(
-    async ({ body, label }: BlockActionRequest): Promise<boolean> => {
+    async (req: BlockActionRequest): Promise<boolean> => {
+      const { body, label } = req
+      if (req.method === 'get') {
+        writeParams(body)
+        await load('refresh')
+        return true
+      }
       const failTitle = label ? `${label} failed` : 'Action failed'
       try {
         const res = await fetch(postUrl, {
@@ -150,8 +213,9 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
           return false
         }
         const message = isRecord(data) ? str(data.message ?? data.status) : ''
+        writeUrlFrom(data, req)
         if (hasBlockTree(data)) {
-          setState({ status: 'ready', key: endpoint, nodes: toBlockTree(data).nodes, updatedAt: Date.now() })
+          setState(readyState(endpoint, data))
           if (message) void notify(message, { type: 'success' })
         } else {
           void notify(message || (label ? `${label}: done` : 'Done'), { type: 'success' })
@@ -162,7 +226,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         return false
       }
     },
-    [postUrl, endpoint],
+    [postUrl, endpoint, load],
   )
 
   const ctx = useMemo<BlockContextValue>(() => ({ page, runAction }), [page, runAction])
