@@ -1,5 +1,6 @@
 """Tests for the `aiui doctor` CLI command."""
 import json
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -71,7 +72,7 @@ class TestDoctorCLI:
             app, ["doctor", "--server", "http://localhost:19999", "--json"]
         )
         data = json.loads(result.output)
-        assert len(data["checks"]) == 8, f"Expected 8 checks, got {len(data['checks'])}"
+        assert len(data["checks"]) == 9, f"Expected 9 checks, got {len(data['checks'])}"
 
     def test_doctor_summary_counts(self):
         """Doctor --json summary counts are correct."""
@@ -81,7 +82,7 @@ class TestDoctorCLI:
         data = json.loads(result.output)
         summary = data["summary"]
         total = summary["passed"] + summary["warnings"] + summary["failed"]
-        assert total == 8, f"Summary counts should total 8, got {total}"
+        assert total == 9, f"Summary counts should total 9, got {total}"
 
     def test_doctor_check_structure(self):
         """Each check in --json output has required fields."""
@@ -119,3 +120,51 @@ class TestDoctorVersion:
         check = self._version_check()
         assert check["status"] == "warn"
         assert "could not reach PyPI" in check["detail"]
+
+
+class TestDoctorInstall:
+    """``aiui doctor`` names the version and folder actually imported, and warns
+    when pip's metadata disagrees (a stale editable install)."""
+
+    def _install_check(self):
+        result = runner.invoke(app, ["doctor", "--server", "http://localhost:19999", "--json"])
+        checks = json.loads(result.output)["checks"]
+        return next(c for c in checks if c["name"] == "aiui Install")
+
+    def test_matching_metadata_passes_and_names_the_imported_code(self, monkeypatch):
+        import praisonaiui
+        from praisonaiui import __version__
+
+        monkeypatch.setattr(cli_mod, "_dist_version", lambda: __version__)
+        check = self._install_check()
+        assert check["status"] == "pass"
+        assert __version__ in check["detail"]
+        assert str(Path(praisonaiui.__file__).resolve().parent) in check["detail"]
+
+    def test_stale_metadata_warns_with_both_versions(self, monkeypatch):
+        from praisonaiui import __version__
+
+        monkeypatch.setattr(cli_mod, "_dist_version", lambda: "0.0.1")
+        check = self._install_check()
+        assert check["status"] == "warn"
+        assert f"{__version__} imported from" in check["detail"]
+        assert "metadata says 0.0.1" in check["detail"]
+        assert "pip install" in check["detail"]
+
+    def test_no_metadata_warns(self, monkeypatch):
+        monkeypatch.setattr(cli_mod, "_dist_version", lambda: None)
+        check = self._install_check()
+        assert check["status"] == "warn"
+        assert "no installed aiui metadata" in check["detail"]
+
+    def test_dist_version_reads_importlib_metadata(self, monkeypatch):
+        import importlib.metadata as md
+
+        monkeypatch.setattr(md, "version", lambda name: "1.2.3" if name == "aiui" else None)
+        assert cli_mod._dist_version() == "1.2.3"
+
+        def missing(name):
+            raise md.PackageNotFoundError(name)
+
+        monkeypatch.setattr(md, "version", missing)
+        assert cli_mod._dist_version() is None

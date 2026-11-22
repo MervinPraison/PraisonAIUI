@@ -73,7 +73,8 @@ const LAYOUT_BUDGETS = {
   // 12.372 kB (+10 B, exactly the overage): chunk hashes renamed; no layout code changed.
   // 12.373 kB (+1 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 12.377 kB (+4 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
-  'layout-chat-canvas': '12.377 kB',
+  // 12.448 kB (+71 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
+  'layout-chat-canvas': '12.448 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -83,7 +84,8 @@ const LAYOUT_BUDGETS = {
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
-  'layout-command': '15.2 kB',
+  // 15.27 kB (+70 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the rail call site.
+  'layout-command': '15.27 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -95,7 +97,8 @@ const LAYOUT_BUDGETS = {
   // lf-mission-board.
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
-  'layout-mission': '13.21 kB',
+  // 13.283 kB (+73 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
+  'layout-mission': '13.283 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -326,7 +329,9 @@ export default [
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
   // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257066 B', gzip: true },
+  // 257,608 B (+542 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji); the classic
+  // sidebar is in the boot chunk, so it ships there and every frame shares it.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257608 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -490,5 +495,6 @@ export default [
   // network-change retry (docs/networkChange.ts).
   // 11,180,375 B (+236 B, exactly the overage): docs retries move to a fresh connection pool.
   // 11,181,896 B (+1,521 B, exactly the overage): hedged docs requests and the connection warm-up.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11181896 B', brotli: false },
+  // 11,183,970 B (+2,074 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11183970 B', brotli: false },
 ]

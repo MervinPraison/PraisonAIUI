@@ -4,7 +4,6 @@ close" forever)."""
 
 from __future__ import annotations
 
-import uvicorn
 from typer.testing import CliRunner
 
 from praisonaiui import cli
@@ -16,7 +15,7 @@ def test_run_passes_a_graceful_shutdown_timeout(monkeypatch, tmp_path):
     app_file = tmp_path / "app.py"
     app_file.write_text("import praisonaiui as aiui\n", encoding="utf-8")
     calls = []
-    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: calls.append(k))
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda *a, **k: calls.append(k))
 
     result = CliRunner().invoke(cli.app, ["run", str(app_file), "--port", "8765"])
 

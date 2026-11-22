@@ -24,7 +24,7 @@ aiui run APP_FILE [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `APP_FILE` | required | A Python file that registers callbacks, or a `.yaml`/`.yml` chat config |
-| `--port, -p` | `8000` | Port. If it is taken, the next free port (up to 10 further) is used and printed |
+| `--port, -p` | `8000` | Port. If it is taken, the next free port (up to 10 further) is used. The port is bound before the URL is printed and the server serves that socket, so two apps started together never get the same port |
 | `--host` | `127.0.0.1` | Address to bind to |
 | `--reload, -r` | off | Restart when files change |
 | `--style, -s` | detected | `app` (the React app shell), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` or `custom` |
@@ -234,7 +234,7 @@ opens it.
 
 | Command | Options | Description |
 |---------|---------|-------------|
-| `aiui doctor` | `--server, -s` (default `http://127.0.0.1:8000`), `--json` | Structured diagnostics against a running server |
+| `aiui doctor` | `--server, -s` (default `http://127.0.0.1:8000`), `--json` | Structured diagnostics against a running server. The first two checks need no server: `aiui Version` (the imported version against PyPI's latest) and `aiui Install` (the version and folder actually imported; warns when pip's metadata names another version, as a stale editable install does, and prints the reinstall command) |
 | `aiui health-check` | `--server, -s`, `--detailed, -d` | Server health; `--detailed` shows each feature |
 | `aiui health` | same | Alias of `health-check` |
 | `aiui test <suite>` | `--server, -s` (default `http://127.0.0.1:8082`) | Integration tests against a running server: `chat`, `memory`, `sessions`, `endpoints`, `features`, `all`. See [API Testing](testing.md) |

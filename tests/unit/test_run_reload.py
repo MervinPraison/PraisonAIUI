@@ -13,7 +13,7 @@ from starlette.testclient import TestClient
 from typer.testing import CliRunner
 
 import praisonaiui.server as srv
-from praisonaiui import _run_factory
+from praisonaiui import _run_factory, cli
 from praisonaiui.cli import app as cli_app
 
 APP = """
@@ -41,9 +41,7 @@ def test_reload_passes_the_factory_import_string(tmp_path, monkeypatch):
     app_file.write_text(APP)
     calls = []
 
-    import uvicorn
-
-    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: calls.append((target, kw)))
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda target, **kw: calls.append((target, kw)))
     result = CliRunner().invoke(
         cli_app,
         ["run", str(app_file), "--reload", "--datastore", "memory", "--port", "8203"],
@@ -66,9 +64,7 @@ def test_without_reload_the_app_object_is_passed(tmp_path, monkeypatch):
     app_file.write_text(APP)
     calls = []
 
-    import uvicorn
-
-    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: calls.append((target, kw)))
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda target, **kw: calls.append((target, kw)))
     result = CliRunner().invoke(
         cli_app, ["run", str(app_file), "--datastore", "memory", "--port", "8203"]
     )
@@ -112,10 +108,8 @@ def test_aiui_run_defaults_to_the_app_shell_and_the_chat_layout(tmp_path, monkey
     app_file.write_text(APP)
     served = []
 
-    import uvicorn
-
     monkeypatch.delenv("AIUI_LAYOUT", raising=False)
-    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: served.append(target))
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda target, **kw: served.append(target))
     result = CliRunner().invoke(cli_app, ["run", str(app_file), "--datastore", "memory", "--port", "8204"])
     assert result.exit_code == 0, result.output
     manifest = TestClient(served[-1]).get("/api/shell/manifest").json()
@@ -126,9 +120,7 @@ def test_aiui_run_defaults_to_the_app_shell_and_the_chat_layout(tmp_path, monkey
 def test_an_explicit_style_chat_keeps_the_classic_chat(tmp_path, monkeypatch):
     app_file = tmp_path / "app.py"
     app_file.write_text(APP)
-    import uvicorn
-
-    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda *a, **k: None)
     result = CliRunner().invoke(
         cli_app, ["run", str(app_file), "--style", "chat", "--datastore", "memory", "--port", "8205"]
     )

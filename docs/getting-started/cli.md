@@ -38,7 +38,7 @@ See [Deploy to GitHub Pages](github-pages.md) to publish the build.
 ## Check a running server
 
 ```bash
-aiui doctor                          # structured diagnostics; warns when aiui is older than PyPI's latest
+aiui doctor                          # diagnostics; the imported aiui version and folder, PyPI's latest, stale installs
 aiui health --detailed               # per-feature health (alias of health-check)
 aiui test all --server http://127.0.0.1:8000
 ```

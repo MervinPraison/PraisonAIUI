@@ -20,6 +20,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Bot, Menu, Plus, Search, Sparkles, SunMoon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
+import { PageGlyph } from '@/lib/PageGlyph'
 import { cn } from '@/lib/utils'
 import { BrandTile, DeclaredNavGroups, isPlainLeftClick, NavList, PhoneSheet, PhoneTabs, PluginSettingsRow, preloadPhoneSheet, ShortcutHint, useSessions, useShortcut } from '@/app-layouts/kit'
 import { guidedNav, HELP_ID, helpAddress, PAGE, type GuidedItem } from './nav'
@@ -30,15 +31,19 @@ import './guided.css'
 
 const RECENT = 5
 
-/** A page's icon (`fallback` text, else its first letters, for a page Guided has no icon for). */
-function PageIcon({ id, className, fallback }: { id: string; className?: string; fallback?: string }) {
+/**
+ * A page's icon: Guided's own, else the icon the page declares (lazy lucide,
+ * image, emoji; lib/PageGlyph), else `fallback` text or its first letters.
+ */
+function PageIcon({ id, className, fallback, item }: { id: string; className?: string; fallback?: string; item?: Pick<LayoutNavItem, 'navIcon' | 'icon'> }) {
   const Icon = PAGE_ICONS[id]
   if (Icon) return <Icon aria-hidden className={className} />
-  return (
+  const mark = (
     <span aria-hidden="true" className={cn('inline-flex shrink-0 items-center justify-center', className)}>
       {(fallback ?? id).slice(0, 2)}
     </span>
   )
+  return <PageGlyph navIcon={item?.navIcon} icon={item?.icon} className={cn('shrink-0', className)} fallback={mark} />
 }
 
 function Brand({ chrome, size = 'lg' }: Pick<LayoutProps, 'chrome'> & { size?: 'lg' | 'sm' }) {
@@ -70,7 +75,7 @@ function DestRow({ item, onGo }: { item: GuidedItem; onGo(item: GuidedItem): voi
           item.active ? 'bg-accent-soft font-bold text-link' : 'font-semibold text-sidebar-foreground hover:bg-sidebar-accent/70',
         )}
       >
-        <PageIcon id={item.id} fallback={item.title.slice(0, 1)} className="size-6 shrink-0" />
+        <PageIcon id={item.id} item={item} fallback={item.title.slice(0, 1)} className="size-6 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{item.title}</span>
         {item.badge ? <span className="text-sm text-muted-foreground tabular-nums" aria-label={`${item.badge} new`}>{item.badge}</span> : null}
       </a>

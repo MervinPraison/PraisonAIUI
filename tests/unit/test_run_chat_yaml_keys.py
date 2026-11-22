@@ -18,16 +18,14 @@ from praisonaiui.cli import app as cli_app
 
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
-    import uvicorn
-
-    from praisonaiui import layouts
+    from praisonaiui import cli, layouts
     from praisonaiui.plugin_registry import get_plugin_registry
 
     monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("AIUI_LAYOUT", raising=False)
     monkeypatch.setenv(_run_factory.SPEC_ENV, "")
     monkeypatch.delenv(_run_factory.SPEC_ENV)
-    monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: None)
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda *a, **kw: None)
     srv.reset_state()
     get_plugin_registry().reset()
     layouts.reset()

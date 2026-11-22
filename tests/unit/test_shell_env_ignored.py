@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 import praisonaiui.plugin_registry as pr
 import praisonaiui.server as srv
+from praisonaiui import cli
 from praisonaiui.cli import app as cli_app
 
 APP = """
@@ -58,9 +59,7 @@ def test_aiui_run_banner_explains_the_ignored_env(monkeypatch, tmp_path):
     monkeypatch.setenv("AIUI_SHELL", "app")
     app_file = tmp_path / "app.py"
     app_file.write_text(APP)
-    import uvicorn
-
-    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda *a, **k: None)
     result = CliRunner().invoke(
         cli_app, ["run", str(app_file), "--style", "chat", "--datastore", "memory", "--port", "8207"]
     )

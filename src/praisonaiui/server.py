@@ -1866,7 +1866,8 @@ def register_page(
     Args:
         id: Unique page identifier (e.g. 'metrics')
         title: Display title in sidebar
-        icon: Emoji icon for sidebar
+        icon: Sidebar icon: a lucide icon name (``"users"``), an emoji or an
+            image URL (``https://...`` or a root path ``/...``).
         group: Tab group name (e.g. 'Control', 'Settings', 'Custom')
         description: Brief subtitle shown in header
         api_endpoint: API path for page data (default: /api/pages/{id}/data)
