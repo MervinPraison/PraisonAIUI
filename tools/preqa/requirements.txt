@@ -1,0 +1,2 @@
+# Tracker only (python -m preqa track). Everything else is the standard library.
+playwright==1.65.0
