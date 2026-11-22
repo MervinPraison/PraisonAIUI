@@ -432,10 +432,42 @@ def set_dashboard(
 
 
 def _dashboard_plugin_allowlist() -> list[str] | None:
-    """Plugin-name allowlist from ``set_dashboard(plugins=...)`` (``None`` = all)."""
+    """Plugin-name allowlist from ``set_dashboard(plugins=...)`` (``None`` = all).
+
+    Without one, an explicit :func:`set_pages` list keeps only the folders
+    whose page it names: folders in ``~/.praisonai/dashboard-plugins`` are
+    shared by every app on the machine, and a focused app must not get them.
+    """
     allowed = (_dashboard_config or {}).get("plugins")
     allowed = list(allowed) if allowed is not None else None
+    if allowed is None and _enabled_pages is not None:
+        allowed = [
+            m["name"]
+            for m in _discover_all_dashboard_folders()
+            if ((m.get("page") or {}).get("id") or m["name"]) in _enabled_pages
+        ]
     return _without_disabled_builtin_folders(allowed)
+
+
+def _dashboard_folder_dirs() -> list[str]:
+    """Extra dashboard-plugin dirs from ``set_dashboard()`` and the YAML ``dashboard`` section."""
+    extra: list[str] = []
+    for cfg in (_dashboard_config or {}, _resolved_dashboard_config() or {}):
+        for d in cfg.get("pluginDirs") or cfg.get("plugin_dirs") or []:
+            if d not in extra:
+                extra.append(d)
+    return extra
+
+
+def _discover_all_dashboard_folders() -> list[dict[str, Any]]:
+    """Every dashboard-plugin folder on this machine, before any allowlist."""
+    try:
+        from praisonaiui.dashboard_plugins import discover_dashboard_plugins
+
+        return discover_dashboard_plugins(_dashboard_folder_dirs(), None)
+    except Exception:  # noqa: BLE001 - never break page listing over this
+        logging.getLogger(__name__).debug("dashboard-plugin discovery failed", exc_info=True)
+        return []
 
 
 def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | None:
@@ -466,11 +498,7 @@ def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | 
         # dashboard section), so list names over all of them. Extra dirs only
         # add names: a name's first folder (home, then bundled) is the same
         # whichever extras are scanned.
-        extra: list[str] = []
-        for cfg in (_dashboard_config or {}, _resolved_dashboard_config() or {}):
-            for d in cfg.get("pluginDirs") or cfg.get("plugin_dirs") or []:
-                if d not in extra:
-                    extra.append(d)
+        extra = _dashboard_folder_dirs()
         bundled = _dp._BUILTIN_PLUGIN_ROOT.resolve()
         return [
             m["name"]
@@ -690,22 +718,42 @@ def register_theme(name: str, variables: dict[str, str]) -> None:
 
 
 def set_pages(page_ids: list[str]) -> None:
-    """Whitelist which built-in sidebar pages to show.
+    """Choose which pages the app shows, besides its own.
 
-    Only the specified built-in page IDs will appear in the sidebar.
-    Custom pages registered via ``@aiui.page()`` always appear regardless.
-    Call before the server starts (typically in your ``app.py``).
+    Only the listed page ids appear: built-in pages, the app shell's layout
+    pages (``start``, ``artifacts``, ``connect``, ...) and dashboard-plugin
+    folders (``~/.praisonai/dashboard-plugins``, shared by every app on the
+    machine). Pages the app registers itself (``@aiui.page()``,
+    ``register_page``, ``register_plugin``) and installed entry-point plugins
+    always appear. Call before the server starts (typically in ``app.py``).
+    An id that names no page is reported with a warning at startup.
 
     Example::
 
         import praisonaiui as aiui
-        aiui.set_pages(["chat", "sessions", "agents", "usage", "config"])
+        aiui.set_pages(["chat"])   # Chat plus the app's own pages
 
-    Pass an empty list to hide **all** built-in pages (only custom pages shown).
-    If never called, all built-in pages are shown (backward compatible).
+    Pass an empty list (or call :func:`only_my_pages`) to show only the
+    app's own pages. If never called, every page is shown.
     """
     global _enabled_pages
     _enabled_pages = set(page_ids)
+
+
+def only_my_pages(*keep: str) -> None:
+    """Show only the app's own pages, plus the built-in page ids in ``keep``.
+
+    ``aiui.only_my_pages("chat")`` is ``aiui.set_pages(["chat"])``: the
+    app's pages and Chat, and nothing from aiui or other apps.
+    """
+    set_pages(list(keep))
+
+
+def _unknown_set_pages_ids(known: set[str]) -> list[str]:
+    """The :func:`set_pages` ids that name no page from any source."""
+    if not _enabled_pages:
+        return []
+    return sorted(_enabled_pages - known)
 
 
 def _config_page_whitelist(builtin_pages: list[dict]) -> Optional[set[str]]:
@@ -1427,8 +1475,10 @@ def _page_records(
         )
         for p in _pages.values()
     ]
-    plugins = [*ps.shell_pages(reg, _effective_style, restricted=restricted),  # ADR 0003
-               *(ps.plugin_page(s) for s in reg.pages(restricted=restricted))]
+    shell = ps.shell_pages(reg, _effective_style, restricted=restricted)  # ADR 0003
+    if _enabled_pages is not None:  # set_pages() lists the layout pages too
+        shell = [r for r in shell if r.id in _enabled_pages]
+    plugins = [*shell, *(ps.plugin_page(s) for s in reg.pages(restricted=restricted))]
     folders = ps.folder_pages(
         discover_dashboard_plugins(extra_dirs, _dashboard_plugin_allowlist())
     )
@@ -4236,6 +4286,22 @@ def create_app(
     _builtin_page_ids.update(
         pid for pid in _contributed if pid in _pages and pid not in _custom_page_ids
     )
+    if _enabled_pages:
+        _known = (
+            _contributed
+            | set(_pages)
+            | {s.id for s in _plugin_registry.shell_pages(None)}
+            | {s.id for s in _plugin_registry.pages(restricted=False)}
+            | {
+                (m.get("page") or {}).get("id") or ""
+                for m in _discover_all_dashboard_folders()
+            }
+        )
+        for _pid in _unknown_set_pages_ids(_known):
+            logging.getLogger(__name__).warning(
+                "set_pages() names %r, but no page has that id (`aiui pages ids` lists them)",
+                _pid,
+            )
 
     # Always mount built-in frontend plugins and assets BEFORE catch-all /
     _package_frontend_dir = Path(__file__).parent / "templates" / "frontend"

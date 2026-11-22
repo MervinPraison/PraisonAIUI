@@ -201,6 +201,7 @@ def __getattr__(name: str):
         "get_provider",
         "set_style",
         "set_pages",
+        "only_my_pages",
         "remove_page",
         "set_branding",
         "set_theme",
@@ -540,6 +541,7 @@ __all__ = [
     "set_feedback_enabled",
     "register_theme",
     "set_pages",
+    "only_my_pages",
     "remove_page",
     "register_page_action",
     # DataStore classes
