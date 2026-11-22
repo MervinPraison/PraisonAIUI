@@ -477,5 +477,7 @@ export default [
   // and the reducer in the chat route, above), on top of the parser split.
   // 11,175,114 B (+1,751 B, exactly the overage): the docs App's first-screen icons drawn
   // into its chunk (virtual:aiui-icons/inline) next to lucide-react's own for the shell.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11175114 B', brotli: false },
+  // 11,176,912 B (+1,798 B, exactly the overage): the docs loader's aiui:docs-load records
+  // (docs/loadEvents.ts) and its retry notice.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11176912 B', brotli: false },
 ]
