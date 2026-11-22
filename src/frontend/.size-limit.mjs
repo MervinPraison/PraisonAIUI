@@ -479,5 +479,6 @@ export default [
   // into its chunk (virtual:aiui-icons/inline) next to lucide-react's own for the shell.
   // 11,176,912 B (+1,798 B, exactly the overage): the docs loader's aiui:docs-load records
   // (docs/loadEvents.ts) and its retry notice.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11176912 B', brotli: false },
+  // 11,176,942 B (+30 B, exactly the overage): chunkReload reads the content-named entry (index-<hash>.js).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11176942 B', brotli: false },
 ]

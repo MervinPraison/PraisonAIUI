@@ -92,7 +92,7 @@ def test_no_root_absolute_url_remains_under_a_base_path(tmp_path):
         for attr, url in URL_ATTR.findall(html):
             if url.startswith("/") and not url.startswith("//"):
                 assert url == "/repo" or url.startswith("/repo/"), (page.name, attr, url)
-        assert 'src="/repo/assets/index.js?v=' in html
+        assert re.search(r'src="/repo/assets/index-[0-9a-f]{10}\.js"', html)
         assert 'src="/repo/plugins/plugin-loader.js?v=' in html
     assert 'rel="preload" as="image" href="/repo/hero.png"' in (out / "index.html").read_text()
     # The inlined markdown keeps its app path: the loader's cache key (docLoader.ts).
@@ -106,7 +106,7 @@ def test_site_urls_carry_the_base_path(tmp_path):
     assert locs and all(loc.startswith("https://acme.github.io/widgets/") for loc in locs)
     page = (out / "docs" / "guide" / "start.html").read_text(encoding="utf-8")
     assert 'rel="canonical" href="https://acme.github.io/widgets/docs/guide/start"' in page
-    assert 'src="/widgets/assets/index.js?v=' in page, "the base comes from seo.siteUrl"
+    assert re.search(r'src="/widgets/assets/index-[0-9a-f]{10}\.js"', page), "the base comes from seo.siteUrl"
     assert '"siteUrl": "https://acme.github.io/widgets"' in (out / "ui-config.json").read_text()
 
 
@@ -117,7 +117,7 @@ def test_the_default_build_is_unchanged(tmp_path):
         html = page.read_text(encoding="utf-8")
         assert "aiui-base" not in html
         assert page.read_bytes() == (root / page.relative_to(out)).read_bytes()
-    assert 'src="/assets/index.js?v=' in (out / "index.html").read_text(encoding="utf-8")
+    assert re.search(r'src="/assets/index-[0-9a-f]{10}\.js"', (out / "index.html").read_text(encoding="utf-8"))
 
 
 def test_serve_previews_the_build_under_its_base_path(tmp_path):

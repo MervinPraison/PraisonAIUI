@@ -58,6 +58,29 @@ test('entryBuild reads the ?v= of /assets/index.js', () => {
   assert.equal(entryBuild('http://app.test/src/main.tsx'), null, 'dev server: no build id')
 })
 
+test('entryBuild reads the content name of an aiui build entry (index-<hash>.js)', () => {
+  assert.equal(entryBuild('http://app.test/assets/index-0123456789.js'), '0123456789')
+  assert.equal(entryBuild('<script type="module" src="/repo/assets/index-abcdef0123.js"></script>'), 'abcdef0123')
+  // a Vite chunk that happens to be named index-<hash> is not the entry
+  assert.equal(entryBuild('<link rel="modulepreload" href="/assets/index-CrOnqcBD.js">'), null)
+})
+
+test('a deploy is seen across the switch from index.js?v= to index-<hash>.js', async () => {
+  const h = harness({
+    entryUrl: 'http://app.test/assets/index-0123456789.js',
+    fetchPage: async () => '<script type="module" crossorigin src="/assets/index-fedcba9876.js"></script>',
+  })
+  await h.handle()
+  assert.deepEqual(h.calls.builds, ['fedcba9876'])
+  // and the same build served again is no deploy
+  const same = harness({
+    entryUrl: 'http://app.test/assets/index-0123456789.js',
+    fetchPage: async () => '<script type="module" crossorigin src="/assets/index-0123456789.js"></script>',
+  })
+  await same.handle()
+  assert.equal(same.calls.reloads, 0)
+})
+
 test('offline: no reload (no chrome-error page), and the check runs again once online', async () => {
   const h = harness()
   h.setOnline(false)

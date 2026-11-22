@@ -321,6 +321,26 @@ test('carry-forward keeps exactly the previous build when it has a manifest', ()
   assert.equal(existsSync(path.join(site, 'escape.js')), false)
 })
 
+test('carry-forward keeps the previous build\'s content-named entry (aiui build lists it in the manifest)', () => {
+  // A page cached for 10 minutes before a deploy loads /assets/index-<hash>.js of its own build.
+  const prev = write(tmpdir(), {
+    'aiui-manifest.json': JSON.stringify({
+      'index.html': { file: 'assets/index.js', css: ['assets/index.css'] },
+      'aiui-entry-copy:index-0123456789.js': { file: 'assets/index-0123456789.js' },
+      'aiui-entry-copy:index-abcdef0123.css': { file: 'assets/index-abcdef0123.css' },
+    }),
+    'assets/index.js': 'old entry',
+    'assets/index.css': 'old css',
+    'assets/index-0123456789.js': 'old entry',
+    'assets/index-abcdef0123.css': 'old css',
+  })
+  const site = write(tmpdir(), { 'assets/index.js': 'new entry', 'assets/index.css': 'new css', 'assets/index-fedcba9876.js': 'new entry' })
+  assert.deepEqual(carryForward(prev, site).sort(), ['index-0123456789.js', 'index-abcdef0123.css'])
+  assert.equal(readFileSync(path.join(site, 'assets/index.js'), 'utf8'), 'new entry')
+  const ledger = JSON.parse(readFileSync(path.join(site, LEDGER), 'utf8'))
+  assert.deepEqual(Object.keys(ledger.files).sort(), ['index-0123456789.js', 'index-abcdef0123.css'])
+})
+
 test('carry-forward keeps older generations for --keep-days through its ledger, then drops them', () => {
   const now = Date.parse('2026-11-19T12:00:00Z')
   const hoursAgo = (h) => new Date(now - h * 3_600_000).toISOString()
