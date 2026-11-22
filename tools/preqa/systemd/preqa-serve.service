@@ -1,0 +1,11 @@
+[Unit]
+Description=PraisonAIUI pre-QA site + dashboard on 127.0.0.1:8700
+
+[Service]
+WorkingDirectory=%h/preqa/tool
+ExecStart=%h/preqa/venv-tool/bin/python -m preqa serve --site %h/preqa/sites/main --dashboard %h/preqa/dashboard --history %h/preqa/history --host 127.0.0.1 --port 8700
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

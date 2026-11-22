@@ -1,0 +1,9 @@
+[Unit]
+Description=Poll origin/main for the pre-QA build every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+
+[Install]
+WantedBy=timers.target
