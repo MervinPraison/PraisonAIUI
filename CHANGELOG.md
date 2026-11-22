@@ -682,6 +682,17 @@
 
 ### Fixed
 
+- **A docs page no longer waits behind another tab's stuck request.** Chrome
+  lets one request per URL fill its HTTP cache entry at a time, so a stuck
+  request for a page's Markdown in another tab held every attempt in this
+  one (two 5 s timeouts, then the page). Page Markdown and every retry are now
+  requested `cache: 'no-store'`; the first attempt has 3 s (was 5 s), the
+  skeleton says "Trying again (2 of 3)" from the second, and each outcome is
+  an `aiui:docs-load` record in `window.__aiuiDocsLoad`.
+  `aiui build --strict` fails when a page's inlined Markdown is keyed by
+  another URL than the app requests. See
+  [GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
+
 - **Docs pages without code no longer download the code font.** The header's
   `⌘K` search hint was drawn in the code face, so every page fetched it
   (JetBrains Mono, 40 KB, in the Paper look; Geist Mono, 23 KB, otherwise). It

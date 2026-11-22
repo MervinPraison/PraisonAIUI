@@ -382,7 +382,7 @@ export default function App() {
         const manifest = async <T,>(url: string): Promise<T> => {
           const inlined = inlinedManifest(url)
           if (inlined !== undefined) return inlined as T
-          const res = await fetchWithRetry(url)
+          const res = await fetchWithRetry(url, { kind: 'manifest' })
           if (!res.ok) throw new Error('Failed to load manifests')
           return JSON.parse(res.text) as T
         }

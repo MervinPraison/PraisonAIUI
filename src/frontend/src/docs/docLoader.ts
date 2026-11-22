@@ -15,14 +15,26 @@
  * a row, when starting over is faster than waiting. The last attempt allows
  * 10 s so a link that is merely very slow still gets the page.
  *
- * The body has two limits of its own. A body that sends nothing for 5 s has
+ * The body has two limits of its own. A body that sends nothing for 4 s has
  * stalled (a dropped connection the browser has not noticed) and is cut off
  * and requested again; a body that keeps arriving, however slowly, gets up to
- * 15 s in all. So a stall costs 5 s, not 15, and no attempt waits for ever.
+ * 15 s in all. So a stall costs 4 s, not 15, and no attempt waits for ever.
+ *
+ * Markdown is requested with `cache: 'no-store'`, and every retry is too.
+ * Chrome's HTTP cache lets one request per URL at a time write the cache
+ * entry; a second request for the same URL (another tab, an older copy of the
+ * app, a background tab whose timers are throttled) waits inside the browser
+ * until the first one has its answer (net log: HTTP_CACHE_ADD_TO_ENTRY). One
+ * stuck peer used to hold every attempt here for its whole stall; a no-store
+ * request skips the cache entry, so it can neither wait on a peer nor hold
+ * one. The CDN still caches, and this module keeps its own in-memory cache.
+ *
+ * Every outcome is recorded as an `aiui:docs-load` event (loadEvents.ts).
  */
 import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath } from './docSource'
 import { appPathname, stripBase, withBase } from '../lib/url'
+import { devAlarm, recordDocsLoad, type DocsLoadReason } from './loadEvents'
 
 export interface DocResult {
     ok: boolean
@@ -30,12 +42,12 @@ export interface DocResult {
     text: string
 }
 
-/** Time to response headers, per attempt (initial request + 2 retries). */
-export const ATTEMPT_TIMEOUTS_MS = [5_000, 5_000, 10_000]
+/** Time to response headers, per attempt (initial request + 2 retries): a held request shows as "retrying" after 3 s. */
+export const ATTEMPT_TIMEOUTS_MS = [3_000, 5_000, 8_000]
 /** Time to read the body once the headers are in. */
 export const BODY_TIMEOUT_MS = 15_000
 /** Time the body may go without a byte before the attempt counts as stalled. */
-export const BODY_IDLE_TIMEOUT_MS = 5_000
+export const BODY_IDLE_TIMEOUT_MS = 4_000
 const CACHE_LIMIT = 100
 const PREFETCH_LIMIT = 4
 const HOVER_DELAY_MS = 80
@@ -124,6 +136,12 @@ export interface RetryOptions {
     fetchImpl?: typeof fetch
     /** Pause before a retry (default 100-400 ms of jitter). */
     backoff?: (attempt: number) => number
+    /** HTTP cache mode of the first attempt (default 'default'); retries are always 'no-store'. */
+    cache?: RequestCache
+    /** What is loaded, for the `aiui:docs-load` record (default 'doc'). */
+    kind?: 'doc' | 'manifest'
+    /** Called as each attempt starts (1-based), e.g. to show "retrying". */
+    onAttempt?: (attempt: number, of: number) => void
 }
 
 /**
@@ -140,46 +158,67 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         bodyIdleTimeoutMs = BODY_IDLE_TIMEOUT_MS,
         fetchImpl = (...args) => fetch(...args),
         backoff = () => 100 + Math.random() * 300,
+        cache = 'default',
+        kind = 'doc',
+        onAttempt,
     } = opts
     let lastError: unknown = null
-    for (let attempt = 0; attempt < timeouts.length; attempt++) {
+    const of = timeouts.length
+    for (let attempt = 0; attempt < of; attempt++) {
         if (signal.aborted) throw abortError()
+        onAttempt?.(attempt + 1, of)
+        const started = now()
         // One controller per attempt: a time limit (headers, then body) aborts
         // this request, which also cancels its stalled connection or body.
         const request = new AbortController()
-        const timedOut = () => request.abort(new DOMException('Timed out', 'TimeoutError'))
-        let timer = setTimeout(timedOut, timeouts[attempt])
+        let reason: DocsLoadReason = 'headers-timeout'
+        const timeoutFor = (why: DocsLoadReason) => () => {
+            reason = why
+            request.abort(new DOMException('Timed out', 'TimeoutError'))
+        }
+        let timer = setTimeout(timeoutFor('headers-timeout'), timeouts[attempt])
         let idle: ReturnType<typeof setTimeout> | undefined
         const s = anySignal([signal, request.signal])
         // Raced, not only passed to fetch: a body that stalls after the headers
         // would otherwise leave response.text() pending for ever.
         const aborted = whenAborted(s)
+        let status: number | undefined
         try {
-            const response = await Promise.race([fetchImpl(withBase(url), { signal: s }), aborted])
+            // A retry never goes through the HTTP cache: it must not queue behind a peer (see top).
+            const init: RequestInit = { signal: s, cache: attempt === 0 ? cache : 'no-store' }
+            const response = await Promise.race([fetchImpl(withBase(url), init), aborted])
             clearTimeout(timer)
+            status = response.status
             if (response.status < 500) {
-                timer = setTimeout(timedOut, bodyTimeoutMs)
+                timer = setTimeout(timeoutFor('body-timeout'), bodyTimeoutMs)
                 // Each chunk restarts the idle limit; the total limit keeps running.
                 const progress = () => {
                     clearTimeout(idle)
-                    idle = setTimeout(timedOut, bodyIdleTimeoutMs)
+                    idle = setTimeout(timeoutFor('body-idle'), bodyIdleTimeoutMs)
                 }
                 progress()
                 const text = response.ok ? await Promise.race([readText(response, progress, s), aborted]) : ''
+                recordDocsLoad({ url, kind, attempt: attempt + 1, of, ms: now() - started, outcome: 'ok', status })
                 return { ok: response.ok, status: response.status, text }
             }
+            reason = 'http-5xx'
             lastError = new Error(`HTTP ${response.status}`)
         } catch (e) {
             if (signal.aborted) throw abortError()
+            if (!request.signal.aborted) reason = 'network-error'
             lastError = e
         } finally {
             clearTimeout(timer)
             clearTimeout(idle)
         }
-        if (attempt < timeouts.length - 1) await sleep(backoff(attempt), signal)
+        const last = attempt === of - 1
+        recordDocsLoad({ url, kind, attempt: attempt + 1, of, ms: now() - started, outcome: last ? 'failed' : 'retry', reason, status })
+        if (!last) await sleep(backoff(attempt), signal)
     }
     throw new DocLoadError(url, lastError)
 }
+
+const now = () => Math.round(globalThis.performance?.now?.() ?? Date.now())
 
 // ── Cache and shared requests ─────────────────────────────────────────────
 
@@ -190,10 +229,17 @@ interface Flight {
     waiters: number
     /** Started by a prefetch and not yet wanted by a navigation: let it finish. */
     prefetch: boolean
+    /** The attempt running now (1-based) and how many there may be. */
+    attempt: number
+    of: number
+    /** Navigations to tell when a retry starts. */
+    onAttempt: Set<(attempt: number, of: number) => void>
 }
 
 const cache = new Map<string, DocResult>()
 const flights = new Map<string, Flight>()
+/** Files this document has already fetched successfully (a second fetch is a loader bug, or the cache overflowed). */
+const fetched = new Set<string>()
 
 function remember(url: string, result: DocResult) {
     cache.delete(url)
@@ -203,11 +249,23 @@ function remember(url: string, result: DocResult) {
 
 function startFlight(url: string, prefetch: boolean): Flight {
     const controller = new AbortController()
-    const flight: Flight = { controller, waiters: 0, prefetch, promise: Promise.resolve(null as unknown as DocResult) }
-    flight.promise = fetchWithRetry(url, { signal: controller.signal }).then(
+    const flight: Flight = {
+        controller, waiters: 0, prefetch, attempt: 0, of: 0, onAttempt: new Set(),
+        promise: Promise.resolve(null as unknown as DocResult),
+    }
+    if (fetched.has(url)) {
+        devAlarm(`fetching ${url} again in this page`, recordDocsLoad({ url, kind: 'doc', attempt: 0, of: 0, ms: 0, outcome: 'duplicate' }))
+    }
+    const onAttempt = (attempt: number, of: number) => {
+        flight.attempt = attempt
+        flight.of = of
+        for (const listener of flight.onAttempt) listener(attempt, of)
+    }
+    flight.promise = fetchWithRetry(url, { signal: controller.signal, cache: 'no-store', onAttempt }).then(
         (result) => {
             // 2xx and 404 are stable answers; other 4xx may be transient (auth, rate limit).
             if (result.ok || result.status === 404) remember(url, result)
+            if (result.ok) fetched.add(url)
             return result
         },
     ).finally(() => {
@@ -227,17 +285,25 @@ export function peekDoc(url: string): DocResult | undefined {
  * Load a docs markdown file for a navigation. Joins a prefetch already in
  * flight. Aborting `signal` (the next click) rejects with AbortError and
  * cancels the request once no other navigation waits on it, so rapid clicks
- * never queue requests: the last click wins.
+ * never queue requests: the last click wins. `onRetry` hears each retry
+ * (attempt 2 and up, at once if the joined request is already retrying), so
+ * the page can say it is still trying instead of showing a silent skeleton.
  */
-export function loadDoc(url: string, signal: AbortSignal): Promise<DocResult> {
+export function loadDoc(url: string, signal: AbortSignal, onRetry?: (attempt: number, of: number) => void): Promise<DocResult> {
     const hit = cache.get(url)
     if (hit) return Promise.resolve(hit)
     if (signal.aborted) return Promise.reject(abortError())
     const flight = flights.get(url) ?? startFlight(url, false)
     flight.waiters += 1
     flight.prefetch = false
+    const listener = onRetry && ((attempt: number, of: number) => { if (attempt > 1) onRetry(attempt, of) })
+    if (listener) {
+        flight.onAttempt.add(listener)
+        listener(flight.attempt, flight.of)
+    }
     return new Promise<DocResult>((resolve, reject) => {
         const onAbort = () => {
+            if (listener) flight.onAttempt.delete(listener)
             flight.waiters -= 1
             if (flight.waiters === 0 && !flight.prefetch) {
                 flight.controller.abort()
@@ -246,13 +312,17 @@ export function loadDoc(url: string, signal: AbortSignal): Promise<DocResult> {
             reject(abortError())
         }
         signal.addEventListener('abort', onAbort, { once: true })
+        const done = () => {
+            signal.removeEventListener('abort', onAbort)
+            if (listener) flight.onAttempt.delete(listener)
+        }
         flight.promise.then(
             (r) => {
-                signal.removeEventListener('abort', onAbort)
+                done()
                 resolve(r)
             },
             (e) => {
-                signal.removeEventListener('abort', onAbort)
+                done()
                 reject(e)
             },
         )
@@ -289,6 +359,7 @@ export function adoptInlinedDoc(root: InlinedDocSource | undefined = typeof docu
         const data = JSON.parse(el.textContent ?? '') as { url?: unknown; text?: unknown }
         if (typeof data.url !== 'string' || typeof data.text !== 'string' || !data.url.endsWith('.md')) return null
         remember(data.url, { ok: true, status: 200, text: data.text })
+        recordDocsLoad({ url: data.url, kind: 'doc', attempt: 0, of: 0, ms: 0, outcome: 'inline' })
         return data.url
     } catch {
         return null
@@ -332,11 +403,16 @@ export function inlinedManifest(
  * after them. Content.tsx then joins this request (or finds it cached). The
  * site root is skipped: in the chat and agents styles `/` is not a docs page.
  */
-export function prefetchInitialDoc(pathname = appPathname(), base = '/docs'): string | null {
-    adoptInlinedDoc() // the page's markdown inlined by `aiui build`: no request at all
+export function prefetchInitialDoc(pathname = appPathname(), base = '/docs', root?: InlinedDocSource): string | null {
+    const inlined = adoptInlinedDoc(root) // the page's markdown inlined by `aiui build`: no request at all
     const path = normalizeDocPath(pathname)
     if (path !== base && !path.startsWith(`${base}/`)) return null
     const url = docPathToSource(canonicalDocPath(path, base))
+    if (inlined && inlined !== url) {
+        // The build keyed the page's Markdown by another URL: it is fetched anyway (aiui build --strict catches this).
+        const event = recordDocsLoad({ url, kind: 'doc', attempt: 0, of: 0, ms: 0, outcome: 'inline-mismatch', detail: `inlined as ${inlined}` })
+        devAlarm(`the page's inlined Markdown (${inlined}) is not the file it loads (${url})`, event)
+    }
     prefetchDoc(url)
     return url
 }
@@ -346,6 +422,7 @@ export function resetDocCache(): void {
     for (const f of flights.values()) f.controller.abort()
     flights.clear()
     cache.clear()
+    fetched.clear()
 }
 
 // ── Link prefetch ──────────────────────────────────────────────────────────

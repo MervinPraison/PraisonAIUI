@@ -79,6 +79,17 @@ if TYPE_CHECKING:
     from praisonaiui.schema.models import Config
 
 
+def loader_source_url(path: str) -> str:
+    """The Markdown URL the docs app requests for a page route (docs/docLoader.ts: docPathToSource(canonicalDocPath())).
+
+    ``/``, ``/docs`` and ``/docs/index`` read the docs home source; any other route reads ``<route>.source.md``.
+    """
+    route = path.rstrip("/") or "/"
+    if route in ("/", "/docs", "/docs/index"):
+        return f"/docs/index{am.SOURCE_SUFFIX}"
+    return f"{route}{am.SOURCE_SUFFIX}"
+
+
 @dataclass
 class CompileResult:
     """Result of compilation."""
@@ -92,6 +103,9 @@ class CompileResult:
     warnings: list[str] = field(default_factory=list)
     #: Things the build skipped that the author can turn on, e.g. social cards without Pillow.
     notes: list[str] = field(default_factory=list)
+    #: Pages whose inlined Markdown is keyed by another URL than the docs app requests, so the
+    #: page would fetch it anyway (``aiui build --strict`` fails on these). Also in ``warnings``.
+    inline_mismatches: list[str] = field(default_factory=list)
 
 
 class Compiler:
@@ -108,6 +122,7 @@ class Compiler:
         self.url_base = ""
         self._inferred_site_url: str | None = None
         self._excluded: list[str] = []
+        self._inline_mismatches: list[str] = []
         self._api = None  # openapi_pages.ApiReference: endpoint pages (compile() sets it)
         self._api_sources: dict[str, Path] = {}  # route -> published source of an endpoint page
         self._spec_files: list[tuple[str, str]] = []  # (title, published path) per spec
@@ -279,7 +294,9 @@ class Compiler:
         files.extend(rd.write_redirects(output_dir, redirects, self.url_base, self._page_url))
         files.extend(self._write_csp(output_dir, files))  # last: it hashes every page's inline scripts
 
-        return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings, notes=notes)
+        warnings.extend(self._inline_mismatches)
+        return CompileResult(success=True, files=files, excluded=self._excluded, warnings=warnings, notes=notes,
+                             inline_mismatches=list(self._inline_mismatches))
 
     def lint_docs(self) -> list[str]:
         """Warnings for the docs pages: component tags the renderer does not know (docs_tags.py)."""
@@ -1865,6 +1882,12 @@ class Compiler:
         for candidate in (output_dir / f"{relative}{am.SOURCE_SUFFIX}", output_dir / relative / f"index{am.SOURCE_SUFFIX}"):
             if candidate.is_file() and candidate.stat().st_size <= self.INITIAL_DOC_MAX_BYTES:
                 url = "/" + candidate.relative_to(output_dir).as_posix()
+                expected = loader_source_url(path)
+                if url != expected:
+                    self._inline_mismatches.append(
+                        f"{path}: inlined Markdown is keyed {url} but the docs app requests {expected}; "
+                        "the page fetches it on every load"
+                    )
                 text = candidate.read_text(encoding="utf-8")
                 payload = json_for_html({"url": url, "text": text}, separators=None)
                 return f'<script type="application/json" id="{self.INITIAL_DOC_ID}">{payload}</script>'
