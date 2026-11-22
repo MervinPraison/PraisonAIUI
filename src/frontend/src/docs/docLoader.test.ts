@@ -231,6 +231,8 @@ describe('docHrefMarkdownUrl', () => {
         assert.equal(docHrefMarkdownUrl('/docs/guide/second.md', page), '/docs/guide/second.source.md')
         assert.equal(docHrefMarkdownUrl('second', page), '/docs/guide/second.source.md')
         assert.equal(docHrefMarkdownUrl('/', page), '/docs/index.source.md')
+        assert.equal(docHrefMarkdownUrl('/docs/guide/second.html', page), '/docs/guide/second.source.md')
+        assert.equal(docHrefMarkdownUrl('/docs/guide/index.html', page), '/docs/guide.source.md')
     })
 
     test('ignores other origins, other sections and files', () => {
@@ -246,6 +248,14 @@ describe('prefetchInitialDoc', () => {
         assert.equal(prefetchInitialDoc('/docs/guide/first'), '/docs/guide/first.source.md')
         assert.equal(prefetchInitialDoc('/docs'), '/docs/index.source.md')
         assert.equal(calls.length, 2)
+    })
+
+    test('a page\'s .html file URL loads the page\'s markdown, not x.html.source.md', () => {
+        const { calls } = stubFetch(['hang'])
+        assert.equal(prefetchInitialDoc('/docs/api/sessions.html'), '/docs/api/sessions.source.md')
+        assert.equal(prefetchInitialDoc('/docs/api/health/index.html'), '/docs/api/health.source.md')
+        assert.equal(prefetchInitialDoc('/docs/index.html'), '/docs/index.source.md')
+        assert.equal(calls.length, 3)
     })
 
     test('the site root and other sections fetch nothing (chat and agents live there)', () => {

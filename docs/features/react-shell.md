@@ -6,11 +6,19 @@ nav_title: React app shell
 
 The app shell is a React interface for the PraisonAIUI dashboard: a sidebar,
 a header with a command palette (⌘K / Ctrl+K), a React chat and a host that
-runs every existing dashboard page inside it. It is **opt-in** in this
-release. The default style is still `dashboard` (the vanilla-JS dashboard),
-and it renders exactly as it did in v0.3.153.
+runs every existing dashboard page inside it. **It is the default style**
+(owner decision, 2026-11-22): `create_app()`, `aiui run app.py` and an app
+that registers pages all open it. The vanilla-JS `dashboard` is the legacy
+UI; it still renders exactly as before when you ask for it:
 
-## Turn it on
+| Where | Legacy dashboard |
+|---|---|
+| YAML config | `style: dashboard` |
+| Python | `aiui.set_style("dashboard")` |
+| CLI | `aiui run app.py --style dashboard` (prints a one-line legacy notice) |
+| Environment | `AIUI_SHELL=legacy` |
+
+## Turn it on explicitly
 
 Any one of these:
 
@@ -21,7 +29,7 @@ Any one of these:
 | CLI | `aiui run app.py --style app` |
 | Environment | `AIUI_SHELL=app aiui run app.py` (alias: `AIUI_SHELL=react`) |
 
-`AIUI_SHELL=app` only changes the `dashboard` style (explicit or default) into
+`AIUI_SHELL=app` only changes the `dashboard` style into
 `app`. Other styles (`chat`, `docs`, `agents`, `playground`, `custom`) are
 never rewritten.
 
@@ -167,7 +175,7 @@ triples are converted in the browser where possible, but update the CSS.
 |---|---|---|
 | Types | `npx tsc -b` | 0 errors |
 | Unit tests | `npm test`, `npm run test:scripts` | all pass |
-| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 143,579 B, /chat first-screen JS ≤ 257,066 B, `index.css` ≤ 32 kB, Streamdown ≤ 100 kB, shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,566 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 11,179,538 B uncompressed |
+| Size (gzip) | `npm run size` | shell boot ≤ 150 kB, chat route ≤ 143,579 B, /chat first-screen JS ≤ 257,066 B, `index.css` ≤ 32 kB, Streamdown ≤ 100 kB, shikiPlugin ≤ 55 kB, legacy App path ≤ 250 kB, docs Try it chunk ≤ 7,566 B, Pro fonts (Geist + Geist Mono woff2) ≤ 58 kB, Paper fonts (Newsreader + Source Sans 3 + JetBrains Mono woff2) ≤ 140 kB, all assets ≤ 11,180,139 B uncompressed |
 | First screen stays light | `npm run check:closure` | no Streamdown, Shiki, Mermaid, KaTeX or assistant-ui in the static closure of the entry, the shell or the legacy App |
 | Committed bundle | `npm run check:bundle` | `templates/frontend` equals a fresh build (pull requests that touch the frontend only) |
 | Browser suites | `npm run test:e2e` | see `src/frontend/e2e/README.md` |
@@ -178,10 +186,10 @@ that path). The HTML parser it needs for raw HTML and docs components
 markdown has HTML load (`markdown/rehypeRawGate.ts`). This is an accepted
 exception until docs pages are pre-rendered at build time.
 
-## When the default flips
+## When the default flipped
 
-The default stays `dashboard` until **all** of these hold. Status as of this
-release:
+The owner made `app` the default on 2026-11-22, before every criterion below
+was met. The table is kept as the remaining work list:
 
 | # | Criterion | Status |
 |---|---|---|

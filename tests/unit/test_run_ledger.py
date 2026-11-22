@@ -790,7 +790,7 @@ def test_import_and_the_default_app_never_import_the_layout_data_modules(tmp_pat
     assert _probe("import praisonaiui; " + _LOADED) == "[]"
     code = (
         "import os; os.environ['AIUI_DATA_DIR'] = %r\n"
-        "import praisonaiui.server as s; s.create_app(); " % str(tmp_path)
+        "import praisonaiui.server as s; s.set_style('dashboard'); s.create_app(); " % str(tmp_path)
     ) + _LOADED
     assert _probe(code) == "[]"  # style dashboard: no layout needs them
 
@@ -803,6 +803,7 @@ def test_gated_off_by_default_and_mounted_when_enabled_explicitly(monkeypatch, t
 
     srv.reset_state()
     try:
+        srv.set_style("dashboard")  # no layout on offer
         client = TestClient(srv.create_app())
         assert client.get("/api/runs").status_code == 404
         assert client.get("/api/artifacts").status_code == 404

@@ -147,12 +147,23 @@ export function prepareDocSource(md: string, docPath: string): string {
 }
 
 /**
+ * A page's file URL as its route: `aiui build` writes `/docs/x.html` and
+ * `/docs/x/index.html` for the page `/docs/x`, and a static host serves both,
+ * so a link to either names that page (not a `/docs/x.html.source.md`).
+ */
+export function stripHtmlSuffix(path: string): string {
+    const p = (path || '/').replace(/\/+$/, '')
+    return p.replace(/\/index\.html?$/i, '').replace(/\.html?$/i, '') || '/'
+}
+
+/**
  * The URL a docs path is shown at. The docs home page has one URL, the site
  * root: `/docs`, `/docs/` and `/docs/index` all mean `/` (the compiler
- * publishes it there too: sitemap, llms.txt, canonical links).
+ * publishes it there too: sitemap, llms.txt, canonical links), and a page's
+ * `.html` file URL means the page (`stripHtmlSuffix`).
  */
 export function canonicalDocPath(path: string, base = '/docs'): string {
-    const p = normalizeDocPath(path)
+    const p = normalizeDocPath(stripHtmlSuffix(path))
     return p === base || p === `${base}/index` ? '/' : p
 }
 

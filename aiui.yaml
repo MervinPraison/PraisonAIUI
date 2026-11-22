@@ -32,6 +32,7 @@ navigation:
             - index
             - getting-started/installation
             - getting-started/quickstart
+            - guides/focused-app
             - getting-started/cli
             - getting-started/github-pages
         - group: "Examples"

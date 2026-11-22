@@ -86,9 +86,9 @@ The style decides which frontend serves the app. Set it with `--style`,
 
 | Style | What it renders | When it is used |
 |---|---|---|
-| `app` | The React app shell with selectable layouts | `aiui run` default for a chat app (`@aiui.reply`) |
+| `app` | The React app shell with selectable layouts | The default: `create_app()`, `aiui run`, apps with `@aiui.reply` or `@aiui.page` |
 | `chat` | The classic React chat (fullscreen, sidebar or floating) | `--style chat` |
-| `dashboard` | The vanilla-JS admin dashboard with built-in and custom pages | `create_app()` default; detected when the app registers `@aiui.page` |
+| `dashboard` | The legacy vanilla-JS admin dashboard | Only when asked for: `--style dashboard`, `set_style("dashboard")`, `AIUI_SHELL=legacy` |
 | `docs` | A documentation site (sidebar, table of contents, search) | `aiui build` and `--style docs` |
 | `agents` | A tabbed multi-agent view | Detected for `@aiui.profiles` with registered agents |
 | `playground` | Side-by-side input and output panels for prompt testing | `--style playground` |
@@ -97,10 +97,14 @@ The style decides which frontend serves the app. Set it with `--style`,
 ```bash
 aiui run app.py                  # app shell, Chat layout
 aiui run app.py --style chat     # classic chat
-aiui run app.py --style dashboard
+aiui run app.py --pages all      # app shell with every page, grouped
+aiui run app.py --style dashboard  # the legacy UI
 ```
 
-See [UI styles](docs/features/styles.md) and [React app shell](docs/features/react-shell.md).
+Building a dashboard of your own? [Build a focused app](docs/guides/focused-app.md):
+only your pages (`aiui.only_my_pages("chat")`), the new shell, and the app's
+own chat history. See also [UI styles](docs/features/styles.md) and
+[React app shell](docs/features/react-shell.md).
 
 ## YAML chat
 

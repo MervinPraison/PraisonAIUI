@@ -72,7 +72,8 @@ const LAYOUT_BUDGETS = {
   // component tags change; no layout code changed.
   // 12.372 kB (+10 B, exactly the overage): chunk hashes renamed; no layout code changed.
   // 12.373 kB (+1 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-chat-canvas': '12.373 kB',
+  // 12.377 kB (+4 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
+  'layout-chat-canvas': '12.377 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -93,7 +94,8 @@ const LAYOUT_BUDGETS = {
   // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
   // lf-mission-board.
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-mission': '13.207 kB',
+  // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
+  'layout-mission': '13.21 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -253,7 +255,8 @@ export default [
   // through (the docs search keeps a row highlighted when results arrive late).
   // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
   // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143579 B', gzip: true },
+  // 143,581 B (+2 B, exactly the overage): chunk hashes renamed by the shown nav groups; no chat code changed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143581 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -481,7 +484,9 @@ export default [
   // (docs/loadEvents.ts) and its retry notice.
   // 11,176,942 B (+30 B, exactly the overage): chunkReload reads the content-named entry (index-<hash>.js).
   // 11,178,629 B (+1,687 B, exactly the overage): the opt-in load telemetry chunk (docs/fieldTelemetry.ts).
-  // 11,179,538 B (+909 B, exactly the overage): optional docs work after load (docs/afterLoad.ts) and the
+  // 11,178,685 B (+56 B, exactly the overage): layout.groups.shown read by navGroups and buildLayoutNav.
+  // 11,179,230 B (+545 B, exactly the overage): .html and wrong-case docs URLs (docs/navMatch.ts, stripHtmlSuffix).
+  // 11,180,139 B (+909 B, exactly the overage): optional docs work after load (docs/afterLoad.ts) and the
   // network-change retry (docs/networkChange.ts).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11179538 B', brotli: false },
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11180139 B', brotli: false },
 ]

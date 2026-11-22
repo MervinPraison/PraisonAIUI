@@ -22,7 +22,7 @@ killed with SIGKILL cannot do that, so each server start also removes
 
 | Project | Server | Specs |
 |---|---|---|
-| `dashboard-legacy` | default style (vanilla dashboard) | `legacy-parity`, `legacy-dashboard` |
+| `dashboard-legacy` | `--style dashboard` (the legacy vanilla UI) | `legacy-parity`, `legacy-dashboard` |
 | `app-shell` | `AIUI_SHELL=app` + the example plugin, `AIUI_LAYOUT=classic` (the classic frame) | `shell-sweep`, `chat`, `plugins` |
 | `chat-style` | `style: chat`, presets `zinc` and `rose`, and one with no `set_theme()` (three servers) | `theme-presets`, `chat-os-theme` |
 | `docs` | `aiui build` of `fixtures/docs-site`, served by `aiui serve` | `markdown`, `docs-*` |
