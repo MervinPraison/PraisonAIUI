@@ -43,13 +43,15 @@ def _isolated(tmp_path, monkeypatch):
     config_store.init_config_store(data / "config.yaml")
     srv.reset_state()
     # The snapshots here are the legacy dashboard's (app is the default
-    # since 2026-11-22); a test about the app shell sets style app itself.
-    srv.set_style("dashboard")
+    # since 2026-11-22): _client() asks for it; a test about the app shell
+    # sets style app itself.
     yield data
     srv.reset_state()
 
 
 def _client(**cfg) -> TestClient:
+    if srv.get_style() is None:  # also after a reset_state() inside a test
+        srv.set_style("dashboard")
     return TestClient(srv.create_app(config=cfg or None))
 
 

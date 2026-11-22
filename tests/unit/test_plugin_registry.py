@@ -146,11 +146,16 @@ def site(tmp_path, monkeypatch):
     # Plugin features (fakeplug-feature) land in the process-wide feature
     # registry; restore it so later tests see only the built-in set.
     saved_features = dict(features_registry._features)
+    saved_builtin = dict(features_registry._builtin_registered)
     srv.reset_state()
     yield sp
     srv.reset_state()
     features_registry._features.clear()
     features_registry._features.update(saved_features)
+    # Restore the built-in bookkeeping with it, or a feature restored above
+    # is no longer known as a built-in and outlives the next policy.
+    features_registry._builtin_registered.clear()
+    features_registry._builtin_registered.update(saved_builtin)
     features_registry._plugin_registered.clear()
     for m in _MODS:
         sys.modules.pop(m, None)
