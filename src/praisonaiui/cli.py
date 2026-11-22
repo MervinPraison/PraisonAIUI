@@ -754,6 +754,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     * A docs build stores "Was this page helpful?" votes at
       ``/api/docs/feedback`` (docs_feedback.py), unless built with
       ``content.docs.feedback: false``.
+    * A docs build made with ``content.docs.telemetry: true`` stores page-load
+      records at ``/api/docs/telemetry`` (docs_telemetry.py); off by default.
     * A docs build answers MCP at ``/mcp`` with its discovery entries
       (docs_mcp.py), unless built with ``content.docs.mcp: false``.
     * A docs build answers Ask AI at ``/api/docs/ask`` and search at
@@ -814,7 +816,12 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
     assistant = DocsAssistant.for_site(root, base, cors_origins)
     # One handler serves ui-config.json with what only a live server adds:
     # the MCP server, Ask AI and where votes go (a static host has none).
+    from praisonaiui.docs_telemetry import DocsTelemetry
+
+    telemetry = DocsTelemetry.for_site(root, cors_origins)  # only with content.docs.telemetry: true
     votes = {"docsFeedback": feedback.config_entry(base)} if feedback and feedback.local else {}
+    if telemetry:
+        votes["docsTelemetry"] = telemetry.config_entry(base)
     if mcp:
         mcp.extra_config.update(votes)
         if assistant:
@@ -822,6 +829,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
             assistant.patch_config = False
     elif assistant:
         assistant.extra_config.update(votes)
+    elif telemetry:
+        telemetry.base, telemetry.patch_config, telemetry.extra_config = base, True, votes
     elif votes:
         feedback.base, feedback.patch_config = base, True
 
@@ -831,6 +840,8 @@ def _static_site_app(output: Path, cors_origins: Optional[list[str]] = None):
 
     async def site_app(scope, receive, send):
         if scope["type"] != "http" or (feedback and await feedback.serve(scope, receive, send)):
+            return
+        if telemetry and await telemetry.serve(scope, receive, send):
             return
         if mcp and await mcp.serve(scope, receive, send):
             return
