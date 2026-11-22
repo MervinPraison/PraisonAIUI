@@ -30,16 +30,30 @@ auto-detection (a plain chat app gets `app`). See
 
 ### `aiui.set_pages(page_ids)`
 
-Whitelist which built-in sidebar pages to show (dashboard mode). Custom pages registered via `@aiui.page()` always appear.
+Choose which pages the app shows besides its own, in every style. The list
+covers built-in pages, the app shell's layout pages (`start`, `artifacts`,
+`templates`, `connect`, `api-reference`, ...) and dashboard-plugin folders,
+including the ones in `~/.praisonai/dashboard-plugins` that every app on the
+machine would otherwise share. Pages the app registers itself
+(`@aiui.page()`, `register_page`, `register_plugin`) and installed
+entry-point plugins always appear. Without `set_pages` every page shows.
 
 ```python
+aiui.set_pages(["chat"])          # Chat plus the app's own pages
+aiui.set_pages([])                # only the app's own pages
 aiui.set_pages([
     "chat", "agents", "memory", "knowledge",
     "skills", "sessions", "usage", "config", "logs",
 ])
 ```
 
-Use `aiui pages ids` to see all available page IDs.
+An id that names no page is reported with a warning at startup. Use
+`aiui pages ids` to see all available page IDs.
+
+### `aiui.only_my_pages(*keep)`
+
+Shorthand for `set_pages(list(keep))`: `aiui.only_my_pages()` shows only the
+app's own pages, `aiui.only_my_pages("chat")` adds Chat.
 
 ---
 

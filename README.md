@@ -152,7 +152,7 @@ links, footer columns and a phone drawer. See
 |---|---|
 | Add a page from Python | `@aiui.page("metrics", title="Metrics")` or `aiui.register_page(...)` |
 | Add a React page, block, tool renderer, settings section or layout | A UI plugin: a Python package with a `praisonaiui.plugins` entry point and its own built JS against `@aiui/sdk` |
-| Choose which pages show | `aiui.set_pages([...])` or YAML `extensions:` / `pages:` |
+| Choose which pages show | `aiui.set_pages([...])` / `aiui.only_my_pages("chat")` or YAML `extensions:` / `pages:` |
 | Brand it | `aiui.set_branding(title="Acme", logo="/static/logo.svg")`, `aiui.set_theme(...)`, `aiui.set_brand_color(...)` |
 | Inject JS or CSS | `aiui.set_custom_js(path)`, `aiui.set_custom_css(css)` |
 

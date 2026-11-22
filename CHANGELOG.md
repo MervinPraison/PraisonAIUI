@@ -4,6 +4,16 @@
 
 ### Breaking changes
 
+- **`aiui.set_pages([...])` lists every page source, not only built-ins.**
+  The app shell's layout pages (`start`, `artifacts`, `templates`,
+  `connect`, `api-reference`) and dashboard-plugin folders (including
+  `~/.praisonai/dashboard-plugins`, shared by every app on the machine) now
+  show only when `set_pages` names them, in the app shell and the dashboard.
+  The app's own pages and installed entry-point plugins still always show,
+  and an app that never calls `set_pages` sees no change. To keep a folder,
+  add its page id to the list, or name it in `set_dashboard(plugins=[...])`,
+  which still wins. An id that names no page now logs a warning at startup.
+
 - **`aiui run app.py` opens the React app shell.** A plain chat app (a
   `@reply`, no `--style`, no `set_style()`, no YAML `style:`) now runs in
   `style: app` with the new `chat` layout: the Chat and Canvas frame without
@@ -124,6 +134,10 @@
   server's name.
 
 ### New
+
+- **`aiui.only_my_pages(*keep)`** shows only the app's own pages, plus the
+  built-in ids in `keep` (`aiui.only_my_pages("chat")`). Same as
+  `set_pages(list(keep))`.
 
 - **Opt-in docs load telemetry.** `content.docs.telemetry: true` makes docs
   pages send their page-load problems (retries, time-outs, failures) and a
