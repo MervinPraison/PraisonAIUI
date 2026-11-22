@@ -138,7 +138,7 @@ async function renderInto(container) {
       '<div class="chat-canvas-chat" id="chat-canvas-chat-host"></div>' +
       '<div class="chat-canvas-preview" id="chat-canvas-preview" style="width:' + width + '">' +
         '<div class="chat-canvas-preview-toolbar">' +
-          '<span class="chat-canvas-preview-title">Canvas · ' + surfaceId + '</span>' +
+          '<span class="chat-canvas-preview-title">A2UI · ' + surfaceId + '</span>' +
           '<div class="chat-canvas-preview-actions">' +
             '<button type="button" class="db-btn chat-canvas-toggle" title="Collapse preview">◀</button>' +
             '<button type="button" class="db-btn" id="chat-canvas-refresh" title="Refresh">↻</button>' +

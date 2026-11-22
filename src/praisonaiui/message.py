@@ -15,6 +15,9 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import inspect
+import json
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -47,8 +50,11 @@ if TYPE_CHECKING:
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_CODE_SIZE = 1024 * 1024  # 1MB for code blocks
 
-# Step types for chain-of-thought UI components
-StepType = Literal["tool_call", "reasoning", "sub_agent", "retrieval", "custom"]
+# Step types: what kind of work a step is (any string is kept and sent as is)
+StepType = Literal[
+    "run", "tool", "llm", "embedding", "retrieval", "rerank", "undefined",
+    "tool_call", "reasoning", "sub_agent", "custom",
+]
 
 
 @dataclass
@@ -477,105 +483,217 @@ class AskUserMessage:
         return None
 
 
+# The step the running code is inside (async tasks and make_async threads copy it).
+_current_step: contextvars.ContextVar[Optional["Step"]] = contextvars.ContextVar(
+    "aiui_current_step", default=None
+)
+
+
+def _now_ms() -> float:
+    return round(time.time() * 1000, 1)
+
+
+def _running_loop() -> Optional[asyncio.AbstractEventLoop]:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
+def _step_text(value: Any) -> Optional[str]:
+    """A step's input or output as text (JSON for data), at most MAX_CODE_SIZE characters."""
+    if value is None:
+        return None
+    try:
+        text = value if isinstance(value, str) else json.dumps(value, default=str, ensure_ascii=False)
+    except (TypeError, ValueError):
+        text = str(value)
+    return text if len(text) <= MAX_CODE_SIZE else text[:MAX_CODE_SIZE] + "\u2026"
+
+
+class _Sent:
+    """What ``Step.stream_token`` returns: already sent. Await it in async code; sync code need not."""
+
+    def __init__(self, step: "Step") -> None:
+        self._step = step
+
+    def __await__(self):
+        if False:  # pragma: no cover - makes this a generator
+            yield
+        return self._step
+
+
 @dataclass
 class Step:
-    """A reasoning/thinking step with nested-step support.
+    """A named piece of work shown in the reply as a step (a tool call, an LLM call, a sub-run).
 
-    Example:
-        async with Step(name="🔧 Tool: web_search", type="tool_call") as step:
-            await step.stream_token("Input: { query: ... }")
-            await step.stream_token("Output: [ 10 results ]")
-            # Nested step
-            async with Step(name="Sub-analysis", parent=step, type="reasoning"):
-                await step.stream_token("Analyzing results...")
+    ``async with`` or ``with`` (sync code and worker threads too). A step opened
+    inside another becomes its child on its own, across awaits, tasks and
+    ``aiui.make_async`` threads; ``parent=`` sets it explicitly. See docs/features/steps.md.
     """
 
     name: str
     type: StepType = "reasoning"
     parent: Optional["Step"] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    input: Any = None
+    output: Any = None
+
+    #: Epoch milliseconds when the step started and ended; ``status`` is
+    #: ``running``, ``done``, ``error`` (the block raised) or ``stopped`` (cancelled).
+    start: Optional[float] = field(default=None, init=False)
+    end: Optional[float] = field(default=None, init=False)
+    status: str = field(default="pending", init=False)
+    error: Optional[str] = field(default=None, init=False)
 
     _id: str = field(default_factory=lambda: str(uuid.uuid4()))
     _context: Optional[MessageContext] = field(default=None, repr=False)
     _started: bool = field(default=False, repr=False)
     _start_time: Optional[float] = field(default=None, repr=False)
+    _loop: Optional[asyncio.AbstractEventLoop] = field(default=None, repr=False)
+    _token: Any = field(default=None, repr=False)
+    _streamed: str = field(default="", repr=False)
+    _sent_input: Optional[str] = field(default=None, repr=False)
 
     def __post_init__(self):
         """Initialize with context from current callback."""
         from praisonaiui.callbacks import _get_context
+        from praisonaiui.context import current_session
 
         self._context = _get_context()
+        # In a worker thread there is no running loop: send through the reply's.
+        outer, session = _current_step.get(), current_session()
+        self._loop = _running_loop() or (outer and outer._loop) or (session and session.loop) or None
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Seconds the step took (None until it ends)."""
+        if self.start is None or self.end is None:
+            return None
+        return (self.end - self.start) / 1000
+
+    def _send(self, kind: str, **fields: Any) -> None:
+        queue = self._context._stream_queue if self._context else None
+        if queue is None:
+            return
+        event = {"type": kind, "step_id": self._id, **{k: v for k, v in fields.items() if v is not None}}
+        loop = self._loop
+        if loop is not None and loop is not _running_loop() and loop.is_running():
+            loop.call_soon_threadsafe(queue.put_nowait, event)  # from a worker thread
+        else:
+            queue.put_nowait(event)
+
+    def _enter(self) -> "Step":
+        if self.parent is None:
+            self.parent = _current_step.get()
+        self._token = _current_step.set(self)
+        self._start_time = time.time()
+        self.start = _now_ms()
+        self.status = "running"
+        self._sent_input = _step_text(self.input)
+        self._send(
+            "step_start",
+            name=self.name,
+            step_type=self.type,
+            parent_id=self.parent._id if self.parent else None,
+            start=self.start,
+            input=self._sent_input,
+            metadata=self.metadata,
+        )
+        self._started = True
+        return self
+
+    def _exit(self, exc: Optional[BaseException]) -> None:
+        try:
+            _current_step.reset(self._token)
+        except (ValueError, RuntimeError):  # exited in another context than it entered
+            _current_step.set(self.parent)
+        self.end = _now_ms()
+        if exc is None:
+            self.status = "done"
+        elif isinstance(exc, Exception):
+            self.status, self.error = "error", str(exc) or type(exc).__name__
+        else:
+            self.status = "stopped"
+        text_in, text_out = _step_text(self.input), _step_text(self.output)
+        self._send(
+            "step_end",
+            name=self.name,
+            step_type=self.type,
+            end=self.end,
+            status=self.status,
+            error=self.error,
+            duration=self.duration,
+            input=text_in if text_in != self._sent_input else None,
+            output=text_out if text_out != (self._streamed or None) else None,
+            metadata=self.metadata,
+        )
 
     async def __aenter__(self) -> "Step":
-        """Start the step."""
-        self._start_time = time.time()
-        if self._context and self._context._stream_queue:
-            await self._context._stream_queue.put(
-                {
-                    "type": "reasoning_started",
-                    "step_id": self._id,
-                    "name": self.name,
-                    "step_type": self.type,
-                    "parent_id": self.parent._id if self.parent else None,
-                    "metadata": self.metadata,
-                }
-            )
-            self._started = True
-        return self
+        return self._enter()
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Complete the step."""
-        if self._context and self._context._stream_queue and self._started:
-            duration = time.time() - self._start_time if self._start_time else None
-            await self._context._stream_queue.put(
-                {
-                    "type": "reasoning_completed",
-                    "step_id": self._id,
-                    "name": self.name,
-                    "step_type": self.type,
-                    "duration": duration,
-                    "error": str(exc_val) if exc_val else None,
-                    "metadata": self.metadata,
-                }
-            )
+        self._exit(exc_val)
 
-    async def stream_token(self, token: str) -> "Step":
-        """Stream a token within this step."""
-        if self._context and self._context._stream_queue:
-            await self._context._stream_queue.put(
-                {
-                    "type": "reasoning_step",
-                    "step_id": self._id,
-                    "step": token,
-                    "step_type": self.type,
-                }
-            )
-        return self
+    def __enter__(self) -> "Step":
+        return self._enter()
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self._exit(exc_val)
+
+    def stream_token(self, token: str) -> _Sent:
+        """Append *token* to the output as it streams (``await`` it in async code; sync code need not)."""
+        if token:
+            before, self._streamed = self._streamed, self._streamed + token
+            if self.output is None or self.output == before:  # an output set by hand stays
+                self.output = self._streamed
+            self._send("step_update", token=token)
+        return _Sent(self)
 
 
-def step(name: str, type: StepType = "reasoning", **metadata: Any):
-    """Decorator to wrap a function in a Step context manager.
-
-    Args:
-        name: The step name to display
-        type: The step type (tool_call, reasoning, sub_agent, retrieval, custom)
-        **metadata: Additional metadata to include with the step
-
-    Example:
-        @step("🔧 Tool: web_search", type="tool_call")
-        async def web_search(query: str):
-            # Function will be wrapped in Step context
-            result = await search_web(query)
-            return result
-    """
+def step(name: Any = None, type: StepType = "reasoning", **metadata: Any):
+    """Show each call of a sync or async function as a step: ``@aiui.step``, ``@aiui.step()``,
+    ``@aiui.step("name", type="tool")``. Named after the function unless named; input is the
+    call's arguments, output the return value; an exception marks it failed and is raised."""
+    if callable(name):  # bare @aiui.step
+        return step()(name)
 
     def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            async with Step(name=name, type=type, metadata=metadata):
-                return await func(*args, **kwargs)
+        label = name or getattr(func, "__name__", "step")
 
-        return wrapper
+        def _new(args: tuple, kwargs: dict) -> Step:
+            try:  # the call's arguments by name, self/cls left out
+                bound = inspect.signature(func).bind_partial(*args, **kwargs).arguments
+                given = {k: v for k, v in bound.items() if k not in ("self", "cls")} or None
+            except (TypeError, ValueError):
+                given = None
+            return Step(name=label, type=type, metadata=dict(metadata), input=given)
+
+        if inspect.iscoroutinefunction(func):
+
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                async with _new(args, kwargs) as s:
+                    result = await func(*args, **kwargs)
+                    if result is not None:
+                        s.output = result
+                    return result
+
+            return async_wrapper
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            with _new(args, kwargs) as s:
+                result = func(*args, **kwargs)
+                if result is not None:
+                    s.output = result
+                return result
+
+        return sync_wrapper
 
     return decorator
 

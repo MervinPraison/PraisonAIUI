@@ -70,13 +70,18 @@ def _build_assistant_agent():
     return Agent(name="assistant", instructions=instructions, tools=[send_a2ui_messages])
 
 
-def create_app():
+def _register_assistant() -> None:
+    """Register at import time so ``aiui run`` and ``python app.py`` both see it."""
     try:
-        agent = _build_assistant_agent()
-        aiui.register_agent("assistant", agent)
+        aiui.register_agent("assistant", _build_assistant_agent())
     except ImportError:
         pass
 
+
+_register_assistant()
+
+
+def create_app():
     from praisonaiui.server import create_app as _create_app
 
     return _create_app()

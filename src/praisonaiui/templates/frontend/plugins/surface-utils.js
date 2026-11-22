@@ -36,6 +36,42 @@ function renderWithDefaultMapper(host, surfaceId, messages) {
   return true;
 }
 
+let _official = undefined;
+
+function loadOfficial() {
+  if (_official !== undefined) return _official;
+  _official = import('/plugins/a2ui-island.js')
+    .then((mod) => (typeof mod.mountA2ui === 'function' ? mod.mountA2ui : null))
+    .catch(() => null);
+  return _official;
+}
+
+const _paintGen = new WeakMap();
+
+function paintFallback(host, sid, messages) {
+  if (renderWithDefaultMapper(host, sid, messages)) return;
+  host.innerHTML = '<pre class="db-a2ui-fallback">' +
+    JSON.stringify(messages || [], null, 2) + '</pre>';
+}
+
+function paintSurface(host, sid, messages) {
+  const gen = (_paintGen.get(host) || 0) + 1;
+  _paintGen.set(host, gen);
+  loadOfficial().then((mount) => {
+    if (_paintGen.get(host) !== gen) return;
+    let drew = false;
+    if (mount) {
+      try {
+        drew = mount(host, sid, messages) === true;
+      } catch (e) {
+        console.warn('[surface] official catalog failed:', e);
+      }
+    }
+    if (_paintGen.get(host) !== gen || drew) return;
+    paintFallback(host, sid, messages);
+  });
+}
+
 export function renderSurfaceContent(host, surfaceId, messages) {
   if (!host) return;
   const sid = surfaceId || 'main';
@@ -49,9 +85,7 @@ export function renderSurfaceContent(host, surfaceId, messages) {
       console.warn('Surface renderer error:', e);
     }
   }
-  if (renderWithDefaultMapper(host, sid, messages || [])) return;
-  host.innerHTML = '<pre class="db-a2ui-fallback">' +
-    JSON.stringify(messages || [], null, 2) + '</pre>';
+  paintSurface(host, sid, messages || []);
 }
 
 export async function loadSurface(host, surfaceId) {
@@ -158,9 +192,6 @@ export function registerDefaultSurfaceRenderer(surfaceId) {
   if (window.aiui?.surfaces?.[sid]) return;
   if (typeof window.aiui?.registerSurfaceRenderer !== 'function') return;
   window.aiui.registerSurfaceRenderer(sid, (host, messages) => {
-    if (!renderWithDefaultMapper(host, sid, messages || [])) {
-      host.innerHTML = '<pre class="db-a2ui-fallback">' +
-        JSON.stringify(messages || [], null, 2) + '</pre>';
-    }
+    paintSurface(host, sid, messages || []);
   });
 }

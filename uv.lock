@@ -207,7 +207,7 @@ wheels = [
 
 [[package]]
 name = "aiui"
-version = "0.3.172"
+version = "0.3.174"
 source = { editable = "." }
 dependencies = [
     { name = "croniter" },
@@ -241,6 +241,7 @@ all = [
     { name = "markitdown", extra = ["all"] },
     { name = "mcp" },
     { name = "mem0ai", extra = ["graph"] },
+    { name = "pillow" },
     { name = "praisonai", extra = ["api", "bot", "os"] },
     { name = "praisonaiagents", extra = ["a2ui", "crawl", "knowledge", "search"] },
     { name = "psutil" },
@@ -296,6 +297,9 @@ memory = [
     { name = "chromadb" },
     { name = "litellm" },
 ]
+og = [
+    { name = "pillow" },
+]
 postgres = [
     { name = "aiosqlite" },
     { name = "asyncpg" },
@@ -339,6 +343,7 @@ requires-dist = [
     { name = "aiui", extras = ["llama-index"], marker = "extra == 'all'" },
     { name = "aiui", extras = ["mcp"], marker = "extra == 'all'" },
     { name = "aiui", extras = ["memory"], marker = "extra == 'all'" },
+    { name = "aiui", extras = ["og"], marker = "extra == 'all'" },
     { name = "aiui", extras = ["postgres"], marker = "extra == 'all'" },
     { name = "aiui", extras = ["praisonai"], marker = "extra == 'all'" },
     { name = "aiui", extras = ["semantic-kernel"], marker = "extra == 'all'" },
@@ -369,6 +374,7 @@ requires-dist = [
     { name = "mem0ai", marker = "extra == 'knowledge'", specifier = ">=0.1.0" },
     { name = "mem0ai", extras = ["graph"], marker = "extra == 'graph'", specifier = ">=0.1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "pillow", marker = "extra == 'og'", specifier = ">=10.1" },
     { name = "praisonai", extras = ["bot", "api", "os"], marker = "extra == 'praisonai'", specifier = ">=4.6.0" },
     { name = "praisonaiagents", extras = ["a2ui"], marker = "extra == 'a2ui'", specifier = ">=1.6.38" },
     { name = "praisonaiagents", extras = ["knowledge", "search", "crawl"], marker = "extra == 'praisonai'", specifier = ">=1.6.46" },
@@ -399,7 +405,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
     { name = "watchfiles", specifier = ">=0.21" },
 ]
-provides-extras = ["memory", "knowledge", "graph", "sql", "postgres", "praisonai", "bot", "langchain", "llama-index", "semantic-kernel", "mcp", "slack", "discord", "teams", "a2ui", "all", "dev"]
+provides-extras = ["memory", "knowledge", "graph", "sql", "postgres", "praisonai", "bot", "langchain", "llama-index", "semantic-kernel", "mcp", "slack", "discord", "teams", "a2ui", "og", "all", "dev"]
 
 [[package]]
 name = "alphashape"

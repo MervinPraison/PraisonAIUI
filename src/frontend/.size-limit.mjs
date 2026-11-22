@@ -71,8 +71,7 @@ const LAYOUT_BUDGETS = {
   // 12.362 kB (+2 B, exactly the overage): chunk hashes renamed by the docs
   // component tags change; no layout code changed.
   // 12.372 kB (+10 B, exactly the overage): chunk hashes renamed; no layout code changed.
-  // 12.387 kB (+15 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-chat-canvas': '12.387 kB',
+  'layout-chat-canvas': '12.372 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -82,8 +81,7 @@ const LAYOUT_BUDGETS = {
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
-  // 15.211 kB (+11 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-command': '15.211 kB',
+  'layout-command': '15.2 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -93,8 +91,7 @@ const LAYOUT_BUDGETS = {
   // 9.52 kB on its branch; integrated with kit v2 (5.85 kB of kit chunks in
   // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
   // lf-mission-board.
-  // 13.221 kB (+21 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-mission': '13.221 kB',
+  'layout-mission': '13.2 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -252,7 +249,9 @@ export default [
   // more (the loader and holding later frames cost more than the code it moves).
   // 143,082 B (+1 B, exactly the overage): CommandDialog passes cmdk's controlled `value`
   // through (the docs search keeps a row highlighted when results arrive late).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143082 B', gzip: true },
+  // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
+  // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143579 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -321,7 +320,8 @@ export default [
   // 256,563 B (+1 B, exactly the overage): docLoader's reader for the manifests aiui build
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '256565 B', gzip: true },
+  // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257066 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -329,14 +329,13 @@ export default [
   // fork), which gives 146.6 kB for the same bytes: 147 kB was that budget.
   // +1 kB for the chat's collapsible code blocks (markdown/CodeBlock.tsx:
   // 12-line collapse, wrap toggle, sideways-scroll fade), 147.4 kB measured.
-  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '148 kB', gzip: true },
+  // 100 kB (down from 148): the HTML parser (rehype-raw, parse5) is its own chunk,
+  // loaded only for markdown with HTML (markdown/rehypeRawGate.ts), and the small
+  // syntax-tree helpers moved to `markdown-kit`; 97.47 kB measured.
+  { name: 'Streamdown renderer chunk', path: abs([manifest[chunks.streamdown].file]), limit: '100 kB', gzip: true },
   { name: 'shikiPlugin chunk', path: abs([manifest[chunks.shikiPlugin].file]), limit: '55 kB', gzip: true },
   { name: 'legacy App path (entry + legacy-app-entry closure)', path: abs(legacyJs), limit: '250 kB', gzip: true },
-  // 7,570 B (+408 B, exactly the overage): the Check, ClipboardCopy and X icons Try it
-  // imports were shared with the docs App before; the docs App now draws its own
-  // (virtual:aiui-icons/inline), so they count here. They load with Try it instead of on
-  // every docs page.
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7570 B', gzip: true },
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7162 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -465,7 +464,10 @@ export default [
   // (docLoader inlinedManifest, App.tsx reads them before fetching).
   // 11,168,215 B (+3,319 B, exactly the overage): the split search index reader
   // (docs/searchShards.ts in the lazy search chunk) and CommandDialog's controlled `value`.
-  // 11,170,373 B (+2,158 B, exactly the overage): the docs App's first-screen icons drawn
-  // into its chunk (virtual:aiui-icons/inline) next to lucide-react's own for the shell.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11170373 B', brotli: false },
+  // 11,168,707 B (+492 B, exactly the overage): the HTML parser as a lazy chunk of its own
+  // (markdown/rehypeRawGate.ts, the needsRaw hint, the chunk's import/export glue). No
+  // loaded chunk grows: the renderer chunk is 49.6 kB gzip smaller.
+  // 11,173,363 B (+4,656 B, exactly the overage): the reply's steps (the lazy StepTree chunk
+  // and the reducer in the chat route, above), on top of the parser split.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11173363 B', brotli: false },
 ]
