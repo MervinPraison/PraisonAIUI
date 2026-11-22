@@ -510,5 +510,6 @@ export default [
   // 11,577,511 B (+3,928 B, exactly the overage): page params in the URL, auto refresh and the status block.
   // 11,579,911 B (+2,400 B, exactly the overage): lazy tab and expander bodies (blocks/pageBlocks.tsx LazySection).
   // 11,580,023 B (+112 B, exactly the overage, 2026-11-22): LazySection skips re-fetching closed sections until reopened.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11580023 B', brotli: false },
+  // 11,584,787 B (+4,764 B, exactly the overage, 2026-11-22): the sandboxed html block, Markdown callouts and metric captions (blocks chunk).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11584787 B', brotli: false },
 ]

@@ -193,21 +193,28 @@ style shows a summary card instead of the chart.
 
 ## Essential Components
 
-### `aiui.metric(label, *, value, delta, delta_color)`
+### `aiui.metric(label, *, value, delta, delta_color, caption)`
 
-A metric card with optional delta indicator.
+A metric card with optional delta indicator and caption.
 
 ```python
 aiui.metric("Requests", value="12.3k", delta="+15%")
 aiui.metric("Errors", value=23, delta="+3", delta_color="inverse")
+aiui.metric("Lead time", value="4 d", delta="-3 days", delta_color="inverse", caption="median")
+aiui.metric("Posts", value=51, caption="in the last 30 days")
 ```
+
+A `delta` that starts with `+`/`↑` or `-`/`↓` (or a signed number) is coloured
+as a gain or a loss. Use `caption` for a neutral note under the value, so a
+subtitle such as "-2 from plan" is not coloured by accident.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Metric label |
 | `value` | `Any` | ✅ | — | Main metric value |
 | `delta` | `str` | ❌ | `None` | Change indicator (e.g. "+5%") |
-| `delta_color` | `str` | ❌ | `"normal"` | `"normal"`, `"inverse"`, or `"off"` |
+| `delta_color` | `str` | ❌ | `"normal"` | `"normal"` (rise is good), `"inverse"` (fall is good, e.g. `"-3 days"`), or `"off"` (never coloured) |
+| `caption` | `str` | ❌ | `None` | Neutral note under the value, never coloured. `help` is an alias |
 
 ### `aiui.progress_bar(label, *, value, max_value)`
 
@@ -233,7 +240,7 @@ aiui.alert("Deploy successful!", variant="success", title="Done")
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `message` | `str` | ✅ | — | Alert body text |
+| `message` | `str` | ✅ | — | Alert body: sanitised Markdown in the app shell (lists, bold, links; a single newline breaks the line) |
 | `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |
 | `title` | `str` | ❌ | `None` | Optional bold title |
 
@@ -544,6 +551,10 @@ aiui.markdown_text("**Bold**, *italic*, and `code`.")
 |-----------|------|----------|-------------|
 | `content` | `str` | ✅ | Markdown content string |
 
+The app shell renders sanitised Markdown: `<svg>`, `<script>`, `<style>`,
+`style` attributes and event handlers are removed. Put raw HTML and SVG in
+[`aiui.html`](#aiuihtmlcontent-height-csp-trusted-title) instead.
+
 ### `aiui.link(text, *, href, external)`
 
 A hyperlink.
@@ -612,7 +623,7 @@ aiui.callout("Use GPU for faster training.", variant="info", title="Tip")
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `content` | `str` | ✅ | — | Callout body text |
+| `content` | `str` | ✅ | — | Callout body: sanitised Markdown in the app shell (lists, bold, links; a single newline breaks the line) |
 | `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |
 | `title` | `str` | ❌ | `None` | Optional bold title |
 
@@ -738,17 +749,81 @@ aiui.caption("Figure 1: System architecture")
 |-----------|------|----------|-------------|
 | `text` | `str` | ✅ | Caption content |
 
-### `aiui.html_embed(content)`
+### `aiui.html(content, *, height, csp, trusted, title)`
 
-Raw HTML embed (trusted content only).
+App HTML or SVG (a chart, a styled box, a small interactive widget), isolated
+from the page.
 
 ```python
-aiui.html_embed('<iframe src="https://example.com" width="100%"></iframe>')
+aiui.html("""
+<svg viewBox="0 0 120 40" width="100%">
+  <rect width="80" height="12" rx="3" fill="var(--aiui-accent)"/>
+  <text x="0" y="32" fill="var(--aiui-muted)" font-size="10">80% done</text>
+</svg>""")
+aiui.html(table_html, height=320, title="Top posts")
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `content` | `str` | ✅ | HTML string |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `content` | `str` | ✅ | — | HTML string; may hold `<svg>`, `<style>` and `<script>` |
+| `height` | `int\|str` | ❌ | `None` | Fixed height (pixels or a CSS length such as `"20rem"`). Default: fit the content |
+| `csp` | `str` | ❌ | `None` | Content-Security-Policy for the frame, replacing the default below |
+| `trusted` | `bool` | ❌ | `False` | Render inline in the page instead of in a frame, sanitised (see below) |
+| `title` | `str` | ❌ | `None` | Accessible name of the frame (default "Embedded content") |
+
+!!! danger "Security model"
+    **Default (sandboxed frame).** In the app shell the content renders in an
+    `<iframe sandbox="allow-scripts">` built from `srcdoc`, without
+    `allow-same-origin`. Its scripts run in an opaque origin: they cannot read
+    or change the app's page, cookies, `localStorage` or session, cannot call
+    `/api/*` as the signed-in user, cannot open pop-ups, submit forms or
+    navigate the top window. A `<meta http-equiv="Content-Security-Policy">`
+    also blocks network access. The default policy is
+    `default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'`.
+    Pass `csp=` to tighten or loosen it; the frame sizes itself with a small
+    inline script, so a policy without `script-src 'unsafe-inline'` needs a
+    fixed `height`.
+
+    **`trusted=True` (inline).** The content is placed in the page through
+    the sanitised Markdown pipeline (`rehype-sanitize`): scripts, event
+    handlers, `style`, `<iframe>` and `<svg>` are removed. Use it for simple
+    markup (tables, lists, links) that should flow with the page text; use
+    the default frame for SVG and anything with scripts.
+
+    **Never put untrusted text into raw HTML yourself.** Escape values you
+    interpolate (`html.escape(...)`) even inside the frame: an injected
+    script cannot reach the app, but it can still change what the frame shows.
+
+    **Legacy `dashboard` style.** `html` renders in the same sandboxed frame
+    (fixed height, default 320 px). `html_embed` there still sets the HTML
+    directly on the page, where scripts and inline handlers run: pass only
+    content you wrote.
+
+#### Theme variables
+
+These CSS custom properties are defined on the page in both themes and copied
+into every `html` frame, where they follow light/dark changes live:
+
+| Variable | Meaning |
+|----------|---------|
+| `--aiui-fg` | Body text |
+| `--aiui-muted` | Secondary text, axis labels |
+| `--aiui-border` | Hairlines, grid lines |
+| `--aiui-bg` | Page background |
+| `--aiui-surface` | Card / panel background |
+| `--aiui-accent` | Brand accent (follows the theme preset) |
+| `--aiui-success` / `--aiui-warning` / `--aiui-danger` / `--aiui-info` | Status colours |
+| `--aiui-font` / `--aiui-font-mono` | Font stacks |
+
+The frame's body already uses `--aiui-fg` and `--aiui-font` and has a
+transparent background, so plain HTML matches the page.
+
+### `aiui.html_embed(content, *, height, csp, trusted, title)`
+
+The older name of [`aiui.html`](#aiuihtmlcontent-height-csp-trusted-title):
+same parameters, same sandboxed frame in the app shell. The block keeps its
+`html_embed` type, so the legacy `dashboard` style renders it as before
+(directly on the page). New code should use `aiui.html`.
 
 ### `aiui.skeleton(*, width, height, variant)`
 
@@ -930,9 +1005,9 @@ async def overview():
 | Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |
 | Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 12 |
 | Media | `audio_player`, `video_player`, `file_download`, `gallery` | 4 |
-| Dashboard | `toast`, `dialog`, `caption`, `html_embed`, `skeleton`, `tooltip_wrap`, `form`, `status` | 8 |
+| Dashboard | `toast`, `dialog`, `caption`, `html`, `html_embed`, `skeleton`, `tooltip_wrap`, `form`, `status` | 9 |
 | Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |
-| **Total** | | **56** |
+| **Total** | | **57** |
 
 ## Custom Component Types
 

@@ -74,6 +74,7 @@ COMPONENTS = {
     "alert": {"type": "alert", "title": PAYLOAD, "message": PAYLOAD},
     "callout": {"type": "callout", "title": PAYLOAD, "content": PAYLOAD},
     "metric": {"type": "metric", "label": PAYLOAD, "value": PAYLOAD, "delta": "+" + PAYLOAD},
+    "metric_caption": {"type": "metric", "label": PAYLOAD, "value": 1, "caption": PAYLOAD},
     "stat_group": {"type": "stat_group", "stats": [{"label": PAYLOAD, "value": PAYLOAD}]},
     "spinner": {"type": "spinner", "text": PAYLOAD},
     "avatar": {"type": "avatar", "src": '/a.png" onerror="alert(1)', "name": PAYLOAD},
