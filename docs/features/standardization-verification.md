@@ -17,7 +17,7 @@ All 16 standardization gaps from the AIUI gap analysis have been **implemented a
 | G-3 | Pluggable bot registry | ✅ Done | `_standalone_gateway.py:31` → `register_bot_factory()` function exists |
 | G-4 | Configurable title strings | ✅ Done | `grep "PraisonAIUI Dashboard" server.py` → **0 matches** |
 | G-5 | `AIUI_DATA_DIR` env var | ✅ Done | `server.py:44-45` + `config_store.py:28-31` — `_get_data_dir()` reads env at call time |
-| G-6 | `aiui doctor` CLI | ✅ Done | `cli.py:2416` → 7-check diagnostic with `--json` flag |
+| G-6 | `aiui doctor` CLI | ✅ Done | `cli.py` → 8-check diagnostic (version first) with `--json` flag |
 | G-7 | Production Dockerfile | ✅ Done | `Dockerfile` (34 lines, `python:3.12-slim`, HEALTHCHECK) + `.dockerignore` (19 lines) |
 | G-8 | Auth middleware enforcement | ✅ Done | `server.py:1050-1060` → `AuthEnforcementMiddleware`, opt-in via `AUTH_ENFORCE` env |
 | G-9 | Registry imports updated | ✅ Done | `auto_register_defaults()` uses new names, **37/37 features register** |
