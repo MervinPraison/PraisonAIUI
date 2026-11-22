@@ -104,17 +104,19 @@ a new one after it recovers and breaks again. Slack is used only when
 host holds no secrets, so there the messages go to `history/notifications.jsonl`
 and the failures show on the dashboard.
 
-## In CI (not wired yet)
+## In CI
 
-The same checks run against any served build. A job would:
+`.github/workflows/preqa.yml` runs the same checks on PRs and on `main`. It is
+advisory: a breach shows as a warning annotation and in the `preqa-report`
+artifact and does not fail the check. The steps:
 
 ```bash
 pip install -e . && pip install -r tools/preqa/requirements.txt
 python -m playwright install --with-deps chromium
 aiui build --output site --minify
 (cd tools/preqa && python -m preqa serve --site ../../site --port 8700 &)
-cd tools/preqa && python -m preqa track --target preqa=http://127.0.0.1:8700 \
-  --runs 2 --fail-fast --history "" --out preqa-run.json   # exit 1 on a breach
+cd tools/preqa && python -m preqa track --target ci=http://127.0.0.1:8700 \
+  --runs 2 --history "" --out preqa-run.json   # exit 1 on a breach
 ```
 
 Shared runners are noisier than the pre-QA host; give the CI target its own

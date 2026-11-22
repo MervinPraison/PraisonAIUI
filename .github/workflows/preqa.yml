@@ -60,11 +60,12 @@ jobs:
       - name: Run the pre-QA tracker (advisory)
         working-directory: tools/preqa
         run: |
+          # No --fail-fast: advisory runs should report every breach, not the first.
           if python -m preqa track --target ci=http://127.0.0.1:8700 \
-              --runs 2 --fail-fast --history "" --out preqa-run.json; then
+              --runs 2 --history "" --out preqa-run.json; then
             echo "Pre-QA: PASS"
           else
-            echo "::warning title=Pre-QA budget breach::See the preqa-report artifact. Advisory only; this does not block merging."
+            echo "::warning title=Pre-QA issues::Budget breach or tracker error; see the log above and the preqa-report artifact. Advisory only; this does not block merging."
           fi
 
       - name: Upload the report
