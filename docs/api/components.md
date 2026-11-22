@@ -363,17 +363,28 @@ aiui.number_input("Age", value=28, min_val=0, max_val=150, step=1)
 | `max_val` | `int\|float` | ❌ | `None` | Maximum allowed |
 | `step` | `int\|float` | ❌ | `1` | Increment step |
 
-### `aiui.select_input(label, *, options, value)`
+### `aiui.select_input(label, *, options, value, name, searchable, auto_submit)`
 
 ```python
 aiui.select_input("Country", options=["USA", "UK", "Canada"], value="USA")
+aiui.select_input("Channel", options=channels, name="channel")  # 1,000+ options: searchable
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
-| `options` | `Sequence[str]` | ✅ | — | Option strings |
+| `options` | `Sequence[str]` | ✅ | — | Option strings, or `{"value", "label"}` dicts |
 | `value` | `str` | ❌ | `""` | Default selected |
+| `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
+| `searchable` | `bool` | ❌ | `None` | `True`: a type-to-search list (combobox). `None`: searchable when there are more than 20 options. `False`: always a plain dropdown |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form when the value changes |
+
+The searchable list filters as you type (prefix matches first) and renders at
+most 100 rows ("N more: type to narrow"), so a thousand options open
+instantly. It posts by `name` like a plain select.
+
+`auto_submit=True` is also accepted by `text_input` (debounced 400 ms),
+`number_input`, `checkbox_input`, `switch_input` and `radio_input`.
 
 ### `aiui.slider_input(label, *, value, min_val, max_val, step)`
 
@@ -1048,6 +1059,70 @@ async def overview():
     ])
 ```
 
+## Forms and filters
+
+### `aiui.form(action, *, children, submit_label, submit_on_change)`
+
+```python
+aiui.form("settings", children=[...], submit_label="Save")
+aiui.form("explore", children=[...], submit_on_change=True)
+```
+
+On submit the form POSTs every input by `name` (else `label`) as JSON to
+`/api/pages/{page}/action`, handled by `@aiui.register_page_action(action)`;
+`action` is normally the page id. If the handler returns a block tree
+(`aiui.layout([...])`, i.e. `{"_components": [...]}`) the page re-renders with
+it; a reply with `message` shows a toast instead.
+
+`submit_on_change=True` submits whenever an input changes: right away for
+selects, checkboxes and dates, 400 ms after the last keystroke
+for text. A submit with the same values as the last one is skipped, and a
+change made while one is in flight posts once more when it returns. Leave it
+off for a form whose button starts a job; mark single inputs with
+`auto_submit=True` instead.
+
+### `aiui.filter_bar(action, *, inputs, chips, defaults, reset_label)`
+
+```python
+@aiui.page("explore", title="Explore")
+async def explore():
+    return build({})
+
+@aiui.register_page_action("explore")
+async def explore_action(data):
+    return build(data)          # rebuild the page from the posted filters
+
+def build(f):
+    return aiui.layout([
+        aiui.filter_bar("explore", defaults={"channel": "All"}, inputs=[
+            aiui.select_input("Channel", options=["All", *channels], value=f.get("channel", "All"), name="channel"),
+            aiui.text_input("Search", value=f.get("q", ""), name="q"),
+        ]),
+        aiui.table(headers=[...], rows=query(f)),
+    ])
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `action` | `str` | ✅ | — | Action id (normally the page id) |
+| `inputs` | `Sequence[dict]` | ✅ | — | Input components |
+| `chips` | `bool` | ❌ | `True` | Show active filters as removable chips |
+| `defaults` | `dict` | ❌ | `None` | Reset value per input name |
+| `reset_label` | `str` | ❌ | `"Reset"` | Label of the clear-all control |
+
+A compact wrapping row (a `search` landmark) that posts like `form` with
+`submit_on_change`. Under it, each active filter is a chip ("Channel: Ann ×",
+the × posts the form with that filter reset,
+and Reset posts all of them reset. A filter is active when its value differs
+from its reset value: `defaults[name]`, else the first option of a select
+or radio, else empty; number and slider inputs only
+when `defaults` names them. Chips are read from the values the server sent,
+so the handler must return the page rebuilt from the posted values.
+A full example: `examples/python/32-filter-page/app.py`.
+
+`filter_bar` renders in the app shell (the default style); the legacy
+`dashboard` style shows it as JSON.
+
 ## Component Count Summary
 
 | Category | Components | Count |
@@ -1055,11 +1130,12 @@ async def overview():
 | Core | `layout`, `card`, `columns`, `table`, `text`, `chart` | 6 |
 | Essential | `metric`, `progress_bar`, `alert`, `badge`, `separator`, `tabs`, `accordion`, `image_display`, `code_block`, `json_view` | 10 |
 | Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |
+| Forms | `form`, `filter_bar` | 2 |
 | Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `link_button`, `page_link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 14 |
 | Media | `audio_player`, `video_player`, `file_download`, `gallery`, `card_grid` | 5 |
-| Dashboard | `toast`, `dialog`, `caption`, `html`, `html_embed`, `skeleton`, `tooltip_wrap`, `form`, `status` | 9 |
+| Dashboard | `toast`, `dialog`, `caption`, `html`, `html_embed`, `skeleton`, `tooltip_wrap`, `status` | 8 |
 | Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |
-| **Total** | | **60** |
+| **Total** | | **61** |
 
 ## Custom Component Types
 
