@@ -161,3 +161,27 @@ export function display(v: unknown): string {
   }
   return String(v)
 }
+
+/**
+ * Single newlines become line breaks (Markdown hard breaks), as the plain
+ * text rendering showed them; fenced code is left alone.
+ */
+export function hardBreaks(text: string): string {
+  let fence: string | null = null
+  const lines = text.split('\n')
+  return lines
+    .map((line, i) => {
+      const m = /^\s*(`{3,}|~{3,})/.exec(line)
+      if (m) {
+        if (fence === null) fence = m[1][0]
+        else if (m[1][0] === fence) fence = null
+        return line
+      }
+      if (fence !== null || i === lines.length - 1) return line
+      const next = lines[i + 1]
+      // Blank lines, and lines before a blank line, already break.
+      if (line.trim() === '' || next.trim() === '' || line.endsWith('  ') || line.endsWith('\\')) return line
+      return `${line}  `
+    })
+    .join('\n')
+}

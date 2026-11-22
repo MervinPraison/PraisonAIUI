@@ -622,6 +622,7 @@ const DASHBOARD_STYLE = `
   .db-metric .db-metric-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--db-text-dim); margin: 0 0 8px; }
   .db-metric .db-metric-value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
   .db-metric .db-metric-delta { font-size: 13px; font-weight: 500; }
+  .db-metric .db-metric-caption { font-size: 12px; color: var(--db-text-dim); margin-top: 4px; }
   .db-metric .db-metric-delta.positive { color: #22c55e; }
   .db-metric .db-metric-delta.negative { color: #ef4444; }
   .db-metric .db-metric-delta.neutral { color: var(--db-text-dim); }
@@ -2486,6 +2487,7 @@ function renderComponent(comp) {
     case 'caption': return renderCaption(comp);
     case 'status': return renderStatus(comp);
     case 'html_embed': return renderHtmlEmbed(comp);
+    case 'html': return renderHtmlFrame(comp);
     case 'a2ui_surface': {
       const wrap = document.createElement('div');
       wrap.className = 'db-a2ui-surface';
@@ -2713,6 +2715,7 @@ function renderMetric(comp) {
   if (comp.label) html += `<div class="db-metric-label">${escapeHtml(comp.label)}</div>`;
   if (comp.value !== undefined) html += `<div class="db-metric-value">${escapeHtml(comp.value)}</div>`;
   if (deltaVal !== '' && deltaVal !== undefined) html += `<div class="db-metric-delta ${deltaClass}">${escapeHtml(deltaVal)}</div>`;
+  if (comp.caption) html += `<div class="db-metric-caption">${escapeHtml(comp.caption)}</div>`;
   el.innerHTML = html;
   return el;
 }
@@ -3291,6 +3294,22 @@ function renderHtmlEmbed(comp) {
   el.className = 'db-html-embed';
   el.innerHTML = comp.content || '';
   return el;
+}
+
+// The `html` block: a sandboxed frame (opaque origin, no network by default),
+// as in the app shell. `html_embed` above keeps its old inline behaviour.
+function renderHtmlFrame(comp) {
+  const f = document.createElement('iframe');
+  f.className = 'db-html-frame';
+  f.setAttribute('sandbox', 'allow-scripts');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.setAttribute('title', comp.title || 'Embedded content');
+  const csp = comp.csp || "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+  f.srcdoc = '<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' +
+    escapeHtml(csp) + '"><style>body{margin:0;font-family:system-ui,sans-serif;color:CanvasText}</style>' + (comp.content || '');
+  const h = typeof comp.height === 'number' ? comp.height + 'px' : String(comp.height || '');
+  f.style.cssText = 'display:block;width:100%;border:0;height:' + (/^\d+(\.\d+)?(px|rem|em|vh|%)$/.test(h) ? h : '320px');
+  return f;
 }
 
 function renderSkeleton(comp) {

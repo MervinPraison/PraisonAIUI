@@ -248,20 +248,28 @@ def metric(
     value: Any,
     delta: str | None = None,
     delta_color: str = "normal",
+    caption: str | None = None,
+    help: str | None = None,
 ) -> dict:
     """A metric card with optional delta indicator.
 
     Args:
         label: Metric label (e.g. "Total Users")
         value: Main metric value
-        delta: Change indicator (e.g. "+5%")
-        delta_color: Color hint — "normal", "inverse", or "off"
+        delta: Change indicator (e.g. "+5%"); a leading +/- colours it
+        delta_color: Color hint — "normal", "inverse" (a fall is good, e.g.
+            "-3 days" to ship) or "off" (never coloured)
+        caption: A neutral note under the value (e.g. "median", "last 30
+            days"), never coloured. ``help`` is an alias.
     """
     comp: dict[str, Any] = {"type": "metric", "label": label, "value": value}
     if delta is not None:
         comp["delta"] = delta
     if delta_color != "normal":
         comp["delta_color"] = delta_color
+    note = caption if caption is not None else help
+    if note is not None:
+        comp["caption"] = note
     return comp
 
 
@@ -280,7 +288,8 @@ def alert(message: str, *, variant: str = "info", title: str | None = None) -> d
     """An alert/notification box.
 
     Args:
-        message: Alert body text
+        message: Alert body, sanitised Markdown in the app shell (lists,
+            bold, links; single newlines break the line)
         variant: "info", "success", "warning", or "error"
         title: Optional bold title
     """
@@ -678,6 +687,10 @@ def header(text: str, *, level: int = 1) -> dict:
 def markdown_text(content: str) -> dict:
     """A markdown-rendered text block.
 
+    The app shell renders sanitised Markdown: raw HTML that is not on the
+    allow-list (``<svg>``, ``<script>``, ``style``, event handlers) is removed.
+    Put HTML and SVG in :func:`html` instead.
+
     Args:
         content: Markdown content string
     """
@@ -724,7 +737,8 @@ def callout(content: str, *, variant: str = "info", title: str | None = None) ->
     """A callout/highlight box.
 
     Args:
-        content: Callout body text
+        content: Callout body, sanitised Markdown in the app shell (lists,
+            bold, links; single newlines break the line)
         variant: "info", "success", "warning", or "error"
         title: Optional bold title
     """
@@ -865,13 +879,74 @@ def caption(text: str) -> dict:
     return {"type": "caption", "text": text}
 
 
-def html_embed(content: str) -> dict:
-    """Raw HTML embed (trusted content only).
+def _html_block(
+    kind: str,
+    content: str,
+    *,
+    height: int | str | None,
+    csp: str | None,
+    trusted: bool,
+    title: str | None,
+) -> dict:
+    comp: dict[str, Any] = {"type": kind, "content": content}
+    if height is not None:
+        comp["height"] = height
+    if csp is not None:
+        comp["csp"] = csp
+    if trusted:
+        comp["trusted"] = True
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def html(
+    content: str,
+    *,
+    height: int | str | None = None,
+    csp: str | None = None,
+    trusted: bool = False,
+    title: str | None = None,
+) -> dict:
+    """App HTML or SVG, isolated from the page.
+
+    In the app shell the content renders in a sandboxed iframe
+    (``sandbox="allow-scripts"``, no same-origin): its scripts run in an
+    opaque origin and cannot read the app's DOM, cookies, storage or API.
+    A Content-Security-Policy blocks network access by default. The frame
+    sizes itself to the content and gets the ``--aiui-*`` theme variables,
+    updated when light/dark changes.
 
     Args:
-        content: HTML string
+        content: HTML string (may include ``<svg>``, ``<style>``, ``<script>``)
+        height: Fixed height (pixels or a CSS length); default: fit the content
+        csp: Content-Security-Policy for the frame, replacing the default
+            ``default-src 'none'; img-src data: https:; style-src 'unsafe-inline';
+            script-src 'unsafe-inline'; font-src data:; base-uri 'none';
+            form-action 'none'``. Auto-sizing needs ``script-src 'unsafe-inline'``.
+        trusted: Render inline in the page instead, through the sanitised
+            Markdown pipeline: no scripts, event handlers, ``style`` or SVG.
+        title: Accessible name of the frame (default "Embedded content")
     """
-    return {"type": "html_embed", "content": content}
+    return _html_block("html", content, height=height, csp=csp, trusted=trusted, title=title)
+
+
+def html_embed(
+    content: str,
+    *,
+    height: int | str | None = None,
+    csp: str | None = None,
+    trusted: bool = False,
+    title: str | None = None,
+) -> dict:
+    """Older name of :func:`html`, with the same parameters and rendering in
+    the app shell (a sandboxed frame).
+
+    The legacy ``dashboard`` style still sets this block's HTML directly on
+    the page (scripts and inline handlers run there): only pass content you
+    wrote. Use :func:`html` for new code.
+    """
+    return _html_block("html_embed", content, height=height, csp=csp, trusted=trusted, title=title)
 
 
 def skeleton(

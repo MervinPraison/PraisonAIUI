@@ -184,6 +184,19 @@
     --chart-3: #8b5cf6;
     --chart-4: #f59e0b;
     --chart-5: #ec4899;
+    /* Public theme variables for app HTML and SVG (the `html` block copies
+       them into its frame; docs/api/components.md). Stable names: keep them. */
+    --aiui-fg: var(--foreground);
+    --aiui-muted: var(--muted-foreground);
+    --aiui-border: var(--border);
+    --aiui-bg: var(--background);
+    --aiui-surface: var(--card);
+    --aiui-accent: var(--primary);
+    --aiui-success: var(--success);
+    --aiui-warning: var(--warning);
+    --aiui-danger: var(--destructive);
+    --aiui-info: var(--info);
+    --aiui-font: var(--aiui-font-sans);
   }
   /* Dark mode: heavier shadows (they must read on dark surfaces), a slightly
      stronger hairline, and on-colour fallbacks for browsers without relative

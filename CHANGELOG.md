@@ -74,6 +74,11 @@
 
 ### Security
 
+- **`html_embed` no longer runs app HTML in the page in the app shell.** It
+  renders in a sandboxed frame (opaque origin, no network by default), like
+  the new `aiui.html` block. Scripts inside it still run but cannot reach the
+  app's page, cookies or API. The legacy `dashboard` style is unchanged. See
+  [Components](docs/api/components.md#aiuihtmlcontent-height-csp-trusted-title).
 - `AUTH_ENFORCE=true` gates every route and every WebSocket, deny by default
   (it used to gate `/api/*` only, leaving `/sessions`, `/run`, `/v1/*`, `/agui`
   and others open).
@@ -150,6 +155,15 @@
 
 ### New
 
+- **`aiui.html(content, *, height, csp, trusted, title)`**: a first-class
+  block for app HTML and SVG in a sandboxed, self-sizing frame that follows
+  light/dark. Public theme variables (`--aiui-fg`, `--aiui-muted`,
+  `--aiui-border`, `--aiui-surface`, `--aiui-accent`, status colours,
+  `--aiui-font`) are defined on the page and inside the frame.
+- **`callout` and `alert` bodies render sanitised Markdown** in the app shell
+  (lists, bold, links; a single newline breaks the line).
+- **`aiui.metric(..., caption=...)`** (alias `help=`): a neutral note under the
+  value, separate from the coloured `delta`.
 - **Every layout lists the app's own pages.** Pages from `register_page` /
   `@aiui.page` show in their group in the sidebar of every layout (the
   `chat` layout of `aiui run` showed only Chat and hid them under More).

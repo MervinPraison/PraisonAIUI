@@ -1,9 +1,10 @@
 /**
  * Core block renderers: React + design tokens for the `_components` types
  * page handlers use most (praisonaiui/ui.py; dashboard.js renderComponent*).
- * Types not listed here (pagination, dialog, popover, html_embed,
- * a2ui_surface, ...) render through LegacyBlockFallback. `chart` is a lazy
- * chunk of its own (blocks/chart, with the chart library).
+ * Types not listed here (pagination, dialog, popover, a2ui_surface, ...)
+ * render through LegacyBlockFallback. `chart` is a lazy chunk of its own
+ * (blocks/chart, with the chart library). `html` / `html_embed` render in a
+ * sandboxed frame (./HtmlBlock).
  *
  * The page-template types (`board`, `gallery`, `list_detail`, `log_viewer`,
  * `code_editor`) render with components/page. Each is a lazy chunk, fetched
@@ -16,7 +17,8 @@
  * a core type, whichever loads first.
  *
  * Prop names follow the legacy dicts exactly, so existing page handlers work
- * unchanged. Text is always rendered as text (never as HTML).
+ * unchanged. Text is always rendered as text or sanitised Markdown (never as
+ * raw HTML).
  */
 import {
   useEffect,
@@ -43,9 +45,10 @@ import { fenced } from '@/markdown/fence'
 import type { ShellPage } from '@/sdk/manifest'
 import { registerBlock, type BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
+import { HtmlBlock } from './HtmlBlock'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
-import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
+import { arr, display, hardBreaks, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
 import { LazySection, StatusBlock } from './pageBlocks'
 
@@ -180,11 +183,14 @@ function deltaTone(delta: unknown, mode: unknown): string {
 function MetricBody({ p }: { p: Record<string, unknown> }) {
   const delta = p.delta
   const hasDelta = delta !== undefined && delta !== null && delta !== ''
+  // A neutral note under the value ("median", "last 30 days"), never coloured.
+  const caption = str(p.caption ?? p.help)
   return (
     <>
       <div className={cn(META, 'truncate')}>{str(p.label ?? p.title)}</div>
       <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{display(p.value)}</div>
       {hasDelta && <div className={cn('text-xs font-medium tabular-nums', deltaTone(delta, p.delta_color))}>{display(delta)}</div>}
+      {caption && <div className={cn(META, 'break-words')} data-slot="metric-caption">{caption}</div>}
     </>
   )
 }
@@ -630,7 +636,12 @@ function Callout({ tone, title, body }: { tone: Tone; title: string; body: strin
       <Icon aria-hidden className={cn('mt-0.5 size-4 shrink-0', t.icon_)} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         {title && <div className="font-medium text-foreground">{title}</div>}
-        {body && <div className="whitespace-pre-wrap break-words text-foreground/80">{body}</div>}
+        {body && (
+          // Sanitised Markdown (lists, bold, links); single newlines still break.
+          <Markdown variant="chat" className="min-w-0 space-y-2 text-sm leading-normal text-foreground/80">
+            {hardBreaks(body)}
+          </Markdown>
+        )}
       </div>
     </div>
   )
@@ -1053,6 +1064,8 @@ const CORE: Record<string, CoreBlock> = {
   heading: HeadingBlock,
   markdown_text: MarkdownBlock,
   markdown: MarkdownBlock,
+  html: HtmlBlock,
+  html_embed: HtmlBlock,
   code_block: CodeBlock,
   code: CodeBlock,
   json_view: JsonBlock,
