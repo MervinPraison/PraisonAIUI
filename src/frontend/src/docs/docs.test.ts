@@ -224,6 +224,14 @@ test('the docs home page has one URL, the site root', () => {
     assert.equal(canonicalDocPath('/handbook/index', '/handbook'), '/')
 })
 
+test('a page\'s .html file URL is the page', () => {
+    assert.equal(canonicalDocPath('/docs/api/sessions.html'), '/docs/api/sessions')
+    assert.equal(canonicalDocPath('/docs/api/sessions/index.html'), '/docs/api/sessions')
+    assert.equal(canonicalDocPath('/docs/API/x.HTML'), '/docs/API/x')
+    for (const p of ['/index.html', '/docs/index.html', '/docs.html']) assert.equal(canonicalDocPath(p), '/')
+    assert.equal(canonicalDocPath('/docs/htmlx'), '/docs/htmlx')
+})
+
 test('a page has sections for "On this page" when it has ## to #### headings outside code', () => {
     assert.equal(hasSectionHeadings('# Title\n\nText.\n\n## Install\n'), true)
     assert.equal(hasSectionHeadings('# Title\n\n#### Deep\n'), true)

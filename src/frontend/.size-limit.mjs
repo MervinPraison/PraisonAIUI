@@ -485,5 +485,6 @@ export default [
   // 11,176,942 B (+30 B, exactly the overage): chunkReload reads the content-named entry (index-<hash>.js).
   // 11,178,629 B (+1,687 B, exactly the overage): the opt-in load telemetry chunk (docs/fieldTelemetry.ts).
   // 11,178,685 B (+56 B, exactly the overage): layout.groups.shown read by navGroups and buildLayoutNav.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11178685 B', brotli: false },
+  // 11,179,230 B (+545 B, exactly the overage): .html and wrong-case docs URLs (docs/navMatch.ts, stripHtmlSuffix).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11179230 B', brotli: false },
 ]

@@ -94,13 +94,26 @@ function mainHasVisibleContent() {
   return (main.textContent?.trim().length ?? 0) > 30;
 }
 
-function spaNavigate(path) {
-  const target = normalizePath(path);
+/**
+ * The URL a nav path is shown at, as the app's canonicalDocPath
+ * (src/frontend/src/docs/docSource.ts): the docs home page (`/docs`,
+ * `/docs/index`) is the site root, and a page's `.html` file URL is the page.
+ */
+function canonicalPath(p) {
+  const path = normalizePath(
+    normalizePath(p).replace(/\/index\.html?$/i, '').replace(/\.html?$/i, '')
+  );
+  return path === '/docs' || path === '/docs/index' ? '/' : path;
+}
+
+function spaNavigate(path, replace) {
+  const target = canonicalPath(path);
   const current = currentAppPath();
   if (target === current && mainHasVisibleContent()) return;
 
-  // Canonical URL: no trailing slash (matches React pushState)
-  _nativePushState.call(window.history, null, '', BASE + target);
+  // Canonical URL: no trailing slash (matches React pushState). A replaceState
+  // stays a replace, so a redirect to a page's own URL adds no history entry.
+  (replace ? _nativeReplaceState : _nativePushState).call(window.history, null, '', (BASE + target) || '/');
 
   // Tell content-loader + topnav + homepage plugins to update
   window.dispatchEvent(new CustomEvent('aiui:navigate', {
@@ -220,7 +233,7 @@ function patchHistory() {
       const appPath = normalizePath(toAppPath(path));
 
       if (knownPaths.has(appPath) && appPath !== currentAppPath()) {
-        spaNavigate(appPath);
+        spaNavigate(appPath, true);
         return;
       }
       if (parsed && normalized !== path) {

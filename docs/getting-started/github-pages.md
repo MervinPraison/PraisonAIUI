@@ -267,6 +267,15 @@ keeps one such request from freezing the page:
   in-article docs link for 80 ms, focusing it with the keyboard, or pressing
   it starts loading that page. Once a page has shown, its previous and next
   pages load while the browser is idle.
+- **Other spellings of a page URL.** A page's file URL (`/docs/x.html`,
+  `/docs/x/index.html`) and a URL in the wrong letter case
+  (`/docs/API/sessions`, which a static host answers with `404.html`) show
+  the page and then move the address bar to the page's own URL
+  (`history.replaceState`, so Back does not return to the old spelling). The
+  docs home page's own URL is the site root: its sidebar link goes to `/`,
+  never `/docs/index`. A wrong-case URL has no redirect file, because the
+  spellings of a path are unbounded; when two pages differ only by case, such
+  a URL shows "not found" rather than a guess.
 - **In-memory cache.** A page loaded or prefetched once shows at once when you
   come back to it, without a request, until the tab is reloaded.
 - **The last click wins.** Clicking another link cancels the request for the
