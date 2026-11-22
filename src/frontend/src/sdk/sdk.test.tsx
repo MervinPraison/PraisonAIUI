@@ -202,7 +202,7 @@ test('BlockRenderer renders a core tree', () => {
   assert.ok(html.includes('Plain &lt;script&gt;alert(1)&lt;/script&gt; text'), 'text is escaped, never HTML')
   assert.ok(html.includes('>Users<') && html.includes('>42<') && html.includes('+3 today'))
   assert.ok(html.includes('>Latency<') && html.includes('-5%'))
-  assert.match(html, /<table[^>]*>.*<th[^>]*>Name<\/th>.*<td[^>]*>ada<\/td>/s)
+  assert.match(html, /<table[^>]*>.*<th[^>]*>(?:<button[^>]*>)?Name<.*<td[^>]*>ada<\/td>/s)
   assert.match(html, /role="progressbar"[^>]*aria-valuenow="50"/)
   assert.match(html, /role="alert"[^>]*data-tone="warning"/)
   assert.ok(html.includes('>beta<'))

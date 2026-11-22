@@ -22,7 +22,7 @@ Usage in page handlers::
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 
 def layout(children: Sequence[dict]) -> dict:
@@ -106,30 +106,105 @@ def chart(
     }
 
 
+TABLE_COLUMN_TYPES = frozenset(
+    {"auto", "text", "number", "link", "badge", "tag", "image", "progress", "date"}
+)
+
+
+def _table_column(col: Any) -> dict:
+    """One ``columns`` entry (a label or a dict) → a column dict with ``key`` and ``label``."""
+    if isinstance(col, str):
+        return {"key": col, "label": col}
+    if not isinstance(col, Mapping):
+        raise TypeError("each column must be a label string or a dict")
+    out = dict(col)
+    key = out.get("key", out.get("label"))
+    if key in (None, ""):
+        raise ValueError("a column needs a 'key' or a 'label'")
+    out["key"] = str(key)
+    out["label"] = str(out.get("label", key))
+    kind = out.get("type", "auto")
+    if kind not in TABLE_COLUMN_TYPES:
+        raise ValueError(f"column type must be one of {sorted(TABLE_COLUMN_TYPES)}, not {kind!r}")
+    return out
+
+
 def table(
     *,
-    headers: Sequence[str],
-    rows: Sequence[Sequence[Any]],
+    headers: Sequence[str] | None = None,
+    rows: Sequence[Sequence[Any] | Mapping[str, Any]],
     row_ids: Sequence[str] | None = None,
     actions: Sequence[str] | None = None,
+    columns: Sequence[str | Mapping[str, Any]] | None = None,
+    searchable: bool = False,
+    page_size: int | None = None,
+    sortable: bool = True,
+    row_href_key: str | None = None,
+    row_detail: bool = False,
+    detail_key: str | None = None,
+    max_height: int | str | None = None,
+    caption: str | None = None,
 ) -> dict:
-    """A data table.
+    """A data table: typed cells, header sorting, search, paging, row links and a row drawer.
 
     Args:
-        headers: Column header labels
-        rows: List of row arrays
+        headers: Column header labels (or give ``columns``)
+        rows: Row arrays in column order, or dicts keyed by column ``key``
         row_ids: Optional stable ID per row. When given, rows are selectable
             (click, Enter or Space) and emit a bubbling ``aiui:table-select``
             DOM event with ``detail = {rowId, index}``.
         actions: Optional row action labels (requires ``row_ids``). Each row
             gets one button per action, emitting a bubbling
             ``aiui:table-action`` DOM event with ``detail = {action, rowId}``.
+        columns: Column config: labels, or dicts with ``key``, ``label``,
+            ``type`` (text, number, link, badge, tag, image, progress, date),
+            ``format``, ``decimals``, ``tones``, ``href_key``, ``width``,
+            ``align`` and ``sortable``. See docs/api/components.md.
+        searchable: Show a search box that filters rows in the browser
+        page_size: Rows per page; 0 shows every row. Unset: 50 per page past 100 rows
+        sortable: False turns header sorting off for every column
+        row_href_key: Key (in dict rows, or a column key) whose value is the
+            row's link; a click on the row opens it
+        row_detail: A click on a row opens a side panel with its fields
+        detail_key: Key in dict rows holding a list of block dicts that the
+            side panel shows instead of the fields (implies ``row_detail``)
+        max_height: Scroll height of the table body (px or CSS length;
+            0 for none). Default 70vh, so the header stays in view
+        caption: Accessible name of the table (and of its search box)
     """
-    comp: dict[str, Any] = {
-        "type": "table",
-        "headers": list(headers),
-        "rows": [list(r) for r in rows],
-    }
+    rows = list(rows)
+    cols = [_table_column(c) for c in columns] if columns is not None else None
+    if headers is None:
+        if cols is None:
+            raise ValueError("table() needs headers or columns")
+        headers = [c["label"] for c in cols]
+    elif cols is not None and len(cols) != len(headers):
+        raise ValueError("headers and columns must have the same length")
+    keys = [c["key"] for c in cols] if cols is not None else [str(h) for h in headers]
+
+    def value(row: Any, key: str) -> Any:
+        if isinstance(row, Mapping):
+            return row.get(key)
+        return row[keys.index(key)] if key in keys and keys.index(key) < len(row) else None
+
+    out_rows: list[list[Any]] = []
+    for row in rows:
+        cells = [row.get(k) for k in keys] if isinstance(row, Mapping) else list(row)
+        for i, col in enumerate(cols or []):
+            # A link column with ``href_key`` takes each cell's link from that key.
+            href_key = col.get("href_key")
+            if href_key and i < len(cells) and not isinstance(cells[i], Mapping):
+                href = value(row, href_key)
+                if href:
+                    cells[i] = {
+                        "text": "" if cells[i] is None else str(cells[i]),
+                        "href": str(href),
+                    }
+        out_rows.append(cells)
+
+    comp: dict[str, Any] = {"type": "table", "headers": list(headers), "rows": out_rows}
+    if cols is not None:
+        comp["columns"] = [{k: v for k, v in c.items() if k != "href_key"} for c in cols]
     if row_ids is not None:
         ids = [str(i) for i in row_ids]
         if len(ids) != len(comp["rows"]):
@@ -141,6 +216,27 @@ def table(
         if row_ids is None:
             raise ValueError("actions require row_ids")
         comp["actions"] = [str(a) for a in actions]
+    if searchable:
+        comp["searchable"] = True
+    if page_size is not None:
+        if page_size < 0:
+            raise ValueError("page_size must be 0 or more")
+        comp["page_size"] = int(page_size)
+    if not sortable:
+        comp["sortable"] = False
+    if row_href_key:
+        comp["row_hrefs"] = [
+            None if (h := value(r, row_href_key)) in (None, "") else str(h) for r in rows
+        ]
+    if detail_key:
+        details = [value(r, detail_key) for r in rows]
+        comp["row_details"] = [list(d) if isinstance(d, (list, tuple)) else [] for d in details]
+    if row_detail or detail_key:
+        comp["row_detail"] = True
+    if max_height is not None:
+        comp["max_height"] = max_height
+    if caption:
+        comp["caption"] = caption
     return comp
 
 
@@ -849,9 +945,7 @@ def breadcrumb(items: Sequence[dict]) -> dict:
     return {"type": "breadcrumb", "items": list(items)}
 
 
-def pagination(
-    *, total: int, page: int = 1, per_page: int = 10, id: str | None = None
-) -> dict:
+def pagination(*, total: int, page: int = 1, per_page: int = 10, id: str | None = None) -> dict:
     """Pagination controls.
 
     Clicking a page updates the control and dispatches a bubbling
@@ -864,7 +958,12 @@ def pagination(
         per_page: Items per page
         id: Optional identifier echoed in the event to tell controls apart
     """
-    comp: dict[str, Any] = {"type": "pagination", "total": total, "page": page, "per_page": per_page}
+    comp: dict[str, Any] = {
+        "type": "pagination",
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
     if id is not None:
         comp["id"] = id
     return comp

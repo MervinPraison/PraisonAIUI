@@ -83,7 +83,8 @@ const LAYOUT_BUDGETS = {
   // frame and shortcut sheet, plus the kit pieces it imports. 11.84 kB on
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
-  'layout-command': '15.2 kB',
+  // 15.202 kB (+2 B, exactly the overage): chunk hashes renamed by the table block's new chunk graph; no layout code changed.
+  'layout-command': '15.202 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -256,7 +257,8 @@ export default [
   // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
   // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
   // 143,581 B (+2 B, exactly the overage): chunk hashes renamed by the shown nav groups; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143581 B', gzip: true },
+  // 143,583 B (+2 B, exactly the overage): chunk hashes renamed by the table block (blocks chunk); no chat code changed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143583 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -326,7 +328,8 @@ export default [
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
   // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257066 B', gzip: true },
+  // 257,079 B (+13 B, exactly the overage): chunk hashes renamed by the table block (blocks chunk); no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257079 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -344,7 +347,8 @@ export default [
   // imports were shared with the docs App before; the docs App now draws its own
   // (virtual:aiui-icons/inline), so they count here. They load with Try it instead of on
   // every docs page.
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7566 B', gzip: true },
+  // 7,568 B (+2 B, exactly the overage): chunk hashes renamed by the table block; no docs code changed.
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7568 B', gzip: true },
   ...layoutEntries,
   ...defaultLayoutFirstScreen,
   { name: 'Pro fonts (Geist + Geist Mono, latin woff2, as served)', path: abs(PRO_FONTS), limit: '58 kB', brotli: false },
@@ -490,5 +494,7 @@ export default [
   // network-change retry (docs/networkChange.ts).
   // 11,180,375 B (+236 B, exactly the overage): docs retries move to a fresh connection pool.
   // 11,181,896 B (+1,521 B, exactly the overage): hedged docs requests and the connection warm-up.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11181896 B', brotli: false },
+  // 11,195,906 B (+14,010 B, exactly the overage): table block v2 (blocks/table: typed cells, sorting, search,
+  // paging, row detail panel) in the lazy blocks chunk.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11195906 B', brotli: false },
 ]
