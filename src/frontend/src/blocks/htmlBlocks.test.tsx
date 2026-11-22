@@ -93,3 +93,13 @@ test('hardBreaks: single newlines break, paragraphs and fenced code stay as writ
   assert.equal(hardBreaks('```\nx\ny\n```\nz'), '```\nx\ny\n```\nz')
   assert.equal(hardBreaks('- one\n- two'), '- one  \n- two')
 })
+
+test('metric: benchmark ratio and sparkline', () => {
+  const out = render({ type: 'metric', props: { label: 'Engagement', value: 0.024, benchmark: 0.41, benchmark_label: 'median', sparkline: [1, 3, 2] } })
+  assert.match(out, /data-slot="metric-benchmark"[^>]*>17x below median/)
+  assert.match(out, /text-destructive/, 'below the benchmark reads as a loss')
+  assert.match(out, /data-slot="sparkline"/)
+  const inverse = render({ type: 'metric', props: { label: 'Cost', value: 2, benchmark: 1, delta_color: 'inverse' } })
+  assert.match(inverse, /text-destructive[^"]*"[^>]*>2x above benchmark/)
+  assert.doesNotMatch(render({ type: 'metric', props: { label: 'L', value: 1 } }), /metric-benchmark|sparkline/)
+})

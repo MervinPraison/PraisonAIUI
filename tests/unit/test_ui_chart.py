@@ -72,3 +72,15 @@ def test_histogram_takes_plain_numbers_or_rows():
 def test_scatter_point_label_and_optional_title():
     c = chart(data=[{"channel": "A", "subs": 10, "ratio": 2}], chart_type="scatter", label="channel")
     assert c["title"] == "" and c["label"] == "channel"
+
+
+def test_heatmap_sparkline_facet_and_kind_alias():
+    rows = [{"day": "Mon", "hour": 9, "n": 3}]
+    h = chart("When", data=rows, kind="heatmap", x="hour", y="day", value="n", y_format="compact")
+    assert {k: h[k] for k in ("chart_type", "x", "y", "value")} == {"chart_type": "heatmap", "x": "hour", "y": ["day"], "value": "n"}
+    s = chart("Trend", data=[1, 2, 3], chart_type="sparkline")
+    assert s["data"] == [{"value": 1}, {"value": 2}, {"value": 3}]
+    f = chart("Views", data=[{"platform": "A", "m": "Jan", "v": 1}], chart_type="line", facet="platform")
+    assert f["facet"] == "platform" and "value" not in f
+    with pytest.raises(ValueError, match="chart_type"):
+        chart("c", kind="sankey")

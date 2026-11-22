@@ -204,13 +204,23 @@ aiui.chart("Retention", chart_type="area", data=points, x="t", y="share", y_form
 aiui.chart("Formats mix", data=rows, x="quarter", y=["video", "carousel", "text"], stacked=True)
 aiui.chart("Reach", chart_type="scatter", data=channels, x="subs", y="ratio", label="channel")
 aiui.chart("Spread of lift", chart_type="histogram", data=[0.4, 1.2, 0.9, 2.5], bins=12)
+
+# A heatmap: rows x columns from {x, y, value} rows, coloured low to high.
+aiui.chart("When posts land", kind="heatmap", data=slots, x="hour", y="weekday", value="posts")
+
+# A sparkline: a tiny line with no axes (plain numbers work).
+aiui.chart("Views, last 30 days", kind="sparkline", data=[120, 140, 90, 210, 180])
+
+# Small multiples: one small chart per platform, all on the same value scale.
+aiui.chart("Views by platform", chart_type="line", data=rows, x="month", y="views", facet="platform")
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `title` | `str` | `""` | Chart title |
 | `data` | `list[dict]` | `[]` | Rows, e.g. `[{"month": "Jan", "views": 1200}]`. A histogram also takes plain numbers |
-| `chart_type` | `str` | `"bar"` | `bar` (columns), `barh` (horizontal bars), `line`, `area`, `scatter`, `pie`, `donut`, `histogram` |
+| `chart_type` | `str` | `"bar"` | `bar` (columns), `barh` (horizontal bars), `line`, `area`, `scatter`, `pie`, `donut`, `histogram`, `heatmap`, `sparkline` |
+| `kind` | `str` | — | Alias of `chart_type` |
 | `x` | `str` | first text column | Category key. Scatter: the x value (default: first numeric column). Histogram: the measured value |
 | `y` | `str \| list[str]` | every numeric column | Series key, or keys for several series |
 | `y2` | `str` | — | A secondary series drawn as faint bars on its own scale (vertical charts) |
@@ -225,6 +235,24 @@ aiui.chart("Spread of lift", chart_type="histogram", data=[0.4, 1.2, 0.9, 2.5], 
 | `height` | `int` | 240 | Plot height in px; `barh` grows with its rows, pie and donut are 260 |
 | `caption` | `str` | — | A line of muted text under the chart |
 | `legend` | `bool` | more than one series | Show the legend |
+| `value` | `str` | `"value"` | Heatmap: the cell value key. `x` is the column key and `y` the row key (defaults `x` and `y`) |
+| `facet` | `str` | — | Key whose values split the rows into small charts in a responsive grid, sharing one value scale (at most 24 panels) |
+
+**Heatmap.** Columns and rows keep the order they first appear in `data`,
+so sort the rows (Mon..Sun, 0..23) before passing them; a repeated cell
+sums. Cells are coloured on a sequential scale from the theme's first chart
+colour (light and dark), empty cells are outlined, `y_format` formats the
+values in the tooltip and the colour scale under the grid, and `y_domain`
+fixes the scale. Cells keep a minimum width, so a wide grid scrolls sideways
+inside the chart on a phone.
+
+**Sparkline.** One series, no axes, the last value printed beside it;
+`height` defaults to 48 px. A number list under a metric is
+`aiui.metric(..., sparkline=[...])`.
+
+**Small multiples.** With `facet`, each panel is 160 px high (48 for a
+sparkline) unless `height` is set, panels follow first-seen order, and the
+legend is shown once. `y_domain` overrides the shared scale.
 
 An unknown `chart_type` or format raises `ValueError`. A dict written by hand
 (`{"type": "chart", "data": [...], "chart_type": "line"}`) works too: missing
@@ -236,7 +264,7 @@ style shows a summary card instead of the chart.
 
 ## Essential Components
 
-### `aiui.metric(label, *, value, delta, delta_color, caption)`
+### `aiui.metric(label, *, value, delta, delta_color, caption, sparkline, benchmark, benchmark_label)`
 
 A metric card with optional delta indicator and caption.
 
@@ -245,7 +273,15 @@ aiui.metric("Requests", value="12.3k", delta="+15%")
 aiui.metric("Errors", value=23, delta="+3", delta_color="inverse")
 aiui.metric("Lead time", value="4 d", delta="-3 days", delta_color="inverse", caption="median")
 aiui.metric("Posts", value=51, caption="in the last 30 days")
+aiui.metric("Engagement", value=0.024, benchmark=0.41, benchmark_label="median")  # "17x below median (0.41)"
+aiui.metric("Views", value="12.3k", sparkline=[8200, 9100, 10400, 12300])
 ```
+
+`benchmark` compares a numeric `value` with a reference: a ratio of 2 or
+more reads as a multiple ("17x below median"), a smaller one as a percentage
+("25% above median"), and it is coloured like a delta (`delta_color`
+applies, so `"inverse"` makes "above" the loss). `sparkline` draws the
+numbers as a tiny trend line under the value.
 
 A `delta` that starts with `+`/`↑` or `-`/`↓` (or a signed number) is coloured
 as a gain or a loss. Use `caption` for a neutral note under the value, so a
@@ -258,6 +294,9 @@ subtitle such as "-2 from plan" is not coloured by accident.
 | `delta` | `str` | ❌ | `None` | Change indicator (e.g. "+5%") |
 | `delta_color` | `str` | ❌ | `"normal"` | `"normal"` (rise is good), `"inverse"` (fall is good, e.g. `"-3 days"`), or `"off"` (never coloured) |
 | `caption` | `str` | ❌ | `None` | Neutral note under the value, never coloured. `help` is an alias |
+| `sparkline` | `list[float]` | ❌ | `None` | Numbers drawn as a tiny trend line under the value |
+| `benchmark` | `float` | ❌ | `None` | Reference the value is compared with ("17x below median") |
+| `benchmark_label` | `str` | ❌ | `"benchmark"` | Name of the benchmark in that line |
 
 ### `aiui.progress_bar(label, *, value, max_value)`
 
