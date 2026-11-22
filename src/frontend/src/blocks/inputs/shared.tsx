@@ -32,16 +32,17 @@ export function HiddenValue({ name, label, value }: { name: string; label: strin
 }
 
 /** A chip with a button that removes it. */
-export function Chip({ children, removeLabel, onRemove }: { children: ReactNode; removeLabel: string; onRemove(): void }) {
+export function Chip({ children, removeLabel, disabled, onRemove }: { children: ReactNode; removeLabel: string; disabled?: boolean; onRemove(): void }) {
   return (
     <span className="inline-flex h-6 min-w-0 max-w-full items-center gap-0.5 rounded-full bg-accent-soft pl-2.5 pr-0.5 text-xs text-foreground">
       <span className="truncate">{children}</span>
       <button
         type="button"
         aria-label={removeLabel}
+        disabled={disabled}
         onClick={onRemove}
         className={cn(
-          'grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground',
+          'grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground disabled:opacity-50',
           'focus-visible:ring-2 focus-visible:ring-ring',
         )}
       >

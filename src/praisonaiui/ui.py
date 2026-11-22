@@ -530,8 +530,7 @@ def checkbox_input(
         label: Checkbox label
         checked: Default checked state
         name: Optional explicit submit-key for ``form_action``.
-        auto_submit: Submit the enclosing form when the value changes
-            (text is debounced).
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {"type": "checkbox_input", "label": label, "checked": checked}
     if name is not None:
@@ -552,8 +551,7 @@ def switch_input(
         label: Switch label
         checked: Default checked state
         name: Optional explicit submit-key for ``form_action``.
-        auto_submit: Submit the enclosing form when the value changes
-            (text is debounced).
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {"type": "switch_input", "label": label, "checked": checked}
     if name is not None:
@@ -576,8 +574,7 @@ def radio_input(
         options: List of option strings
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
-        auto_submit: Submit the enclosing form when the value changes
-            (text is debounced).
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {
         "type": "radio_input",

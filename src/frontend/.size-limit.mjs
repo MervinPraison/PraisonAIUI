@@ -341,7 +341,8 @@ export default [
   // 257,069 B (+2 B, exactly the overage, 2026-11-22): chunk hashes renamed by the lazy sections; no chat code changed.
   // 257,135 B (+66 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
   // 257,139 B (+4 B, exactly the overage, 2026-11-22): forms submit on change (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257139 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
+  // 257,144 B (+5 B, exactly the overage, 2026-11-22): chunk hash renames from the filter bar fix; no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257144 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -517,5 +518,6 @@ export default [
   // 11,584,787 B (+4,764 B, exactly the overage, 2026-11-22): the sandboxed html block, Markdown callouts and metric captions (blocks chunk).
   // 11,598,491 B (+13,704 B, exactly the overage, 2026-11-22): native media, navigation and overlay blocks (blocks/mediaBlocks.tsx), card_grid, gallery links.
   // 11,608,392 B (+9,901 B, exactly the overage, 2026-11-22): the filter inputs' lazy chunks (blocks/inputs).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11608392 B', brotli: false },
+  // 11,608,459 B (+67 B, exactly the overage, 2026-11-22): filter bar keeps focus (remount only after a chip or Reset).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11608459 B', brotli: false },
 ]
