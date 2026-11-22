@@ -93,7 +93,8 @@ const LAYOUT_BUDGETS = {
   // its closure, up from 3.05) 12.01 kB + 10%. describeCall ships in
   // lf-mission-board.
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
-  'layout-mission': '13.207 kB',
+  // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
+  'layout-mission': '13.21 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
