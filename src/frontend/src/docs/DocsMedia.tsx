@@ -2,7 +2,7 @@
 // <iframe> video embeds behind a click-to-play poster, <video>, and images
 // that follow the site's light/dark toggle or opt out of zoom.
 import { useState, useSyncExternalStore, type ComponentProps, type CSSProperties, type ReactNode } from 'react'
-import { Play } from 'lucide-react'
+import { Play } from 'virtual:aiui-icons/inline'
 import { cardHref } from './cardHref'
 import { embedTarget } from './embeds'
 import { cx } from './docsClasses'

@@ -3,7 +3,7 @@
 // mounts it only when the site has Ask AI. Small on purpose: it ships with
 // the docs App, the panel is a lazy chunk.
 import { useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from 'virtual:aiui-icons/inline'
 
 const MIN = 3, MAX = 4000
 

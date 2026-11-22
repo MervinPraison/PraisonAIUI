@@ -9,6 +9,14 @@
  * follows its version. The build also writes
  * `aiui-icons.json` (every name, aliases included), which `aiui validate`
  * reads to warn about a name that is not an icon (compiler/content_lint.py).
+ *
+ * `virtual:aiui-icons/inline` exports every lucide-react icon under the names
+ * lucide-react uses, drawn into this one module (`createLucideIcon` with the
+ * icon's own nodes), and Rollup keeps only the icons that are imported. The
+ * docs App imports its chrome icons from it, so they ride in the docs chunk
+ * instead of one tiny shared chunk per icon (an icon the app shell or a
+ * layout also uses would otherwise be its own request on every docs page).
+ * Tests alias it to lucide-react (scripts/run-tests.mjs).
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -17,6 +25,7 @@ import { pathToFileURL } from 'node:url'
 export const ICON_BUCKETS = 32
 export const ICON_NAMES_FILE = 'aiui-icons.json'
 const INDEX = 'virtual:aiui-icons'
+const INLINE = 'virtual:aiui-icons/inline'
 
 /** The bucket an icon name is in. Inlined into the browser module, so it must stay self-contained. */
 export function iconBucket(name) {
@@ -42,18 +51,42 @@ export async function lucideIconNodes(esmDir) {
   return { nodes, aliases }
 }
 
+/**
+ * The module behind `virtual:aiui-icons/inline`: one pure `createLucideIcon`
+ * call per icon file of lucide-react's ESM build, exported under every name
+ * lucide-react's index gives that file (`X`, `XIcon`, `LucideX`, aliases).
+ */
+export async function inlineIconsModule(esmDir) {
+  const index = readFileSync(path.join(esmDir, 'lucide-react.js'), 'utf8')
+  const lines = ["import { createLucideIcon } from 'lucide-react'"]
+  let count = 0
+  for (const m of index.matchAll(/export \{ ([^}]+) \} from '\.\/icons\/([a-z0-9-]+)\.js';/g)) {
+    const [, names, file] = m
+    const node = (await import(pathToFileURL(path.join(esmDir, 'icons', `${file}.js`)).href)).__iconNode
+    const local = `i_${file.replace(/-/g, '_')}`
+    lines.push(`const ${local} = /*#__PURE__*/ createLucideIcon(${JSON.stringify(file)}, ${JSON.stringify(node)})`)
+    lines.push(`export { ${names.split(',').map((n) => `${local} as ${n.trim().replace(/^default as /, '')}`).join(', ')} }`)
+    count += 1
+  }
+  if (count < 1000) throw new Error(`lucide-icons: found ${count} icons in ${esmDir}/lucide-react.js; did lucide-react change its layout?`)
+  return lines.join('\n')
+}
+
 /** The Vite plugin: `virtual:aiui-icons` (the loader) and its bucket chunks; `aiui-icons.json` in a build. */
 export function lucideIcons(root) {
-  let icons
-  const all = () => (icons ??= lucideIconNodes(path.join(root, 'node_modules', 'lucide-react', 'dist', 'esm')))
+  let icons, inline
+  const esmDir = path.join(root, 'node_modules', 'lucide-react', 'dist', 'esm')
+  const all = () => (icons ??= lucideIconNodes(esmDir))
   return {
     name: 'aiui-lucide-icons',
     resolveId(id) {
       if (id === INDEX) return '\0aiui-icons'
+      if (id === INLINE) return '\0aiui-icons-inline'
       const bucket = /^virtual:aiui-icons\/(\d+)$/.exec(id)
       return bucket ? `\0aiui-icons-${bucket[1]}` : null
     },
     async load(id) {
+      if (id === '\0aiui-icons-inline') return (inline ??= inlineIconsModule(esmDir))
       if (id === '\0aiui-icons') {
         const loaders = Array.from({ length: ICON_BUCKETS }, (_, i) => `() => import('${INDEX}/${i}')`)
         return [

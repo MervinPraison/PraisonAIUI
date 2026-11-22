@@ -5,7 +5,7 @@
  * new content shows again. Styles: docs/docs.css (.aiui-docs-banner).
  */
 import { useState, type AnchorHTMLAttributes } from 'react'
-import { X } from 'lucide-react'
+import { X } from 'virtual:aiui-icons/inline'
 import type { BannerConfig } from '../types'
 import { Markdown } from '../markdown/LazyMarkdown'
 import { withBase } from '../lib/url'

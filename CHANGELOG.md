@@ -682,6 +682,10 @@
 
 ### Fixed
 
+- **Fewer requests on a first docs visit.** The docs App's icons used to come
+  as one tiny file each when the app shell shared them (chevrons, check, copy,
+  external link, play, sparkles): they are now part of the docs App's own
+  chunk, 8 fewer requests per page (43 to 35 on this site's installation page).
 - **Docs pages load a third less markdown renderer.** The HTML parser
   (rehype-raw and parse5, about 48 kB gzip) left the renderer chunk (147 kB to
   98 kB) and loads only for pages whose markdown has HTML or docs components;

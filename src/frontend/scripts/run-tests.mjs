@@ -73,7 +73,8 @@ try {
     target: 'node22',
     packages: 'external',
     tsconfig: path.join(ROOT, 'tsconfig.app.json'),
-    alias: { '@': SRC },
+    // The docs App's inline icons (scripts/lib/lucide-icons.mjs) are lucide-react's own icons.
+    alias: { '@': SRC, 'virtual:aiui-icons/inline': 'lucide-react' },
     loader: {
       '.css': 'empty',
       '.svg': 'dataurl',

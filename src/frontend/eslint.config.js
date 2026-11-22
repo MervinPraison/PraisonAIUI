@@ -26,4 +26,22 @@ export default defineConfig([
       'react-refresh/only-export-components': ['error', { allowConstantExport: true, customHOCs: ['inLayoutOnly'] }],
     },
   },
+  {
+    // The docs App draws its first-screen icons into its own chunk
+    // (virtual:aiui-icons/inline, scripts/lib/lucide-icons.mjs): an icon from
+    // lucide-react that the app shell also uses becomes one more request on every
+    // docs page. The lazy docs chunks (search, Ask AI, Try it) keep lucide-react:
+    // importing the inline icons would make them import from the docs App chunk.
+    files: ['src/docs/**/*.{ts,tsx}', 'src/Header.tsx', 'src/Sidebar.tsx', 'src/Toc.tsx'],
+    ignores: [
+      '**/*.test.{ts,tsx}',
+      'src/docs/lucide-icons.d.ts',
+      'src/docs/DocsSearch.tsx',
+      'src/docs/AskAi.tsx',
+      'src/docs/ApiPlayground.tsx',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [{ name: 'lucide-react', message: "Import docs icons from 'virtual:aiui-icons/inline'." }] }],
+    },
+  },
 ])

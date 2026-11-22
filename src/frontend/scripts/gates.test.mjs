@@ -9,10 +9,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { carryForward, LEDGER, previousAssets } from './carry-forward-assets.mjs'
 import { BUNDLE_ROOT_FILES } from './lib/bundle-files.mjs'
-import { ICON_BUCKETS, ICON_NAMES_FILE, iconBucket, lucideIconNodes, lucideIcons } from './lib/lucide-icons.mjs'
+import { ICON_BUCKETS, ICON_NAMES_FILE, iconBucket, inlineIconsModule, lucideIconNodes, lucideIcons } from './lib/lucide-icons.mjs'
 import { ManifestError, filesOf, findKey, loadManifest, namedChunks, staticClosure } from './lib/build-manifest.mjs'
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url))
@@ -495,6 +495,36 @@ test('lucide-icons: the loader finds any icon (or alias) in its lazy bucket; aiu
   assert.ok(BUNDLE_ROOT_FILES.includes(ICON_NAMES_FILE))
   assert.ok(names.includes('flag') && names.includes('home') && names.includes('house'))
   assert.deepEqual(names, [...names].sort())
+})
+
+test('lucide-icons: virtual:aiui-icons/inline draws every icon as lucide-react does, under its names', async () => {
+  const root = path.resolve(SCRIPTS, '..')
+  const plugin = lucideIcons(root)
+  assert.equal(plugin.resolveId('virtual:aiui-icons/inline'), '\0aiui-icons-inline')
+  const code = await plugin.load('\0aiui-icons-inline')
+  assert.equal(code, await inlineIconsModule(path.join(root, 'node_modules', 'lucide-react', 'dist', 'esm')))
+  // Every icon is a pure call, so Rollup drops the ones nobody imports.
+  assert.ok(!/^const i_\w+ = (?!\/\*#__PURE__\*\/)/m.test(code))
+  // Written under node_modules so its `import 'lucide-react'` resolves.
+  const file = path.join(root, 'node_modules', '.cache', 'aiui-gates', `inline-${process.pid}.mjs`)
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, code)
+  try {
+    const inline = await import(pathToFileURL(file).href)
+    const lucide = await import('lucide-react')
+    const { createElement } = await import('react')
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const draw = (Icon) => renderToStaticMarkup(createElement(Icon, { className: 'size-4' }))
+    // Plain names, Icon/Lucide forms and aliases (FileCode2 is file-code-corner).
+    for (const name of ['ChevronDown', 'X', 'XIcon', 'LucideCheck', 'FileCode2', 'TextAlignStart', 'Languages']) {
+      assert.ok(inline[name], `${name} exported`)
+      assert.equal(draw(inline[name]), draw(lucide[name]), name)
+    }
+    const icons = Object.keys(lucide).filter((name) => /^[A-Z]/.test(name) && lucide[name]?.$$typeof && name !== 'Icon')
+    assert.deepEqual(icons.filter((name) => !inline[name]), [], 'every lucide-react icon name is exported')
+  } finally {
+    rmSync(file, { force: true })
+  }
 })
 
 // e2e/fixtures/sweep-tmp.mjs: stale e2e work folders are removed, fresh ones and others kept.
