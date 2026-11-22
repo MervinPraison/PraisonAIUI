@@ -1,6 +1,6 @@
 // Docs header: brand, section tabs, links, search, call to action, theme.
 // Styles: docs/docs.css (.aiui-docs-header*), Pro tokens.
-import { Menu, Search, Sparkles } from 'lucide-react'
+import { Menu, Search, Sparkles } from 'virtual:aiui-icons/inline'
 import type { UIConfig } from './types'
 import type { NavDivisions } from './docs/navDivisions'
 import { HeaderTabs, LanguageSwitcher } from './docs/DivisionNav'

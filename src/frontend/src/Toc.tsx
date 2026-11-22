@@ -1,7 +1,7 @@
 // "On this page": the right-hand table of contents and its folded phone version.
 // Styles: docs/docs.css (.aiui-docs-toc*, .aiui-docs-mtoc), Pro tokens.
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronRight, ChevronUp, TextAlignStart } from 'lucide-react'
+import { ChevronRight, ChevronUp, TextAlignStart } from 'virtual:aiui-icons/inline'
 import type { NavItem, ZonesConfig } from './types'
 import { ZoneWidgets } from './Widgets'
 

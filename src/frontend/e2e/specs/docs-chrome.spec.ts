@@ -4,6 +4,9 @@
  * page", previous / next, search, focus ring and the phone drawer.
  * DESIGN.md "Docs style" is the contract.
  */
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, test, type Response } from '@playwright/test'
 import { collectPageErrors, contrastRatio, hasHorizontalOverflow, setColorMode, toRgb } from './support'
 
@@ -634,4 +637,29 @@ test('code block feedback: a flag on each block posts the block and a comment', 
   expect(res.request().postDataJSON()).toMatchObject({ path: '/docs/markdown', kind: 'code', block: 1, value: -1, comment: 'This fails on Windows' })
   await expect(page.getByRole('status').filter({ hasText: 'Thanks for flagging this code.' })).toBeVisible()
   expect(errors.pageErrors).toEqual([])
+})
+
+test('a first docs visit fetches no one-icon chunk (the docs icons ride in the docs chunk)', async ({ page }) => {
+  // The build being served (dist/): chunk names from aiui-manifest.json, icon names from aiui-icons.json.
+  const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist')
+  const manifest = JSON.parse(readFileSync(path.join(dist, 'aiui-manifest.json'), 'utf8')) as Record<string, { file: string; name?: string }>
+  const icons = new Set(JSON.parse(readFileSync(path.join(dist, 'aiui-icons.json'), 'utf8')) as string[])
+  const nameOf = new Map(Object.values(manifest).map((c) => [`/${c.file}`, c.name ?? '']))
+  const scripts: string[] = []
+  page.on('request', (r) => {
+    if (r.resourceType() === 'script') scripts.push(new URL(r.url()).pathname)
+  })
+  await page.goto('/docs/components')
+  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  // A one-icon chunk: named after an icon and holding only its drawing (createLucideIcon("<name>", nodes)).
+  // `x` is the close button of the Sheet and Dialog primitives (components/ui), which the app shell shares.
+  const iconChunks = scripts.filter((file) => {
+    const name = nameOf.get(file) ?? ''
+    if (!icons.has(name) || name === 'x') return false
+    const code = readFileSync(path.join(dist, file), 'utf8')
+    return code.length < 1500 && code.includes(`("${name}",`)
+  })
+  expect(iconChunks, 'one-icon chunks on a first docs visit').toEqual([])
+  expect(scripts.length).toBeGreaterThan(5)
 })

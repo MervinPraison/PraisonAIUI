@@ -5,7 +5,7 @@
 // .aiui-tree, .aiui-colors). Colours are tokens or a validated author value.
 /* eslint-disable react-refresh/only-export-components -- accent() and slots() are shared with DocsBlocks.tsx */
 import { Children, isValidElement, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
-import { ChevronRight, File, Folder } from 'lucide-react'
+import { ChevronRight, File, Folder } from 'virtual:aiui-icons/inline'
 import { cardHref } from './cardHref'
 import { isExternal } from './chrome'
 import { DocsHomeIcon, docsIcon } from './docsHomeIcons'
