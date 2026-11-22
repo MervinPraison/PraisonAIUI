@@ -926,7 +926,11 @@ const ChartBlockLazy = templateBlock(() => import('./chart/ChartBlock').then((m)
 
 // Filter inputs (blocks/inputs): the combobox chunk carries cmdk + popover.
 const SearchableSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.SearchableSelect })))
-const FilterBar = templateBlock(() => import('./inputs/FilterBar').then((m) => ({ default: m.FilterBar })))
+const MultiSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.MultiSelect })))
+const TagsInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.TagsInput })))
+const DateRangeInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.DateRangeInput })))
+const SegmentedInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.SegmentedInput })))
+const FilterBar = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.FilterBar })))
 
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
@@ -985,6 +989,10 @@ const CORE: Record<string, CoreBlock> = {
   switch_input: SwitchInputBlock,
   radio_input: RadioInputBlock,
   slider_input: SliderInputBlock,
+  multiselect_input: MultiSelect,
+  tags_input: TagsInput,
+  date_range_input: DateRangeInput,
+  segmented_input: SegmentedInput,
   filter_bar: FilterBar,
   board: BoardTemplate,
   gallery: GalleryTemplate,

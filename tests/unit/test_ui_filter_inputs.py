@@ -6,9 +6,10 @@ import praisonaiui as aiui
 from praisonaiui import ui
 
 
-def test_filter_bar_is_exported():
-    assert "filter_bar" in aiui.__all__
-    assert aiui.filter_bar is ui.filter_bar
+def test_new_helpers_are_exported():
+    for name in ("tags_input", "date_range_input", "segmented_input", "filter_bar"):
+        assert name in aiui.__all__
+        assert getattr(aiui, name) is getattr(ui, name)
 
 
 def test_select_input_searchable_and_auto_submit_are_additive():
@@ -34,6 +35,40 @@ def test_auto_submit_on_existing_inputs():
 def test_form_submit_on_change_is_opt_in():
     assert "submit_on_change" not in aiui.form("p", children=[])
     assert aiui.form("p", children=[], submit_on_change=True)["submit_on_change"] is True
+
+
+def test_multiselect_keeps_old_shape_and_takes_name():
+    assert aiui.multiselect_input("Tags", options=["A"], value=["A"]) == {
+        "type": "multiselect_input",
+        "label": "Tags",
+        "options": ["A"],
+        "value": ["A"],
+    }
+    m = aiui.multiselect_input("Tags", options=[{"value": "a", "label": "A"}], name="t", placeholder="Pick")
+    assert m["name"] == "t" and m["placeholder"] == "Pick"
+
+
+def test_tags_input():
+    t = aiui.tags_input("Tags", value=("ai", "ml"), name="tags")
+    assert t == {"type": "tags_input", "label": "Tags", "value": ["ai", "ml"], "placeholder": "Add a tag", "name": "tags"}
+
+
+def test_date_range_input():
+    d = aiui.date_range_input("posted", label="Posted", start="2026-01-01")
+    assert d["type"] == "date_range_input"
+    assert (d["start"], d["end"]) == ("2026-01-01", "")
+    assert d["presets"] == [7, 30, 90, 365]
+    custom = aiui.date_range_input("p", presets=[14, {"days": 60, "label": "2 months"}])
+    assert custom["presets"] == [14, {"days": 60, "label": "2 months"}]
+    assert aiui.date_range_input("p", presets=())["presets"] == []
+
+
+def test_segmented_input():
+    single = aiui.segmented_input("platform", ["all", "yt"], value="yt")
+    assert single["value"] == "yt" and single["multi"] is False
+    multi = aiui.segmented_input("fmt", [{"value": "v", "label": "Video"}], value="v", multi=True)
+    assert multi["value"] == ["v"] and multi["multi"] is True
+    assert aiui.segmented_input("fmt", ["a"], multi=True)["value"] == []
 
 
 def test_filter_bar():

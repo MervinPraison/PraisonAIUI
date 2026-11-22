@@ -332,6 +332,9 @@ def __getattr__(name: str):
         "form_action",
         "status",
         # Filters
+        "tags_input",
+        "date_range_input",
+        "segmented_input",
         "filter_bar",
     }
     if name in _callback_attrs:
@@ -789,5 +792,8 @@ __all__ = [
     "form_action",
     "status",
     # Filters
+    "tags_input",
+    "date_range_input",
+    "segmented_input",
     "filter_bar",
 ]
