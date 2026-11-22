@@ -320,6 +320,9 @@ def __getattr__(name: str):
         # Tier C — completeness
         "time_input",
         "gallery",
+        "card_grid",
+        "link_button",
+        "page_link",
         "breadcrumb",
         "pagination",
         "definition_list",
@@ -772,6 +775,9 @@ __all__ = [
     # Tier C — completeness
     "time_input",
     "gallery",
+    "card_grid",
+    "link_button",
+    "page_link",
     "breadcrumb",
     "pagination",
     "definition_list",

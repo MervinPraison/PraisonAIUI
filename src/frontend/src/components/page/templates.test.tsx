@@ -302,6 +302,29 @@ test('gallery block: aiui.gallery() images keep only safe URLs', () => {
   assert.match(html, /<span class="aiui-tpl-mono" aria-hidden="true">BA<\/span>/, 'an unsafe image falls back to a monogram')
 })
 
+test('gallery block: href, page and video items open from a focusable title link that covers the tile', () => {
+  const node = {
+    type: 'gallery',
+    props: {
+      items: [
+        { src: '/a.png', title: 'Docs', href: 'https://example.com', target: '_blank' },
+        { src: '/v.png', title: 'Launch', video: '/launch.mp4' },
+        { title: 'Sync', page: 'sync' },
+        { title: 'Bad', href: 'javascript:alert(1)' },
+      ],
+    },
+  }
+  const html = renderToStaticMarkup(<GalleryBlock node={node} />)
+  assert.match(html, /<article class="aiui-tpl-tile" aria-labelledby="[^"]+" data-link="true">/)
+  assert.match(html, /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer" data-stretch="">Docs<\/a>/)
+  assert.match(html, /<div class="aiui-tpl-tile-mediawrap"><img[^>]*src="\/v.png"[^>]*\/><span class="aiui-tpl-tile-play" aria-hidden="true">/)
+  assert.match(html, /<a href="\/launch.mp4" target="_blank" rel="noopener noreferrer" data-stretch="">Launch<span class="sr-only"> \(video\)<\/span><\/a>/)
+  assert.match(html, /<a href="\/sync" data-stretch="">Sync<\/a>/)
+  assert.doesNotMatch(html, /javascript:/)
+  const css = readFileSync(path.join(process.cwd(), 'src/components/page/page.css'), 'utf8')
+  assert.match(css, /\.aiui-tpl-tile:has\(a\[data-stretch\]:focus-visible\) \{\s*outline: 2px solid var\(--ring\);/)
+})
+
 test('the core block set renders the template types (lazily)', async () => {
   const { CORE_BLOCK_TYPES, getCoreBlock } = await import('@/blocks/coreBlocks')
   for (const type of ['board', 'gallery', 'list_detail', 'log_viewer', 'code_editor']) {

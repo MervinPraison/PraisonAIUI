@@ -715,13 +715,20 @@ def spinner(text: str = "Loading...") -> dict:
     return {"type": "spinner", "text": text}
 
 
-def avatar(*, src: str | None = None, name: str | None = None, fallback: str | None = None) -> dict:
+def avatar(
+    *,
+    src: str | None = None,
+    name: str | None = None,
+    fallback: str | None = None,
+    size: str | None = None,
+) -> dict:
     """An avatar image or initials.
 
     Args:
         src: Image URL
         name: Display name (used for alt text)
         fallback: Fallback text when no image (e.g. initials)
+        size: "sm", "default" or "lg" (optional)
     """
     comp: dict[str, Any] = {"type": "avatar"}
     if src is not None:
@@ -730,6 +737,8 @@ def avatar(*, src: str | None = None, name: str | None = None, fallback: str | N
         comp["name"] = name
     if fallback is not None:
         comp["fallback"] = fallback
+    if size is not None:
+        comp["size"] = size
     return comp
 
 
@@ -790,7 +799,7 @@ def color_picker_input(label: str, *, value: str = "#000000") -> dict:
     return {"type": "color_picker_input", "label": label, "value": value}
 
 
-def audio_player(src: str, *, autoplay: bool = False) -> dict:
+def audio_player(src: str, *, autoplay: bool = False, title: str | None = None) -> dict:
     """An audio player.
 
     Named ``audio_player`` to avoid collision with ``aiui.audio`` chat callback.
@@ -798,8 +807,12 @@ def audio_player(src: str, *, autoplay: bool = False) -> dict:
     Args:
         src: Audio file URL or path
         autoplay: Whether to auto-play
+        title: Optional caption, also the player's accessible name
     """
-    return {"type": "audio_player", "src": src, "autoplay": autoplay}
+    comp: dict[str, Any] = {"type": "audio_player", "src": src, "autoplay": autoplay}
+    if title is not None:
+        comp["title"] = title
+    return comp
 
 
 def video_player(
@@ -807,6 +820,7 @@ def video_player(
     *,
     autoplay: bool = False,
     poster: str | None = None,
+    title: str | None = None,
 ) -> dict:
     """A video player.
 
@@ -814,26 +828,34 @@ def video_player(
 
     Args:
         src: Video file URL or path
-        autoplay: Whether to auto-play
+        autoplay: Whether to auto-play (starts muted, as browsers require)
         poster: Poster image URL shown before playback
+        title: Optional caption, also the player's accessible name
     """
     comp: dict[str, Any] = {"type": "video_player", "src": src, "autoplay": autoplay}
     if poster is not None:
         comp["poster"] = poster
+    if title is not None:
+        comp["title"] = title
     return comp
 
 
-def file_download(label: str, *, href: str, filename: str | None = None) -> dict:
+def file_download(
+    label: str, *, href: str, filename: str | None = None, variant: str | None = None
+) -> dict:
     """A file download link/button.
 
     Args:
         label: Button label text
         href: URL to the downloadable file
         filename: Suggested filename for the download
+        variant: Button look: "outline" (default), "primary", "secondary", "ghost"
     """
     comp: dict[str, Any] = {"type": "file_download", "label": label, "href": href}
     if filename is not None:
         comp["filename"] = filename
+    if variant is not None:
+        comp["variant"] = variant
     return comp
 
 
@@ -856,17 +878,25 @@ def dialog(
     *,
     children: Sequence[dict],
     description: str | None = None,
+    trigger_label: str | None = None,
+    variant: str | None = None,
 ) -> dict:
-    """A modal dialog.
+    """A button that opens a modal dialog with child components.
 
     Args:
         title: Dialog heading
         children: Content components inside the dialog
         description: Optional subtitle/description
+        trigger_label: Text of the button that opens it (defaults to ``title``)
+        variant: Look of that button: "outline" (default), "primary", "secondary", "ghost"
     """
     comp: dict[str, Any] = {"type": "dialog", "title": title, "children": list(children)}
     if description is not None:
         comp["description"] = description
+    if trigger_label is not None:
+        comp["trigger_label"] = trigger_label
+    if variant is not None:
+        comp["variant"] = variant
     return comp
 
 
@@ -1020,9 +1050,60 @@ def gallery(items: Sequence[dict]) -> dict:
     """An image/media gallery grid.
 
     Args:
-        items: List of ``{"src": str, "alt": str, "caption": str}``
+        items: List of ``{"src": str, "alt": str, "caption": str}``. Optional
+            per item: ``href`` (the tile opens this link), ``target``
+            (e.g. ``"_blank"``), ``page`` (open an app page by id instead) and
+            ``video`` (a video URL: the tile shows a play mark and opens it).
     """
     return {"type": "gallery", "items": list(items)}
+
+
+def card_grid(items: Sequence[dict], *, columns: int = 3) -> dict:
+    """A responsive grid of entity cards (one column on a phone).
+
+    Args:
+        items: List of cards. Each takes ``title`` and optionally
+            ``subtitle``, ``description``, ``image`` (cover image URL),
+            ``avatar`` (round image URL; initials of the title without one),
+            ``stats`` (``[{"label": str, "value": Any}]``), ``badges``
+            (strings or ``{"text": str, "variant": str}``), and ``href``
+            (with ``target``) or ``page`` (an app page id) to make the card
+            a link.
+        columns: Columns on a wide screen (1-6)
+    """
+    return {"type": "card_grid", "items": list(items), "columns": columns}
+
+
+def link_button(label: str, href: str, *, variant: str = "outline", external: bool = False) -> dict:
+    """A link that looks like a button.
+
+    A ``link`` block with a ``variant``, so older renderers show a plain link.
+
+    Args:
+        label: Button text
+        href: Target URL
+        variant: "outline" (default), "primary", "secondary", "ghost" or "link"
+        external: Open in a new tab
+    """
+    return {"type": "link", "text": label, "href": href, "external": external, "variant": variant}
+
+
+def page_link(page_id: str, label: str | None = None, *, variant: str | None = None) -> dict:
+    """A link to another page of the app, opened without a full reload.
+
+    Args:
+        page_id: Id of the target page (as given to ``@aiui.page``)
+        label: Link text (defaults to the page id)
+        variant: Render as a button ("outline", "primary", ...) instead of a text link
+    """
+    from urllib.parse import quote
+
+    href = "/" + quote(page_id, safe="")
+    text = label if label is not None else page_id
+    comp: dict[str, Any] = {"type": "link", "text": text, "href": href, "page": page_id}
+    if variant is not None:
+        comp["variant"] = variant
+    return comp
 
 
 def breadcrumb(items: Sequence[dict]) -> dict:

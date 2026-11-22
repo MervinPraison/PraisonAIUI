@@ -710,3 +710,28 @@ class TestPopover:
         assert p["type"] == "popover"
         assert p["trigger"]["type"] == "badge"
         assert len(p["children"]) == 1
+
+
+def test_media_overlay_shapes_old_and_new():
+    from praisonaiui.ui import audio_player, avatar, dialog, file_download, video_player
+
+    assert avatar(name="Ada") == {"type": "avatar", "name": "Ada"}
+    assert audio_player("/a.mp3") == {"type": "audio_player", "src": "/a.mp3", "autoplay": False}
+    assert file_download("Get", href="/f") == {"type": "file_download", "label": "Get", "href": "/f"}
+    assert dialog("T", children=[]) == {"type": "dialog", "title": "T", "children": []}
+    assert avatar(name="Ada", size="lg")["size"] == "lg"
+    assert video_player("/v.mp4", title="Demo")["title"] == "Demo"
+    assert file_download("Get", href="/f", variant="primary")["variant"] == "primary"
+    d = dialog("T", children=[], trigger_label="Open", variant="secondary")
+    assert (d["trigger_label"], d["variant"]) == ("Open", "secondary")
+
+
+def test_card_grid_link_button_page_link():
+    import praisonaiui as aiui
+
+    items = [{"title": "Ada", "stats": [{"label": "Subs", "value": 3}], "href": "/a"}]
+    assert aiui.card_grid(items, columns=4) == {"type": "card_grid", "items": items, "columns": 4}
+    assert aiui.link_button("Open", "/x") == {**aiui.link("Open", href="/x"), "variant": "outline"}
+    assert aiui.page_link("sync") == {"type": "link", "text": "sync", "href": "/sync", "page": "sync"}
+    assert aiui.page_link("my page/x", "Mine", variant="ghost")["href"] == "/my%20page%2Fx"
+    assert {"card_grid", "link_button", "page_link"} <= set(aiui.__all__)

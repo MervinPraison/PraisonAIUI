@@ -8,8 +8,8 @@
  * below, registered lazily by blocks/coreBlocks.tsx; same props as
  * `aiui.gallery()`).
  */
-import { useId, type KeyboardEvent, type ReactNode } from 'react'
-import { CircleAlert } from 'lucide-react'
+import { useId, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { CircleAlert, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { monogram, stepTab } from './model'
 import { Glyph } from './parts'
@@ -33,6 +33,12 @@ export interface GalleryItem {
   /** Right of the action ("Free", "Verified"). */
   note?: ReactNode
   error?: string
+  /** The tile opens this safe URL (`target`, `onOpen` on its title link, which covers the tile). */
+  href?: string
+  target?: string
+  onOpen?: (e: MouseEvent<HTMLAnchorElement>) => void
+  /** A play mark over the image. */
+  video?: boolean
 }
 
 export interface GalleryTab {
@@ -164,9 +170,19 @@ export function Gallery({
 
 function GalleryTile({ item, selected, onSelect }: { item: GalleryItem; selected: boolean; onSelect?: (id: string | null) => void }) {
   const titleId = useId()
+  const img = item.image && <img className="aiui-tpl-tile-media" src={item.image.src} alt={item.image.alt} loading="lazy" />
   return (
-    <article className="aiui-tpl-tile" aria-labelledby={titleId} data-selected={selected || undefined}>
-      {item.image && <img className="aiui-tpl-tile-media" src={item.image.src} alt={item.image.alt} loading="lazy" />}
+    <article className="aiui-tpl-tile" aria-labelledby={titleId} data-selected={selected || undefined} data-link={item.href ? true : undefined}>
+      {img && item.video ? (
+        <div className="aiui-tpl-tile-mediawrap">
+          {img}
+          <span className="aiui-tpl-tile-play" aria-hidden="true">
+            <Play width={16} height={16} />
+          </span>
+        </div>
+      ) : (
+        img
+      )}
       <div className="aiui-tpl-tile-head">
         {!item.image && (
           <span className="aiui-tpl-mono" aria-hidden="true">
@@ -175,7 +191,18 @@ function GalleryTile({ item, selected, onSelect }: { item: GalleryItem; selected
         )}
         <div className="aiui-tpl-tile-title">
           <h3 id={titleId}>
-            {onSelect ? (
+            {item.href ? (
+              <a
+                href={item.href}
+                target={item.target}
+                rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+                data-stretch=""
+                onClick={item.onOpen}
+              >
+                {item.title}
+                {item.video && <span className="sr-only"> (video)</span>}
+              </a>
+            ) : onSelect ? (
               <button type="button" aria-pressed={selected} onClick={() => onSelect(selected ? null : item.id)}>
                 {item.title}
               </button>
