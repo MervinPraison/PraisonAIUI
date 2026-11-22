@@ -51,7 +51,12 @@ def create() -> Any:
         )
     spec = json.loads(raw)
 
-    from praisonaiui.cli import _apply_chat_yaml, _apply_pages_flag, _load_user_module, _make_datastore
+    from praisonaiui.cli import (
+        _apply_chat_yaml,
+        _apply_pages_flag,
+        _load_user_module,
+        _make_datastore,
+    )
     from praisonaiui.server import create_app, set_datastore, set_style
 
     app_file = Path(spec["app_file"])
