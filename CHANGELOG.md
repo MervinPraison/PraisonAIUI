@@ -135,6 +135,13 @@
 
 ### New
 
+- **Every layout lists the app's own pages.** Pages from `register_page` /
+  `@aiui.page` show in their group in the sidebar of every layout (the
+  `chat` layout of `aiui run` showed only Chat and hid them under More).
+- **`aiui.set_pages("all")` / `aiui run --pages all`** shows every page with
+  every group listed in the sidebar of whatever layout is on (the legacy
+  dashboard's tabs, in the app shell), and the layout picker still works.
+  `--pages chat,sessions` takes a list of ids.
 - **`aiui.only_my_pages(*keep)`** shows only the app's own pages, plus the
   built-in ids in `keep` (`aiui.only_my_pages("chat")`). Same as
   `set_pages(list(keep))`.

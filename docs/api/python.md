@@ -50,6 +50,16 @@ aiui.set_pages([
 An id that names no page is reported with a warning at startup. Use
 `aiui pages ids` to see all available page IDs.
 
+`aiui.set_pages("all")` (or `aiui run app.py --pages all`) shows every page
+and makes every layout's sidebar list them all, grouped (Agent, Work,
+Control, ...), as the legacy dashboard did: each page in its React version
+where there is one, otherwise the legacy view inside the app shell. The
+layout picker keeps working. `aiui run --pages chat,sessions` is the same as
+`set_pages(["chat", "sessions"])`.
+
+The app's own pages (`register_page`, `@aiui.page`) are listed in their group
+in every layout's sidebar, not only under More (⌘K).
+
 ### `aiui.only_my_pages(*keep)`
 
 Shorthand for `set_pages(list(keep))`: `aiui.only_my_pages()` shows only the
