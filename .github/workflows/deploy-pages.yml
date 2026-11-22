@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Deploy even when the built site is unchanged"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,11 +43,35 @@ jobs:
           aiui schema --output site/aiui.schema.json  # the $schema URL that `aiui init` writes
           cp CNAME site/CNAME
 
+      # A deploy force-pushes gh-pages and purges the CDN, so publish only a
+      # site that changed. The hash covers the fresh build (before old chunks
+      # are carried in) and is published as aiui-site-hash.txt for the next
+      # run to compare (src/frontend/scripts/site-hash.mjs). No hash on
+      # gh-pages (the first deploy) counts as changed.
+      - name: Compare with the deployed site
+        id: site
+        run: |
+          rm -f previous-hash.txt
+          if git fetch --no-tags --depth=1 origin gh-pages; then
+            git show FETCH_HEAD:aiui-site-hash.txt > previous-hash.txt 2>/dev/null || rm -f previous-hash.txt
+          fi
+          node src/frontend/scripts/site-hash.mjs site --previous previous-hash.txt | tee -a "$GITHUB_OUTPUT"
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Forced deploy (workflow_dispatch force)."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif grep -q '^changed=false$' "$GITHUB_OUTPUT"; then
+            echo "The built site is identical to the deployed one: skipping the deploy (no push, no CDN purge)."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # A deploy replaces every file. Readers with an older page still open
       # would then ask for chunks that are gone, so the previous build's
       # assets are kept next to the new ones, and through the carry ledger
       # (aiui-carried.json) older builds' assets for two days.
       - name: Keep the previous deploy's chunks
+        if: steps.site.outputs.deploy == 'true'
         run: |
           mkdir -p previous-site
           if git fetch --no-tags --depth=1 origin gh-pages; then
@@ -63,6 +92,7 @@ jobs:
           rm -rf previous-site
 
       - name: Deploy to GitHub Pages
+        if: steps.site.outputs.deploy == 'true'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
