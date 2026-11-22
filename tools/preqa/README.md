@@ -122,5 +122,6 @@ looser timing rules under `targets` and keep the byte and count budgets strict.
 
 ## Tests
 
-`pytest tests/unit/test_preqa_tools.py` (budgets, history parsing, report,
-notifications, server) and `ruff check tools/preqa`.
+`pytest tests/unit/test_preqa_tools.py tests/unit/test_preqa_track.py` (budgets,
+history parsing, report, notifications, server, tracker issue counting) and
+`ruff check tools/preqa`.

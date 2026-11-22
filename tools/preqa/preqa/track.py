@@ -74,7 +74,7 @@ class Collector:
         self.aborted = 0
         self.ignore = {k: [re.compile(p) for p in v] for k, v in (ignore or {}).items()}
         self._seen: set = set()
-        self._pending: dict[int, dict] = {}
+        self._pending: dict = {}  # keyed by the page object: id() can be reused once a context closes
 
     def add(self, metric: str, ms, page: str | None = None, which: str | None = None):
         if ms is None:
@@ -92,7 +92,7 @@ class Collector:
         self.issues[kind].append(item)
 
     def attach(self, page, flow: str):
-        pending: dict = self._pending.setdefault(id(page), {})
+        pending: dict = self._pending.setdefault(page, {})
 
         def on_request(r):
             pending[r] = time.monotonic()
@@ -135,15 +135,16 @@ class Collector:
         except Exception:  # page closed or crashed
             snap = None
         now = time.monotonic()
-        pending = self._pending.get(id(page), {})
+        pending = self._pending.get(page, {})
         for r, t0 in list(pending.items()):
             if (now - t0) * 1000 > OPEN_MS:
                 pending.pop(r, None)
                 self.issue("stalled", flow=flow, url=r.url, ms=round((now - t0) * 1000), open=True)
         if not snap:
             return None
+        doc = (id(page), snap.get("origin"))  # one document: goto/reload restarts page time
         for e in snap["res"]:
-            key = (id(page), e["url"], e["start"])
+            key = (doc, e["url"], e["start"])
             if key in self._seen:
                 continue
             self._seen.add(key)
@@ -153,12 +154,10 @@ class Collector:
                 self.issue("held", flow=flow, url=e["url"], ms=e["dur"], at=e["start"], reason="requestStart=0")
         for s in snap["skel"]:
             self.t.setdefault("skeleton", []).append(s["ms"])
-            key = (id(page), "skel", s["at"])
-            if s["ms"] > SKELETON_MS and key not in self._seen and not s.get("open"):
+            key = (doc, "skel", s["at"])
+            if s["ms"] > SKELETON_MS and key not in self._seen:
                 self._seen.add(key)
-                self.issue("skeleton", flow=flow, url=s["path"], ms=s["ms"])
-            elif s["ms"] > SKELETON_MS and s.get("open"):
-                self.issue("skeleton", flow=flow, url=s["path"], ms=s["ms"], open=True)
+                self.issue("skeleton", flow=flow, url=s["path"], ms=s["ms"], **({"open": True} if s.get("open") else {}))
         for ev in snap.get("docsLoad") or []:
             if isinstance(ev, dict):
                 self.docs_load.append({"flow": flow, **ev})

@@ -46,7 +46,7 @@
     })
     const nav = performance.getEntriesByType('navigation')[0]
     const docsLoad = Array.isArray(window.__aiuiDocsLoad) ? window.__aiuiDocsLoad : S.docsLoad
-    return { now: Math.round(now), path: location.pathname, ready: S.ready, skel, res, docsLoad,
+    return { now: Math.round(now), origin: performance.timeOrigin, path: location.pathname, ready: S.ready, skel, res, docsLoad,
       html: nav ? { x: nav.transferSize, d: nav.decodedBodySize } : null }
   }
 })()

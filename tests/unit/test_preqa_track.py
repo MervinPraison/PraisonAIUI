@@ -32,3 +32,19 @@ def test_collector_counts_issues_and_ignores():
     m = col.metrics()
     assert (m["console_errors"], m["held_requests"], m["skeleton_max_ms"]) == (1, 1, 0)
     assert (m["docs_load_events"], m["docs_load_problems"], m["docs_load_ms"]["max"]) == (2, 1, 9000)
+
+
+def test_drain_dedupes_per_document_not_per_page():
+    """A goto/reload on the same page restarts page time: identical entries there are new issues."""
+    class Page:
+        snap = None
+
+        def evaluate(self, _js):
+            return self.snap
+
+    col, page = Collector({}, {}), Page()
+    held = {"url": "/a.md", "start": 40, "dur": 1500, "queue": None, "x": 0}
+    for origin in (1.0, 1.0, 2.0):  # same document drained twice, then a new document
+        page.snap = {"origin": origin, "res": [held], "skel": [{"at": 5, "ms": 3500, "path": "/", "open": True}]}
+        col.drain(page, "cold")
+    assert (len(col.issues["held"]), len(col.issues["skeleton"])) == (2, 2)
