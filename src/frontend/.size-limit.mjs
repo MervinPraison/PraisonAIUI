@@ -266,7 +266,7 @@ export default [
   // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
   // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
   // 143,581 B (+2 B, exactly the overage): chunk hashes renamed by the shown nav groups; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143581 B', gzip: true },
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143584 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -336,7 +336,7 @@ export default [
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
   // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257066 B', gzip: true },
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257067 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -505,5 +505,6 @@ export default [
   // 11,181,896 B (+1,521 B, exactly the overage): hedged docs requests and the connection warm-up.
   // 11,573,449 B (+391,553 B, exactly the overage): the chart block and recharts (one lazy chunk plus
   // the d3 scale chunks it shares with mermaid), 2026-11-22.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11573449 B', brotli: false },
+  // 11,573,583 B (+134 B, exactly the overage): recharts measuring-span cleanup in the chart block.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11573583 B', brotli: false },
 ]

@@ -11,7 +11,7 @@
  * sparkline, small multiples) is one entry there plus its name in
  * model.ts `CHART_KINDS`.
  */
-import { useLayoutEffect, useRef, useState, type JSX, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type JSX, type ReactNode, type RefObject } from 'react'
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { cn } from '@/lib/utils'
 import type { BlockNode } from '@/sdk/registry'
@@ -223,7 +223,20 @@ function Legend({ spec }: { spec: ChartSpec }) {
   )
 }
 
+/** Charts on screen. recharts keeps one hidden text-measuring <span> in <body>; the last chart to go removes it. */
+let mounted = 0
+
+function useMeasureSpanCleanup(): void {
+  useEffect(() => {
+    mounted++
+    return () => {
+      if (--mounted === 0) document.getElementById('recharts_measurement_span')?.remove()
+    }
+  }, [])
+}
+
 export function ChartBlock({ node }: { node: BlockNode }): JSX.Element {
+  useMeasureSpanCleanup()
   const spec = toChartSpec(node.props ?? {})
   const nested = useInFrame()
   const [ref, width] = useWidth()
