@@ -1846,6 +1846,14 @@ def _load_user_module(app_file: Path):
     return user_module
 
 
+def _apply_pages_flag(pages: str) -> None:
+    """``aiui run --pages all|id,id``: the same as ``aiui.set_pages()``."""
+    from praisonaiui.server import set_pages
+
+    value = pages.strip()
+    set_pages("all" if value == "all" else [p.strip() for p in value.split(",") if p.strip()])
+
+
 def app_sessions_dir(app_file: Path) -> Path:
     """The chat-history folder of one app under ``aiui run`` (per app).
 
@@ -2187,6 +2195,11 @@ def run(
         "-d",
         help="Data persistence: 'sdk' (shared with praisonai-agents in ~/.praisonai/sessions), 'json', 'memory', 'json:/path', or 'sdk:/path'. Default for app.py: this app's own folder, ~/.praisonaiui/apps/<app>-<hash>/sessions. Overrides a chat YAML's datastore: key",
     ),
+    pages: Optional[str] = typer.Option(
+        None,
+        "--pages",
+        help="Pages to show besides the app's own: 'all' (every page, every group in the sidebar) or comma-separated ids such as 'chat,sessions'. Same as aiui.set_pages(); wins over it",
+    ),
     style: Optional[str] = typer.Option(
         None,
         "--style",
@@ -2289,6 +2302,9 @@ def run(
                     except (OSError, TypeError, SyntaxError):
                         # If source inspection fails, continue with standalone
                         pass
+
+    if pages is not None:
+        _apply_pages_flag(pages)
 
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI --style > YAML style > aiui.set_style() > auto-detect >
@@ -2490,6 +2506,7 @@ def run(
                 is_yaml=is_yaml,
                 style=style,
                 datastore=datastore_requested,
+                pages=pages,
                 static_dir=static_dir,
                 config_path=config_path,
             )
