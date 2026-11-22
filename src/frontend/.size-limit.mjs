@@ -509,5 +509,6 @@ export default [
   // 11,573,583 B (+134 B, exactly the overage): recharts measuring-span cleanup in the chart block.
   // 11,577,511 B (+3,928 B, exactly the overage): page params in the URL, auto refresh and the status block.
   // 11,579,911 B (+2,400 B, exactly the overage): lazy tab and expander bodies (blocks/pageBlocks.tsx LazySection).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11579911 B', brotli: false },
+  // 11,580,023 B (+112 B, exactly the overage, 2026-11-22): LazySection skips re-fetching closed sections until reopened.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11580023 B', brotli: false },
 ]

@@ -3,11 +3,12 @@
  *
  * - `LazySection`: the body of a lazy tab or expander, fetched through the
  *   page's `loadSection` the first time it opens; a skeleton while loading, an
- *   error with "Try again" on failure. It re-fetches when the page reloads.
+ *   error with "Try again" on failure. After a page reload it re-fetches when
+ *   open (a closed section re-fetches on its next open).
  * - `StatusBlock`: `{type: "status", label, state, detail, progress, log}`, a
  *   job row (queued, running, done, failed) with an optional log tail.
  */
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { CircleCheck, CircleX, Clock, LoaderCircle, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -35,8 +36,14 @@ export function LazySection({ loadKey, open, page }: { loadKey: string; open: bo
     setState({ status: 'loading' })
   }
 
+  // Which (key, page version, attempt) the body was last fetched for. A closed
+  // section that already loaded waits for its next open before re-fetching.
+  const fetched = useRef('')
+
   useEffect(() => {
     if (!opened) return
+    const want = `${loadKey}:${version ?? 0}:${attempt}`
+    if (fetched.current === want || (!open && fetched.current)) return
     const ac = new AbortController()
     // A reload (page data changed) keeps the loaded body on screen until the new one arrives.
     const run = loadSection
@@ -44,16 +51,19 @@ export function LazySection({ loadKey, open, page }: { loadKey: string; open: bo
       : Promise.reject(new Error('Lazy sections need a server page'))
     run.then(
       (nodes) => {
-        if (!ac.signal.aborted) setState({ status: 'ready', nodes })
+        if (ac.signal.aborted) return
+        fetched.current = want
+        setState({ status: 'ready', nodes })
       },
       (err: unknown) => {
         if (ac.signal.aborted) return
+        fetched.current = want
         const error = err instanceof Error ? err.message || err.name : String(err)
         setState((prev) => (prev.status === 'ready' ? prev : { status: 'error', error }))
       },
     )
     return () => ac.abort()
-  }, [opened, loadKey, loadSection, version, attempt])
+  }, [opened, open, loadKey, loadSection, version, attempt])
 
   if (!opened || state.status === 'idle') return null
   if (state.status === 'loading')

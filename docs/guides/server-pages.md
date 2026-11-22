@@ -145,7 +145,8 @@ async def youtube_action(data):
   action. A reply with `error` (or an HTTP error) shows the message and a
   "Try again" button; a skeleton shows while it loads.
 - Once loaded, a section stays loaded. When the page data reloads (Refresh,
-  auto refresh, an action that re-renders), open sections fetch again.
+  auto refresh, an action that re-renders), open sections fetch again; a
+  closed one fetches again the next time it opens.
 
 ## 5. Auto refresh and job status
 

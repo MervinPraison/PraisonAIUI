@@ -299,10 +299,10 @@ function SeparatorBlock({ node }: CoreBlockProps) {
   )
 }
 
-/** A lazy item (`tabs(lazy=True)` without children, or any item with `load`) → its key. */
+/** A lazy item (`tabs(lazy=True)`, no `children`) → its key (`load`, else `label`). */
 function lazyKey(item: Record<string, unknown>, lazy: boolean): string {
-  if (Array.isArray(item.children)) return ''
-  return str(item.load) || (lazy ? str(item.label) : '')
+  if (!lazy || Array.isArray(item.children)) return ''
+  return str(item.load) || str(item.label)
 }
 
 function TabsBlock({ node, page }: CoreBlockProps) {
