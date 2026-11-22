@@ -5,14 +5,14 @@
  */
 import { arr, display, isRecord, num, str } from '../normalize'
 
-export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress'
+export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress' | 'date'
 export type Align = 'left' | 'center' | 'right'
 
 export interface Column {
   key: string
   label: string
   type: ColumnType
-  /** number: compact | percent | multiplier (x) | fixed; image: wide. */
+  /** number: compact | percent | multiplier (x) | fixed; image: wide; date: datetime | iso. */
   format: string
   decimals?: number
   /** badge/tag: cell value → success | warning | error | info. */
@@ -24,7 +24,7 @@ export interface Column {
   sortable: boolean
 }
 
-const TYPES = new Set<ColumnType>(['auto', 'text', 'number', 'link', 'badge', 'tag', 'image', 'progress'])
+const TYPES = new Set<ColumnType>(['auto', 'text', 'number', 'link', 'badge', 'tag', 'image', 'progress', 'date'])
 const ALIGNS = new Set<Align>(['left', 'center', 'right'])
 
 function alignOf(v: unknown, type: ColumnType): Align {
@@ -93,6 +93,7 @@ export function cellText(v: unknown, col: Column): string {
   // `auto` numbers show as sent (a year stays 2024); `number` columns format.
   if (col.type === 'number') return formatNumber(v, col.format, col.decimals)
   if (col.type === 'progress') return formatNumber(v, 'percent', col.decimals ?? 0)
+  if (col.type === 'date') return formatDate(v, col.format)
   return display(v)
 }
 
@@ -135,6 +136,22 @@ export function formatNumber(v: unknown, format = '', decimals?: number): string
   }
 }
 
+/** A date cell → epoch ms, or null. Numbers below 1e11 are seconds; `2026-11-22` is that day in UTC. */
+export function toTime(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? (Math.abs(v) < 1e11 ? v * 1000 : v) : null
+  const s = typeof v === 'string' ? v.trim() : ''
+  const t = s ? Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T00:00:00Z` : s) : NaN
+  return Number.isFinite(t) ? t : null
+}
+
+/** Default `Nov 22, 2026`; `datetime` adds the time (24 h); `iso` gives `2026-11-22`. Always UTC. */
+export function formatDate(v: unknown, format = ''): string {
+  const t = toTime(v)
+  if (t === null) return display(v)
+  if (format === 'iso') return new Date(t).toISOString().slice(0, 10)
+  const time: Intl.DateTimeFormatOptions = format === 'datetime' ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } : {}
+  return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC', ...time }).format(t)
+}
 
 export type SortValue = number | string | null
 export type SortDir = 'asc' | 'desc'
@@ -147,6 +164,7 @@ export function sortValue(v: unknown, col: Column): SortValue {
   if (v === null || v === undefined || v === '') return null
   if (Array.isArray(v)) return v.length ? sortValue(v[0], col) : null
   if (isRecord(v)) return sortValue(v.value ?? v.text ?? v.label ?? v.alt ?? null, col)
+  if (col.type === 'date' && toTime(v) !== null) return toTime(v)
   if (typeof v === 'number') return Number.isFinite(v) ? v : null
   if (typeof v === 'boolean') return v ? 1 : 0
   const s = str(v).trim()

@@ -3,8 +3,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
-import { TableBlock } from './DataTable'
-import { cellText, compareValues, filterIndexes, formatNumber, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns } from './model'
+import { RowDetail, TableBlock } from './DataTable'
+import { cellText, compareValues, filterIndexes, formatDate, formatNumber, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns } from './model'
 
 const html = (props: Record<string, unknown>) => renderMarkup(<TableBlock node={{ type: 'table', props }} />).split('<!-- -->').join('')
 const [TEXT] = toColumns(['Name'], [])
@@ -95,4 +95,28 @@ test('TableBlock: search box, 50-row pages for 1,100 rows, row links', () => {
   assert.match(out, /1–50 of 1100/)
   assert.match(out, /aria-label="Next page"/)
   assert.match(out, /<a href="\/c\/0"[^>]*>Channel 0<\/a>/)
+})
+
+test('date columns: UTC days, seconds or ms, datetime and iso; sort by time', () => {
+  cases(formatDate, [
+    [['2026-11-22'], 'Nov 22, 2026'], [['2026-11-22', 'iso'], '2026-11-22'], [[Date.UTC(2026, 0, 2)], 'Jan 2, 2026'],
+    [[Date.UTC(2026, 0, 2, 15, 4) / 1000, 'datetime'], 'Jan 2, 2026, 15:04'], [['soon'], 'soon'],
+  ])
+  const [date] = toColumns([{ key: 'd', type: 'date' }], [])
+  assert.equal(cellText('2026-01-02T10:00:00Z', date), 'Jan 2, 2026')
+  const values = ['2026-03-01', 1767312000, 'n/a', '2025-12-31'].map((v) => sortValue(v, date))
+  assert.deepEqual(values, [Date.UTC(2026, 2, 1), Date.UTC(2026, 0, 2), 'n/a', Date.UTC(2025, 11, 31)])
+  assert.deepEqual(sortIndexes(values, 'asc'), [3, 1, 0, 2])
+})
+
+test('row detail: rows become focusable; the panel shows fields or the row blocks', () => {
+  const focusable = (props: Record<string, unknown>) => (html({ headers: ['Name'], rows: [['a']], ...props }).match(/<tr tabindex="0"/g) ?? []).length
+  assert.deepEqual([focusable({}), focusable({ row_detail: true }), focusable({ row_details: [[]] }), focusable({ row_details: [[], []] })], [0, 1, 1, 0])
+  const columns = toColumns(['Name', { key: 'd', label: 'Last post', type: 'date' }, ''], [])
+  const fields = renderMarkup(<RowDetail cells={['Chan', '2026-11-22', 3]} columns={columns} blocks={[]} />)
+  assert.match(fields, /<dt[^>]*>Last post<\/dt><dd[^>]*>Nov 22, 2026<\/dd>/)
+  assert.match(fields, /<dt[^>]*>Column 3<\/dt>/)
+  const blocks = renderMarkup(<RowDetail cells={['Chan']} columns={columns} blocks={[{ type: 'text', props: { content: 'Hello panel' } }]} />)
+  assert.match(blocks, /Hello panel/)
+  assert.doesNotMatch(blocks, /<dl/)
 })

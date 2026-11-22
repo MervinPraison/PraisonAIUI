@@ -1,26 +1,30 @@
 /**
  * The `table` block (praisonaiui/ui.py `table()`): typed cells, header
- * sorting, a search box, paging, a sticky header and row links. Every option
+ * sorting, a search box, paging, a sticky header, row links and a row side
+ * panel (the row's fields, or its `row_details` blocks). Every option
  * is optional: a plain `{headers, rows}` dict renders as before, plus
  * sorting. Pure logic lives in ./model.ts. Text is always rendered as text.
  */
-import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { pageRange } from '@/components/page/model'
 import { cn } from '@/lib/utils'
+import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
+import { BlockList } from '../BlockRenderer'
 import { useInFrame } from '../context'
-import { arr, display, isRecord, num, safeUrl, str } from '../normalize'
+import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from '../normalize'
 import { cellsOf, cellText, filterIndexes, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns, toneClass, typeOf, type Column, type SortDir } from './model'
 
 const AUTO: Column = { key: '', label: '', type: 'auto', format: '', tones: {}, align: 'left', sortable: false }
 const colOf = (cols: readonly Column[], i: number): Column => cols[i] ?? AUTO
 const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const
-const NOWRAP = new Set(['number', 'badge', 'progress', 'image'])
+const NOWRAP = new Set(['number', 'date', 'badge', 'progress', 'image'])
 const HEAD = 'sticky top-0 z-10 h-9 border-b border-border bg-background px-3 text-xs font-medium whitespace-nowrap text-muted-foreground'
 
 /** One cell's content by its column type. */
@@ -78,7 +82,27 @@ function SortIcon({ dir }: { dir?: SortDir }) {
   return <Icon aria-hidden className={cn('size-3 shrink-0', !dir && 'opacity-50')} />
 }
 
-export function TableBlock({ node }: { node: BlockNode }) {
+/** The side panel's body: the row's `row_details` blocks, else its fields. */
+export function RowDetail({ cells, columns, blocks, page }: { cells: readonly unknown[]; columns: readonly Column[]; blocks: BlockNode[]; page?: ShellPage }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-4 px-4 pb-4">
+      {blocks.length > 0 ? (
+        <BlockList nodes={blocks} page={page} />
+      ) : (
+        <dl className="divide-y divide-border text-sm">
+          {cells.map((v, i) => (
+            <div key={i} className="flex items-baseline justify-between gap-4 py-2">
+              <dt className="shrink-0 text-muted-foreground">{colOf(columns, i).label || `Column ${i + 1}`}</dt>
+              <dd className="min-w-0 text-right break-words text-foreground"><Cell value={v} col={colOf(columns, i)} /></dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  )
+}
+
+export function TableBlock({ node, page }: { node: BlockNode; page?: ShellPage }) {
   const p = node.props ?? {}
   const nested = useInFrame()
   const rows = arr(p.rows)
@@ -91,6 +115,8 @@ export function TableBlock({ node }: { node: BlockNode }) {
   const rowIds = sameLength(p.row_ids) ? arr(p.row_ids).map((x) => str(x)) : null
   const actions = rowIds ? arr(p.actions).map((a) => str(a)).filter(Boolean) : []
   const hrefs = sameLength(p.row_hrefs) ? arr(p.row_hrefs).map((h) => safeUrl(h)) : null
+  const details = sameLength(p.row_details) ? arr(p.row_details) : null
+  const hasDetail = p.row_detail === true || details !== null
   const caption = str(p.caption ?? p.title)
   const maxHeight = p.max_height === 0 ? undefined : typeof p.max_height === 'number' ? `${p.max_height}px` : str(p.max_height, '70vh')
 
@@ -98,6 +124,8 @@ export function TableBlock({ node }: { node: BlockNode }) {
   const [sort, setSort] = useState<{ col: number; dir: SortDir } | null>(null)
   const [pageNo, setPageNo] = useState(1)
   const [selected, setSelected] = useState<string | null>(null)
+  const [open, setOpen] = useState<number | null>(null)
+  const opener = useRef<HTMLElement | null>(null)
 
   const sortValues = useMemo(() => (sort ? cells.map((cs) => sortValue(cs[sort.col], colOf(columns, sort.col))) : null), [cells, columns, sort])
   const order = useMemo(() => {
@@ -117,7 +145,11 @@ export function TableBlock({ node }: { node: BlockNode }) {
     if (rowId !== undefined) {
       setSelected(rowId)
       emit(el, 'aiui:table-select', { rowId, index })
-    } else if (hrefs?.[index]) {
+    }
+    if (hasDetail) {
+      opener.current = el
+      setOpen(index)
+    } else if (rowId === undefined && hrefs?.[index]) {
       const href = hrefs[index] as string
       if (e?.metaKey || e?.ctrlKey) window.open(href, '_blank', 'noopener')
       else window.location.assign(href)
@@ -130,6 +162,9 @@ export function TableBlock({ node }: { node: BlockNode }) {
   )
 
   if (rows.length === 0 && columns.length === 0) return null
+  const focusable = (rowId: string | undefined) => rowId !== undefined || hasDetail
+  const openCells = open === null ? null : cells[open]
+  const openBlocks = open !== null && details ? toBlockNodes(arr(details[open])) : []
   return (
     <div data-nested={nested || undefined} className={cn('flex min-w-0 flex-col', !nested && 'rounded-xl border border-border')}>
       {p.searchable === true && (
@@ -190,9 +225,9 @@ export function TableBlock({ node }: { node: BlockNode }) {
                   key={rowId ?? index}
                   data-row-id={rowId}
                   aria-selected={rowId !== undefined ? isSelected : undefined}
-                  tabIndex={rowId !== undefined ? 0 : undefined}
+                  tabIndex={focusable(rowId) ? 0 : undefined}
                   onClick={
-                    rowId !== undefined || href
+                    focusable(rowId) || href
                       ? (e) => {
                           // Links, buttons and inputs inside the row handle their own click.
                           if (!(e.target as HTMLElement).closest('a,button,input,select,textarea')) activate(e.currentTarget, index, e)
@@ -200,12 +235,12 @@ export function TableBlock({ node }: { node: BlockNode }) {
                       : undefined
                   }
                   onKeyDown={(e) => {
-                    if (rowId === undefined || e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                    if (!focusable(rowId) || e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
                     e.preventDefault()
                     activate(e.currentTarget, index)
                   }}
                   className={cn(
-                    (rowId !== undefined || href) && 'cursor-pointer outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                    (focusable(rowId) || href) && 'cursor-pointer outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                     isSelected && 'bg-accent text-accent-foreground hover:bg-accent',
                   )}
                 >
@@ -245,6 +280,18 @@ export function TableBlock({ node }: { node: BlockNode }) {
             <PaginationItem>{turn(1)}</PaginationItem>
           </PaginationContent>
         </Pagination>
+      )}
+      {hasDetail && (
+        <Sheet open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
+          {/* Focus goes back to the row that opened the panel. */}
+          <SheetContent className="w-full overflow-y-auto sm:max-w-md" onCloseAutoFocus={(e) => (e.preventDefault(), opener.current?.focus())}>
+            <SheetHeader className="pr-10">
+              <SheetTitle className="break-words">{(openCells && cellText(openCells[0], colOf(columns, 0))) || 'Details'}</SheetTitle>
+              <SheetDescription className="sr-only">{caption ? `Row details, ${caption}` : 'Row details'}</SheetDescription>
+            </SheetHeader>
+            <RowDetail cells={openCells ?? []} columns={columns} blocks={openBlocks} page={page} />
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   )

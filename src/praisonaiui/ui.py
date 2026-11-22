@@ -200,7 +200,7 @@ def chart(
 
 
 TABLE_COLUMN_TYPES = frozenset(
-    {"auto", "text", "number", "link", "badge", "tag", "image", "progress"}
+    {"auto", "text", "number", "link", "badge", "tag", "image", "progress", "date"}
 )
 
 
@@ -231,10 +231,12 @@ def table(
     page_size: int | None = None,
     sortable: bool = True,
     row_href_key: str | None = None,
+    row_detail: bool = False,
+    detail_key: str | None = None,
     max_height: int | str | None = None,
     caption: str | None = None,
 ) -> dict:
-    """A data table: typed cells, header sorting, search, paging and row links.
+    """A data table: typed cells, header sorting, search, paging, row links and a row panel.
 
     Args:
         headers: Column header labels (or give ``columns``)
@@ -251,6 +253,9 @@ def table(
         page_size: Rows per page; 0 shows every row. Unset: 50 per page past 100 rows
         sortable: False turns header sorting off for every column
         row_href_key: Key (in dict rows, or a column key) holding each row's link
+        row_detail: A click (or Enter) on a row opens a side panel with its fields
+        detail_key: Key in dict rows holding a list of block dicts the side panel
+            shows instead of the fields (implies ``row_detail``)
         max_height: Scroll height (px or CSS length, 0 for none; default 70vh)
         caption: Accessible name of the table (and of its search box)
     """
@@ -308,6 +313,12 @@ def table(
         comp["row_hrefs"] = [
             None if (h := value(r, row_href_key)) in (None, "") else str(h) for r in rows
         ]
+    if detail_key:
+        comp["row_details"] = [
+            list(d) if isinstance(d := value(r, detail_key), (list, tuple)) else [] for r in rows
+        ]
+    if row_detail or detail_key:
+        comp["row_detail"] = True
     return comp
 
 

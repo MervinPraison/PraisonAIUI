@@ -68,3 +68,27 @@ def test_1100_rows_serialise():
 def test_bad_config_raises(kwargs, error):
     with pytest.raises(error):
         table(**kwargs)
+
+
+def test_row_detail_and_detail_key():
+    panel = [{"type": "text", "content": "hi"}]
+    rows = [
+        {"name": "a", "more": panel},
+        {"name": "b", "more": None},
+        {"name": "c", "more": ("x",)},
+    ]
+    t = table(columns=["name"], rows=rows, detail_key="more")
+    assert t["row_details"] == [panel, [], ["x"]]
+    assert t["row_detail"] is True
+    flag = table(headers=["A"], rows=[[1]], row_detail=True)
+    assert flag["row_detail"] is True and "row_details" not in flag
+    assert "row_detail" not in table(headers=["A"], rows=[[1]])
+
+
+def test_date_column_type():
+    t = table(
+        columns=[{"key": "last", "type": "date", "format": "iso"}], rows=[{"last": "2026-11-22"}]
+    )
+    assert t["columns"][0]["type"] == "date" and t["rows"] == [["2026-11-22"]]
+    with pytest.raises(ValueError):
+        table(columns=[{"key": "x", "type": "datetime"}], rows=[])

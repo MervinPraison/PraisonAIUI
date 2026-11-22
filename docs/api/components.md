@@ -67,8 +67,8 @@ aiui.columns([
 ### `aiui.table(*, headers, rows, columns=None, ...)`
 
 A data table. In the app shell it sorts by header click, formats typed
-columns, and can search, page and link rows. The old call shape keeps working
-unchanged.
+columns, and can search, page, link rows and open a row in a side panel. The
+old call shape keeps working unchanged.
 
 ```python
 aiui.table(
@@ -98,6 +98,8 @@ aiui.table(columns=[
 | `page_size` | `int` | — | Rows per page; `0` shows every row. Unset: 50 per page once there are more than 100 rows |
 | `sortable` | `bool` | — | `False` turns header sorting off. Default on |
 | `row_href_key` | `str` | — | Key (in dict rows, or a column key) holding each row's link. The first cell becomes the link and a click on the row opens it |
+| `row_detail` | `bool` | — | A click (or Enter) on a row opens a side panel listing the row's fields |
+| `detail_key` | `str` | — | Key in dict rows holding a list of block dicts the side panel renders instead of the fields (implies `row_detail`) |
 | `max_height` | `int \| str` | — | Height of the scrolling body (px or CSS length, `0` for none). Default `70vh`, so the header stays in view |
 | `caption` | `str` | — | Accessible name of the table and its search box |
 
@@ -116,6 +118,7 @@ and label are that string.
 | `tag` | a list (or comma-separated text) | One badge per item, toned like `badge` |
 | `image` | URL, or `{"src", "alt"}` | A small rounded thumbnail (`format: "wide"` for 16:9); `alt` defaults to the column label |
 | `progress` | 0..1 | A bar and its percent |
+| `date` | ISO text, or epoch seconds or ms | `Nov 22, 2026` in UTC; `format: "datetime"` adds the time, `"iso"` gives `2026-11-22`. Sorts by time |
 
 A header click sorts ascending, descending, then back to the server's order:
 stable, numeric-aware (`1,234`, `1.2k`, `12%`, `2.5x`), empty cells last;
@@ -871,7 +874,7 @@ its `detail` dict as key facts. There is no Python helper; return the dict.
 | `empty` | `str` | Text shown when there are no rows |
 
 Use `aiui.table(...)` instead when the list needs typed cells or header
-sorting.
+sorting (`row_detail=True` or `detail_key` give it a side panel).
 
 ---
 
