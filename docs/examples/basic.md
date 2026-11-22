@@ -7,6 +7,10 @@ Simple examples to get started with PraisonAIUI.
 The apps live in [`examples/python/`](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python).
 Each one adds one concept; run it from its folder.
 
+Examples run with `--style dashboard` show the legacy UI; drop the flag to
+get the same pages in the React app shell (the default), and see
+[Build a focused app](../guides/focused-app.md) to show only your pages.
+
 | Example | Concept | Run |
 |---|---|---|
 | [01-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/01-chat) | `@aiui.reply` + `aiui.say()`: the minimal chat | `aiui run app.py` |

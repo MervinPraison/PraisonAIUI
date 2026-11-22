@@ -1,5 +1,11 @@
 # Dashboard
 
+!!! note "Legacy UI"
+    `style: dashboard` is the legacy vanilla UI. New apps use the React app
+    shell, the default style, with the same `@aiui.page` pages: see
+    [Build a focused app](../guides/focused-app.md). This page documents the
+    legacy style, which keeps working when you ask for it.
+
 Build rich admin panels with **zero HTML/CSS/JS**. Register pages from Python, compose UIs with the component API, and the SDK renders everything.
 
 ## Quick Start
