@@ -15,6 +15,7 @@ import {
     prefetchInitialDoc,
     resetDocCache,
 } from './docLoader'
+import { recordDocsLoad, type DocsLoadEvent } from './loadEvents'
 
 type Answer = Response | Error | 'hang'
 
@@ -304,5 +305,104 @@ describe('site manifests inlined by aiui build', () => {
         assert.equal(inlinedManifest('/docs-nav.json', page('{not json').root), undefined)
         assert.equal(inlinedManifest('/docs-nav.json', page('[1]').root), undefined)
         assert.equal(inlinedManifest('/docs-nav.json', undefined), undefined)
+    })
+})
+
+// ── Requests that cannot queue behind a peer, and the aiui:docs-load record ──
+
+type Logged = { __aiuiDocsLoad?: DocsLoadEvent[] }
+const logged = () => ((globalThis as Logged).__aiuiDocsLoad ??= [])
+
+/** A fetch recording each call's cache mode; 'hang' waits until aborted. */
+function modeFetch(answers: Answer[]) {
+    const modes: (RequestCache | undefined)[] = []
+    const impl = ((_url: RequestInfo | URL, init?: RequestInit) => {
+        modes.push(init?.cache)
+        const answer = answers[modes.length - 1] ?? 'hang'
+        if (answer instanceof Response) return Promise.resolve(answer)
+        if (answer instanceof Error) return Promise.reject(answer)
+        const signal = init!.signal!
+        return new Promise<Response>((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason)))
+    }) as typeof fetch
+    return { impl, modes }
+}
+
+describe('HTTP cache lock (a peer request for the same URL)', () => {
+    afterEach(() => { logged().length = 0 })
+
+    test('a retry never goes through the HTTP cache, so it cannot wait on a peer', async () => {
+        const { impl, modes } = modeFetch(['hang', 'hang', new Response('# Page')])
+        await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: impl })
+        assert.deepEqual(modes, ['default', 'no-store', 'no-store'])
+    })
+
+    test("a page's markdown is requested no-store from the first attempt", async () => {
+        const { impl, modes } = modeFetch([new Response('# A')])
+        globalThis.fetch = impl
+        await loadDoc('/docs/a.source.md', new AbortController().signal)
+        prefetchDoc('/docs/b.source.md')
+        assert.deepEqual(modes, ['no-store', 'no-store'])
+    })
+})
+
+describe('aiui:docs-load records', () => {
+    afterEach(() => { logged().length = 0 })
+
+    test('each attempt is recorded with its outcome and reason', async () => {
+        const { impl } = modeFetch(['hang', new Error('reset'), new Response('# Page')])
+        await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: impl })
+        const rows = logged().map((e) => [e.v, e.type, e.url, e.kind, e.attempt, e.of, e.outcome, e.reason ?? null, e.status ?? null])
+        assert.deepEqual(rows, [
+            [1, 'aiui:docs-load', '/docs/a.source.md', 'doc', 1, 3, 'retry', 'headers-timeout', null],
+            [1, 'aiui:docs-load', '/docs/a.source.md', 'doc', 2, 3, 'retry', 'network-error', null],
+            [1, 'aiui:docs-load', '/docs/a.source.md', 'doc', 3, 3, 'ok', null, 200],
+        ])
+        assert.ok(logged().every((e) => typeof e.ms === 'number' && typeof e.at === 'number'))
+    })
+
+    test('a stalled body and a 5xx are told apart; the last failure says failed', async () => {
+        const stalled = new Response(new ReadableStream({ start: (c) => c.enqueue(new TextEncoder().encode('# Pa')) }))
+        const { impl } = modeFetch([stalled, new Response('', { status: 503 }), 'hang'])
+        await assert.rejects(fetchWithRetry('/m.json', { ...fast, bodyIdleTimeoutMs: 20, kind: 'manifest', fetchImpl: impl }), DocLoadError)
+        assert.deepEqual(logged().map((e) => [e.kind, e.outcome, e.reason, e.status ?? null]), [
+            ['manifest', 'retry', 'body-idle', 200],
+            ['manifest', 'retry', 'http-5xx', 503],
+            ['manifest', 'failed', 'headers-timeout', null],
+        ])
+    })
+
+    test('a navigation hears about retries (to say so instead of a silent skeleton)', async () => {
+        globalThis.fetch = modeFetch([new Error('reset'), new Response('# A')]).impl
+        const heard: number[][] = []
+        const result = await loadDoc('/docs/a.source.md', new AbortController().signal, (attempt, of) => heard.push([attempt, of]))
+        assert.equal(result.text, '# A')
+        assert.deepEqual(heard, [[2, 3]])
+    })
+
+    test('inlined markdown keyed by another URL than the page loads is reported', () => {
+        globalThis.fetch = modeFetch(['hang']).impl
+        const el = { textContent: JSON.stringify({ url: '/docs/guide/index.source.md', text: '# G' }), remove() {} }
+        const root = { getElementById: (id: string) => (id === INITIAL_DOC_ID ? el : null) }
+        prefetchInitialDoc('/docs/guide', '/docs', root)
+        const outcomes = logged().map((e) => [e.outcome, e.url, e.detail ?? null])
+        assert.deepEqual(outcomes, [
+            ['inline', '/docs/guide/index.source.md', null],
+            ['inline-mismatch', '/docs/guide.source.md', 'inlined as /docs/guide/index.source.md'],
+        ])
+    })
+
+    test('inlined markdown under the right URL: recorded, and no request', () => {
+        const { impl, modes } = modeFetch(['hang'])
+        globalThis.fetch = impl
+        const el = { textContent: JSON.stringify({ url: '/docs/guide.source.md', text: '# G' }), remove() {} }
+        prefetchInitialDoc('/docs/guide', '/docs', { getElementById: (id: string) => (id === INITIAL_DOC_ID ? el : null) })
+        assert.deepEqual(logged().map((e) => e.outcome), ['inline'])
+        assert.equal(modes.length, 0)
+    })
+
+    test('the record keeps the newest 200', () => {
+        for (let i = 0; i < 205; i++) recordDocsLoad({ url: `/docs/${i}.md`, kind: 'doc', attempt: 1, of: 3, ms: 1, outcome: 'ok' })
+        assert.equal(logged().length, 200)
+        assert.equal(logged()[0].url, '/docs/5.md')
     })
 })

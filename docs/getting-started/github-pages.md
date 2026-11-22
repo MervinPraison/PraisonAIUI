@@ -239,14 +239,30 @@ network (Wi-Fi, VPN, a mobile link) sometimes gets one new connection that
 hangs for 15 to 30 seconds while every other request is fast. The docs app
 keeps one such request from freezing the page:
 
-- **Time limit and retry.** Each request for a page has 5 seconds to get an
+- **Time limit and retry.** Each request for a page has 3 seconds to get an
   answer from the server. Past that it is cancelled and a fresh request goes
-  out, which opens a new connection. There are three attempts (5 s, 5 s, then
-  10 s for a link that is only slow), with a short random pause between them.
-  A network error or a 5xx answer is retried the same way; a 404 is not.
+  out, which opens a new connection. There are three attempts (3 s, 5 s, then
+  8 s for a link that is only slow), with a short random pause between them.
+  A network error or a 5xx answer is retried the same way; a 404 is not. From
+  the second attempt the loading skeleton says "Taking longer than usual.
+  Trying again (2 of 3)", so a slow page is never a silent skeleton.
 - **Stalled downloads.** Once the answer starts, a page whose download sends
-  nothing for 5 seconds has stalled and is requested again; one that keeps
+  nothing for 4 seconds has stalled and is requested again; one that keeps
   arriving, however slowly, gets up to 15 seconds.
+- **No queueing behind another tab.** A browser lets one request per URL at a
+  time fill its HTTP cache entry; a second request for the same file (from
+  another tab, say) waits inside the browser until the first one is answered.
+  Page Markdown, and every retry, is requested with `cache: 'no-store'`, so a
+  stuck request elsewhere can never hold this page. The CDN still caches, and
+  the app keeps pages it has loaded in memory.
+- **`aiui:docs-load` records.** Every attempt's outcome is pushed to
+  `window.__aiuiDocsLoad` (newest 200), sent as a `window` event
+  `aiui:docs-load` and logged to the console (`console.warn` for retries and
+  failures). A record is `{v: 1, type: 'aiui:docs-load', url, kind: 'doc' |
+  'manifest', attempt, of, ms, outcome, reason?, status?, detail?, at}`, where
+  `outcome` is `ok`, `retry`, `failed`, `inline`, `inline-mismatch` or
+  `duplicate`, and `reason` is `headers-timeout`, `body-idle`, `body-timeout`,
+  `network-error` or `http-5xx`.
 - **Prefetch.** Resting the pointer on a sidebar, previous / next or
   in-article docs link for 80 ms, focusing it with the keyboard, or pressing
   it starts loading that page. Once a page has shown, its previous and next
@@ -262,7 +278,8 @@ keeps one such request from freezing the page:
   page" with a **Retry** button instead of a loading skeleton.
 - **First load.** Every page `aiui build` writes carries the navigation
   (`docs-nav.json`), the route manifest and the page's own Markdown, so a first
-  visit asks for none of them; `ui-config.json` is preloaded with the page (a
+  visit or a reload asks for none of them (`aiui build --strict` fails if a
+  page's inlined Markdown is keyed by another URL than the app requests); `ui-config.json` is preloaded with the page (a
   live `aiui serve` adds Ask AI, MCP and feedback to it, so it is not baked in).
   The loader's tag names the plugins, so `plugins/plugins.json` is not
   requested either: on this site a first docs page went from five JSON requests

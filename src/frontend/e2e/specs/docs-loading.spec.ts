@@ -3,6 +3,8 @@
  * fixtures/docs-site): one stalled request, rapid clicks and a failed page
  * must not leave the reader on the loading skeleton (src/docs/docLoader.ts).
  */
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { expect, test, type Page } from '@playwright/test'
 import { collectPageErrors } from './support'
 
@@ -213,12 +215,89 @@ test('a page whose body stalls after its headers is fetched again: never a skele
   await sidebarLink(page, '/docs/guide/second').click()
   const clicked = Date.now()
   await expect(page.locator('.aiui-docs-skeleton')).toBeVisible()
-  // No byte for 5 s (docLoader BODY_IDLE_TIMEOUT_MS) cuts it off and a fresh request gets the page,
+  // No byte for 4 s (docLoader BODY_IDLE_TIMEOUT_MS) cuts it off and a fresh request gets the page,
   // well inside the 15 s total limit (BODY_TIMEOUT_MS) it used to wait for.
   await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible({ timeout: 25_000 })
-  expect(Date.now() - clicked).toBeLessThan(11_000)
+  expect(Date.now() - clicked).toBeLessThan(10_000)
   await expect(page.locator('.aiui-docs-skeleton')).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { __stalled: () => number }).__stalled())).toBe(1)
+  // The stall is on record for trackers (docs/loadEvents.ts), not only felt as a wait.
+  const records = await page.evaluate(() => (window as unknown as { __aiuiDocsLoad: { url: string; outcome: string; reason?: string }[] }).__aiuiDocsLoad)
+  const second = records.filter((r) => r.url === '/docs/guide/second.source.md').map((r) => [r.outcome, r.reason ?? null])
+  expect(second).toEqual([['retry', 'body-idle'], ['ok', null]])
+})
+
+/**
+ * A proxy in front of the docs server whose first answer for `stallPath` hangs
+ * for `ms` (headers never sent): a stuck request the browser itself holds.
+ */
+async function stallingProxy(target: string, stallPath: string, ms: number): Promise<{ url: string; close: () => void; hits: () => number }> {
+  let hits = 0
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+  const server = http.createServer((req, res) => {
+    const forward = () => {
+      const up = http.request(new URL(req.url || '/', target), { method: req.method, headers: req.headers }, (r) => {
+        res.writeHead(r.statusCode || 502, r.headers)
+        r.pipe(res)
+      })
+      up.on('error', () => res.destroy())
+      req.pipe(up)
+    }
+    if (new URL(req.url || '/', target).pathname === stallPath && hits++ === 0) {
+      const t = setTimeout(() => { timers.delete(t); forward() }, ms)
+      timers.add(t)
+      return
+    }
+    forward()
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  return {
+    url: `http://127.0.0.1:${port}`,
+    hits: () => hits,
+    close: () => {
+      for (const t of timers) clearTimeout(t)
+      server.closeAllConnections()
+      server.close()
+    },
+  }
+}
+
+test("another tab's stuck request for the same page does not hold this one (browser cache lock)", async ({ context, baseURL }) => {
+  test.setTimeout(60_000)
+  // The owner's case: Chrome lets one request per URL write the HTTP cache at a
+  // time, and a second request for that URL waits inside the browser until the
+  // first has its answer (net log: HTTP_CACHE_ADD_TO_ENTRY). Another tab whose
+  // request was stuck held every attempt here for the whole stall.
+  const proxy = await stallingProxy(baseURL!, '/docs/guide/second.source.md', 15_000)
+  try {
+    // The other tab asks for the page first, through the HTTP cache, and its request hangs.
+    const other = await context.newPage()
+    await other.goto(`${proxy.url}/icon.svg`)
+    await other.evaluate(() => { void fetch('/docs/guide/second.source.md').catch(() => {}) })
+    await expect.poll(() => proxy.hits()).toBe(1)
+
+    const page = await context.newPage()
+    await page.goto(`${proxy.url}/docs/guide/first`)
+    await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+    const clicked = Date.now()
+    await sidebarLink(page, '/docs/guide/second').click()
+    await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible({ timeout: 14_000 })
+    expect(Date.now() - clicked).toBeLessThan(4_000)
+    expect(proxy.hits()).toBeGreaterThanOrEqual(2) // this tab's request reached the server instead of queueing
+  } finally {
+    proxy.close()
+  }
+})
+
+test('a request that is past its first attempt says so instead of a silent skeleton', async ({ page }) => {
+  await page.route('**/docs/guide/second.source.md', () => { /* never answered: the attempt times out */ })
+  await page.goto('/docs/guide/first')
+  await expect(page.getByRole('heading', { name: 'First page', level: 1 })).toBeVisible()
+  await sidebarLink(page, '/docs/guide/second').click()
+  const clicked = Date.now()
+  await expect(page.locator('.aiui-docs-skeleton')).toContainText('Trying again (2 of 3)', { timeout: 5_000 })
+  expect(Date.now() - clicked).toBeLessThan(5_000)
 })
 
 /** The hashed file of a source module in this build (never a chunk name: aiui-manifest.json). */
