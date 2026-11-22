@@ -16,10 +16,11 @@ Related: [`src/frontend/DESIGN.md`](src/frontend/DESIGN.md) (visual rules),
 
 `aiui` (PyPI `aiui`, import `praisonaiui`) is a Python package and a
 Starlette/uvicorn server that gives AI agents a web UI. The default UI style is
-the vanilla-JS **`dashboard`** (`server.py`: `effective_style = _style or
-"dashboard"`), whose views live in `src/praisonaiui/templates/frontend/plugins/`.
-An opt-in **React app shell** (`style: app`, `aiui.set_style("app")` or
-`AIUI_SHELL=app`; `AIUI_SHELL=legacy` is the kill switch) hosts the same pages:
+the **React app shell** (`style: app`; `server.py`: `effective_style = _style or
+DEFAULT_STYLE`, owner decision of 2026-11-22). The vanilla-JS **`dashboard`**,
+whose views live in `src/praisonaiui/templates/frontend/plugins/`, is the
+legacy UI: `--style dashboard`, `aiui.set_style("dashboard")`, YAML
+`style: dashboard` or `AIUI_SHELL=legacy` (the kill switch). The app shell hosts the same pages:
 React pages where they have been ported (chat today), server-driven block pages,
 and every other page through a legacy view host. The `chat`, `agents`,
 `playground`, `docs` and `custom` styles run the older React App
@@ -150,15 +151,18 @@ CONTRACT") needs a major bump on both sides, which the host reports as
 *Check:* `sdk/sdk.test.tsx`; `npm run build` regenerates `aiui-externals.json`
 and `aiui-sdk.d.ts`; `test_app_shell.py` checks the shims cover every React export.
 
-**R6. The default style output does not change.** `dashboard` stays the default
-and renders byte-for-byte as before unless an owner decision says otherwise (the
-flip criteria are in `prd.md` and ADR §9). `index.css` is also loaded by the
+**R6. The legacy dashboard output does not change.** Since 2026-11-22 the
+default style is `app` (owner decision; it overrode the flip criteria in
+`prd.md` and ADR §9). The `dashboard` style, when asked for, renders
+byte-for-byte as before, and the opt-outs above keep working. `index.css` is also loaded by the
 dashboard: no bare `html`, `body` or `*` rule (DESIGN.md "Legacy dashboard
 isolation"). Legacy view colours go through `var(--db-p-<role>, <original hex>)`. Dashboard light
 mode defines the neutral `--db-p-*` roles under `html[data-db-mode=light]`; dark mode
 leaves them undefined, so it is unchanged.
 *Check:* `tests/unit/test_app_shell.py` against
-`tests/unit/fixtures/golden_dashboard_html.txt` (dashboard and chat HTML),
+`tests/unit/fixtures/golden_dashboard_html.txt` (dashboard and chat HTML, with
+the style set explicitly), `tests/unit/test_default_style.py` (the default is
+`app`; every opt-out gives the dashboard),
 `builtin_pages_snapshot.json`, `tests/unit/test_light_mode_contrast.py`,
 `e2e/specs/legacy-parity.spec.ts`. Regenerating a golden file requires the reason
 in the PR description.

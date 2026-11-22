@@ -42,6 +42,9 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(config_store, "_config_store", None)
     config_store.init_config_store(data / "config.yaml")
     srv.reset_state()
+    # The snapshots here are the legacy dashboard's (app is the default
+    # since 2026-11-22); a test about the app shell sets style app itself.
+    srv.set_style("dashboard")
     yield data
     srv.reset_state()
 

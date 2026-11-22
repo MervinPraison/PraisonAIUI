@@ -536,7 +536,8 @@ def test_app_index_html_inlines_plugin_pages_and_integrity(site):
 
 
 def test_dashboard_style_unchanged(site):
-    client = _local()  # default style
+    srv.set_style("dashboard")  # the legacy UI, asked for explicitly
+    client = _local()
     html = client.get("/").text
     assert "plugin-loader.js" in html
     assert "importmap" not in html and "aiui-boot" not in html
