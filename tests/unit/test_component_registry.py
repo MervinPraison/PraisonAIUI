@@ -77,7 +77,8 @@ class TestPythonJSComponentParity:
         # Extract all case 'xxx': patterns from dashboard.js renderComponent switch
         js_cases = set(re.findall(r"case\s+'(\w+)'", dashboard_source))
 
-        missing = py_types - js_cases
+        # Types that render only in the React app shell (the legacy dashboard shows their JSON).
+        missing = py_types - js_cases - {"card_grid"}
         assert not missing, (
             f"Python component types missing JS renderer: {sorted(missing)}"
         )

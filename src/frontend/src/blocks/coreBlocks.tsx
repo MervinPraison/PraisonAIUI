@@ -1,10 +1,11 @@
 /**
  * Core block renderers: React + design tokens for the `_components` types
  * page handlers use most (praisonaiui/ui.py; dashboard.js renderComponent*).
- * Types not listed here (pagination, dialog, popover, a2ui_surface, ...)
- * render through LegacyBlockFallback. `chart` is a lazy chunk of its own
- * (blocks/chart, with the chart library). `html` / `html_embed` render in a
- * sandboxed frame (./HtmlBlock).
+ * Media, navigation and overlay types (link, avatar, players, breadcrumb,
+ * dialog, popover, ...) are in mediaBlocks.tsx. Other types (pagination,
+ * a2ui_surface, ...) render through LegacyBlockFallback. `chart` is a lazy
+ * chunk of its own (blocks/chart, with the chart library). `html` /
+ * `html_embed` render in a sandboxed frame (./HtmlBlock).
  *
  * The page-template types (`board`, `gallery`, `list_detail`, `log_viewer`,
  * `code_editor`) render with components/page. Each is a lazy chunk, fetched
@@ -51,6 +52,7 @@ import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, hardBreaks, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
 import { LazySection, StatusBlock } from './pageBlocks'
+import { LinkBlock, mediaBlocks } from './mediaBlocks'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -726,23 +728,6 @@ function ImageBlock({ node }: CoreBlockProps) {
   )
 }
 
-function LinkBlock({ node }: CoreBlockProps) {
-  const p = propsOf(node)
-  const href = safeUrl(p.href)
-  const external = p.external === true
-  if (!href) return <span className="w-fit text-sm text-foreground">{str(p.text)}</span>
-  return (
-    <a
-      href={href}
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noopener noreferrer' : undefined}
-      className="w-fit text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline"
-    >
-      {str(p.text, href)}
-    </a>
-  )
-}
-
 // ── actions ──────────────────────────────────────────────────────────
 
 const BUTTON_VARIANTS = new Set(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'])
@@ -1120,6 +1105,7 @@ const CORE: Record<string, CoreBlock> = {
   code_editor: CodeEditorTemplate,
   chart: ChartBlockLazy,
   status: StatusBlock,
+  ...mediaBlocks(),
 }
 
 /** Own-property lookup (a type named "constructor" must not hit Object.prototype). */

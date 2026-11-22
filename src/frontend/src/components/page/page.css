@@ -936,6 +936,45 @@
   border-radius: 12px;
   background: var(--card);
 }
+.aiui-tpl-tile[data-link] {
+  position: relative;
+}
+.aiui-tpl-tile[data-link]:hover {
+  border-color: var(--ring);
+}
+/* The title link covers the whole tile; the ring goes round the tile. */
+.aiui-tpl-tile a[data-stretch]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.aiui-tpl .aiui-tpl-tile a[data-stretch]:focus-visible {
+  outline: none;
+}
+.aiui-tpl-tile:has(a[data-stretch]:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.aiui-tpl-tile-mediawrap {
+  position: relative;
+}
+.aiui-tpl-tile-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.aiui-tpl-tile-play > svg {
+  box-sizing: content-box;
+  padding: 10px;
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--foreground);
+  opacity: 0.9;
+}
 .aiui-tpl-tile[data-selected='true'] {
   border-color: var(--ring);
   box-shadow: 0 0 0 1px var(--ring);

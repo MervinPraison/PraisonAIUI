@@ -569,6 +569,20 @@ aiui.link("Docs", href="https://docs.praison.ai", external=True)
 | `href` | `str` | ✅ | — | URL |
 | `external` | `bool` | ❌ | `False` | Open in new tab? |
 
+### `aiui.link_button(label, href, *, variant, external)` and `aiui.page_link(page_id, label, *, variant)`
+
+`link_button` is a link drawn as a button (`variant`: `"outline"` default,
+`"primary"`, `"secondary"`, `"ghost"`, `"link"`). `page_link` links to another
+page of the app by id; in the app shell a click opens it in place (no reload),
+Ctrl/Cmd-click still opens a new tab, and `variant` draws it as a button. Both
+return a `link` dict, so the legacy dashboard shows a plain link.
+
+```python
+aiui.link_button("Open report", "/files/report.html", variant="primary", external=True)
+aiui.page_link("sync", "Go to Sync")
+aiui.page_link("creators", "Browse creators", variant="outline")
+```
+
 ### `aiui.button_group(buttons)`
 
 A row of buttons.
@@ -599,12 +613,12 @@ aiui.stat_group([
 |-----------|------|----------|-------------|
 | `stats` | `Sequence[dict]` | ✅ | List of `{"label": str, "value": Any, "delta": str}` |
 
-### `aiui.avatar(*, src, name, fallback)`
+### `aiui.avatar(*, src, name, fallback, size)`
 
-An avatar image or initials.
+An avatar image, else `fallback` or the initials of `name` (its accessible label).
 
 ```python
-aiui.avatar(name="Alice Smith", fallback="AS")
+aiui.avatar(name="Alice Smith", src="/img/alice.png", size="lg")
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -612,6 +626,7 @@ aiui.avatar(name="Alice Smith", fallback="AS")
 | `src` | `str` | ❌ | `None` | Image URL |
 | `name` | `str` | ❌ | `None` | Display name |
 | `fallback` | `str` | ❌ | `None` | Fallback text (e.g. initials) |
+| `size` | `str` | ❌ | `None` | `"sm"`, `"default"` or `"lg"` |
 
 ### `aiui.callout(content, *, variant, title)`
 
@@ -655,30 +670,34 @@ aiui.spinner("Loading data...")
 
 ## Media Components
 
-### `aiui.audio_player(src, *, autoplay)`
+### `aiui.audio_player(src, *, autoplay, title)`
 
 ```python
-aiui.audio_player("/audio/clip.mp3", autoplay=False)
+aiui.audio_player("/audio/clip.mp3", title="Episode 12")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `src` | `str` | ✅ | — | Audio file URL |
 | `autoplay` | `bool` | ❌ | `False` | Auto-play? |
+| `title` | `str` | ❌ | `None` | Caption under the player, also its accessible name |
 
-### `aiui.video_player(src, *, autoplay, poster)`
+### `aiui.video_player(src, *, autoplay, poster, title)`
 
 ```python
-aiui.video_player("/video/demo.mp4", poster="/img/thumb.jpg")
+aiui.video_player("/video/demo.mp4", poster="/img/thumb.jpg", title="Product demo")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `src` | `str` | ✅ | — | Video file URL |
-| `autoplay` | `bool` | ❌ | `False` | Auto-play? |
+| `autoplay` | `bool` | ❌ | `False` | Auto-play (muted, as browsers require) |
 | `poster` | `str` | ❌ | `None` | Poster image URL |
+| `title` | `str` | ❌ | `None` | Caption under the player, also its accessible name |
 
-### `aiui.file_download(label, *, href, filename)`
+### `aiui.file_download(label, *, href, filename, variant)`
+
+A download button (a link with the `download` attribute).
 
 ```python
 aiui.file_download("Download Report", href="/files/report.pdf", filename="report.pdf")
@@ -689,6 +708,7 @@ aiui.file_download("Download Report", href="/files/report.pdf", filename="report
 | `label` | `str` | ✅ | — | Button label |
 | `href` | `str` | ✅ | — | File URL |
 | `filename` | `str` | ❌ | `None` | Suggested filename |
+| `variant` | `str` | ❌ | `None` | Button look (`"outline"` when unset, `"primary"`, `"secondary"`, `"ghost"`) |
 
 ### `aiui.gallery(items)`
 
@@ -697,13 +717,39 @@ An image/media gallery grid.
 ```python
 aiui.gallery([
     {"src": "/img/1.jpg", "alt": "Photo 1", "caption": "Sunset"},
-    {"src": "/img/2.jpg", "alt": "Photo 2"},
+    {"src": "/img/2.jpg", "title": "Docs", "href": "https://docs.praison.ai", "target": "_blank"},
+    {"src": "/img/launch.jpg", "title": "Launch video", "video": "/video/launch.mp4"},
+    {"title": "Sync status", "page": "sync"},
 ])
 ```
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `items` | `Sequence[dict]` | ✅ | List of `{"src": str, "alt": str, "caption": str}` |
+
+Optional per item: `title`, `subtitle`, `tag`, `description`, and a link that
+makes the whole tile clickable and keyboard focusable: `href` (+ `target`, e.g.
+`"_blank"`), `page` (an app page id, opened in place) or `video` (a video URL:
+the thumbnail gets a play mark and opens it, in a new tab unless `target` is set).
+
+### `aiui.card_grid(items, *, columns)`
+
+A responsive grid of entity cards (a person, channel, product, ...). It shows
+`columns` cards per row on a wide page, two at medium width and one on a phone.
+
+```python
+aiui.card_grid([{
+    "title": "Ada Lovelace", "subtitle": "@ada", "avatar": "/img/ada.png", "badges": ["Top 10"],
+    "stats": [{"label": "Median views", "value": "41k"}, {"label": "Lift", "value": "2.4x"}],
+    "page": "creator-ada",
+}], columns=3)
+```
+
+`columns` (1-6, default 3) is the number per row on a wide page. Item keys: `title` (required), `subtitle`, `description` (two lines),
+`image` (cover image), `avatar` (round image URL; `True` shows the title's
+initials), `badges` (strings or `{"text", "variant"}`), `stats`
+(`[{"label", "value"}]`), and `href` (+ `target`) or `page` to make the whole
+card a link.
 
 ---
 
@@ -723,12 +769,13 @@ aiui.toast("Saved!", variant="success", duration=3000)
 | `variant` | `str` | ❌ | `"info"` | `"info"`, `"success"`, `"warning"`, `"error"` |
 | `duration` | `int` | ❌ | `3000` | Auto-dismiss ms |
 
-### `aiui.dialog(title, *, children, description)`
+### `aiui.dialog(title, *, children, description, trigger_label, variant)`
 
-A modal dialog.
+A button that opens a modal dialog with child components (forms and buttons
+inside post to the page action as usual).
 
 ```python
-aiui.dialog("Confirm", children=[aiui.text("Are you sure?")], description="This action cannot be undone.")
+aiui.dialog("Channel details", trigger_label="Details", children=[aiui.text("1.2M subscribers")])
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -736,6 +783,8 @@ aiui.dialog("Confirm", children=[aiui.text("Are you sure?")], description="This 
 | `title` | `str` | ✅ | — | Dialog heading |
 | `children` | `Sequence[dict]` | ✅ | — | Content components |
 | `description` | `str` | ❌ | `None` | Subtitle |
+| `trigger_label` | `str` | ❌ | `title` | Text of the button that opens it |
+| `variant` | `str` | ❌ | `None` | Look of that button (`"outline"` when unset, `"primary"`, ...) |
 
 ### `aiui.caption(text)`
 
@@ -841,10 +890,11 @@ aiui.skeleton(width="200px", height="20px", variant="text")
 
 ### `aiui.tooltip_wrap(child, *, content)`
 
-Wrap a component with a hover tooltip.
+Wrap a component with a tooltip shown on hover and keyboard focus (a badge or
+text child becomes a tab stop). `aiui.tooltip(child, content=...)` is the same.
 
 ```python
-aiui.tooltip_wrap(aiui.badge("Beta"), content="This feature is in beta")
+aiui.tooltip(aiui.badge("Beta"), content="This feature is in beta")
 ```
 
 | Parameter | Type | Required | Description |
@@ -952,10 +1002,12 @@ aiui.key_value_list([
 
 ### `aiui.popover(trigger, *, children)`
 
-A popover overlay triggered by a component.
+A panel of child components, opened by the trigger (click, Enter or Space). A
+`button` trigger is drawn as a button with its `label`.
 
 ```python
 aiui.popover(aiui.badge("Info"), children=[aiui.text("More details here.")])
+aiui.popover({"type": "button", "label": "Filters"}, children=[aiui.select_input("Format", options=["Short", "Long"])])
 ```
 
 | Parameter | Type | Required | Description |
@@ -1003,11 +1055,11 @@ async def overview():
 | Core | `layout`, `card`, `columns`, `table`, `text`, `chart` | 6 |
 | Essential | `metric`, `progress_bar`, `alert`, `badge`, `separator`, `tabs`, `accordion`, `image_display`, `code_block`, `json_view` | 10 |
 | Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |
-| Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 12 |
-| Media | `audio_player`, `video_player`, `file_download`, `gallery` | 4 |
+| Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `link_button`, `page_link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 14 |
+| Media | `audio_player`, `video_player`, `file_download`, `gallery`, `card_grid` | 5 |
 | Dashboard | `toast`, `dialog`, `caption`, `html`, `html_embed`, `skeleton`, `tooltip_wrap`, `form`, `status` | 9 |
 | Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |
-| **Total** | | **57** |
+| **Total** | | **60** |
 
 ## Custom Component Types
 
