@@ -95,7 +95,8 @@ const LAYOUT_BUDGETS = {
   // lf-mission-board.
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
-  'layout-mission': '13.21 kB',
+  // 13.211 kB (+1 B, exactly the overage): chunk hashes renamed by the table block's chunk; no layout code changed.
+  'layout-mission': '13.211 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -266,7 +267,9 @@ export default [
   // 143,579 B (+497 B, exactly the overage): the reply's steps (step_* events build one
   // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
   // 143,581 B (+2 B, exactly the overage): chunk hashes renamed by the shown nav groups; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143584 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
+  // 143,584 B (+3 B): chunk hash renames (chart chunk added), 2026-11-22.
+  // 143,600 B (+16 B, exactly the overage): chunk hashes renamed by the table block's chunk; no chat code changed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143600 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -336,7 +339,9 @@ export default [
   // inlines in each page (inlinedManifest).
   // 256,565 B (+2 B, exactly the overage): CommandDialog's controlled `value` (above).
   // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257067 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
+  // 257,067 B (+1 B): chunk hash renames, 2026-11-22.
+  // 257,108 B (+41 B, exactly the overage): chunk hashes renamed by the table block's chunk; no chat code changed.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257108 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -506,5 +511,6 @@ export default [
   // 11,573,449 B (+391,553 B, exactly the overage): the chart block and recharts (one lazy chunk plus
   // the d3 scale chunks it shares with mermaid), 2026-11-22.
   // 11,573,583 B (+134 B, exactly the overage): recharts measuring-span cleanup in the chart block.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11573583 B', brotli: false },
+  // 11,585,250 B (+11,667 B, exactly the overage): table block v2 (blocks/table) in the lazy blocks chunk.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11585250 B', brotli: false },
 ]

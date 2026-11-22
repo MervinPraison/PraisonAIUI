@@ -1,0 +1,206 @@
+/**
+ * Pure logic of the `table` block (DataTable.tsx): column config, cell
+ * formatting, numeric-aware stable sorting, search and the default page size.
+ * No React and no DOM, so it is unit tested directly.
+ */
+import { arr, display, isRecord, num, str } from '../normalize'
+
+export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress'
+export type Align = 'left' | 'center' | 'right'
+
+export interface Column {
+  key: string
+  label: string
+  type: ColumnType
+  /** number: compact | percent | multiplier (x) | fixed; image: wide. */
+  format: string
+  decimals?: number
+  /** badge/tag: cell value → success | warning | error | info. */
+  tones: Record<string, string>
+  width?: string
+  align: Align
+  /** True when the server set `align` (inference leaves it alone). */
+  alignSet?: boolean
+  sortable: boolean
+}
+
+const TYPES = new Set<ColumnType>(['auto', 'text', 'number', 'link', 'badge', 'tag', 'image', 'progress'])
+const ALIGNS = new Set<Align>(['left', 'center', 'right'])
+
+function alignOf(v: unknown, type: ColumnType): Align {
+  const s = str(v)
+  if (s === 'end') return 'right'
+  if (ALIGNS.has(s as Align)) return s as Align
+  return type === 'number' ? 'right' : 'left'
+}
+
+/** `columns` (strings or dicts) or, without them, `headers` → column config. */
+export function toColumns(columns: unknown, headers: unknown, sortable = true): Column[] {
+  const spec = arr(columns).length ? arr(columns) : arr(headers)
+  return spec.map((c) => {
+    const rec = isRecord(c) ? c : { key: display(c) }
+    const key = str(rec.key ?? rec.label)
+    const t = str(rec.type, 'auto') as ColumnType
+    const type = TYPES.has(t) ? t : 'auto'
+    const width = typeof rec.width === 'number' ? `${rec.width}px` : str(rec.width) || undefined
+    return {
+      key,
+      label: str(rec.label, key),
+      type,
+      format: str(rec.format),
+      decimals: rec.decimals === undefined ? undefined : Math.min(10, Math.max(0, num(rec.decimals, 0))),
+      tones: isRecord(rec.tones) ? Object.fromEntries(Object.entries(rec.tones).map(([k, v]) => [k, str(v)])) : {},
+      width,
+      align: alignOf(rec.align, type),
+      alignSet: rec.align !== undefined,
+      sortable: sortable && rec.sortable !== false && type !== 'image',
+    }
+  })
+}
+
+/** An `auto` column whose values are all numbers lines up at the end. */
+export function inferColumns(columns: readonly Column[], rows: readonly unknown[][]): Column[] {
+  return columns.map((c, i) => {
+    if (c.type !== 'auto' || c.alignSet) return c
+    const vals = rows.map((r) => r[i]).filter((v) => v !== null && v !== undefined && v !== '')
+    return vals.length && vals.every((v) => typeof v === 'number') ? { ...c, align: 'right' } : c
+  })
+}
+
+/** One row (array in column order, or a dict keyed by column key) → its cells. */
+export function cellsOf(row: unknown, columns: readonly Column[]): unknown[] {
+  if (Array.isArray(row)) return row
+  if (isRecord(row)) return columns.map((c) => row[c.key])
+  return [row]
+}
+
+/** A cell's resolved type: `auto` looks at the value. */
+export function typeOf(col: Column, v: unknown): ColumnType {
+  if (col.type !== 'auto') return col.type
+  if (typeof v === 'number') return 'number'
+  if (isRecord(v)) return 'href' in v ? 'link' : 'src' in v ? 'image' : 'text'
+  return 'text'
+}
+
+/** The text a cell shows (also what search matches). */
+export function cellText(v: unknown, col: Column): string {
+  if (v === null || v === undefined) return ''
+  if (Array.isArray(v)) return v.map((x) => cellText(x, col)).join(', ')
+  if (isRecord(v)) {
+    const t = v.text ?? v.label ?? v.alt ?? v.value ?? v.href
+    return t === undefined ? display(v) : str(t)
+  }
+  // `auto` numbers show as sent (a year stays 2024); `number` columns format.
+  if (col.type === 'number') return formatNumber(v, col.format, col.decimals)
+  if (col.type === 'progress') return formatNumber(v, 'percent', col.decimals ?? 0)
+  return display(v)
+}
+
+
+const nf = (min: number, max: number) => new Intl.NumberFormat('en-US', { minimumFractionDigits: min, maximumFractionDigits: max })
+
+const toNumber = (v: unknown): number | null => (typeof v === 'number' || (typeof v === 'string' && v.trim()) ? (Number.isFinite(Number(v)) ? Number(v) : null) : null)
+
+/**
+ * `compact` 1234 → 1.2k, 3_400_000 → 3.4M; `percent` 0.123 → 12.3% (a
+ * fraction); `multiplier` or `x` 2.345 → 2.3x; `fixed` → exactly `decimals`
+ * (default 2); anything else → grouped digits. Non-numbers show as text.
+ */
+export function formatNumber(v: unknown, format = '', decimals?: number): string {
+  const n = toNumber(v)
+  if (n === null) return display(v)
+  switch (format) {
+    case 'compact': {
+      const units: [number, string][] = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'k']]
+      const d = decimals ?? 1
+      for (let i = 0; i < units.length; i++) {
+        const [size, unit] = units[i]
+        if (Math.abs(n) < size) continue
+        const scaled = Number((n / size).toFixed(d))
+        // 999,950 rounds to 1000k: show 1M instead.
+        if (Math.abs(scaled) >= 1000 && i > 0) return `${nf(0, d).format(Number((n / units[i - 1][0]).toFixed(d)))}${units[i - 1][1]}`
+        return `${nf(0, d).format(scaled)}${unit}`
+      }
+      return nf(0, decimals ?? 1).format(n)
+    }
+    case 'percent':
+      return `${nf(0, decimals ?? 1).format(n * 100)}%`
+    case 'multiplier':
+    case 'x':
+      return `${nf(0, decimals ?? 1).format(n)}x`
+    case 'fixed':
+      return nf(decimals ?? 2, decimals ?? 2).format(n)
+    default:
+      return decimals === undefined ? nf(0, 2).format(n) : nf(decimals, decimals).format(n)
+  }
+}
+
+
+export type SortValue = number | string | null
+export type SortDir = 'asc' | 'desc'
+
+/** "1,234", "$12", "1.2k", "3.4M", "12%", "2.5x" → numbers; other text lowercased. */
+const NUMERIC = /^[-+]?[$€£]?\s*(\d[\d,]*\.?\d*|\.\d+)\s*([kKmMbBtT]|%|x)?$/
+const SCALE: Record<string, number> = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }
+
+export function sortValue(v: unknown, col: Column): SortValue {
+  if (v === null || v === undefined || v === '') return null
+  if (Array.isArray(v)) return v.length ? sortValue(v[0], col) : null
+  if (isRecord(v)) return sortValue(v.value ?? v.text ?? v.label ?? v.alt ?? null, col)
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'boolean') return v ? 1 : 0
+  const s = str(v).trim()
+  const m = NUMERIC.exec(s)
+  if (m) {
+    const n = Number(m[1].replace(/,/g, '')) * (SCALE[(m[2] ?? '').toLowerCase()] ?? 1)
+    return s.startsWith('-') ? -n : n
+  }
+  return s.toLowerCase()
+}
+
+const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
+
+/** Numbers before text; empty cells always last, whichever the direction. */
+export function compareValues(a: SortValue, b: SortValue, dir: SortDir = 'asc'): number {
+  if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1
+  const sign = dir === 'asc' ? 1 : -1
+  if (typeof a === 'number' || typeof b === 'number') return (typeof a === 'number' && typeof b === 'number' ? a - b : typeof a === 'number' ? -1 : 1) * sign
+  return collator.compare(a, b) * sign
+}
+
+/** A stable sort of indexes: equal values keep their original order. */
+export function sortIndexes(values: readonly SortValue[], dir: SortDir, order?: readonly number[]): number[] {
+  const idx = order ? [...order] : values.map((_, i) => i)
+  return idx.sort((i, j) => compareValues(values[i], values[j], dir) || i - j)
+}
+
+/** Header click: unsorted → ascending → descending → unsorted. */
+export function nextSort(current: { col: number; dir: SortDir } | null, col: number): { col: number; dir: SortDir } | null {
+  return current?.col !== col ? { col, dir: 'asc' } : current.dir === 'asc' ? { col, dir: 'desc' } : null
+}
+
+
+/** Indexes of rows whose text holds every word of the query (case-insensitive). */
+export function filterIndexes(texts: readonly string[], query: string): number[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  return texts.flatMap((t, i) => (words.every((w) => t.includes(w)) ? [i] : []))
+}
+
+/** `page_size`: a positive number pages; 0 or false shows every row; unset pages by 50 past 100 rows. */
+export function pageSizeOf(v: unknown, total: number): number {
+  const n = v === false ? 0 : num(v, -1)
+  return n >= 0 ? Math.floor(n) : total > 100 ? 50 : 0
+}
+
+// Literal class names (Tailwind scans the source).
+const TONE_CLASS: Record<string, string> = {
+  success: 'border-success/30 bg-success/10 text-success',
+  warning: 'border-warning/30 bg-warning/10 text-warning',
+  error: 'border-destructive/30 bg-destructive/10 text-destructive',
+  info: 'border-info/30 bg-info/10 text-info',
+}
+
+/** A badge's tone classes (`danger` is `error`); unknown tones are neutral. */
+export function toneClass(tone: string): string | undefined {
+  return TONE_CLASS[tone === 'danger' || tone === 'destructive' ? 'error' : tone]
+}

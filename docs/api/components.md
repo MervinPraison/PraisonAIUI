@@ -62,9 +62,11 @@ aiui.columns([
 |-----------|------|----------|-------------|
 | `children` | `Sequence[dict]` | ✅ | Component dicts to lay out side-by-side |
 
-### `aiui.table(*, headers, rows)`
+### `aiui.table(*, headers, rows, columns=None, ...)`
 
-A data table.
+A data table. In the app shell it sorts by header click, formats typed
+columns, and can search, page and link rows. The old call shape keeps working
+unchanged.
 
 ```python
 aiui.table(
@@ -73,12 +75,50 @@ aiui.table(
 )
 ```
 
+A larger table with typed columns, dict rows and search:
+
+```python
+aiui.table(columns=[
+    {"key": "name", "label": "Channel", "type": "link", "href_key": "url"},
+    {"key": "subs", "label": "Subscribers", "type": "number", "format": "compact"},
+    {"key": "status", "type": "badge", "tones": {"growing": "success", "down": "error"}},
+], rows=channels, searchable=True, caption="Channels")  # rows: [{"name", "url", "subs", ...}]
+```
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `headers` | `Sequence[str]` | ✅ | Column header labels |
-| `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |
+| `headers` | `Sequence[str]` | ✅ unless `columns` | Column header labels |
+| `rows` | `Sequence[Sequence \| dict]` | ✅ | Row arrays in column order, or dicts keyed by column `key` (sent as arrays) |
+| `columns` | `Sequence[str \| dict]` | — | Column config (below). Gives the headers when `headers` is not set |
 | `row_ids` | `Sequence[str]` | — | Stable unique ID per row. Makes rows selectable by click, Enter or Space |
 | `actions` | `Sequence[str]` | — | Row action button labels (requires `row_ids`) |
+| `searchable` | `bool` | — | A search box that keeps the rows holding every typed word (in the browser) |
+| `page_size` | `int` | — | Rows per page; `0` shows every row. Unset: 50 per page once there are more than 100 rows |
+| `sortable` | `bool` | — | `False` turns header sorting off. Default on |
+| `row_href_key` | `str` | — | Key (in dict rows, or a column key) holding each row's link. The first cell becomes the link and a click on the row opens it |
+| `max_height` | `int \| str` | — | Height of the scrolling body (px or CSS length, `0` for none). Default `70vh`, so the header stays in view |
+| `caption` | `str` | — | Accessible name of the table and its search box |
+
+Column dict keys: `key`, `label`, `type`, `format`, `decimals`, `tones`,
+`href_key`, `width` (px or CSS length), `align` (`left`, `center`, `right`)
+and `sortable` (`False` for one column). A plain string is a column whose key
+and label are that string.
+
+| `type` | Cell value | Shows |
+|--------|-----------|-------|
+| `auto` (default) | anything | Text as sent; a column of numbers lines up at the end; `{"text", "href"}` is a link and `{"src", "alt"}` an image |
+| `text` | any | The value as text |
+| `number` | number | Right-aligned, tabular figures. `format`: `compact` (1.2k, 3.4M), `percent` (a fraction: 0.123 → 12.3%), `multiplier` or `x` (2.3x), `fixed` (exactly `decimals`, default 2); none groups digits. `decimals` sets the fraction digits |
+| `link` | `{"text", "href", "external"}` or a URL; or text with the column's `href_key` | A link. Only http(s), mailto, tel and relative URLs are kept |
+| `badge` | text, or `{"text", "tone"}` | A badge; `tones` maps a value to `success`, `warning`, `error` or `info` |
+| `tag` | a list (or comma-separated text) | One badge per item, toned like `badge` |
+| `image` | URL, or `{"src", "alt"}` | A small rounded thumbnail (`format: "wide"` for 16:9); `alt` defaults to the column label |
+| `progress` | 0..1 | A bar and its percent |
+
+A header click sorts ascending, descending, then back to the server's order:
+stable, numeric-aware (`1,234`, `1.2k`, `12%`, `2.5x`), empty cells last;
+headers are buttons with `aria-sort`. On a phone the table scrolls sideways.
+The legacy `dashboard` style draws the dict as a plain text table.
 
 With `row_ids`, the dashboard renderer emits bubbling DOM events from the table, so
 a custom view can own query state (search, filters, page, sort) and react to rows:
@@ -688,6 +728,30 @@ aiui.gallery([
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `items` | `Sequence[dict]` | ✅ | List of `{"src": str, "alt": str, "caption": str}` |
+
+### `list_detail` (block dict)
+
+A list with a detail panel beside it (below it on a phone): a dense table with
+a sticky header, a search box, keyboard selection (Up and Down move, Enter
+opens, Escape closes) and pages. Selecting a row shows its other columns and
+its `detail` dict as key facts. There is no Python helper; return the dict.
+
+```python
+{"type": "list_detail", "title": "Sessions", "columns": ["title", {"key": "tokens", "align": "end"}],
+ "rows": [{"id": "s1", "title": "Sorting", "tokens": 3412, "detail": {"Cost": "$0.02"}}]}
+```
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `title` (or `label`) | `str` | Accessible name, also used in the search label. Default `Items` |
+| `columns` | `list[str \| dict]` | `{"key", "label", "align"}` (`align`: `end` or `right` for numbers), or plain keys. Unset: the keys of the first row except `id` and `detail` |
+| `rows` | `list[dict]` | One dict per row: `id` (default: its index), a value per column key, and an optional `detail` dict shown in the panel |
+| `page_size` | `int` | Rows per page. Default 25 |
+| `search` | `bool` | Show the search box even when every row fits on one page (it shows by itself past one page) |
+| `empty` | `str` | Text shown when there are no rows |
+
+Use `aiui.table(...)` instead when the list needs typed cells or header
+sorting.
 
 ---
 
