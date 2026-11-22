@@ -67,6 +67,9 @@ def test_refresh_every_from_registration_and_handler():
 def test_refresh_every_rejects_sub_second_and_reset_clears():
     with pytest.raises(ValueError):
         page_params.set_refresh_every("x", 0.5)
+    with pytest.raises(ValueError):  # a rejected page is not half-registered
+        srv.register_page("bad", title="Bad", refresh_every=0.5)
+    assert "bad" not in srv._pages
     page_params.set_refresh_every("x", 3)
     srv.reset_state()
     assert page_params.with_refresh("x", {}) == {}

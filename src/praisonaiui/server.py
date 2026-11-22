@@ -1878,6 +1878,7 @@ def register_page(
         order: Sort order within group (lower = first, default 100)
         refresh_every: Re-fetch the page every N seconds while it is visible
     """
+    page_params.set_refresh_every(id, refresh_every)  # validates before registering
     endpoint = api_endpoint or f"/api/pages/{id}/data"
     _pages[id] = {
         "id": id,
@@ -1889,7 +1890,6 @@ def register_page(
         "order": order,
     }
     _custom_page_ids.add(id)
-    page_params.set_refresh_every(id, refresh_every)
     if handler:
         register_callback(f"page:{id}", handler)
 
