@@ -188,12 +188,19 @@ def reset_state() -> None:
         pass
 
 
+#: The style of a server nobody chose one for (``create_app``, ``aiui run``).
+DEFAULT_STYLE = "app"
+#: Printed when the legacy ``dashboard`` style is chosen.
+LEGACY_DASHBOARD_NOTICE = "dashboard is the legacy UI; use --style app for the new shell"
+
+
 def set_style(style: str) -> None:
     """Set the UI style from Python code (call before server starts).
 
-    Valid values: 'chat', 'agents', 'playground', 'dashboard', 'docs', 'custom',
-    and 'app' (the React shell, opt-in). ``AIUI_SHELL=app`` turns 'dashboard'
-    into 'app'; ``AIUI_SHELL=legacy`` turns 'app' back into 'dashboard'.
+    Valid values: 'app' (the React app shell, the default), 'dashboard' (the
+    legacy vanilla UI), 'chat', 'agents', 'playground', 'docs', 'custom'.
+    ``AIUI_SHELL=app`` turns 'dashboard' into 'app'; ``AIUI_SHELL=legacy``
+    turns 'app' back into 'dashboard'.
     This takes priority over auto-detection but is overridden by CLI --style.
     """
     global _style
@@ -832,9 +839,12 @@ def detect_style() -> str:
 
     Detection heuristics (in priority order):
       1. profiles callback + registered agents → 'agents'
-      2. page:* callbacks registered → 'dashboard'
+      2. page:* callbacks registered → 'app' (the app shell lists the pages)
       3. reply callback → 'chat'
       4. fallback → 'chat'
+
+    ``aiui run`` turns 'chat' into 'app' too; 'dashboard' is never detected
+    (it is the legacy UI: ask for it with ``--style dashboard``).
     """
     has_profiles = "profiles" in _callbacks
     has_agents = bool(_agents)
@@ -843,7 +853,7 @@ def detect_style() -> str:
     if has_profiles and has_agents:
         return "agents"
     if has_pages:
-        return "dashboard"
+        return "app"
     return "chat"
 
 
@@ -3925,7 +3935,9 @@ def create_app(
     # In docs mode the compiler generates static files. In dashboard/chat/agents
     # modes we serve dynamic responses so the frontend knows which style to use.
     global _effective_style
-    effective_style = _style or "dashboard"  # default when running server directly
+    # The React app shell is the default (owner decision, 2026-11-22);
+    # "dashboard" (the legacy UI) only when asked for, or AIUI_SHELL=legacy.
+    effective_style = _style or DEFAULT_STYLE
     if config and isinstance(config, dict):
         effective_style = config.get("style", effective_style)
     from praisonaiui.plugin_registry import get_plugin_registry, resolve_shell_style

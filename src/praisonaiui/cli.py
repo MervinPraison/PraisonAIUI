@@ -2204,7 +2204,7 @@ def run(
         None,
         "--style",
         "-s",
-        help="UI style: 'app' (default: the React app shell, Chat layout), 'chat' (classic chat), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard', 'custom'",
+        help="UI style: 'app' (default: the React app shell, Chat layout), 'chat' (classic chat), 'docs', 'agents' (tabbed multi-agent), 'playground' (input/output panels), 'dashboard' (the legacy UI), 'custom'",
     ),
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
@@ -2309,8 +2309,8 @@ def run(
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI --style > YAML style > aiui.set_style() > auto-detect >
     # the app shell. Auto-detect only picks a style an app clearly asks for
-    # (agents, dashboard pages); a plain chat app gets the app shell.
-    from praisonaiui.server import detect_style, get_style
+    # (agents); a chat app or an app with pages gets the app shell.
+    from praisonaiui.server import LEGACY_DASHBOARD_NOTICE, detect_style, get_style
 
     if style is None:
         explicit = get_style()
@@ -2318,11 +2318,13 @@ def run(
             style = explicit
         else:
             detected = detect_style()
-            if detected != "chat":
+            if detected not in ("chat", "app"):
                 console.print(f"[cyan]ℹ️[/cyan] Auto-detected style: [bold]{detected}[/bold]")
                 style = detected
             else:
                 style = "app"
+    if style == "dashboard":
+        console.print(f"[yellow]Note:[/yellow] {LEGACY_DASHBOARD_NOTICE}")
     if style == "app":
         # `aiui run` opens the chat without a canvas unless the app, its YAML
         # or AIUI_LAYOUT picks a layout.
