@@ -54,6 +54,8 @@ const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
   // Boot state "the server asked for a token".
   'shell/ShellApp.tsx': ['auth'],
   'shell/BootScreen.tsx': ['auth'],
+  // Popover alignment.
+  'blocks/inputs/Combobox.tsx': ['start'],
 }
 
 /**

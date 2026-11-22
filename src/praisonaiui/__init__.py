@@ -326,6 +326,11 @@ def __getattr__(name: str):
         "popover",
         "form",
         "form_action",
+        # Filters
+        "tags_input",
+        "date_range_input",
+        "segmented_input",
+        "filter_bar",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -776,4 +781,9 @@ __all__ = [
     "popover",
     "form",
     "form_action",
+    # Filters
+    "tags_input",
+    "date_range_input",
+    "segmented_input",
+    "filter_bar",
 ]

@@ -46,6 +46,8 @@ import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
+import { isSearchable, optionList } from './formState'
+import { useFormSubmit } from './useFormSubmit'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -788,45 +790,21 @@ function ButtonGroupBlock({ node }: CoreBlockProps) {
 
 // ── forms ────────────────────────────────────────────────────────────
 
-/**
- * Collect values exactly like the legacy form_action, so inputs rendered by
- * the legacy fallback inside a React form are collected too.
- */
-// eslint-disable-next-line react-refresh/only-export-components -- shared with tests
-export function collectFormValues(form: HTMLFormElement): Record<string, unknown> {
-  const data: Record<string, unknown> = {}
-  form.querySelectorAll<HTMLInputElement>('input, select, textarea').forEach((el) => {
-    const key = el.name || el.dataset.label || el.getAttribute('aria-label') || ''
-    if (!key) return
-    if (el.type === 'radio') {
-      if (el.checked) data[key] = el.value
-      else if (!(key in data)) data[key] = null
-    } else if (el.type === 'checkbox') {
-      data[key] = el.checked
-    } else {
-      data[key] = el.value
-    }
-  })
-  return data
-}
+// Shared with tests and the filter inputs (formState.ts).
+// eslint-disable-next-line react-refresh/only-export-components
+export { collectFormValues } from './formState'
 
+/** `form` / `form_action`: posts every input by name; `submit_on_change` posts on each change. */
 function FormBlock({ node, page }: CoreBlockProps) {
   const p = propsOf(node)
-  const ctx = useBlockContext()
-  const [busy, setBusy] = useState(false)
   const submitLabel = str(p.submit_label, 'Submit')
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const { formRef, busy, submit } = useFormSubmit(submitLabel, p.submit_on_change === true)
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const body = collectFormValues(e.currentTarget)
-    setBusy(true)
-    try {
-      await ctx.runAction({ body, label: submitLabel })
-    } finally {
-      setBusy(false)
-    }
+    void submit()
   }
   return (
-    <form data-action={str(p.action) || undefined} onSubmit={onSubmit} className="flex min-w-0 flex-col gap-4">
+    <form ref={formRef} data-action={str(p.action) || undefined} onSubmit={onSubmit} className="flex min-w-0 flex-col gap-4">
       <BlockList nodes={childNodes(node)} page={page} />
       <div>
         <Button type="submit" size="sm" disabled={busy} aria-busy={busy || undefined}>
@@ -853,7 +831,12 @@ function Field({ id, label, children }: { id: string; label: string; children: J
 
 function inputAttrs(p: Record<string, unknown>) {
   const label = str(p.label)
-  return { name: str(p.name) || undefined, 'data-label': label || undefined, 'aria-label': label ? undefined : str(p.name) || undefined }
+  return {
+    name: str(p.name) || undefined,
+    'data-label': label || undefined,
+    'aria-label': label ? undefined : str(p.name) || undefined,
+    'data-auto-submit': p.auto_submit === true ? '' : undefined,
+  }
 }
 
 function TextInputBlock({ node }: CoreBlockProps) {
@@ -892,15 +875,10 @@ function TextareaInputBlock({ node }: CoreBlockProps) {
   )
 }
 
-function optionList(v: unknown): { value: string; label: string }[] {
-  return arr(v).map((o) =>
-    isRecord(o) ? { value: str(o.value), label: str(o.label ?? o.value) } : { value: str(o), label: str(o) },
-  )
-}
-
-function SelectInputBlock({ node }: CoreBlockProps) {
+function SelectInputBlock({ node, page }: CoreBlockProps) {
   const p = propsOf(node)
   const id = useId()
+  if (isSearchable(p)) return <SearchableSelect node={node} page={page} />
   return (
     <Field id={id} label={str(p.label)}>
       <select
@@ -952,7 +930,7 @@ function RadioInputBlock({ node }: CoreBlockProps) {
   const label = str(p.label)
   const value = str(p.value)
   return (
-    <fieldset className="flex min-w-0 flex-col gap-2">
+    <fieldset className="flex min-w-0 flex-col gap-2" data-auto-submit={p.auto_submit === true ? '' : undefined}>
       {label && <legend className={cn(FIELD_LABEL, 'mb-1.5')}>{label}</legend>}
       {optionList(p.options).map((o, i) => (
         <label key={i} className="flex w-fit cursor-pointer items-center gap-2 text-sm text-foreground">
@@ -1016,6 +994,14 @@ const CodeEditorTemplate = templateBlock(() =>
   import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock })),
 )
 
+// Filter inputs (blocks/inputs): the combobox chunk carries cmdk + popover.
+const SearchableSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.SearchableSelect })))
+const MultiSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.MultiSelect })))
+const TagsInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.TagsInput })))
+const DateRangeInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.DateRangeInput })))
+const SegmentedInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.SegmentedInput })))
+const FilterBar = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.FilterBar })))
+
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
   text: TextBlock,
@@ -1071,6 +1057,11 @@ const CORE: Record<string, CoreBlock> = {
   switch_input: SwitchInputBlock,
   radio_input: RadioInputBlock,
   slider_input: SliderInputBlock,
+  multiselect_input: MultiSelect,
+  tags_input: TagsInput,
+  date_range_input: DateRangeInput,
+  segmented_input: SegmentedInput,
+  filter_bar: FilterBar,
   board: BoardTemplate,
   gallery: GalleryTemplate,
   list_detail: ListDetailTemplate,
