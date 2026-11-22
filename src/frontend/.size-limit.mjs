@@ -267,7 +267,8 @@ export default [
   // `step` part per top-level step in the reducer; the tree is the lazy parts/StepTree chunk).
   // 143,581 B (+2 B, exactly the overage): chunk hashes renamed by the shown nav groups; no chat code changed.
   // 143,597 B (+13 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143597 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
+  // 143,604 B (+7 B, exactly the overage, 2026-11-22): forms submit on change (blocks/useFormSubmit.ts).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143604 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -339,7 +340,8 @@ export default [
   // 257,066 B (+501 B, exactly the overage): the reply's steps (chat route, above).
   // 257,069 B (+2 B, exactly the overage, 2026-11-22): chunk hashes renamed by the lazy sections; no chat code changed.
   // 257,135 B (+66 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257135 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
+  // 257,139 B (+4 B, exactly the overage, 2026-11-22): forms submit on change (chat route, above).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257139 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -514,5 +516,6 @@ export default [
   // 11,580,023 B (+112 B, exactly the overage, 2026-11-22): LazySection skips re-fetching closed sections until reopened.
   // 11,584,787 B (+4,764 B, exactly the overage, 2026-11-22): the sandboxed html block, Markdown callouts and metric captions (blocks chunk).
   // 11,598,491 B (+13,704 B, exactly the overage, 2026-11-22): native media, navigation and overlay blocks (blocks/mediaBlocks.tsx), card_grid, gallery links.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11598491 B', brotli: false },
+  // 11,608,392 B (+9,901 B, exactly the overage, 2026-11-22): the filter inputs' lazy chunks (blocks/inputs).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11608392 B', brotli: false },
 ]

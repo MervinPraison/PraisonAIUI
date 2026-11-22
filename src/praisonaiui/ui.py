@@ -22,7 +22,14 @@ Usage in page handlers::
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
+
+
+def _auto(comp: dict[str, Any], auto_submit: bool) -> dict[str, Any]:
+    """Mark an input that submits its form on change (only when asked)."""
+    if auto_submit:
+        comp["auto_submit"] = True
+    return comp
 
 
 def layout(
@@ -386,6 +393,7 @@ def text_input(
     value: str = "",
     placeholder: str = "",
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A text input field.
 
@@ -397,6 +405,8 @@ def text_input(
             omitted, the form collector falls back to ``label``. Use
             ``name`` whenever you have duplicate labels or want a stable
             machine-readable key.
+        auto_submit: Submit the enclosing form when the value changes
+            (debounced while typing).
     """
     comp: dict[str, Any] = {
         "type": "text_input",
@@ -406,7 +416,7 @@ def text_input(
     }
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def number_input(
@@ -417,6 +427,7 @@ def number_input(
     max_val: int | float | None = None,
     step: int | float = 1,
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A number input field.
 
@@ -427,6 +438,8 @@ def number_input(
         max_val: Maximum allowed value
         step: Increment step
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes
+            (text is debounced).
     """
     comp: dict[str, Any] = {"type": "number_input", "label": label, "value": value, "step": step}
     if min_val is not None:
@@ -435,7 +448,7 @@ def number_input(
         comp["max_val"] = max_val
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def select_input(
@@ -444,6 +457,8 @@ def select_input(
     options: Sequence[str],
     value: str = "",
     name: str | None = None,
+    searchable: bool | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A dropdown select input.
 
@@ -452,6 +467,10 @@ def select_input(
         options: List of option strings
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
+        searchable: ``True`` shows a type-to-search list (a combobox) instead
+            of a plain dropdown; ``None`` (default) does so when there are
+            more than 20 options; ``False`` never does.
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {
         "type": "select_input",
@@ -461,7 +480,9 @@ def select_input(
     }
     if name is not None:
         comp["name"] = name
-    return comp
+    if searchable is not None:
+        comp["searchable"] = searchable
+    return _auto(comp, auto_submit)
 
 
 def slider_input(
@@ -501,6 +522,7 @@ def checkbox_input(
     *,
     checked: bool = False,
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A checkbox input.
 
@@ -508,11 +530,13 @@ def checkbox_input(
         label: Checkbox label
         checked: Default checked state
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes
+            (text is debounced).
     """
     comp: dict[str, Any] = {"type": "checkbox_input", "label": label, "checked": checked}
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def switch_input(
@@ -520,6 +544,7 @@ def switch_input(
     *,
     checked: bool = False,
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A toggle switch input.
 
@@ -527,11 +552,13 @@ def switch_input(
         label: Switch label
         checked: Default checked state
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes
+            (text is debounced).
     """
     comp: dict[str, Any] = {"type": "switch_input", "label": label, "checked": checked}
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def radio_input(
@@ -540,6 +567,7 @@ def radio_input(
     options: Sequence[str],
     value: str = "",
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A radio button group.
 
@@ -548,6 +576,8 @@ def radio_input(
         options: List of option strings
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes
+            (text is debounced).
     """
     comp: dict[str, Any] = {
         "type": "radio_input",
@@ -557,7 +587,7 @@ def radio_input(
     }
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def textarea_input(
@@ -1186,6 +1216,7 @@ def form(
     submit_label: str = "Submit",
     method: str = "post",
     update_url: bool = False,
+    submit_on_change: bool = False,
 ) -> dict:
     """A form container that submits input values to the server.
 
@@ -1201,6 +1232,9 @@ def form(
             receives as ``params``. No action handler is needed.
         update_url: ``method="post"`` (app shell): after a successful
             action, also write the submitted values into the page URL.
+        submit_on_change: Submit whenever an input changes (text is debounced
+            by 400 ms). Off by default: leave it off for a form whose submit
+            starts a job, and use ``auto_submit=True`` on single inputs instead.
 
     .. versionadded:: 0.3.109
         Supersedes :func:`form_action`.
@@ -1215,6 +1249,8 @@ def form(
         comp["method"] = "get"
     if update_url:
         comp["update_url"] = True
+    if submit_on_change:
+        comp["submit_on_change"] = True
     return comp
 
 
@@ -1272,4 +1308,38 @@ def status(
         comp["progress"] = max(0, min(100, progress))
     if log:
         comp["log"] = [str(line) for line in log]
+    return comp
+
+
+def filter_bar(
+    action: str,
+    *,
+    inputs: Sequence[dict],
+    chips: bool = True,
+    defaults: Mapping[str, Any] | None = None,
+    reset_label: str = "Reset",
+) -> dict:
+    """A compact row of filters that posts like :func:`form` on every change.
+
+    The action handler should return the page rebuilt from the posted values.
+    With ``chips``, each active filter (value differs from ``defaults[name]``,
+    else a select's first option, else empty) shows as a removable chip, plus
+    a "Reset" control. See docs/api/components.md.
+
+    Args:
+        action: Action identifier (typically the page id).
+        inputs: Input components.
+        chips: Show the active filters as removable chips.
+        defaults: Reset value per input name.
+        reset_label: Label of the control that clears every filter.
+    """
+    comp: dict[str, Any] = {
+        "type": "filter_bar",
+        "action": action,
+        "children": list(inputs),
+        "chips": chips,
+        "reset_label": reset_label,
+    }
+    if defaults:
+        comp["defaults"] = dict(defaults)
     return comp

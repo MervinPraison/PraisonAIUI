@@ -56,6 +56,8 @@ const NOT_A_PAGE_ID: Record<string, readonly string[]> = {
   'shell/BootScreen.tsx': ['auth'],
   // `<Markdown variant="chat">`: the compact Markdown style the callout body uses.
   'blocks/coreBlocks.tsx': ['chat'],
+  // Popover alignment.
+  'blocks/inputs/Combobox.tsx': ['start'],
 }
 
 /**
