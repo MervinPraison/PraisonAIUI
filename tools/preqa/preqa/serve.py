@@ -75,16 +75,18 @@ def make_handler(site: Path, dashboard: Path | None, history: Path | None):
 
         def do_GET(self, head: bool = False):
             path = urllib.parse.urlsplit(self.path).path
-            root, max_age = site, SITE_MAX_AGE
+            root, max_age, prefix = site, SITE_MAX_AGE, ""
             if path == "/preqa":
                 return self._redirect("/preqa/")
             if dashboard and path.startswith("/preqa/history/") and history:
-                root, max_age, path = history, 0, path[len("/preqa/history"):]
+                prefix = "/preqa/history"
+                root, max_age, path = history, 0, path[len(prefix):]
             elif dashboard and path.startswith("/preqa/"):
-                root, max_age, path = dashboard, 0, path[len("/preqa"):]
+                prefix = "/preqa"
+                root, max_age, path = dashboard, 0, path[len(prefix):]
             kind, file = resolve(root, path)
-            if kind == "redirect":
-                return self._redirect(path + "/")
+            if kind == "redirect":  # keep the mount prefix; one leading slash, never a //host redirect
+                return self._redirect(prefix + "/" + path.lstrip("/") + "/")
             status = 200
             if kind == "missing":
                 status, file = 404, root / "404.html"

@@ -43,7 +43,8 @@ def server(tmp_path):
     site = make_site(tmp_path / "site")
     (tmp_path / "dash").mkdir()
     (tmp_path / "dash" / "index.html").write_text("dashboard")
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), serve.make_handler(site, tmp_path / "dash", None))
+    (tmp_path / "hist" / "run").mkdir(parents=True)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), serve.make_handler(site, tmp_path / "dash", tmp_path / "hist"))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{httpd.server_address[1]}"
     httpd.shutdown()
@@ -67,6 +68,18 @@ def test_serve_headers_match_production(server):
     assert status == 404 and b"missing" in body
     status, h, body = fetch(server + "/preqa/")
     assert status == 200 and body == b"dashboard" and h["Cache-Control"] == "no-cache"
+
+
+def test_serve_redirect_keeps_mount_prefix(server):
+    class NoFollow(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args):
+            return None
+
+    opener = urllib.request.build_opener(NoFollow)
+    for path, location in (("/docs", "/docs/"), ("/preqa/history/run", "/preqa/history/run/")):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            opener.open(server + path)
+        assert e.value.code == 301 and e.value.headers["Location"] == location
 
 
 def test_serve_refuses_public_bind():

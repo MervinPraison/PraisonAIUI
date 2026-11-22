@@ -71,6 +71,7 @@ def build(ref: str = "main") -> dict:
     """Build ``ref`` and switch ``sites/<name>`` to it. Returns the build record."""
     h, name, t0 = home(), name_for(ref), time.time()
     rec: dict = {"ts": history.utc_now(), "ref": ref, "name": name, "ok": False}
+    src = tmp = None
     try:
         sha = rec["sha"] = fetch(ref)
         out = h / "builds" / f"{name}-{sha[:12]}"
@@ -113,11 +114,14 @@ def build(ref: str = "main") -> dict:
             new_link.unlink()
         new_link.symlink_to(out)
         new_link.replace(link)
-        shutil.rmtree(src, ignore_errors=True)
         _prune(h / "builds", name, keep=out)
-    except (subprocess.CalledProcessError, RuntimeError, OSError) as exc:
+    except (subprocess.CalledProcessError, RuntimeError, OSError, tarfile.TarError) as exc:
         detail = getattr(exc, "stderr", None) or str(exc)
         rec["error"] = str(detail)[-800:]
+    finally:  # a failed build must not leave a source tree or half-built site behind
+        for leftover in (src, tmp):
+            if leftover is not None:
+                shutil.rmtree(leftover, ignore_errors=True)
     rec["build_s"] = round(time.time() - t0, 1)
     (h / "history").mkdir(parents=True, exist_ok=True)
     with open(h / "history" / "builds.jsonl", "a", encoding="utf-8") as f:
