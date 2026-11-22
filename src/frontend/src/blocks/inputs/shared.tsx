@@ -10,9 +10,9 @@ import { str } from '../normalize'
  * After a user change (not the first render) it fires `aiui:input-change`,
  * which submits the form when it submits on change.
  */
-export function HiddenValue({ name, label, value }: { name: string; label: string; value: unknown }) {
+export function HiddenValue({ name, label, value, json }: { name: string; label: string; value: unknown; json?: boolean }) {
   const ref = useRef<HTMLInputElement>(null)
-  const text = str(value)
+  const text = json ? JSON.stringify(value) : str(value)
   const prev = useRef(text)
   useEffect(() => {
     if (prev.current === text) return
@@ -26,6 +26,7 @@ export function HiddenValue({ name, label, value }: { name: string; label: strin
       readOnly
       name={name || undefined}
       data-label={label || undefined}
+      data-aiui-json={json ? '' : undefined}
       value={text}
     />
   )

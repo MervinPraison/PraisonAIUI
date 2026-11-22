@@ -1,7 +1,10 @@
 /**
- * Posts a `form` / `filter_bar` to the page action on submit and on change
- * (`submit_on_change`, or inputs marked `data-auto-submit`). Text debounces; an
- * auto submit equal to the last post is skipped; a change during a post posts again after it.
+ * Submitting a `form` / `filter_bar` to the page action: on the submit
+ * button, and on change (the whole form with `submit_on_change`, or inputs
+ * marked `data-auto-submit`). Text is debounced; an automatic submit whose
+ * values equal the last one posted is skipped; a change made while a submit
+ * is in flight posts once more when it settles, so the page ends on the
+ * latest values.
  */
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useBlockContext, type BlockActionRequest } from './context'

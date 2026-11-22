@@ -6,6 +6,7 @@
 import { Bell, CircleStop, Search, SunMoon, TriangleAlert } from 'lucide-react'
 import { BrandTile, isPlainLeftClick, ShortcutHint } from '@/app-layouts/kit'
 import { Button } from '@/components/ui/button'
+import { PageGlyph } from '@/lib/PageGlyph'
 import { cn } from '@/lib/utils'
 import type { LayoutChrome, LayoutNavItem } from '@/sdk/layouts'
 import { renderNavIcon } from './icons'
@@ -14,13 +15,13 @@ import { navCount, type HealthState, type NavCounts } from './model'
 export function NavIcon({ item, className }: { item: LayoutNavItem; className?: string }) {
   const icon = renderNavIcon(item, cn('shrink-0', className))
   if (icon) return icon
-  // Never the page's emoji (it renders differently on every OS): its initial.
-  const mark = item.title.slice(0, 1).toUpperCase()
-  return (
+  // Any other icon the page declares (lazy lucide, image, emoji), else its initial.
+  const mark = (
     <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center text-xs', className)}>
-      {mark}
+      {item.title.slice(0, 1).toUpperCase()}
     </span>
   )
+  return <PageGlyph navIcon={item.navIcon} icon={item.icon} className={cn('shrink-0', className)} fallback={mark} />
 }
 
 export function BrandMark({ chrome, className }: { chrome: LayoutChrome; className?: string }) {

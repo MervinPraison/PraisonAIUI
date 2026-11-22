@@ -132,14 +132,14 @@ def test_deleting_a_session_deletes_its_artifacts(monkeypatch):
 
 
 def _run_yaml(tmp_path, monkeypatch, yaml_text: str, *flags: str):
-    import uvicorn
     from typer.testing import CliRunner
 
+    from praisonaiui import cli
     from praisonaiui.cli import app as cli_app
 
     cfg = tmp_path / "chat.yaml"
     cfg.write_text(yaml_text)
-    monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: None)
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda *a, **kw: None)
     stores = []
     real = srv.set_datastore
     monkeypatch.setattr(srv, "set_datastore", lambda s: (stores.append(s), real(s)))

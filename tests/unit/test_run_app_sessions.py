@@ -38,7 +38,7 @@ def run_app(tmp_path, monkeypatch):
             ),
             encoding="utf-8",
         )
-        with patch("uvicorn.run"):
+        with patch("praisonaiui.cli._run_uvicorn"):
             result = runner.invoke(app, ["run", str(app_file), "--port", "8131", *extra])
         assert result.exit_code == 0, result.output
         return app_file, srv.get_datastore()

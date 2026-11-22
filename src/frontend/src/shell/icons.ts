@@ -4,8 +4,8 @@
  * shows), and a plugin may put a name in `icon`. The page id never decides.
  * The name table lives in lib/pageIcons.ts, shared with the layout kit.
  *
- * Resolution (PageIcon.tsx): `navIcon` → a name in `icon` → the emoji in
- * `icon` → FileText.
+ * Resolution (PageIcon.tsx): `navIcon` → a name in `icon` (static map) →
+ * any other lucide name, image URL or emoji (lib/PageGlyph) → FileText.
  */
 import type { LucideIcon } from 'lucide-react'
 import { iconByName } from '@/lib/pageIcons'

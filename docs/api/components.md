@@ -64,9 +64,11 @@ aiui.columns([
 |-----------|------|----------|-------------|
 | `children` | `Sequence[dict]` | ✅ | Component dicts to lay out side-by-side |
 
-### `aiui.table(*, headers, rows)`
+### `aiui.table(*, headers, rows, columns=None, ...)`
 
-A data table.
+A data table. In the app shell it sorts by header click, formats typed
+columns, and can search, page, link rows and open a row in a side panel. The
+old call shape keeps working unchanged.
 
 ```python
 aiui.table(
@@ -75,12 +77,54 @@ aiui.table(
 )
 ```
 
+A larger table with typed columns, dict rows and search:
+
+```python
+aiui.table(columns=[
+    {"key": "name", "label": "Channel", "type": "link", "href_key": "url"},
+    {"key": "subs", "label": "Subscribers", "type": "number", "format": "compact"},
+    {"key": "status", "type": "badge", "tones": {"growing": "success", "down": "error"}},
+], rows=channels, searchable=True, caption="Channels")  # rows: [{"name", "url", "subs", ...}]
+```
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `headers` | `Sequence[str]` | ✅ | Column header labels |
-| `rows` | `Sequence[Sequence[Any]]` | ✅ | Row data arrays |
+| `headers` | `Sequence[str]` | ✅ unless `columns` | Column header labels |
+| `rows` | `Sequence[Sequence \| dict]` | ✅ | Row arrays in column order, or dicts keyed by column `key` (sent as arrays) |
+| `columns` | `Sequence[str \| dict]` | — | Column config (below). Gives the headers when `headers` is not set |
 | `row_ids` | `Sequence[str]` | — | Stable unique ID per row. Makes rows selectable by click, Enter or Space |
 | `actions` | `Sequence[str]` | — | Row action button labels (requires `row_ids`) |
+| `searchable` | `bool` | — | A search box that keeps the rows holding every typed word (in the browser) |
+| `page_size` | `int` | — | Rows per page; `0` shows every row. Unset: 50 per page once there are more than 100 rows |
+| `sortable` | `bool` | — | `False` turns header sorting off. Default on |
+| `row_href_key` | `str` | — | Key (in dict rows, or a column key) holding each row's link. The first cell becomes the link and a click on the row opens it |
+| `row_detail` | `bool` | — | A click (or Enter) on a row opens a side panel listing the row's fields |
+| `detail_key` | `str` | — | Key in dict rows holding a list of block dicts the side panel renders instead of the fields (implies `row_detail`) |
+| `max_height` | `int \| str` | — | Height of the scrolling body (px or CSS length, `0` for none). Default `70vh`, so the header stays in view |
+| `caption` | `str` | — | Accessible name of the table and its search box |
+
+Column dict keys: `key`, `label`, `type`, `format`, `decimals`, `tones`,
+`href_key`, `width` (px or CSS length), `align` (`left`, `center`, `right`)
+and `sortable` (`False` for one column). A plain string is a column whose key
+and label are that string.
+
+| `type` | Cell value | Shows |
+|--------|-----------|-------|
+| `auto` (default) | anything | Text as sent; a column of numbers lines up at the end; `{"text", "href"}` is a link and `{"src", "alt"}` an image |
+| `text` | any | The value as text |
+| `number` | number | Right-aligned, tabular figures. `format`: `compact` (1.2k, 3.4M), `percent` (a fraction: 0.123 → 12.3%), `multiplier` or `x` (2.3x), `fixed` (exactly `decimals`, default 2); none groups digits. `decimals` sets the fraction digits |
+| `link` | `{"text", "href", "external"}` or a URL; or text with the column's `href_key` | A link. Only http(s), mailto, tel and relative URLs are kept |
+| `badge` | text, or `{"text", "tone"}` | A badge; `tones` maps a value to `success`, `warning`, `error` or `info` |
+| `tag` | a list (or comma-separated text) | One badge per item, toned like `badge` |
+| `image` | URL, or `{"src", "alt"}` | A small rounded thumbnail (`format: "wide"` for 16:9); `alt` defaults to the column label |
+| `progress` | 0..1 | A bar and its percent |
+| `date` | ISO text, or epoch seconds or ms | `Nov 22, 2026` in UTC; `format: "datetime"` adds the time, `"iso"` gives `2026-11-22`. Sorts by time |
+| `sparkline` | a list of numbers | A small trend line (no axes); sorts by the last point |
+
+A header click sorts ascending, descending, then back to the server's order:
+stable, numeric-aware (`1,234`, `1.2k`, `12%`, `2.5x`), empty cells last;
+headers are buttons with `aria-sort`. On a phone the table scrolls sideways.
+The legacy `dashboard` style draws the dict as a plain text table.
 
 With `row_ids`, the dashboard renderer emits bubbling DOM events from the table, so
 a custom view can own query state (search, filters, page, sort) and react to rows:
@@ -161,13 +205,23 @@ aiui.chart("Retention", chart_type="area", data=points, x="t", y="share", y_form
 aiui.chart("Formats mix", data=rows, x="quarter", y=["video", "carousel", "text"], stacked=True)
 aiui.chart("Reach", chart_type="scatter", data=channels, x="subs", y="ratio", label="channel")
 aiui.chart("Spread of lift", chart_type="histogram", data=[0.4, 1.2, 0.9, 2.5], bins=12)
+
+# A heatmap: rows x columns from {x, y, value} rows, coloured low to high.
+aiui.chart("When posts land", kind="heatmap", data=slots, x="hour", y="weekday", value="posts")
+
+# A sparkline: a tiny line with no axes (plain numbers work).
+aiui.chart("Views, last 30 days", kind="sparkline", data=[120, 140, 90, 210, 180])
+
+# Small multiples: one small chart per platform, all on the same value scale.
+aiui.chart("Views by platform", chart_type="line", data=rows, x="month", y="views", facet="platform")
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `title` | `str` | `""` | Chart title |
 | `data` | `list[dict]` | `[]` | Rows, e.g. `[{"month": "Jan", "views": 1200}]`. A histogram also takes plain numbers |
-| `chart_type` | `str` | `"bar"` | `bar` (columns), `barh` (horizontal bars), `line`, `area`, `scatter`, `pie`, `donut`, `histogram` |
+| `chart_type` | `str` | `"bar"` | `bar` (columns), `barh` (horizontal bars), `line`, `area`, `scatter`, `pie`, `donut`, `histogram`, `heatmap`, `sparkline` |
+| `kind` | `str` | — | Alias of `chart_type` |
 | `x` | `str` | first text column | Category key. Scatter: the x value (default: first numeric column). Histogram: the measured value |
 | `y` | `str \| list[str]` | every numeric column | Series key, or keys for several series |
 | `y2` | `str` | — | A secondary series drawn as faint bars on its own scale (vertical charts) |
@@ -182,6 +236,24 @@ aiui.chart("Spread of lift", chart_type="histogram", data=[0.4, 1.2, 0.9, 2.5], 
 | `height` | `int` | 240 | Plot height in px; `barh` grows with its rows, pie and donut are 260 |
 | `caption` | `str` | — | A line of muted text under the chart |
 | `legend` | `bool` | more than one series | Show the legend |
+| `value` | `str` | `"value"` | Heatmap: the cell value key. `x` is the column key and `y` the row key (defaults `x` and `y`) |
+| `facet` | `str` | — | Key whose values split the rows into small charts in a responsive grid, sharing one value scale (at most 24 panels) |
+
+**Heatmap.** Columns and rows keep the order they first appear in `data`,
+so sort the rows (Mon..Sun, 0..23) before passing them; a repeated cell
+sums. Cells are coloured on a sequential scale from the theme's first chart
+colour (light and dark), empty cells are outlined, `y_format` formats the
+values in the tooltip and the colour scale under the grid, and `y_domain`
+fixes the scale. Cells keep a minimum width, so a wide grid scrolls sideways
+inside the chart on a phone.
+
+**Sparkline.** One series, no axes, the last value printed beside it;
+`height` defaults to 48 px. A number list under a metric is
+`aiui.metric(..., sparkline=[...])`.
+
+**Small multiples.** With `facet`, each panel is 160 px high (48 for a
+sparkline) unless `height` is set, panels follow first-seen order, and the
+legend is shown once. `y_domain` overrides the shared scale.
 
 An unknown `chart_type` or format raises `ValueError`. A dict written by hand
 (`{"type": "chart", "data": [...], "chart_type": "line"}`) works too: missing
@@ -193,7 +265,7 @@ style shows a summary card instead of the chart.
 
 ## Essential Components
 
-### `aiui.metric(label, *, value, delta, delta_color, caption)`
+### `aiui.metric(label, *, value, delta, delta_color, caption, sparkline, benchmark, benchmark_label)`
 
 A metric card with optional delta indicator and caption.
 
@@ -202,7 +274,15 @@ aiui.metric("Requests", value="12.3k", delta="+15%")
 aiui.metric("Errors", value=23, delta="+3", delta_color="inverse")
 aiui.metric("Lead time", value="4 d", delta="-3 days", delta_color="inverse", caption="median")
 aiui.metric("Posts", value=51, caption="in the last 30 days")
+aiui.metric("Engagement", value=0.024, benchmark=0.41, benchmark_label="median")  # "17x below median (0.41)"
+aiui.metric("Views", value="12.3k", sparkline=[8200, 9100, 10400, 12300])
 ```
+
+`benchmark` compares a numeric `value` with a reference: a ratio of 2 or
+more reads as a multiple ("17x below median"), a smaller one as a percentage
+("25% above median"), and it is coloured like a delta (`delta_color`
+applies, so `"inverse"` makes "above" the loss). `sparkline` draws the
+numbers as a tiny trend line under the value.
 
 A `delta` that starts with `+`/`↑` or `-`/`↓` (or a signed number) is coloured
 as a gain or a loss. Use `caption` for a neutral note under the value, so a
@@ -215,6 +295,9 @@ subtitle such as "-2 from plan" is not coloured by accident.
 | `delta` | `str` | ❌ | `None` | Change indicator (e.g. "+5%") |
 | `delta_color` | `str` | ❌ | `"normal"` | `"normal"` (rise is good), `"inverse"` (fall is good, e.g. `"-3 days"`), or `"off"` (never coloured) |
 | `caption` | `str` | ❌ | `None` | Neutral note under the value, never coloured. `help` is an alias |
+| `sparkline` | `list[float]` | ❌ | `None` | Numbers drawn as a tiny trend line under the value |
+| `benchmark` | `float` | ❌ | `None` | Reference the value is compared with ("17x below median") |
+| `benchmark_label` | `str` | ❌ | `"benchmark"` | Name of the benchmark in that line |
 
 ### `aiui.progress_bar(label, *, value, max_value)`
 
@@ -379,9 +462,11 @@ aiui.select_input("Channel", options=channels, name="channel")  # 1,000+ options
 | `searchable` | `bool` | ❌ | `None` | `True`: a type-to-search list (combobox). `None`: searchable when there are more than 20 options. `False`: always a plain dropdown |
 | `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form when the value changes |
 
-The searchable list filters as you type (prefix matches first) and renders at
-most 100 rows ("N more: type to narrow"), so a thousand options open
-instantly. It posts by `name` like a plain select.
+In the app shell the searchable list filters as you type (names that start
+with the text first) and renders at most 100 rows, with a "N more: type to
+narrow" line, so a list of a thousand options opens instantly. Arrow keys,
+Enter and Escape work as in any listbox; the value posts by `name` like a
+plain select.
 
 `auto_submit=True` is also accepted by `text_input` (debounced 400 ms),
 `number_input`, `checkbox_input`, `switch_input` and `radio_input`.
@@ -447,17 +532,62 @@ aiui.textarea_input("Bio", value="Developer", placeholder="About you...", rows=3
 | `placeholder` | `str` | ❌ | `""` | Placeholder text |
 | `rows` | `int` | ❌ | `4` | Visible rows |
 
-### `aiui.multiselect_input(label, *, options, value)`
+### `aiui.multiselect_input(label, *, options, value, name, placeholder, auto_submit)`
 
 ```python
-aiui.multiselect_input("Tags", options=["AI", "ML", "NLP"], value=["AI"])
+aiui.multiselect_input("Tags", options=["AI", "ML", "NLP"], value=["AI"], name="tags")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
-| `options` | `Sequence[str]` | ✅ | — | Available choices |
+| `options` | `Sequence[str]` | ✅ | — | Choices: strings or `{"value", "label"}` dicts |
 | `value` | `Sequence[str]` | ❌ | `()` | Default selections |
+| `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
+| `placeholder` | `str` | ❌ | `None` | Text of the add button while nothing is chosen |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the form when the selection changes |
+
+Chosen values show as chips with a remove button; "Add" opens a searchable
+list. In a form it posts a **list** of the chosen values.
+
+### `aiui.tags_input(label, *, value, name, placeholder, auto_submit)`
+
+```python
+aiui.tags_input("Tags", value=["ai"], name="tags")
+```
+
+Free-text tags: Enter or a comma turns the typed text into a chip (pasted
+`a, b, c` makes three), Backspace in the empty box removes the last one.
+Blank and duplicate tags are dropped. Posts a **list** of strings.
+
+### `aiui.date_range_input(name, *, label, start, end, presets, auto_submit)`
+
+```python
+aiui.date_range_input("posted", label="Posted", presets=[7, 30, 90, 365])
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `str` | ✅ | — | Submit-key prefix |
+| `label` | `str` | ❌ | `None` | Label above the control |
+| `start` / `end` | `str` | ❌ | `None` | Default ISO dates |
+| `presets` | `Sequence[int\|dict]` | ❌ | `(7, 30, 90, 365)` | Day counts, or `{"days": 14, "label": "2 weeks"}`; `()` hides them |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the form when the range changes |
+
+Preset buttons and two native date fields. It posts **`<name>_start`** and
+**`<name>_end`** (`"2026-01-31"`, or `""` for an open side). A preset sets
+the end to today and the start that many days earlier, in the browser's local
+date; the preset whose range matches is shown as pressed.
+
+### `aiui.segmented_input(name, options, *, label, value, multi, auto_submit)`
+
+```python
+aiui.segmented_input("sort", [{"value": "views", "label": "Views"}, {"value": "date", "label": "Newest"}], value="views")
+aiui.segmented_input("platform", ["YouTube", "LinkedIn", "X"], multi=True)
+```
+
+A row of toggle pills (`aria-pressed`). Single choice posts the value (the
+first option when `value` is empty); `multi=True` posts a **list**.
 
 ### `aiui.date_input(label, *, value)`
 
@@ -761,6 +891,30 @@ aiui.card_grid([{
 initials), `badges` (strings or `{"text", "variant"}`), `stats`
 (`[{"label", "value"}]`), and `href` (+ `target`) or `page` to make the whole
 card a link.
+
+### `list_detail` (block dict)
+
+A list with a detail panel beside it (below it on a phone): a dense table with
+a sticky header, a search box, keyboard selection (Up and Down move, Enter
+opens, Escape closes) and pages. Selecting a row shows its other columns and
+its `detail` dict as key facts. There is no Python helper; return the dict.
+
+```python
+{"type": "list_detail", "title": "Sessions", "columns": ["title", {"key": "tokens", "align": "end"}],
+ "rows": [{"id": "s1", "title": "Sorting", "tokens": 3412, "detail": {"Cost": "$0.02"}}]}
+```
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `title` (or `label`) | `str` | Accessible name, also used in the search label. Default `Items` |
+| `columns` | `list[str \| dict]` | `{"key", "label", "align"}` (`align`: `end` or `right` for numbers), or plain keys. Unset: the keys of the first row except `id` and `detail` |
+| `rows` | `list[dict]` | One dict per row: `id` (default: its index), a value per column key, and an optional `detail` dict shown in the panel |
+| `page_size` | `int` | Rows per page. Default 25 |
+| `search` | `bool` | Show the search box even when every row fits on one page (it shows by itself past one page) |
+| `empty` | `str` | Text shown when there are no rows |
+
+Use `aiui.table(...)` instead when the list needs typed cells or header
+sorting (`row_detail=True` or `detail_key` give it a side panel).
 
 ---
 
@@ -1075,7 +1229,7 @@ On submit the form POSTs every input by `name` (else `label`) as JSON to
 it; a reply with `message` shows a toast instead.
 
 `submit_on_change=True` submits whenever an input changes: right away for
-selects, checkboxes and dates, 400 ms after the last keystroke
+selects, pills, chips, checkboxes and dates, 400 ms after the last keystroke
 for text. A submit with the same values as the last one is skipped, and a
 change made while one is in flight posts once more when it returns. Leave it
 off for a form whose button starts a job; mark single inputs with
@@ -1096,7 +1250,8 @@ def build(f):
     return aiui.layout([
         aiui.filter_bar("explore", defaults={"channel": "All"}, inputs=[
             aiui.select_input("Channel", options=["All", *channels], value=f.get("channel", "All"), name="channel"),
-            aiui.text_input("Search", value=f.get("q", ""), name="q"),
+            aiui.multiselect_input("Format", options=formats, value=f.get("formats", []), name="formats"),
+            aiui.date_range_input("posted", label="Posted", start=f.get("posted_start"), end=f.get("posted_end")),
         ]),
         aiui.table(headers=[...], rows=query(f)),
     ])
@@ -1107,21 +1262,22 @@ def build(f):
 | `action` | `str` | ✅ | — | Action id (normally the page id) |
 | `inputs` | `Sequence[dict]` | ✅ | — | Input components |
 | `chips` | `bool` | ❌ | `True` | Show active filters as removable chips |
-| `defaults` | `dict` | ❌ | `None` | Reset value per input name |
-| `reset_label` | `str` | ❌ | `"Reset"` | Label of the clear-all control |
+| `defaults` | `dict` | ❌ | `None` | Reset value per input name (`{"start", "end"}` for a date range) |
+| `reset_label` | `str` | ❌ | `"Reset"` | Label of the control that clears all filters |
 
 A compact wrapping row (a `search` landmark) that posts like `form` with
 `submit_on_change`. Under it, each active filter is a chip ("Channel: Ann ×",
-the × posts the form with that filter reset,
+one chip per value of a list); the × posts the form with that filter reset,
 and Reset posts all of them reset. A filter is active when its value differs
-from its reset value: `defaults[name]`, else the first option of a select
-or radio, else empty; number and slider inputs only
+from its reset value: `defaults[name]`, else the first option of a select,
+radio or single segmented input, else empty; number and slider inputs only
 when `defaults` names them. Chips are read from the values the server sent,
 so the handler must return the page rebuilt from the posted values.
 A full example: `examples/python/32-filter-page/app.py`.
 
-`filter_bar` renders in the app shell (the default style); the legacy
-`dashboard` style shows it as JSON.
+`tags_input`, `date_range_input`, `segmented_input` and `filter_bar` render
+in the app shell (the default style); the legacy `dashboard` style shows them
+as JSON.
 
 ## Component Count Summary
 
@@ -1129,13 +1285,13 @@ A full example: `examples/python/32-filter-page/app.py`.
 |----------|-----------|-------|
 | Core | `layout`, `card`, `columns`, `table`, `text`, `chart` | 6 |
 | Essential | `metric`, `progress_bar`, `alert`, `badge`, `separator`, `tabs`, `accordion`, `image_display`, `code_block`, `json_view` | 10 |
-| Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `date_input`, `time_input`, `color_picker_input` | 12 |
+| Form Inputs | `text_input`, `number_input`, `select_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `textarea_input`, `multiselect_input`, `tags_input`, `date_input`, `date_range_input`, `time_input`, `segmented_input`, `color_picker_input` | 15 |
 | Forms | `form`, `filter_bar` | 2 |
 | Layout & Advanced | `container`, `expander`, `divider`, `header`, `markdown_text`, `link`, `link_button`, `page_link`, `button_group`, `stat_group`, `avatar`, `callout`, `empty`, `spinner` | 14 |
 | Media | `audio_player`, `video_player`, `file_download`, `gallery`, `card_grid` | 5 |
 | Dashboard | `toast`, `dialog`, `caption`, `html`, `html_embed`, `skeleton`, `tooltip_wrap`, `status` | 8 |
 | Navigation | `breadcrumb`, `pagination`, `key_value_list`, `popover` | 4 |
-| **Total** | | **61** |
+| **Total** | | **64** |
 
 ## Custom Component Types
 

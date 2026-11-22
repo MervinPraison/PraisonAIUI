@@ -107,7 +107,7 @@ def board(*, columns: Sequence[dict]) -> dict:
     return {"type": "board", "columns": list(columns)}
 
 
-CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram")
+CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram", "heatmap", "sparkline")
 CHART_FORMATS = ("number", "compact", "percent", "multiplier", "duration")
 
 
@@ -147,6 +147,9 @@ def chart(
     height: int | None = None,
     caption: str | None = None,
     legend: bool | None = None,
+    value: str | None = None,
+    facet: str | None = None,
+    kind: str | None = None,
 ) -> dict:
     """A chart drawn in the browser (tooltips, theme colours, responsive width).
 
@@ -165,15 +168,21 @@ def chart(
         bins: Histogram bin count (default: Sturges' rule, at most 30).
         height: Plot height in px. caption: muted line under the chart.
         legend: Show the legend (default: more than one series).
+        value: Heatmap cell value key (default ``value``); ``x`` is the column key and
+            ``y`` the row key (defaults ``x`` and ``y``).
+        facet: Key whose values split the rows into small charts sharing one value scale.
+        kind: Alias of ``chart_type``.
         See docs/api/components.md for examples.
     """
+    if kind is not None:
+        chart_type = kind
     if chart_type not in CHART_KINDS:
         raise ValueError(f"chart_type must be one of {', '.join(CHART_KINDS)}")
     for name, fmt in (("x_format", x_format), ("y_format", y_format)):
         if fmt is not None and fmt not in CHART_FORMATS:
             raise ValueError(f"{name} must be one of {', '.join(CHART_FORMATS)}")
     rows = list(data or [])
-    if chart_type == "histogram" and rows and not isinstance(rows[0], dict):
+    if chart_type in ("histogram", "sparkline") and rows and not isinstance(rows[0], dict):
         rows = [{"value": v} for v in rows]
         x = x or "value"
     comp: dict[str, Any] = {"type": "chart", "title": title, "data": rows, "chart_type": chart_type}
@@ -194,35 +203,102 @@ def chart(
         "height": None if height is None else int(height),
         "caption": caption or None,
         "legend": None if legend is None else bool(legend),
+        "value": value,
+        "facet": facet,
     }
     comp.update({k: v for k, v in opts.items() if v is not None})
     return comp
 
 
+TABLE_COLUMN_TYPES = frozenset(
+    {"auto", "text", "number", "link", "badge", "tag", "image", "progress", "date", "sparkline"}
+)
+
+
+def _table_column(col: Any) -> dict:
+    """One ``columns`` entry (a label or a dict) → a column dict with ``key`` and ``label``."""
+    if isinstance(col, str):
+        return {"key": col, "label": col}
+    if not isinstance(col, Mapping):
+        raise TypeError("each column must be a label string or a dict")
+    out = dict(col)
+    key = out.get("key", out.get("label"))
+    if key in (None, ""):
+        raise ValueError("a column needs a 'key' or a 'label'")
+    out.update(key=str(key), label=str(out.get("label", key)))
+    if (kind := out.get("type", "auto")) not in TABLE_COLUMN_TYPES:
+        raise ValueError(f"column type must be one of {sorted(TABLE_COLUMN_TYPES)}, not {kind!r}")
+    return out
+
+
 def table(
     *,
-    headers: Sequence[str],
-    rows: Sequence[Sequence[Any]],
+    headers: Sequence[str] | None = None,
+    rows: Sequence[Sequence[Any] | Mapping[str, Any]],
     row_ids: Sequence[str] | None = None,
     actions: Sequence[str] | None = None,
+    columns: Sequence[str | Mapping[str, Any]] | None = None,
+    searchable: bool = False,
+    page_size: int | None = None,
+    sortable: bool = True,
+    row_href_key: str | None = None,
+    row_detail: bool = False,
+    detail_key: str | None = None,
+    max_height: int | str | None = None,
+    caption: str | None = None,
 ) -> dict:
-    """A data table.
+    """A data table: typed cells, header sorting, search, paging, row links and a row panel.
 
     Args:
-        headers: Column header labels
-        rows: List of row arrays
+        headers: Column header labels (or give ``columns``)
+        rows: Row arrays in column order, or dicts keyed by column ``key``
         row_ids: Optional stable ID per row. When given, rows are selectable
             (click, Enter or Space) and emit a bubbling ``aiui:table-select``
             DOM event with ``detail = {rowId, index}``.
         actions: Optional row action labels (requires ``row_ids``). Each row
             gets one button per action, emitting a bubbling
             ``aiui:table-action`` DOM event with ``detail = {action, rowId}``.
+        columns: Labels, or column dicts (``key``, ``label``, ``type``, ``format``, ...;
+            see docs/api/components.md)
+        searchable: Show a search box that filters rows in the browser
+        page_size: Rows per page; 0 shows every row. Unset: 50 per page past 100 rows
+        sortable: False turns header sorting off for every column
+        row_href_key: Key (in dict rows, or a column key) holding each row's link
+        row_detail: A click (or Enter) on a row opens a side panel with its fields
+        detail_key: Key in dict rows holding a list of block dicts the side panel
+            shows instead of the fields (implies ``row_detail``)
+        max_height: Scroll height (px or CSS length, 0 for none; default 70vh)
+        caption: Accessible name of the table (and of its search box)
     """
-    comp: dict[str, Any] = {
-        "type": "table",
-        "headers": list(headers),
-        "rows": [list(r) for r in rows],
-    }
+    rows = list(rows)
+    cols = [_table_column(c) for c in columns] if columns is not None else None
+    if headers is None:
+        if cols is None:
+            raise ValueError("table() needs headers or columns")
+        headers = [c["label"] for c in cols]
+    elif cols is not None and len(cols) != len(headers):
+        raise ValueError("headers and columns must have the same length")
+    keys = [c["key"] for c in cols] if cols is not None else [str(h) for h in headers]
+
+    def value(row: Any, key: str) -> Any:
+        if isinstance(row, Mapping):
+            return row.get(key)
+        return row[keys.index(key)] if key in keys and keys.index(key) < len(row) else None
+
+    out_rows: list[list[Any]] = []
+    for row in rows:
+        cells = [row.get(k) for k in keys] if isinstance(row, Mapping) else list(row)
+        for i, col in enumerate(cols or []):
+            # A link column with ``href_key`` takes each cell's link from that key.
+            href_key = col.get("href_key")
+            href = value(row, href_key) if href_key and i < len(cells) else None
+            if href and not isinstance(cells[i], Mapping):
+                cells[i] = {"text": "" if cells[i] is None else str(cells[i]), "href": str(href)}
+        out_rows.append(cells)
+
+    comp: dict[str, Any] = {"type": "table", "headers": list(headers), "rows": out_rows}
+    if cols is not None:
+        comp["columns"] = [{k: v for k, v in c.items() if k != "href_key"} for c in cols]
     if row_ids is not None:
         ids = [str(i) for i in row_ids]
         if len(ids) != len(comp["rows"]):
@@ -234,6 +310,26 @@ def table(
         if row_ids is None:
             raise ValueError("actions require row_ids")
         comp["actions"] = [str(a) for a in actions]
+    if page_size is not None and page_size < 0:
+        raise ValueError("page_size must be 0 or more")
+    opts = {
+        "searchable": True if searchable else None,
+        "page_size": None if page_size is None else int(page_size),
+        "sortable": None if sortable else False,
+        "max_height": max_height,
+        "caption": caption or None,
+    }
+    comp.update({k: v for k, v in opts.items() if v is not None})
+    if row_href_key:
+        comp["row_hrefs"] = [
+            None if (h := value(r, row_href_key)) in (None, "") else str(h) for r in rows
+        ]
+    if detail_key:
+        comp["row_details"] = [
+            list(d) if isinstance(d := value(r, detail_key), (list, tuple)) else [] for r in rows
+        ]
+    if row_detail or detail_key:
+        comp["row_detail"] = True
     return comp
 
 
@@ -257,6 +353,9 @@ def metric(
     delta_color: str = "normal",
     caption: str | None = None,
     help: str | None = None,
+    sparkline: Sequence[float] | None = None,
+    benchmark: float | None = None,
+    benchmark_label: str | None = None,
 ) -> dict:
     """A metric card with optional delta indicator.
 
@@ -268,6 +367,10 @@ def metric(
             "-3 days" to ship) or "off" (never coloured)
         caption: A neutral note under the value (e.g. "median", "last 30
             days"), never coloured. ``help`` is an alias.
+        sparkline: Numbers drawn as a tiny trend line under the value.
+        benchmark: A number the value is compared with, shown as e.g.
+            "17x below median" (coloured like ``delta``, ``delta_color`` applies).
+        benchmark_label: Name of the benchmark (default "benchmark").
     """
     comp: dict[str, Any] = {"type": "metric", "label": label, "value": value}
     if delta is not None:
@@ -277,6 +380,12 @@ def metric(
     note = caption if caption is not None else help
     if note is not None:
         comp["caption"] = note
+    if sparkline is not None:
+        comp["sparkline"] = [float(v) for v in sparkline]
+    if benchmark is not None:
+        comp["benchmark"] = float(benchmark)
+    if benchmark_label is not None:
+        comp["benchmark_label"] = benchmark_label
     return comp
 
 
@@ -787,20 +896,139 @@ def callout(content: str, *, variant: str = "info", title: str | None = None) ->
 # ── Tier A: Must-Have (Streamlit + Gradio parity) ───────────────────
 
 
-def multiselect_input(label: str, *, options: Sequence[str], value: Sequence[str] = ()) -> dict:
-    """A multi-select dropdown.
+def multiselect_input(
+    label: str,
+    *,
+    options: Sequence[Any],
+    value: Sequence[str] = (),
+    name: str | None = None,
+    placeholder: str | None = None,
+    auto_submit: bool = False,
+) -> dict:
+    """A searchable multi-select: chosen values show as removable chips.
+
+    In a form it posts a list of the chosen values under ``name`` (or ``label``).
 
     Args:
         label: Input label
-        options: Available choices
+        options: Choices: strings, or ``{"value", "label"}`` dicts
         value: Default selected values
+        name: Optional explicit submit-key for ``form``.
+        placeholder: Text of the "add" button when nothing is chosen.
+        auto_submit: Submit the enclosing form when the selection changes.
     """
-    return {
+    comp: dict[str, Any] = {
         "type": "multiselect_input",
         "label": label,
         "options": list(options),
         "value": list(value),
     }
+    if name is not None:
+        comp["name"] = name
+    if placeholder is not None:
+        comp["placeholder"] = placeholder
+    return _auto(comp, auto_submit)
+
+
+def tags_input(
+    label: str,
+    *,
+    value: Sequence[str] = (),
+    name: str | None = None,
+    placeholder: str = "Add a tag",
+    auto_submit: bool = False,
+) -> dict:
+    """Free-text tags: Enter or a comma turns the typed text into a chip.
+
+    Backspace in the empty box removes the last chip. In a form it posts a
+    list of strings under ``name`` (or ``label``).
+
+    Args:
+        label: Input label
+        value: Default tags
+        name: Optional explicit submit-key for ``form``.
+        placeholder: Placeholder of the text box.
+        auto_submit: Submit the enclosing form when a tag is added or removed.
+    """
+    comp: dict[str, Any] = {
+        "type": "tags_input",
+        "label": label,
+        "value": list(value),
+        "placeholder": placeholder,
+    }
+    if name is not None:
+        comp["name"] = name
+    return _auto(comp, auto_submit)
+
+
+def date_range_input(
+    name: str,
+    *,
+    label: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    presets: Sequence[int | Mapping[str, Any]] = (7, 30, 90, 365),
+    auto_submit: bool = False,
+) -> dict:
+    """A date range: preset buttons ("Last 30 days") and two date fields.
+
+    In a form it posts ``<name>_start`` and ``<name>_end`` as ISO dates
+    (``"2026-01-31"``) or ``""`` when a side is open. A preset sets the end to
+    today and the start that many days before it (browser's local date).
+
+    Args:
+        name: Submit-key prefix.
+        label: Label shown above the control.
+        start: Default start date (ISO).
+        end: Default end date (ISO).
+        presets: Day counts, or ``{"days": 14, "label": "2 weeks"}`` dicts; ``()`` hides them.
+        auto_submit: Submit the enclosing form when the range changes.
+    """
+    comp: dict[str, Any] = {
+        "type": "date_range_input",
+        "name": name,
+        "label": label if label is not None else "",
+        "start": start or "",
+        "end": end or "",
+        "presets": [dict(p) if isinstance(p, Mapping) else int(p) for p in presets],
+    }
+    return _auto(comp, auto_submit)
+
+
+def segmented_input(
+    name: str,
+    options: Sequence[Any],
+    *,
+    label: str | None = None,
+    value: str | Sequence[str] | None = None,
+    multi: bool = False,
+    auto_submit: bool = False,
+) -> dict:
+    """A row of toggle pills: one choice (``multi=False``) or several.
+
+    In a form it posts the chosen value under ``name`` (a list when ``multi``).
+
+    Args:
+        name: Submit-key.
+        options: Choices: strings, or ``{"value", "label"}`` dicts.
+        label: Label shown above the pills.
+        value: Default choice (a list when ``multi``). Single choice defaults to the first option.
+        multi: Allow several pills to be on at once.
+        auto_submit: Submit the enclosing form when the choice changes.
+    """
+    if multi:
+        chosen: Any = [value] if isinstance(value, str) else list(value or ())
+    else:
+        chosen = value if isinstance(value, str) else ""
+    comp: dict[str, Any] = {
+        "type": "segmented_input",
+        "name": name,
+        "label": label if label is not None else "",
+        "options": list(options),
+        "value": chosen,
+        "multi": multi,
+    }
+    return _auto(comp, auto_submit)
 
 
 def date_input(label: str, *, value: str | None = None) -> dict:
@@ -1142,9 +1370,7 @@ def breadcrumb(items: Sequence[dict]) -> dict:
     return {"type": "breadcrumb", "items": list(items)}
 
 
-def pagination(
-    *, total: int, page: int = 1, per_page: int = 10, id: str | None = None
-) -> dict:
+def pagination(*, total: int, page: int = 1, per_page: int = 10, id: str | None = None) -> dict:
     """Pagination controls.
 
     Clicking a page updates the control and dispatches a bubbling
@@ -1157,7 +1383,12 @@ def pagination(
         per_page: Items per page
         id: Optional identifier echoed in the event to tell controls apart
     """
-    comp: dict[str, Any] = {"type": "pagination", "total": total, "page": page, "per_page": per_page}
+    comp: dict[str, Any] = {
+        "type": "pagination",
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
     if id is not None:
         comp["id"] = id
     return comp
@@ -1316,18 +1547,23 @@ def filter_bar(
     defaults: Mapping[str, Any] | None = None,
     reset_label: str = "Reset",
 ) -> dict:
-    """A compact row of filters that posts like :func:`form` on every change.
+    """A compact row of filters that applies as soon as one changes.
 
-    The action handler should return the page rebuilt from the posted values.
-    With ``chips``, each active filter (value differs from ``defaults[name]``,
-    else a select's first option, else empty) shows as a removable chip, plus
-    a "Reset" control. See docs/api/components.md.
+    It posts like :func:`form` (every input by ``name`` to the page action
+    ``action``, normally the page id), so the action handler should return the
+    page rebuilt from the posted values. With ``chips``, each active filter
+    shows as a chip with a button that clears it, plus a "Reset" control that
+    clears them all. A filter is active when its value differs from its reset
+    value: ``defaults[name]`` when given, else the first option of a select,
+    radio or single segmented input, else empty. Number and slider inputs show
+    a chip only when ``defaults`` names them.
 
     Args:
         action: Action identifier (typically the page id).
-        inputs: Input components.
+        inputs: Input components (``select_input``, ``multiselect_input``,
+            ``date_range_input``, ``segmented_input``, ``text_input``, ...).
         chips: Show the active filters as removable chips.
-        defaults: Reset value per input name.
+        defaults: Reset value per input name (a date range takes ``{"start", "end"}``).
         reset_label: Label of the control that clears every filter.
     """
     comp: dict[str, Any] = {
