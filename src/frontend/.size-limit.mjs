@@ -481,5 +481,6 @@ export default [
   // (docs/loadEvents.ts) and its retry notice.
   // 11,176,942 B (+30 B, exactly the overage): chunkReload reads the content-named entry (index-<hash>.js).
   // 11,178,629 B (+1,687 B, exactly the overage): the opt-in load telemetry chunk (docs/fieldTelemetry.ts).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11178629 B', brotli: false },
+  // 11,179,174 B (+545 B, exactly the overage): .html and wrong-case docs URLs (docs/navMatch.ts, stripHtmlSuffix).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11179174 B', brotli: false },
 ]
