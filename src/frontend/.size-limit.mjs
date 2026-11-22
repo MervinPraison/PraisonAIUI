@@ -480,5 +480,6 @@ export default [
   // 11,176,912 B (+1,798 B, exactly the overage): the docs loader's aiui:docs-load records
   // (docs/loadEvents.ts) and its retry notice.
   // 11,176,942 B (+30 B, exactly the overage): chunkReload reads the content-named entry (index-<hash>.js).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11176942 B', brotli: false },
+  // 11,178,629 B (+1,687 B, exactly the overage): the opt-in load telemetry chunk (docs/fieldTelemetry.ts).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11178629 B', brotli: false },
 ]
