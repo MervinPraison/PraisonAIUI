@@ -664,6 +664,10 @@
 
 ### Fixed
 
+- **Docs pages without code no longer download the code font.** The header's
+  `⌘K` search hint was drawn in the code face, so every page fetched it
+  (JetBrains Mono, 40 KB, in the Paper look; Geist Mono, 23 KB, otherwise). It
+  now uses the UI face, as the `Kbd` primitive does.
 - Docs sites, first load: each page `aiui build` writes carries `docs-nav.json`
   and `route-manifest.json` (as it already carried the page's Markdown) and
   preloads `ui-config.json`, and the plugin loader's tag names the plugins, so

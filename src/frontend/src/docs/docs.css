@@ -280,7 +280,8 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   border-radius: 4px;
   background: var(--card);
   color: var(--muted-foreground);
-  font-family: var(--aiui-font-mono);
+  /* The UI face, as the Kbd primitive: a code face here would download on every page. */
+  font-family: var(--aiui-font-sans);
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: 1;
