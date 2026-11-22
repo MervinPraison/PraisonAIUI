@@ -39,6 +39,10 @@ PAGES = [
 PROFILES = {"docs": {"ready": "#main-content h1", "skeleton": ".aiui-docs-skeleton",
                      "nav": "aside a[data-nav-path]", "start": "/docs/getting-started/installation",
                      "aliases": {"/docs/index": "/"}}}
+# aiui:docs-load outcomes that are not problems: "inline" is a page whose Markdown came in its HTML
+# (no request at all). Console lines carry no outcome. Everything else (retry, failed,
+# inline-mismatch, duplicate, ...) counts in docs_load_problems.
+GOOD_OUTCOMES = (None, "ok", "inline", "success", "hit", "cached")
 HELD_MS, STALL_MS, OPEN_MS, SKELETON_MS = 1000, 5000, 3000, 3000
 TIMEOUT_MS = 20000
 PROBE = (Path(__file__).with_name("probe.js")).read_text(encoding="utf-8")
@@ -173,7 +177,7 @@ class Collector:
             m[k] = len(self.issues[n])
         m["aborted_requests"] = self.aborted
         ms = [e["ms"] for e in self.docs_load if isinstance(e.get("ms"), (int, float))]
-        bad = [e for e in self.docs_load if e.get("outcome") not in (None, "ok", "success", "hit", "cached")]
+        bad = [e for e in self.docs_load if e.get("outcome") not in GOOD_OUTCOMES]
         m["docs_load_events"] = len(self.docs_load)
         m["docs_load_problems"] = len(bad)
         if ms:
