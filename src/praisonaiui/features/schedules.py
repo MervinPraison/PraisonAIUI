@@ -690,6 +690,7 @@ class _InMemoryScheduleStore(ScheduleProtocol):
 
     def remove_by_name(self, name: str, principal: Optional[str] = None) -> bool:
         """Remove a job by name (SDK schedule_tools compatibility)."""
+        self._reload()
         for jid, job in list(self._jobs.items()):
             if principal is not None and _getattr_or_get(job, "principal") != principal:
                 continue

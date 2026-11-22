@@ -94,3 +94,15 @@ def test_startup_wires_store_into_sdk_tools(tmp_path, monkeypatch):
         assert [j["name"] for j in schedules._get_schedule_store().list()] == ["x"]
     finally:
         schedule_tools.set_store(None)
+
+
+def test_remove_by_name_sees_external_writes(store):
+    from praisonaiui.features._persistence import load_section, save_section
+
+    store.add({"id": "a", "name": "kept"})
+    section = load_section(store._SECTION)
+    section["jobs"]["b"] = {"id": "b", "name": "external"}
+    save_section(store._SECTION, section)
+
+    assert store.remove_by_name("external") is True
+    assert [j["id"] for j in store.list()] == ["a"]
