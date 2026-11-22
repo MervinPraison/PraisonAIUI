@@ -69,11 +69,11 @@ test('fixedHeight: numbers are pixels, CSS lengths pass, anything else is ignore
   assert.equal(fixedHeight(0), undefined)
 })
 
-test('metric: caption (or help) shows under the value, uncoloured and separate from delta', () => {
+test('metric: caption shows under the value, uncoloured and separate from delta', () => {
   const out = render({ type: 'metric', props: { label: 'Posts', value: 51, delta: '-3 days', delta_color: 'inverse', caption: 'last 30 days' } })
   assert.match(out, /data-slot="metric-caption"[^>]*>last 30 days</)
   assert.match(out, /text-success[^"]*">-3 days</) // inverse: a fall is good
-  const off = render({ type: 'metric', props: { label: 'L', value: 1, delta: '-2', delta_color: 'off', help: 'median' } })
+  const off = render({ type: 'metric', props: { label: 'L', value: 1, delta: '-2', delta_color: 'off', caption: 'median' } })
   assert.match(off, /text-muted-foreground[^"]*">-2</)
   assert.match(off, />median</)
   assert.doesNotMatch(render({ type: 'metric', props: { label: 'L', value: 1 } }), /metric-caption/)

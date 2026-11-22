@@ -35,9 +35,8 @@ def test_html_embed_takes_the_same_parameters_as_html():
     assert params(ui.html_embed) == params(ui.html)
 
 
-def test_metric_caption_and_help_alias():
+def test_metric_caption():
     assert ui.metric("Posts", value=51, caption="last 30 days")["caption"] == "last 30 days"
-    assert ui.metric("Posts", value=51, help="median")["caption"] == "median"
     m = ui.metric("Lead time", value="4 d", delta="-3 days", delta_color="inverse", caption="median")
     assert m == {
         "type": "metric",

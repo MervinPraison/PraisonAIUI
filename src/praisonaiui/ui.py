@@ -249,7 +249,6 @@ def metric(
     delta: str | None = None,
     delta_color: str = "normal",
     caption: str | None = None,
-    help: str | None = None,
 ) -> dict:
     """A metric card with optional delta indicator.
 
@@ -260,16 +259,15 @@ def metric(
         delta_color: Color hint — "normal", "inverse" (a fall is good, e.g.
             "-3 days" to ship) or "off" (never coloured)
         caption: A neutral note under the value (e.g. "median", "last 30
-            days"), never coloured. ``help`` is an alias.
+            days"), never coloured.
     """
     comp: dict[str, Any] = {"type": "metric", "label": label, "value": value}
     if delta is not None:
         comp["delta"] = delta
     if delta_color != "normal":
         comp["delta_color"] = delta_color
-    note = caption if caption is not None else help
-    if note is not None:
-        comp["caption"] = note
+    if caption is not None:
+        comp["caption"] = caption
     return comp
 
 

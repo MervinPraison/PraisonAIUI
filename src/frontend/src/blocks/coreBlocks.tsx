@@ -184,7 +184,7 @@ function MetricBody({ p }: { p: Record<string, unknown> }) {
   const delta = p.delta
   const hasDelta = delta !== undefined && delta !== null && delta !== ''
   // A neutral note under the value ("median", "last 30 days"), never coloured.
-  const caption = str(p.caption ?? p.help)
+  const caption = str(p.caption)
   return (
     <>
       <div className={cn(META, 'truncate')}>{str(p.label ?? p.title)}</div>
@@ -638,7 +638,7 @@ function Callout({ tone, title, body }: { tone: Tone; title: string; body: strin
         {title && <div className="font-medium text-foreground">{title}</div>}
         {body && (
           // Sanitised Markdown (lists, bold, links); single newlines still break.
-          <Markdown variant="chat" className="min-w-0 space-y-2 text-sm leading-normal text-foreground/80">
+          <Markdown className="min-w-0 space-y-2 text-sm leading-normal text-foreground/80">
             {hardBreaks(body)}
           </Markdown>
         )}

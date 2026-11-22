@@ -162,7 +162,7 @@
   `--aiui-font`) are defined on the page and inside the frame.
 - **`callout` and `alert` bodies render sanitised Markdown** in the app shell
   (lists, bold, links; a single newline breaks the line).
-- **`aiui.metric(..., caption=...)`** (alias `help=`): a neutral note under the
+- **`aiui.metric(..., caption=...)`**: a neutral note under the
   value, separate from the coloured `delta`.
 - **Every layout lists the app's own pages.** Pages from `register_page` /
   `@aiui.page` show in their group in the sidebar of every layout (the

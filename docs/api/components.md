@@ -214,7 +214,7 @@ subtitle such as "-2 from plan" is not coloured by accident.
 | `value` | `Any` | ✅ | — | Main metric value |
 | `delta` | `str` | ❌ | `None` | Change indicator (e.g. "+5%") |
 | `delta_color` | `str` | ❌ | `"normal"` | `"normal"` (rise is good), `"inverse"` (fall is good, e.g. `"-3 days"`), or `"off"` (never coloured) |
-| `caption` | `str` | ❌ | `None` | Neutral note under the value, never coloured. `help` is an alias |
+| `caption` | `str` | ❌ | `None` | Neutral note under the value, never coloured |
 
 ### `aiui.progress_bar(label, *, value, max_value)`
 
