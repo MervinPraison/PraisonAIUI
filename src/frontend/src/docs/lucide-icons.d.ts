@@ -4,3 +4,9 @@ declare module 'virtual:aiui-icons' {
     const loadIcon: (name: string) => Promise<[string, Record<string, string>][] | undefined>
     export default loadIcon
 }
+
+// Every lucide-react icon, drawn into the importing chunk (scripts/lib/lucide-icons.mjs).
+// The docs App imports its icons from here, never from lucide-react.
+declare module 'virtual:aiui-icons/inline' {
+    export * from 'lucide-react'
+}

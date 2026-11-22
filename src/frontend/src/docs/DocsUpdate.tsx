@@ -6,7 +6,7 @@
 // Styles: docs/docs.css (.aiui-update*).
 /* eslint-disable react-refresh/only-export-components -- the filter helpers are tested on their own */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { Rss } from 'lucide-react'
+import { Rss } from 'virtual:aiui-icons/inline'
 import { slugify } from '../markdown/slug'
 import { cx } from './docsClasses'
 

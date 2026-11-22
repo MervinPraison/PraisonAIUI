@@ -2,7 +2,7 @@
 // the phone drawer's tabs (navDivisions.ts). Styles: docs/docs.css (.aiui-docs-tab,
 // .aiui-docs-switcher, .aiui-docs-anchor, .aiui-docs-menu).
 import { Suspense, lazy, useState, type ComponentProps, type ReactNode } from 'react'
-import { ChevronDown, Languages } from 'lucide-react'
+import { ChevronDown, Languages } from 'virtual:aiui-icons/inline'
 import type { DivisionLink, NavDivisions } from './navDivisions'
 import { canonicalDocPath } from './docSource'
 import { docsIcon } from './docsHomeIcons'
