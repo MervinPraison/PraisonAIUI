@@ -486,5 +486,7 @@ export default [
   // 11,178,629 B (+1,687 B, exactly the overage): the opt-in load telemetry chunk (docs/fieldTelemetry.ts).
   // 11,178,685 B (+56 B, exactly the overage): layout.groups.shown read by navGroups and buildLayoutNav.
   // 11,179,230 B (+545 B, exactly the overage): .html and wrong-case docs URLs (docs/navMatch.ts, stripHtmlSuffix).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11179230 B', brotli: false },
+  // 11,180,139 B (+909 B, exactly the overage): optional docs work after load (docs/afterLoad.ts) and the
+  // network-change retry (docs/networkChange.ts).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11180139 B', brotli: false },
 ]

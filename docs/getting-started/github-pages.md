@@ -262,7 +262,18 @@ keeps one such request from freezing the page:
   'manifest', attempt, of, ms, outcome, reason?, status?, detail?, at}`, where
   `outcome` is `ok`, `retry`, `failed`, `inline`, `inline-mismatch` or
   `duplicate`, and `reason` is `headers-timeout`, `body-idle`, `body-timeout`,
-  `network-error` or `http-5xx`.
+  `network-error`, `http-5xx` or `network-change`.
+- **A dead connection.** Every tab of a browser profile shares one HTTP/2
+  connection per site. When it dies silently (the laptop slept, the Wi-Fi
+  changed), requests on it wait until the browser notices, and only the
+  browser decides when (its own ping and idle timeouts); a page cannot close
+  it or pick another. What a page can do, it does: each attempt is cancelled
+  at its time limit and a fresh request goes out, and when the browser comes
+  back online or the tab becomes visible again while a request has waited
+  half a second or more, that attempt ends at once (`network-change`) and a
+  new request goes out on the browser's fresh connection, since browsers drop
+  their pooled connections when the network changes. The last attempt is
+  never cut short.
 - **Prefetch.** Resting the pointer on a sidebar, previous / next or
   in-article docs link for 80 ms, focusing it with the keyboard, or pressing
   it starts loading that page. Once a page has shown, its previous and next
@@ -276,6 +287,11 @@ keeps one such request from freezing the page:
   never `/docs/index`. A wrong-case URL has no redirect file, because the
   spellings of a path are unbounded; when two pages differ only by case, such
   a URL shows "not found" rather than a guess.
+- **Nothing optional delays `load`.** The page's `load` event waits for
+  every request in flight. The previous / next prefetch, hover and focus
+  prefetch, the GitHub star count and the opt-in telemetry chunk start only
+  after `load`, when the browser is idle (`src/frontend/src/docs/afterLoad.ts`);
+  a press on a link still loads its page at once.
 - **In-memory cache.** A page loaded or prefetched once shows at once when you
   come back to it, without a request, until the tab is reloaded.
 - **The last click wins.** Clicking another link cancels the request for the

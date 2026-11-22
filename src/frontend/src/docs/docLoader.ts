@@ -35,6 +35,8 @@ import { docPathToSource, normalizeDocPath } from '../pathUtils'
 import { canonicalDocPath, stripHtmlSuffix } from './docSource'
 import { appPathname, stripBase, withBase } from '../lib/url'
 import { devAlarm, recordDocsLoad, type DocsLoadReason } from './loadEvents'
+import { afterLoad } from './afterLoad'
+import { onNetworkChange } from './networkChange'
 
 export interface DocResult {
     ok: boolean
@@ -142,7 +144,12 @@ export interface RetryOptions {
     kind?: 'doc' | 'manifest'
     /** Called as each attempt starts (1-based), e.g. to show "retrying". */
     onAttempt?: (attempt: number, of: number) => void
+    /** Hears network changes (default networkChange.ts); returns the remover. */
+    watchNetwork?: (onChange: () => void) => () => void
 }
+
+/** An attempt waiting at least this long when the network changes is replaced by a fresh request. */
+export const NETWORK_CHANGE_MIN_MS = 500
 
 /**
  * GET `url` (an app path such as `/docs/x.md`: the site's base path is added
@@ -161,6 +168,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         cache = 'default',
         kind = 'doc',
         onAttempt,
+        watchNetwork = onNetworkChange,
     } = opts
     let lastError: unknown = null
     const of = timeouts.length
@@ -177,6 +185,11 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
             request.abort(new DOMException('Timed out', 'TimeoutError'))
         }
         let timer = setTimeout(timeoutFor('headers-timeout'), timeouts[attempt])
+        // A dead shared connection holds this attempt until its limit; after a network change a
+        // new request gets a new connection, so end this one now (never the last attempt).
+        const unwatch = attempt < of - 1
+            ? watchNetwork(() => { if (now() - started >= NETWORK_CHANGE_MIN_MS) timeoutFor('network-change')() })
+            : () => {}
         let idle: ReturnType<typeof setTimeout> | undefined
         const s = anySignal([signal, request.signal])
         // Raced, not only passed to fetch: a body that stalls after the headers
@@ -210,6 +223,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         } finally {
             clearTimeout(timer)
             clearTimeout(idle)
+            unwatch()
         }
         const last = attempt === of - 1
         recordDocsLoad({ url, kind, attempt: attempt + 1, of, ms: now() - started, outcome: last ? 'failed' : 'retry', reason, status })
@@ -466,31 +480,33 @@ export function installDocPrefetch(root: Document = document): () => void {
         const url = a && linkMarkdownUrl(a)
         if (url) prefetchDoc(url)
     }
+    // Hover and focus are guesses: not while the page is still loading (`load` would wait on them).
+    // A pointerdown is a click on its way, so it warms at once.
+    const loaded = () => root.readyState === 'complete'
     const onOver = (e: Event) => {
         const a = linkOf(e.target)
         if (a === hovered) return
         hovered = a
         clearTimeout(hoverTimer)
-        if (a) hoverTimer = setTimeout(() => warm(a), HOVER_DELAY_MS)
+        if (a) hoverTimer = setTimeout(() => { if (loaded()) warm(a) }, HOVER_DELAY_MS)
     }
     const onNow = (e: Event) => warm(linkOf(e.target))
+    const onFocus = (e: Event) => { if (loaded()) warm(linkOf(e.target)) }
     root.addEventListener('pointerover', onOver, { passive: true })
     root.addEventListener('pointerdown', onNow, { passive: true })
-    root.addEventListener('focusin', onNow)
+    root.addEventListener('focusin', onFocus)
     return () => {
         clearTimeout(hoverTimer)
         root.removeEventListener('pointerover', onOver)
         root.removeEventListener('pointerdown', onNow)
-        root.removeEventListener('focusin', onNow)
+        root.removeEventListener('focusin', onFocus)
     }
 }
 
-/** Run `fn` when the browser is idle (or after a short delay without requestIdleCallback). */
+/**
+ * Run `fn` after the page's `load` event, at idle (afterLoad.ts): a prefetch
+ * never makes `load` wait.
+ */
 export function whenIdle(fn: () => void): () => void {
-    if (typeof window.requestIdleCallback === 'function') {
-        const id = window.requestIdleCallback(fn, { timeout: 3_000 })
-        return () => window.cancelIdleCallback(id)
-    }
-    const id = setTimeout(fn, 300)
-    return () => clearTimeout(id)
+    return afterLoad(fn)
 }
