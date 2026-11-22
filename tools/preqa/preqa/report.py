@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import history
+from . import telemetry as field
 
 # Metrics drawn as trends on the dashboard (dotted paths into run["metrics"]).
 TREND_METRICS = [
@@ -81,10 +82,12 @@ def build(runs: list[dict], max_points: int = 300, issue_days: int = 7) -> dict:
     }
 
 
-def write(history_dir: str | Path, out_dir: str | Path) -> dict:
+def write(history_dir: str | Path, out_dir: str | Path, telemetry: list[Path] | None = None) -> dict:
     errors: list[str] = []
     report = build(history.load_runs(history_dir, errors))
     report["history_errors"] = errors[-20:]
+    # Readers' load records (opt-in content.docs.telemetry), when a store exists: preqa/telemetry.py
+    report["telemetry"] = field.summary(telemetry if telemetry is not None else field.default_paths(Path(history_dir).parent))
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     tmp = out / "report.json.tmp"

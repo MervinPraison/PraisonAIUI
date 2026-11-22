@@ -7,7 +7,7 @@ from pathlib import Path
 PREQA = Path(__file__).resolve().parents[2] / "tools" / "preqa"
 sys.path.insert(0, str(PREQA))
 
-from preqa import budgets, history, notify, report, stats  # noqa: E402
+from preqa import budgets, history, notify, report, stats, telemetry  # noqa: E402
 
 BUDGETS = {
     "defaults": {
@@ -97,3 +97,31 @@ def test_notify_once_per_new_failure(tmp_path, monkeypatch):
     assert len(notify.run(tmp_path, failing)) == 1  # broke again: new message
     lines = (tmp_path / "notifications.jsonl").read_text().splitlines()
     assert len(lines) == 2 and json.loads(lines[0])["slack"] is False
+
+
+def test_report_shows_field_telemetry_when_a_store_exists(tmp_path, monkeypatch):
+    """Readers' aiui:docs-load records (aiui serve, content.docs.telemetry) reach the dashboard."""
+    store = tmp_path / "telemetry.jsonl"
+    rep = report.write(tmp_path / "h", tmp_path / "dash", telemetry=[store])
+    assert rep["telemetry"] is None  # no store: the dashboard hides the section
+    now = history.utc_now().replace("Z", "+00:00")
+    lines = [
+        {"created_at": now, "site": "Docs", "page": "/docs/a", "url": "/docs/a.source.md", "attempt": 1, "of": 3,
+         "ms": 3001, "outcome": "retry", "reason": "headers-timeout"},
+        {"created_at": now, "url": "/docs/a.source.md", "attempt": 2, "of": 3, "ms": 90, "outcome": "ok"},
+        {"created_at": "2020-01-01T00:00:00+00:00", "url": "/old.source.md", "outcome": "failed", "ms": 1},
+        "not json",
+    ]
+    store.write_text("\n".join(x if isinstance(x, str) else json.dumps(x) for x in lines), encoding="utf-8")
+    monkeypatch.setenv("PREQA_TELEMETRY", str(store))
+    rep = report.write(tmp_path / "h", tmp_path / "dash")
+    t = rep["telemetry"]
+    assert (t["records"], t["problems"]) == (2, 1)
+    assert t["by_url"][0]["url"] == "/docs/a.source.md" and t["by_url"][0]["reasons"] == {"headers-timeout": 1}
+    assert t["recent"][0]["reason"] == "headers-timeout"
+    assert telemetry.default_paths() == [store]
+    monkeypatch.delenv("PREQA_TELEMETRY")
+    monkeypatch.delenv("PRAISONAI_HOME", raising=False)
+    monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path / "data"))  # where aiui serve writes then
+    assert telemetry.default_paths(tmp_path)[1] == tmp_path / "data" / "docs-telemetry" / "telemetry.jsonl"
+    assert 'id="field"' in (tmp_path / "dash" / "index.html").read_text()
