@@ -44,6 +44,14 @@ jobs:
               if (pr.head?.repo?.full_name !== baseRepo) continue;
               const state = await mg.getMergeState(github, owner, repo, pr.number);
               if (state.status !== 'DIRTY') continue;
+              // Leave PRs someone is still working on alone: a rebase + force-push mid-work
+              // overwrites their next push. Opt out with the `no-auto-rebase` label, and skip
+              // any PR whose head commit is under QUIET_MINUTES old.
+              const QUIET_MINUTES = 90;
+              if ((pr.labels || []).some(l => l.name === 'no-auto-rebase')) continue;
+              const { data: head } = await github.rest.git.getCommit({ owner, repo, commit_sha: pr.head.sha });
+              const ageMin = (Date.now() - new Date(head.committer.date).getTime()) / 60000;
+              if (ageMin < QUIET_MINUTES) { core.info(`#${pr.number}: head commit ${Math.round(ageMin)} min old, skipping`); continue; }
               const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr.number, per_page: 100 });
               if (mg.hasRecentConflictComment(comments)) continue;
               const body = '@claude this PR has merge conflicts with `main`. Rebase onto latest main, resolve conflicts, run tests, force-push with --force-with-lease.';
