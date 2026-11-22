@@ -409,7 +409,8 @@ def page(
     Args:
         id: Unique page identifier
         title: Display title in sidebar
-        icon: Emoji icon for sidebar
+        icon: Sidebar icon: a lucide icon name (``"users"``), an emoji or an
+            image URL (``https://...`` or a root path ``/...``).
         group: Tab group name (e.g. 'Custom', 'Analytics')
         description: Brief subtitle shown in page header
         order: Sort order within group (lower = first)

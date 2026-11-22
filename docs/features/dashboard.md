@@ -96,11 +96,20 @@ Pages are grouped in the sidebar by the `group` parameter:
 @aiui.page("logs",   title="Logs",   icon="📜", group="Settings")
 ```
 
+In the app shell, `icon` can also name any lucide icon, or point at an image.
+Every layout's sidebar draws it; a lucide icon outside the shell's small built-in
+set loads on demand, so it does not add to the first page load:
+
+```python
+@aiui.page("people", title="People", icon="users", group="Team")
+@aiui.page("brand",  title="Brand",  icon="/static/logo.svg", group="Team")
+```
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `page_id` | `str` | ✅ | Unique identifier (URL-safe) |
 | `title` | `str` | ✅ | Display name in sidebar |
-| `icon` | `str` | ❌ | Emoji or icon character |
+| `icon` | `str` | ❌ | Sidebar icon: a [lucide](https://lucide.dev/icons) name (`"users"`, `"film"`), an emoji, or an image URL (`https://…` or a root path `/…`). Default `📄` means none chosen: the app shell shows a placeholder (the title's first letter in layouts) |
 | `group` | `str` | ❌ | Sidebar group name |
 | `description` | `str` | ❌ | Subtitle below the title |
 

@@ -180,12 +180,20 @@ test('relativeTime: Now, minutes, hours today, Yesterday, a weekday, then a date
   assert.equal(relativeTime(new Date(2025, 11, 31).getTime(), now), 'Dec 31, 2025')
 })
 
-test('NavIcon: a lucide icon for navIcon, else the first letter, never the emoji', () => {
+test('NavIcon: a lucide icon for navIcon, else the icon the page declares, else the first letter', () => {
   assert.match(html(createElement(NavIcon, { item: { title: 'Chat', navIcon: 'message-square' } })), /<svg[^>]*lucide-message-square/)
   assert.match(html(createElement(NavIcon, { item: { title: 'Mine', icon: 'bot' } })), /lucide-bot/, 'a name in icon works too')
+  // An app page's emoji draws (muted), not its letter.
   const fun = html(createElement(NavIcon, { item: { title: 'Fun', icon: '\u{1F389}' } }))
-  assert.match(fun, />F</)
-  assert.doesNotMatch(fun, /\p{Extended_Pictographic}/u)
+  assert.match(fun, /\u{1F389}/u)
+  assert.doesNotMatch(fun, />F</)
+  // A lucide name outside the static map loads lazily: an empty 24px frame first, not the letter.
+  const users = html(createElement(NavIcon, { item: { title: 'Users', icon: 'users' } }))
+  assert.match(users, /<svg[^>]*viewBox="0 0 24 24"/)
+  assert.doesNotMatch(users, />U</)
+  assert.match(html(createElement(NavIcon, { item: { title: 'Logo', icon: 'https://example.com/a.png' } })), /<img[^>]*src="https:\/\/example.com\/a.png"/)
+  // The server default (no icon chosen) and no icon keep the letter.
+  assert.match(html(createElement(NavIcon, { item: { title: 'Plain', icon: '\u{1F4C4}' } })), />P</)
   assert.match(html(createElement(NavIcon, { item: { title: 'weather' } })), />W</)
   assert.equal(iconForNavItem({ navIcon: 'no-such-icon' }), undefined)
 })

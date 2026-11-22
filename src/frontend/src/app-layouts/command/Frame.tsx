@@ -28,6 +28,7 @@ import { Kbd } from '@/components/ui/kbd'
 import type { LayoutNavItem, LayoutProps } from '@/sdk/layouts'
 import type { ApprovalItem } from '@/sdk/layoutTypes'
 import { registerCommand, useManifest } from '@/sdk/services'
+import { PageGlyph } from '@/lib/PageGlyph'
 import { cn } from '@/lib/utils'
 import {
   BrandTile,
@@ -83,13 +84,13 @@ function Brand({ chrome, compact = false }: Pick<LayoutProps, 'chrome'> & { comp
 function ItemIcon({ item, className }: { item: LayoutNavItem; className?: string }) {
   const Icon = item.navIcon ? RAIL_ICONS[item.navIcon] : undefined
   if (Icon) return <Icon aria-hidden className={cn('size-4.5 shrink-0', className)} />
-  // Never the page's emoji (it renders differently on every OS): its initial.
-  const mark = item.title.slice(0, 1).toUpperCase()
-  return (
+  // Any other icon the page declares (lazy lucide, image, emoji), else its initial.
+  const mark = (
     <span aria-hidden className={cn('flex size-4.5 shrink-0 items-center justify-center text-xs', className)}>
-      {mark}
+      {item.title.slice(0, 1).toUpperCase()}
     </span>
   )
+  return <PageGlyph navIcon={item.navIcon} icon={item.icon} className={cn('size-4.5 shrink-0', className)} fallback={mark} />
 }
 
 // 56 px wide (the design), growing to 64 px of the 68 px rail for a longer

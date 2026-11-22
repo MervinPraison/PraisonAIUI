@@ -4,7 +4,7 @@ import asyncio
 import re
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import typer
 from rich.console import Console
@@ -12,6 +12,9 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from praisonaiui.__version__ import __version__
+
+if TYPE_CHECKING:
+    import socket
 
 # Configure UTF-8 on Windows to handle Unicode output
 if sys.platform == "win32":
@@ -46,13 +49,15 @@ def _icon(symbol: str, fallback: str) -> str:
     return symbol if _supports_unicode() else fallback
 
 
-def _can_bind(host: str, port: int) -> bool:
-    """True when uvicorn could listen on ``host:port``.
+def _bind_socket(host: str, port: int, *, listen: bool = False) -> Optional["socket.socket"]:
+    """A socket bound to ``host:port`` the way uvicorn binds, or None.
 
-    Probes the way uvicorn binds (the requested host, and SO_REUSEADDR on
+    Binds the way uvicorn does (the requested host, and SO_REUSEADDR on
     POSIX, which asyncio sets by default), so connections a previous run left
     in TIME_WAIT do not make a free port look taken. Windows keeps the plain
     bind: there SO_REUSEADDR would let a second listener steal the port.
+    ``listen`` claims the port: on Linux two SO_REUSEADDR sockets may share a
+    port until one listens.
     """
     import os
     import socket
@@ -62,16 +67,70 @@ def _can_bind(host: str, port: int) -> bool:
             host or None, port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE
         )
     except socket.gaierror:
-        return False
+        return None
     family, socktype, proto, _canon, addr = infos[0]
+    sock = socket.socket(family, socktype, proto)
     try:
-        with socket.socket(family, socktype, proto) as sock:
-            if os.name != "nt":
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(addr)
+        if os.name != "nt":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(addr)
+        if listen:
+            sock.listen(2048)  # uvicorn's default backlog
     except OSError:
+        sock.close()
+        return None
+    sock.set_inheritable(True)  # the --reload worker process serves it
+    return sock
+
+
+def _can_bind(host: str, port: int) -> bool:
+    """True when uvicorn could listen on ``host:port`` (a probe: the port stays free)."""
+    sock = _bind_socket(host, port)
+    if sock is None:
         return False
+    sock.close()
     return True
+
+
+def _bind_free_port(
+    host: str, start_port: int, max_attempts: int = 10
+) -> "tuple[socket.socket, int]":
+    """Bind and listen on the first free port from ``start_port``; the socket and its port.
+
+    Choosing the port and binding it are one step, and the caller hands the
+    listening socket to uvicorn, so a process started at the same moment cannot
+    take the port between the choice and the server start.
+    """
+    for port in range(start_port, start_port + max_attempts):
+        sock = _bind_socket(host, port, listen=True)
+        if sock is not None:
+            return sock, sock.getsockname()[1]
+    raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
+
+
+def _run_uvicorn(target: Any, *, sock: "socket.socket", **kwargs: Any) -> None:
+    """``uvicorn.run(target, **kwargs)`` serving the already bound ``sock``.
+
+    The same steps as ``uvicorn.run`` (a reloader process for ``reload=True``),
+    with the listening socket passed in instead of uvicorn binding its own.
+    """
+    import uvicorn
+
+    config = uvicorn.Config(target, **kwargs)
+    server = uvicorn.Server(config=config)
+    try:
+        if config.should_reload:
+            from uvicorn.supervisors import ChangeReload
+
+            ChangeReload(config, target=server.run, sockets=[sock]).run()
+        else:
+            server.run(sockets=[sock])
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sock.close()
+    if not server.started and not config.should_reload:
+        raise typer.Exit(code=3)  # uvicorn's startup-failure code
 
 
 def _find_available_port(host: str, start_port: int, max_attempts: int = 10) -> int:
@@ -2363,9 +2422,14 @@ def run(
     # its own routes. (It used to recopy the whole bundle into ./aiui on every
     # start, 0.2-1 s and ~11 MB that were never served.)
 
-    # Find available port
+    # Find available port. The standalone server binds it now and keeps the
+    # socket (uvicorn serves it), so the URL printed below is the bound one.
+    listen_sock = None
     try:
-        actual_port = _find_available_port(host, port)
+        if backend == "praisonai":
+            actual_port = _find_available_port(host, port)
+        else:
+            listen_sock, actual_port = _bind_free_port(host, port)
     except OSError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=4)
@@ -2493,8 +2557,6 @@ def run(
             )
         )
 
-        import uvicorn
-
         if reload:
             # uvicorn can only reload an app it imports itself: hand it the
             # factory, which rebuilds this app (module, style, datastore,
@@ -2510,8 +2572,9 @@ def run(
                 static_dir=static_dir,
                 config_path=config_path,
             )
-            uvicorn.run(
+            _run_uvicorn(
                 "praisonaiui._run_factory:create",
+                sock=listen_sock,
                 factory=True,
                 host=host,
                 port=actual_port,
@@ -2521,8 +2584,9 @@ def run(
                 timeout_graceful_shutdown=GRACEFUL_SHUTDOWN_SECONDS,
             )
         else:
-            uvicorn.run(
+            _run_uvicorn(
                 server_app,
+                sock=listen_sock,
                 host=host,
                 port=actual_port,
                 log_level="info",
@@ -3935,6 +3999,51 @@ def _version_check() -> dict:
     return {"name": name, "status": "pass", "detail": f"{installed} (latest)"}
 
 
+def _dist_version() -> Optional[str]:
+    """The ``aiui`` version pip's metadata records, or None when it has none."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("aiui")
+    except PackageNotFoundError:
+        return None
+
+
+def _install_check() -> dict:
+    """``aiui doctor``: the version and folder actually imported, against pip's metadata.
+
+    An editable install keeps the metadata of the version it was installed at,
+    so ``pip show aiui`` can name an older version than the code that runs.
+    """
+    import praisonaiui
+    from praisonaiui import __version__ as imported
+
+    where = Path(praisonaiui.__file__).resolve().parent
+    name = "aiui Install"
+    recorded = _dist_version()
+    if recorded is None:
+        return {
+            "name": name,
+            "status": "warn",
+            "detail": f"{imported} imported from {where}; no installed aiui metadata "
+            "(running from a source tree?)",
+        }
+    if recorded != imported:
+        repo = where.parent.parent
+        fix = (
+            f"stale editable install: uv pip install -e {repo}"
+            if (repo / "pyproject.toml").is_file()
+            else "reinstall: uv pip install --force-reinstall aiui"
+        )
+        return {
+            "name": name,
+            "status": "warn",
+            "detail": f"{imported} imported from {where}, but the installed metadata says "
+            f"{recorded} ({fix})",
+        }
+    return {"name": name, "status": "pass", "detail": f"{imported} imported from {where}"}
+
+
 @app.command()
 def doctor(
     server: str = typer.Option(
@@ -3952,7 +4061,7 @@ def doctor(
     """Run structured diagnostics against a running AIUI server."""
     import json as _json
 
-    checks = [_version_check()]
+    checks = [_version_check(), _install_check()]
 
     def _check(name: str, path: str, extractor=None):
         """Run a single diagnostic check."""
@@ -4039,7 +4148,8 @@ def doctor(
             "checks": checks,
             "summary": {"passed": passed, "warnings": warnings, "failed": failed},
         }
-        console.print(_json.dumps(result, indent=2))
+        # Plain stdout: rich would wrap long details (a path) mid-string.
+        typer.echo(_json.dumps(result, indent=2))
         return
 
     # Rich formatted output

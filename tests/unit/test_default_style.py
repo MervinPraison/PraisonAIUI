@@ -78,7 +78,7 @@ def _run(tmp_path, *extra):
         ),
         encoding="utf-8",
     )
-    with patch("uvicorn.run"):
+    with patch("praisonaiui.cli._run_uvicorn"):
         result = runner.invoke(app, ["run", str(app_file), "--port", "8133", *extra])
     assert result.exit_code == 0, result.output
     return result.output
