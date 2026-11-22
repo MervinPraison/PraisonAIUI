@@ -488,5 +488,6 @@ export default [
   // 11,179,230 B (+545 B, exactly the overage): .html and wrong-case docs URLs (docs/navMatch.ts, stripHtmlSuffix).
   // 11,180,139 B (+909 B, exactly the overage): optional docs work after load (docs/afterLoad.ts) and the
   // network-change retry (docs/networkChange.ts).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11180139 B', brotli: false },
+  // 11,180,375 B (+236 B, exactly the overage): docs retries move to a fresh connection pool.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11180375 B', brotli: false },
 ]

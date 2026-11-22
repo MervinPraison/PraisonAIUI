@@ -104,9 +104,28 @@ a new one after it recovers and breaks again. Slack is used only when
 host holds no secrets, so there the messages go to `history/notifications.jsonl`
 and the failures show on the dashboard.
 
-## In CI (not wired yet)
+## Dead idle connection (`netfault`)
 
-The same checks run against any served build. A job would:
+Some networks drop a TCP connection that sat idle for 15-30 s without telling
+either end (seen on a home router over IPv6). The browser then sends the next
+docs request down its dead HTTP/2 connection and waits. `netfault` reproduces
+that: `preqa/netfault.mjs` serves a running pre-QA server over HTTPS/HTTP-2
+and freezes any connection idle longer than `--freeze-idle-ms` (bytes are
+dropped, the socket never closes). Headless Chromium opens a page, clicks to a
+second, waits until the connection is frozen, then clicks to a third page that
+was not prefetched and times it (budget 6 s; the next click must work too).
+
+```bash
+python -m preqa netfault --upstream http://127.0.0.1:8700 --out netfault.json
+```
+
+Needs `node` and `openssl`. CI runs it after the tracker, advisory.
+
+## In CI
+
+`.github/workflows/preqa.yml` runs the tracker and `netfault`, advisory only
+(a warning annotation, never a failed check). The same checks run against any
+served build. The job does:
 
 ```bash
 pip install -e . && pip install -r tools/preqa/requirements.txt

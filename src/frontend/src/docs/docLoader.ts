@@ -29,6 +29,18 @@
  * request skips the cache entry, so it can neither wait on a peer nor hold
  * one. The CDN still caches, and this module keeps its own in-memory cache.
  *
+ * A retry also moves to a fresh connection. Some networks drop a TCP
+ * connection that sat idle for 15-30 s without telling either end (seen on a
+ * home router over IPv6). The browser keeps its one HTTP/2 connection to the
+ * site, sends the next request down the dead one and waits; aborting the
+ * request does not close that connection, so every retry on it hangs too.
+ * Chrome keeps requests without credentials on a separate connection pool,
+ * so attempts alternate between `credentials: 'same-origin'` and `'omit'`, and
+ * later requests start on whichever pool last answered. A server that wants
+ * its cookie for Markdown (auth on) answers an `omit` attempt with 401/403:
+ * that attempt is repeated with credentials and `omit` is not used again.
+ * `python -m preqa netfault` reproduces the dead connection.
+ *
  * Every outcome is recorded as an `aiui:docs-load` event (loadEvents.ts).
  */
 import { docPathToSource, normalizeDocPath } from '../pathUtils'
@@ -148,6 +160,24 @@ export interface RetryOptions {
     watchNetwork?: (onChange: () => void) => () => void
 }
 
+/** Credentials of the attempt that last got an answer: later requests start there (see top). */
+let leadCredentials: RequestCredentials = 'same-origin'
+/** True once the server answered an `omit` attempt with 401/403: it needs its cookie. */
+let omitRefused = false
+
+/** Credentials for `attempt` (0-based): alternate pools, starting from the one that last answered. */
+export function credentialsFor(attempt: number): RequestCredentials {
+    if (omitRefused) return 'same-origin'
+    const other: RequestCredentials = leadCredentials === 'omit' ? 'same-origin' : 'omit'
+    return attempt % 2 === 0 ? leadCredentials : other
+}
+
+/** Test hook: forget which pool answered last. */
+export function resetConnectionPools(): void {
+    leadCredentials = 'same-origin'
+    omitRefused = false
+}
+
 /** An attempt waiting at least this long when the network changes is replaced by a fresh request. */
 export const NETWORK_CHANGE_MIN_MS = 500
 
@@ -198,11 +228,21 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         let status: number | undefined
         try {
             // A retry never goes through the HTTP cache: it must not queue behind a peer (see top).
-            const init: RequestInit = { signal: s, cache: attempt === 0 ? cache : 'no-store' }
+            // A retry also uses the other connection pool: the last one may be dead (see top).
+            const credentials = credentialsFor(attempt)
+            const init: RequestInit = { signal: s, cache: attempt === 0 ? cache : 'no-store', credentials }
             const response = await Promise.race([fetchImpl(withBase(url), init), aborted])
             clearTimeout(timer)
             status = response.status
+            if (credentials === 'omit' && (status === 401 || status === 403)) {
+                // The server wants its cookie: ask again with it, at once, and never omit again.
+                omitRefused = true
+                leadCredentials = 'same-origin'
+                attempt--
+                continue
+            }
             if (response.status < 500) {
+                leadCredentials = credentials
                 timer = setTimeout(timeoutFor('body-timeout'), bodyTimeoutMs)
                 // Each chunk restarts the idle limit; the total limit keeps running.
                 const progress = () => {
@@ -433,6 +473,7 @@ export function prefetchInitialDoc(pathname = appPathname(), base = '/docs', roo
 
 /** Test hook: forget every cached answer and cancel every request. */
 export function resetDocCache(): void {
+    resetConnectionPools()
     for (const f of flights.values()) f.controller.abort()
     flights.clear()
     cache.clear()

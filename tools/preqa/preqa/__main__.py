@@ -92,6 +92,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="preqa", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("serve", add_help=False)
+    sub.add_parser("netfault", add_help=False)
     b = sub.add_parser("build")
     b.add_argument("--ref", default="main")
     for name in ("track", "poll"):
@@ -117,6 +118,10 @@ def main(argv=None) -> int:
     if a.cmd == "serve":
         serve.main(rest)
         return 0
+    if a.cmd == "netfault":
+        from . import netfault
+
+        return netfault.main(rest)
     if rest:
         p.error(f"unrecognized arguments: {' '.join(rest)}")
     if a.cmd == "build":

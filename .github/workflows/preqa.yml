@@ -67,6 +67,16 @@ jobs:
             echo "::warning title=Pre-QA budget breach::See the preqa-report artifact. Advisory only; this does not block merging."
           fi
 
+      - name: Dead idle connection check (advisory)
+        working-directory: tools/preqa
+        run: |
+          # A page opened after the browser's connection died while idle (python -m preqa netfault).
+          if python -m preqa netfault --upstream http://127.0.0.1:8700 --out netfault.json; then
+            echo "Netfault: PASS"
+          else
+            echo "::warning title=Pre-QA dead-connection check::A docs page opened after an idle gap failed or was slow. See netfault.json in the preqa-report artifact. Advisory only."
+          fi
+
       - name: Upload the report
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,5 +84,6 @@ jobs:
           name: preqa-report
           path: |
             tools/preqa/preqa-run.json
+            tools/preqa/netfault.json
             serve.log
           retention-days: 14

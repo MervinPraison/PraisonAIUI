@@ -356,6 +356,46 @@ describe('HTTP cache lock (a peer request for the same URL)', () => {
     })
 })
 
+/** A fetch recording each call's credentials mode; answers as modeFetch. */
+function credFetch(answers: Answer[]) {
+    const creds: (RequestCredentials | undefined)[] = []
+    const impl = ((_url: RequestInfo | URL, init?: RequestInit) => {
+        creds.push(init?.credentials)
+        const answer = answers[creds.length - 1] ?? 'hang'
+        if (answer instanceof Response) return Promise.resolve(answer)
+        if (answer instanceof Error) return Promise.reject(answer)
+        const signal = init!.signal!
+        return new Promise<Response>((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason)))
+    }) as typeof fetch
+    return { impl, creds }
+}
+
+describe('a dead idle connection (retries move to the other connection pool)', () => {
+    test('each retry switches between the credentialed and the credential-less pool', async () => {
+        const { impl, creds } = credFetch(['hang', 'hang', new Response('# Page')])
+        await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: impl })
+        assert.deepEqual(creds, ['same-origin', 'omit', 'same-origin'])
+    })
+
+    test('later requests start on the pool that last answered', async () => {
+        const first = credFetch(['hang', new Response('# A')])
+        await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: first.impl })
+        const next = credFetch([new Response('# B')])
+        await fetchWithRetry('/docs/b.source.md', { ...fast, fetchImpl: next.impl })
+        assert.deepEqual(next.creds, ['omit'])
+    })
+
+    test('a server that wants its cookie (401 without it) gets it at once, and omit is not used again', async () => {
+        const { impl, creds } = credFetch(['hang', new Response('', { status: 401 }), new Response('# Page')])
+        const result = await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: impl })
+        assert.equal(result.text, '# Page')
+        assert.deepEqual(creds, ['same-origin', 'omit', 'same-origin'])
+        const next = credFetch(['hang', 'hang', new Response('# B')])
+        await fetchWithRetry('/docs/b.source.md', { ...fast, fetchImpl: next.impl })
+        assert.deepEqual(next.creds, ['same-origin', 'same-origin', 'same-origin'])
+    })
+})
+
 describe('a network change during an attempt (a dead shared connection)', () => {
     /** A watchNetwork stub: `change()` plays a network change to whoever listens now. */
     const network = () => {
