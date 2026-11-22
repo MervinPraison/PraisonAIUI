@@ -255,6 +255,10 @@ export interface UIConfig {
     pageFooter?: { editText?: string; feedback?: false | DocsFeedbackConfig }
     /** Added by `aiui serve` / `aiui dev` (docs_feedback.py): the endpoint that stores votes. A static host has none. */
     docsFeedback?: { url: string }
+    /** `content.docs.telemetry` (opt-in): send page-load problems home (docs/fieldTelemetry.ts). */
+    telemetry?: { endpoint?: string; sampleRate?: number }
+    /** Added by `aiui serve` / `aiui dev` (docs_telemetry.py) when the build opted in: where records go. */
+    docsTelemetry?: { url: string }
     /** `styling.eyebrows`: the line above a docs page title (default `section`). */
     styling?: { eyebrows?: 'section' | 'breadcrumbs' }
     footer?: {

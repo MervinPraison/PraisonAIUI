@@ -39,6 +39,12 @@
   <h2>Slowest pages (latest run)</h2><div class="scroll"><table id="slowest"></table></div>
   <h2>Held, stalled and failed requests, skeletons, errors (last 7 days)</h2>
   <div class="scroll"><table id="issues"></table></div>
+  <section id="field" hidden>
+    <h2>Field load records <span id="field-meta" class="muted" style="font-weight:400"></span></h2>
+    <div class="scroll"><table id="field-urls"></table></div>
+    <h3 style="font-size:13px;margin:16px 0 6px">Latest problems</h3>
+    <div class="scroll"><table id="field-recent"></table></div>
+  </section>
 </main>
 <script>
 const $ = (id) => document.getElementById(id)
@@ -107,7 +113,25 @@ async function load() {
       el('td', {}, fmt(i.ms)), el('td', { class: 'url' }, i.text || i.reason || '')))
       : [el('tr', {}, el('td', { colspan: '7', class: 'muted' }, 'None.'))]))
 }
-load(); setInterval(load, 60000)
+// Readers' aiui:docs-load records (content.docs.telemetry), shown only when a store exists.
+function field(t) {
+  $('field').hidden = !t
+  if (!t) return
+  $('field-meta').textContent = `last ${t.days} days · ${fmt(t.records)} records · ${fmt(t.problems)} problems`
+  const reasons = (o) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ')
+  $('field-urls').replaceChildren(el('tr', {}, ...['file', 'records', 'problems', 'reasons', 'p50 ms', 'p95 ms'].map((h) => el('th', {}, h))),
+    ...(t.by_url.length ? t.by_url.map((u) => el('tr', {}, el('td', { class: 'url' }, u.url), el('td', {}, fmt(u.records)),
+      el('td', { class: u.problems ? 'fail' : '' }, fmt(u.problems)), el('td', {}, reasons(u.reasons)),
+      el('td', {}, fmt(u.ms && u.ms.p50)), el('td', {}, fmt(u.ms && u.ms.p95))))
+      : [el('tr', {}, el('td', { colspan: '6', class: 'muted' }, 'None.'))]))
+  $('field-recent').replaceChildren(el('tr', {}, ...['time', 'site', 'page', 'file', 'outcome', 'attempt', 'ms'].map((h) => el('th', {}, h))),
+    ...(t.recent.length ? t.recent.map((r) => el('tr', {}, el('td', {}, r.created_at), el('td', {}, r.site),
+      el('td', { class: 'url' }, r.page), el('td', { class: 'url' }, r.url), el('td', {}, r.outcome + (r.reason ? ` (${r.reason})` : '')),
+      el('td', {}, `${r.attempt}/${r.of}`), el('td', {}, fmt(r.ms))))
+      : [el('tr', {}, el('td', { colspan: '7', class: 'muted' }, 'None.'))]))
+}
+const loadAll = async () => { await load(); try { field((await (await fetch('report.json', { cache: 'no-store' })).json()).telemetry) } catch {} }
+loadAll(); setInterval(loadAll, 60000)
 </script>
 </body>
 </html>
