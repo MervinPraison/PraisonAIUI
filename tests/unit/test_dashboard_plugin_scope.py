@@ -47,6 +47,7 @@ def _state():
 
 
 def test_default_keeps_all_discovered(env):
+    srv._enabled_pages = None  # no set_pages(): every folder (set_pages() filters them)
     srv.set_dashboard(plugin_dirs=[env])
     _, pages, plugins = _state()
     assert set(plugins) == {"home-plug", "dup", "bundled-plug", "extra-plug"}

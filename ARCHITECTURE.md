@@ -115,7 +115,7 @@ APIs below. Legacy adapters keep working (R7) but get no new capabilities.
 |---|---|---|
 | Python page, feature, route, static, CLI | plugin object: entry point `praisonaiui.plugins` or `aiui.register_plugin(obj)`; hooks `pages() blocks() tool_renderers() routes() static_dir() features() cli_commands() settings() nav_groups() themes() layouts() setup(ctx)`; first-party: `builtin/catalog.py` | `aiui.register_page()` / `@aiui.page`, `register_page_action`, `register_feature()`, dashboard-plugin folders (`manifest.json`) |
 | Browser page, block, tool renderer, slot, command, settings section, nav group, theme preset, layout | `@aiui/sdk`: `registerPage`, `registerBlock`, `registerToolRenderer`, `registerSlot(slot, C, {id, order})`, `registerCommand`, `registerSettingsSection`, `registerNavGroup`, `registerThemePreset`, `registerLayout` (R17), `onActivate`; first-party: `src/builtin` | `registerView` / `custom.js` (`set_custom_js`), legacy `plugins/views/*.js` |
-| Visibility | `extensions.enabled/disabled` (`ExtensionPolicy`) | `set_pages`, `remove_page`, `pages.enabled/disabled` |
+| Visibility | `extensions.enabled/disabled` (`ExtensionPolicy`); an app's page list: `set_pages` / `only_my_pages` (every page source but the app's own pages and entry-point plugins) | `remove_page`, `pages.enabled/disabled` |
 | Theme | seeds: `get_seed_theme_css`, tokens in `styles/theme.css`; plugin presets of seed tokens (`themes()` / `registerThemePreset`) | `set_theme`, `set_brand_color`, `register_theme`, `set_custom_css` HSL triples |
 
 Note: there are three unrelated things called "plugins": UI plugins
