@@ -2484,6 +2484,7 @@ function renderComponent(comp) {
     case 'toast': return renderToast(comp);
     case 'dialog': return renderDialog(comp);
     case 'caption': return renderCaption(comp);
+    case 'status': return renderStatus(comp);
     case 'html_embed': return renderHtmlEmbed(comp);
     case 'a2ui_surface': {
       const wrap = document.createElement('div');
@@ -3259,6 +3260,29 @@ function renderCaption(comp) {
   const el = document.createElement('p');
   el.className = 'db-caption';
   el.textContent = comp.text || '';
+  return el;
+}
+
+// Job status row (ui.status): label, state, detail, progress, log lines.
+// Text only (textContent); the app shell renders the full block.
+function renderStatus(comp) {
+  const el = document.createElement('div');
+  el.className = 'db-callout';
+  const head = document.createElement('strong');
+  head.textContent = `${comp.label || 'Job'}: ${comp.state || 'running'}`;
+  el.appendChild(head);
+  if (comp.detail) {
+    const p = document.createElement('p');
+    p.className = 'db-caption';
+    p.textContent = comp.detail;
+    el.appendChild(p);
+  }
+  if (comp.progress != null) el.appendChild(renderProgressBar({ label: '', value: comp.progress }));
+  if (Array.isArray(comp.log) && comp.log.length) {
+    const pre = document.createElement('pre');
+    pre.textContent = comp.log.join('\n');
+    el.appendChild(pre);
+  }
   return el;
 }
 

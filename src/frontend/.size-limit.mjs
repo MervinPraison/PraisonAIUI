@@ -506,5 +506,6 @@ export default [
   // 11,573,449 B (+391,553 B, exactly the overage): the chart block and recharts (one lazy chunk plus
   // the d3 scale chunks it shares with mermaid), 2026-11-22.
   // 11,573,583 B (+134 B, exactly the overage): recharts measuring-span cleanup in the chart block.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11573583 B', brotli: false },
+  // 11,577,511 B (+3,928 B, exactly the overage): page params in the URL, auto refresh and the status block.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11577511 B', brotli: false },
 ]

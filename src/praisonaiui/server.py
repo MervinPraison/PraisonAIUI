@@ -27,6 +27,7 @@ from starlette.responses import (
 )
 from starlette.routing import Mount, Route, request_response
 
+from praisonaiui import page_params
 from praisonaiui.datastore import BaseDataStore, JSONFileDataStore
 from praisonaiui.features import auto_register_defaults, get_features
 from praisonaiui.http_guard import ws_ticket_handler
@@ -130,6 +131,7 @@ def reset_state() -> None:
     _agents.clear()
     _pages.clear()
     _page_actions.clear()
+    page_params.reset()
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
     _enabled_pages_ref["_all_pages_listed"] = False
@@ -1857,6 +1859,7 @@ def register_page(
     api_endpoint: Optional[str] = None,
     handler: Optional[Callable] = None,
     order: int = 100,
+    refresh_every: Optional[float] = None,
 ) -> None:
     """Register a dashboard page.
 
@@ -1870,8 +1873,10 @@ def register_page(
         group: Tab group name (e.g. 'Control', 'Settings', 'Custom')
         description: Brief subtitle shown in header
         api_endpoint: API path for page data (default: /api/pages/{id}/data)
-        handler: Optional async function that returns page data as dict
+        handler: Optional function returning page data as a dict; it may take
+            ``params`` (the query string, see ``page_params``)
         order: Sort order within group (lower = first, default 100)
+        refresh_every: Re-fetch the page every N seconds while it is visible
     """
     endpoint = api_endpoint or f"/api/pages/{id}/data"
     _pages[id] = {
@@ -1884,6 +1889,7 @@ def register_page(
         "order": order,
     }
     _custom_page_ids.add(id)
+    page_params.set_refresh_every(id, refresh_every)
     if handler:
         register_callback(f"page:{id}", handler)
 
@@ -3015,14 +3021,10 @@ async def api_page_data(request: Request) -> JSONResponse:
     if not handler:
         return JSONResponse({"error": f"No handler for page '{page_id}'"}, status_code=404)
     try:
-        import asyncio as _aio
-
-        result = handler()
-        if _aio.iscoroutine(result):
-            result = await result
+        result = await page_params.call_page_handler(handler, page_params.query_params(request))
         if not isinstance(result, dict):
             result = {"data": result}
-        return JSONResponse(result)
+        return JSONResponse(page_params.with_refresh(page_id, result))
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

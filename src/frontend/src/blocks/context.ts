@@ -6,6 +6,10 @@ export interface BlockActionRequest {
   body: Record<string, unknown>
   /** Label for notifications, e.g. the button text. */
   label?: string
+  /** 'get': write `body` into the page URL and re-fetch the page data (no POST). */
+  method?: 'get' | 'post'
+  /** After a successful POST, also write `body` into the page URL. */
+  updateUrl?: boolean
 }
 
 export interface BlockContextValue {

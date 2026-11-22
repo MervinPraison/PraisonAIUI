@@ -390,16 +390,20 @@ def page(
     group: str = "Custom",
     description: str = "",
     order: int = 100,
+    refresh_every: float | None = None,
 ) -> Callable[[F], F]:
     """Decorator to register a custom dashboard page.
 
     The decorated function serves as the page's API data handler.
-    It should return a dict that will be served as JSON.
+    It should return a dict that will be served as JSON. A handler that
+    takes ``params`` receives the page URL's query string (a dict; a key
+    given more than once is a list), so filters can live in the URL.
 
     Example::
 
         @aiui.page("metrics", title="My Metrics", icon="📊", group="Analytics")
-        async def metrics_handler():
+        async def metrics_handler(params):
+            days = int(params.get("days", 30))
             return {"kpis": [{"label": "Users", "value": 42}]}
 
     Args:
@@ -409,6 +413,7 @@ def page(
         group: Tab group name (e.g. 'Custom', 'Analytics')
         description: Brief subtitle shown in page header
         order: Sort order within group (lower = first)
+        refresh_every: Re-fetch the page every N seconds while it is visible
     """
 
     def decorator(func: F) -> F:
@@ -422,6 +427,7 @@ def page(
             description=description,
             handler=func,
             order=order,
+            refresh_every=refresh_every,
         )
         return func
 

@@ -25,7 +25,12 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 
-def layout(children: Sequence[dict]) -> dict:
+def layout(
+    children: Sequence[dict],
+    *,
+    refresh_every: float | None = None,
+    params: dict[str, Any] | None = None,
+) -> dict:
     """Wrap components in a layout container.
 
     The returned dict is served as JSON by the page handler.
@@ -34,8 +39,18 @@ def layout(children: Sequence[dict]) -> dict:
 
     Args:
         children: List of component dicts (from card(), columns(), etc.)
+        refresh_every: App shell: re-fetch the page every N seconds while it
+            is visible (``_refresh_every``).
+        params: In a page-action reply, the values the app shell writes into
+            the page URL's query string (``_params``; ``None`` or ``""``
+            removes a key), so a refresh or a shared link restores the view.
     """
-    return {"_components": list(children)}
+    out: dict[str, Any] = {"_components": list(children)}
+    if refresh_every:
+        out["_refresh_every"] = refresh_every
+    if params is not None:
+        out["_params"] = dict(params)
+    return out
 
 
 def card(
@@ -989,6 +1004,8 @@ def form(
     *,
     children: Sequence[dict],
     submit_label: str = "Submit",
+    method: str = "post",
+    update_url: bool = False,
 ) -> dict:
     """A form container that submits input values to the server.
 
@@ -999,16 +1016,26 @@ def form(
         action: Action identifier (typically matches the page_id).
         children: Form input components (text_input, select_input, etc.).
         submit_label: Label for the submit button. Default ``"Submit"``.
+        method: ``"get"`` (app shell): write the values into the page URL's
+            query string and re-fetch the page data, which the page handler
+            receives as ``params``. No action handler is needed.
+        update_url: ``method="post"`` (app shell): after a successful
+            action, also write the submitted values into the page URL.
 
     .. versionadded:: 0.3.109
         Supersedes :func:`form_action`.
     """
-    return {
+    comp: dict[str, Any] = {
         "type": "form_action",
         "action": action,
         "children": list(children),
         "submit_label": submit_label,
     }
+    if method.lower() == "get":
+        comp["method"] = "get"
+    if update_url:
+        comp["update_url"] = True
+    return comp
 
 
 def form_action(
@@ -1031,3 +1058,38 @@ def form_action(
         stacklevel=2,
     )
     return form(action, children=children, submit_label=submit_label)
+
+
+STATUS_STATES = ("queued", "running", "done", "failed")
+
+
+def status(
+    label: str,
+    *,
+    state: str = "running",
+    detail: str | None = None,
+    progress: int | float | None = None,
+    log: Sequence[str] | None = None,
+) -> dict:
+    """A job status row: state icon, label, detail, progress and a log tail.
+
+    Pair it with ``refresh_every`` on the page so the row updates while
+    the job runs.
+
+    Args:
+        label: What runs, e.g. ``"Sync YouTube"``.
+        state: ``"queued"``, ``"running"``, ``"done"`` or ``"failed"``.
+        detail: One line under the label, e.g. ``"12 of 40 channels"``.
+        progress: Percent done (0-100); a bar is shown when set.
+        log: Recent log lines, shown in a log viewer below the row.
+    """
+    if state not in STATUS_STATES:
+        raise ValueError(f"state must be one of {', '.join(STATUS_STATES)}")
+    comp: dict[str, Any] = {"type": "status", "label": label, "state": state}
+    if detail is not None:
+        comp["detail"] = detail
+    if progress is not None:
+        comp["progress"] = max(0, min(100, progress))
+    if log:
+        comp["log"] = [str(line) for line in log]
+    return comp
