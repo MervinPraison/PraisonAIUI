@@ -39,6 +39,15 @@
  * later requests start on whichever pool last answered. A server that wants
  * its cookie for Markdown (auth on) answers an `omit` attempt with 401/403:
  * that attempt is repeated with credentials and `omit` is not used again.
+ *
+ * Waiting for a timeout to find out is too slow, so an attempt is hedged:
+ * no response headers after HEDGE_MS (HEDGE_AFTER_IDLE_MS when nothing was
+ * fetched for IDLE_RISK_MS, the case where connections die) and the same
+ * request goes out on the other pool; the first answer wins and the other is
+ * cancelled. A request that fails outright moves to the other pool at once.
+ * And a visitor coming back after IDLE_RISK_MS without input (pointer, key,
+ * touch, the tab shown again) sends one tiny request (`ui-config.json`) the
+ * same way, so the pool that works is known before the click.
  * `python -m preqa netfault` reproduces the dead connection.
  *
  * Every outcome is recorded as an `aiui:docs-load` event (loadEvents.ts).
@@ -72,6 +81,9 @@ export class DocLoadError extends Error {
         this.name = 'DocLoadError'
     }
 }
+
+/** Page time in whole ms. */
+const now = () => Math.round(globalThis.performance?.now?.() ?? Date.now())
 
 const abortError = () => new DOMException('Aborted', 'AbortError')
 
@@ -158,6 +170,8 @@ export interface RetryOptions {
     onAttempt?: (attempt: number, of: number) => void
     /** Hears network changes (default networkChange.ts); returns the remover. */
     watchNetwork?: (onChange: () => void) => () => void
+    /** Hedge delay (default hedgeDelay(): HEDGE_MS, or HEDGE_AFTER_IDLE_MS after an idle spell). */
+    hedgeMs?: number
 }
 
 /** Credentials of the attempt that last got an answer: later requests start there (see top). */
@@ -176,6 +190,90 @@ export function credentialsFor(attempt: number): RequestCredentials {
 export function resetConnectionPools(): void {
     leadCredentials = 'same-origin'
     omitRefused = false
+    lastAnswerAt = now()
+}
+
+/** No headers after this long: the same request also goes out on the other pool. */
+export const HEDGE_MS = 1_000
+/** The hedge delay when nothing came back for IDLE_RISK_MS (a connection may have died idle). */
+export const HEDGE_AFTER_IDLE_MS = 400
+/** Idle this long and a connection may be dead (routers seen dropping them after 15-30 s). */
+export const IDLE_RISK_MS = 10_000
+/** When any request last got response headers (page time). The page itself just loaded. */
+let lastAnswerAt = now()
+
+const otherPool = (c: RequestCredentials): RequestCredentials | null =>
+    omitRefused ? null : c === 'omit' ? 'same-origin' : 'omit'
+
+/** The hedge delay for a request starting now. */
+export function hedgeDelay(): number {
+    return now() - lastAnswerAt > IDLE_RISK_MS ? HEDGE_AFTER_IDLE_MS : HEDGE_MS
+}
+
+interface Leg {
+    response: Response
+    credentials: RequestCredentials
+}
+
+/**
+ * GET on the `lead` pool; no headers after `delayMs` (or a network error) and
+ * the same request also goes out on the `alt` pool. The first response wins and
+ * the other request is aborted. A 401/403 to an `omit` request marks the pool
+ * refused and waits for the other request if one is out. Aborting `signal`
+ * aborts both.
+ */
+function hedgedFetch(href: string, init: RequestInit, lead: RequestCredentials, alt: RequestCredentials | null,
+    delayMs: number, fetchImpl: typeof fetch, signal: AbortSignal): Promise<Leg> {
+    return new Promise<Leg>((resolve, reject) => {
+        const legs: AbortController[] = []
+        let pending = 0
+        let done = false
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const finish = () => {
+            done = true
+            clearTimeout(timer)
+            signal.removeEventListener('abort', onAbort)
+        }
+        const onAbort = () => {
+            if (done) return
+            finish()
+            for (const c of legs) c.abort(signal.reason)
+            reject(signal.reason ?? abortError())
+        }
+        if (signal.aborted) return reject(signal.reason ?? abortError())
+        signal.addEventListener('abort', onAbort, { once: true })
+        const start = (credentials: RequestCredentials) => {
+            const own = new AbortController()
+            legs.push(own)
+            pending++
+            fetchImpl(href, { ...init, credentials, signal: anySignal([signal, own.signal]) }).then((response) => {
+                pending--
+                if (done) return
+                lastAnswerAt = now()
+                if (credentials === 'omit' && (response.status === 401 || response.status === 403)) {
+                    omitRefused = true
+                    leadCredentials = 'same-origin'
+                    if (pending > 0) return // the credentialed request is out: its answer counts
+                }
+                finish()
+                for (const c of legs) if (c !== own) c.abort(abortError())
+                resolve({ response, credentials })
+            }, (error: unknown) => {
+                pending--
+                if (done) return
+                const other = otherPool(credentials)
+                if (pending === 0 && legs.length < 2 && other) {
+                    clearTimeout(timer)
+                    start(other) // failed outright: the other pool at once, no waiting
+                } else if (pending === 0) {
+                    finish()
+                    reject(error)
+                }
+            })
+        }
+        start(lead)
+        if (alt) timer = setTimeout(() => { if (!done && legs.length < 2) start(alt) }, delayMs)
+    })
 }
 
 /** An attempt waiting at least this long when the network changes is replaced by a fresh request. */
@@ -199,6 +297,7 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         kind = 'doc',
         onAttempt,
         watchNetwork = onNetworkChange,
+        hedgeMs,
     } = opts
     let lastError: unknown = null
     const of = timeouts.length
@@ -229,9 +328,10 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
         try {
             // A retry never goes through the HTTP cache: it must not queue behind a peer (see top).
             // A retry also uses the other connection pool: the last one may be dead (see top).
-            const credentials = credentialsFor(attempt)
-            const init: RequestInit = { signal: s, cache: attempt === 0 ? cache : 'no-store', credentials }
-            const response = await Promise.race([fetchImpl(withBase(url), init), aborted])
+            const lead = credentialsFor(attempt)
+            const init: RequestInit = { cache: attempt === 0 ? cache : 'no-store' }
+            const { response, credentials } = await Promise.race([
+                hedgedFetch(withBase(url), init, lead, otherPool(lead), hedgeMs ?? hedgeDelay(), fetchImpl, s), aborted])
             clearTimeout(timer)
             status = response.status
             if (credentials === 'omit' && (status === 401 || status === 403)) {
@@ -272,7 +372,6 @@ export async function fetchWithRetry(url: string, opts: RetryOptions = {}): Prom
     throw new DocLoadError(url, lastError)
 }
 
-const now = () => Math.round(globalThis.performance?.now?.() ?? Date.now())
 
 // ── Cache and shared requests ─────────────────────────────────────────────
 
@@ -536,11 +635,46 @@ export function installDocPrefetch(root: Document = document): () => void {
     root.addEventListener('pointerover', onOver, { passive: true })
     root.addEventListener('pointerdown', onNow, { passive: true })
     root.addEventListener('focusin', onFocus)
+    const unwarm = installConnectionWarmup(root)
     return () => {
         clearTimeout(hoverTimer)
         root.removeEventListener('pointerover', onOver)
         root.removeEventListener('pointerdown', onNow)
         root.removeEventListener('focusin', onFocus)
+        unwarm()
+    }
+}
+
+/** The tiny file the warm-up asks for: every docs site serves it (App.tsx loads it at boot). */
+const WARM_URL = '/ui-config.json'
+const ACTIVITY = ['pointermove', 'pointerdown', 'keydown', 'touchstart', 'wheel'] as const
+
+/**
+ * A visitor back after IDLE_RISK_MS without input (and nothing fetched in that
+ * time) gets one hedged request for WARM_URL, so a connection that died while
+ * idle is found and left before the next click (see top). Input that never
+ * stops (reading, scrolling) sends nothing. Returns the uninstaller.
+ */
+export function installConnectionWarmup(root: Document = document, {
+    warm = () => fetchWithRetry(WARM_URL, { kind: 'manifest', cache: 'no-store', timeouts: [ATTEMPT_TIMEOUTS_MS[0]] }),
+    idleMs = IDLE_RISK_MS,
+}: { warm?: () => Promise<unknown>; idleMs?: number } = {}): () => void {
+    let lastInput = now()
+    let warming = false
+    const onInput = () => {
+        const t = now()
+        const away = t - lastInput > idleMs && t - lastAnswerAt > idleMs
+        lastInput = t
+        if (!away || warming || root.visibilityState === 'hidden') return
+        warming = true
+        void warm().catch(() => {}).finally(() => { warming = false })
+    }
+    const onVisible = () => { if (root.visibilityState === 'visible') onInput() }
+    for (const e of ACTIVITY) root.addEventListener(e, onInput, { passive: true, capture: true })
+    root.addEventListener('visibilitychange', onVisible)
+    return () => {
+        for (const e of ACTIVITY) root.removeEventListener(e, onInput, { capture: true })
+        root.removeEventListener('visibilitychange', onVisible)
     }
 }
 

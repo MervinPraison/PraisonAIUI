@@ -113,7 +113,9 @@ that: `preqa/netfault.mjs` serves a running pre-QA server over HTTPS/HTTP-2
 and freezes any connection idle longer than `--freeze-idle-ms` (bytes are
 dropped, the socket never closes). Headless Chromium opens a page, clicks to a
 second, waits until the connection is frozen, then clicks to a third page that
-was not prefetched and times it (budget 6 s; the next click must work too).
+was not prefetched and times it (budget 2.5 s; the next click must work too).
+The default freeze is 12 s idle and the pointer moves 0.8 s before the click,
+like a visitor coming back to the page.
 
 ```bash
 python -m preqa netfault --upstream http://127.0.0.1:8700 --out netfault.json

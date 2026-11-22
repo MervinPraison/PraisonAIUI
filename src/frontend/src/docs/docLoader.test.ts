@@ -10,6 +10,7 @@ import {
     inlinedManifest,
     docHrefMarkdownUrl,
     fetchWithRetry,
+    installConnectionWarmup,
     loadDoc,
     peekDoc,
     prefetchDoc,
@@ -64,7 +65,8 @@ describe('fetchWithRetry', () => {
     test('retries network errors and 5xx, then gives up with DocLoadError', async () => {
         const { impl, calls } = scriptedFetch([new TypeError('Failed to fetch'), new Response('', { status: 503 }), 'hang'])
         await assert.rejects(fetchWithRetry('/docs/a.md', { ...fast, fetchImpl: impl }), DocLoadError)
-        assert.equal(calls.length, 3)
+        // Attempt 1: the network error moves to the other pool at once, which answers 503. Then two hangs.
+        assert.equal(calls.length, 4)
     })
 
     test('treats 404 as an answer: no retry', async () => {
@@ -396,6 +398,66 @@ describe('a dead idle connection (retries move to the other connection pool)', (
     })
 })
 
+describe('hedged attempts (no waiting for a timeout on a dead connection)', () => {
+    const slowLimits = { timeouts: [5_000, 5_000, 5_000], bodyTimeoutMs: 500, backoff: () => 0 }
+
+    test('no headers within the hedge delay: the same request also goes out on the other pool, first answer wins', async () => {
+        const { impl, creds } = credFetch(['hang', new Response('# Page')])
+        const t = Date.now()
+        const result = await fetchWithRetry('/docs/a.source.md', { ...slowLimits, hedgeMs: 30, fetchImpl: impl })
+        assert.equal(result.text, '# Page')
+        assert.deepEqual(creds, ['same-origin', 'omit'])
+        assert.ok(Date.now() - t < 1_000, 'answered by the hedge, not after the attempt limit')
+    })
+
+    test('the losing request is cancelled', async () => {
+        const { impl, calls } = scriptedFetch(['hang', new Response('# Page')])
+        await fetchWithRetry('/docs/a.source.md', { ...slowLimits, hedgeMs: 10, fetchImpl: impl })
+        assert.equal(calls.length, 2)
+        assert.equal(calls[0].aborted, true)
+    })
+
+    test('a fast answer sends no hedge', async () => {
+        const { impl, creds } = credFetch([new Response('# Page')])
+        await fetchWithRetry('/docs/a.source.md', { ...slowLimits, hedgeMs: 200, fetchImpl: impl })
+        await new Promise((r) => setTimeout(r, 250))
+        assert.deepEqual(creds, ['same-origin'])
+    })
+
+    test('a request that fails outright moves to the other pool at once', async () => {
+        const { impl, creds } = credFetch([new TypeError('Failed to fetch'), new Response('# Page')])
+        const t = Date.now()
+        const result = await fetchWithRetry('/docs/a.source.md', { ...slowLimits, hedgeMs: 5_000, fetchImpl: impl })
+        assert.equal(result.text, '# Page')
+        assert.deepEqual(creds, ['same-origin', 'omit'])
+        assert.ok(Date.now() - t < 1_000)
+    })
+})
+
+describe('connection warm-up when a visitor comes back', () => {
+    const fakeDoc = () => Object.assign(new EventTarget(), { visibilityState: 'visible' }) as unknown as Document
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+    test('input after an idle spell sends one warm-up request; steady input sends none', async () => {
+        const root = fakeDoc()
+        let warms = 0
+        const stop = installConnectionWarmup(root, { idleMs: 40, warm: async () => { warms++ } })
+        root.dispatchEvent(new Event('pointermove'))
+        assert.equal(warms, 0, 'no idle spell yet')
+        await wait(60)
+        root.dispatchEvent(new Event('pointermove'))
+        root.dispatchEvent(new Event('keydown'))
+        await tick()
+        assert.equal(warms, 1, 'one request when the visitor is back')
+        root.dispatchEvent(new Event('pointermove'))
+        assert.equal(warms, 1, 'steady input: nothing more')
+        stop()
+        await wait(60)
+        root.dispatchEvent(new Event('pointermove'))
+        assert.equal(warms, 1, 'uninstalled')
+    })
+})
+
 describe('a network change during an attempt (a dead shared connection)', () => {
     /** A watchNetwork stub: `change()` plays a network change to whoever listens now. */
     const network = () => {
@@ -430,11 +492,12 @@ describe('a network change during an attempt (a dead shared connection)', () => 
         const opts = { timeouts: [20, 20, 800], bodyTimeoutMs: 50, backoff: () => 0, fetchImpl: impl, watchNetwork: net.watch }
         const result = assert.rejects(fetchWithRetry('/docs/a.source.md', opts), DocLoadError)
         await new Promise((r) => setTimeout(r, 100))
-        assert.equal(calls.length, 3)
+        // Attempt 1 fails on both pools (2 calls), attempt 2 hangs, attempt 3 (the last) is out.
+        assert.equal(calls.length, 4)
         assert.equal(net.listening(), 0) // the last attempt does not listen
         net.change()
         await new Promise((r) => setTimeout(r, 0))
-        assert.equal(calls[2].aborted, false)
+        assert.equal(calls[3].aborted, false)
         await result
         logged().length = 0
     })
@@ -444,7 +507,8 @@ describe('aiui:docs-load records', () => {
     afterEach(() => { logged().length = 0 })
 
     test('each attempt is recorded with its outcome and reason', async () => {
-        const { impl } = modeFetch(['hang', new Error('reset'), new Response('# Page')])
+        // Attempt 2 fails on both pools (a network error tries the other pool at once).
+        const { impl } = modeFetch(['hang', new Error('reset'), new Error('reset'), new Response('# Page')])
         await fetchWithRetry('/docs/a.source.md', { ...fast, fetchImpl: impl })
         const rows = logged().map((e) => [e.v, e.type, e.url, e.kind, e.attempt, e.of, e.outcome, e.reason ?? null, e.status ?? null])
         assert.deepEqual(rows, [
@@ -467,7 +531,7 @@ describe('aiui:docs-load records', () => {
     })
 
     test('a navigation hears about retries (to say so instead of a silent skeleton)', async () => {
-        globalThis.fetch = modeFetch([new Error('reset'), new Response('# A')]).impl
+        globalThis.fetch = modeFetch([new Error('reset'), new Error('reset'), new Response('# A')]).impl
         const heard: number[][] = []
         const result = await loadDoc('/docs/a.source.md', new AbortController().signal, (attempt, of) => heard.push([attempt, of]))
         assert.equal(result.text, '# A')

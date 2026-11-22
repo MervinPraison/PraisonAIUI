@@ -7,13 +7,14 @@ that with ``netfault.mjs`` in front of a running pre-QA server:
 
 1. open a docs page and click to a second one (the connection is alive),
 2. stay idle until the front freezes the connection,
-3. click to a third page and time how long its content takes.
+3. move the pointer (the visitor is back), and RETURN_MS later click to a
+   third page that was not prefetched; time how long its content takes.
 
 A docs client that retries on the same dead connection shows the error panel
 ("Couldn't load this page") or takes as long as the browser needs to notice;
 one that moves to a fresh connection shows the page within a few seconds.
 
-    python -m preqa netfault --upstream http://127.0.0.1:8700 [--freeze-idle-ms 3000]
+    python -m preqa netfault --upstream http://127.0.0.1:8700 [--freeze-idle-ms 12000]
 
 Needs ``node`` and ``openssl`` on PATH. Exit 0 = within budget, 1 = breach.
 """
@@ -34,7 +35,9 @@ NAV = "aside a[data-nav-path]"
 READY = "#main-content h1"
 SKELETON = ".aiui-docs-skeleton"
 ERROR_TEXT = "Couldn't load this page"
-BUDGET_MS = 6000
+BUDGET_MS = 2500
+# The visitor moves the pointer this long before the click (reading the sidebar).
+RETURN_MS = 800
 TIMEOUT_MS = 40000
 
 # Resolves to {ms, outcome} once the heading changed from `from` and no skeleton
@@ -112,7 +115,7 @@ def _unfetched(page, links: list[str]) -> list[str]:
     return [h for h in links if h.rstrip("/") + ".source.md" not in got]
 
 
-def run(upstream: str, freeze_ms: int = 3000, budget_ms: int = BUDGET_MS, headless: bool = True) -> dict:
+def run(upstream: str, freeze_ms: int = 12000, budget_ms: int = BUDGET_MS, headless: bool = True) -> dict:
     from playwright.sync_api import sync_playwright
 
     front = Front(upstream, freeze_ms)
@@ -144,6 +147,9 @@ def run(upstream: str, freeze_ms: int = 3000, budget_ms: int = BUDGET_MS, headle
             frozen = front.count("freeze")
             page.wait_for_timeout(freeze_ms + 2000)  # idle: the front freezes the connection
             rec["frozen_while_idle"] = front.count("freeze") - frozen
+            page.mouse.move(200, 300)  # the visitor is back
+            page.mouse.move(220, 320)
+            page.wait_for_timeout(RETURN_MS)
             rec["after_idle"] = _open(page, todo[0])
             rec["next"] = _open(page, todo[-1])
             rec["docs_load"] = page.evaluate("() => (window.__aiuiDocsLoad || []).slice(-12)")
@@ -162,7 +168,7 @@ def main(argv=None) -> int:
 
     p = argparse.ArgumentParser(prog="preqa netfault", description=__doc__.splitlines()[0])
     p.add_argument("--upstream", default="http://127.0.0.1:8700", help="a running pre-QA server")
-    p.add_argument("--freeze-idle-ms", type=int, default=3000)
+    p.add_argument("--freeze-idle-ms", type=int, default=12000)
     p.add_argument("--budget-ms", type=int, default=BUDGET_MS)
     p.add_argument("--out", help="also write the record to this JSON file")
     a = p.parse_args(argv)
