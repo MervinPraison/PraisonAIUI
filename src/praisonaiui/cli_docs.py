@@ -1,4 +1,4 @@
-"""``aiui docs`` commands for docs sites: ``check-links``, ``feedback``.
+"""``aiui docs`` commands for docs sites: ``check-links``, ``feedback``, ``telemetry``.
 
 The checker is ``compiler/links.py``; ``aiui validate`` and ``aiui build
 --strict`` run it too (``print_broken_links``).
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from praisonaiui.compiler.links import LinkReport
 
-docs_app = typer.Typer(name="docs", help="Docs site tools (check-links, feedback)", add_completion=False)
+docs_app = typer.Typer(name="docs", help="Docs site tools (check-links, feedback, telemetry)", add_completion=False)
 
 
 def print_broken_links(report: LinkReport, console: Console, *, style: str = "red") -> None:
@@ -95,5 +95,52 @@ def feedback_command(
     if output:
         output.write_text(text, encoding="utf-8")
         console.print(f"Wrote {len(records)} votes to {output}")
+    else:
+        typer.echo(text, nl=False)
+
+
+@docs_app.command("telemetry")
+def telemetry_command(
+    fmt: str = typer.Option("table", "--format", "-f", help="table (per file), csv or json (every record)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write to this file instead of the terminal"),
+    site: Optional[str] = typer.Option(None, "--site", help="Only the records of this site (its site.title)"),
+    outcome: Optional[str] = typer.Option(
+        None, "--outcome", help="Only this outcome (ok, retry, failed, ...), or 'problems' (all but ok and inline)"
+    ),
+    since: Optional[str] = typer.Option(None, "--since", help="Only records since 30m, 24h, 7d or an ISO time"),
+) -> None:
+    """The page-load records aiui serve / aiui dev stored (content.docs.telemetry: true): per file, or every record."""
+    from rich.table import Table
+
+    from praisonaiui import docs_telemetry as dt
+    from praisonaiui.cli import console
+
+    if fmt not in ("table", "csv", "json"):
+        raise typer.BadParameter("--format is table, csv or json")
+    if outcome is not None and outcome not in (*dt.OUTCOMES, "problems"):
+        raise typer.BadParameter(f"--outcome is one of {', '.join(dt.OUTCOMES)} or problems")
+    try:
+        when = dt.parse_since(since) if since else None
+    except ValueError:
+        raise typer.BadParameter("--since is 30m, 24h, 7d or an ISO date/time") from None
+    records = dt.load(site=site, outcome=outcome, since=when)
+    if fmt == "table":
+        if not records:
+            console.print(f"No load records yet ({dt.store_path()})")
+            return
+        table = Table(title=f"{len(records)} load record{'' if len(records) == 1 else 's'}")
+        for col in ("File", "Records", "OK", "Problems", "Reasons", "p50 ms", "p95 ms"):
+            table.add_column(col, justify="left" if col in ("File", "Reasons") else "right")
+        for r in dt.by_url(records):
+            reasons = ", ".join(f"{k} {v}" for k, v in sorted(r["reasons"].items(), key=lambda kv: -kv[1]))
+            table.add_row(escape(r["url"]), str(r["records"]), str(r["ok"]), str(r["problems"]), escape(reasons),
+                          "" if r["p50_ms"] is None else str(r["p50_ms"]),
+                          "" if r["p95_ms"] is None else str(r["p95_ms"]))
+        console.print(table)
+        return
+    text = dt.to_csv(records) if fmt == "csv" else json.dumps(records, indent=2, ensure_ascii=False) + "\n"
+    if output:
+        output.write_text(text, encoding="utf-8")
+        console.print(f"Wrote {len(records)} records to {output}")
     else:
         typer.echo(text, nl=False)

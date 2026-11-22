@@ -550,6 +550,12 @@ class Compiler:
                 **({"feedback": fb} if fb is False or fb else {}),
             }
 
+        # `content.docs.telemetry`: opt-in page-load telemetry (docs_telemetry.py, docs/fieldTelemetry.ts).
+        # `true` is {}: only aiui serve, which names its endpoint in the ui-config.json it serves, gets records.
+        if docs and docs.telemetry:
+            tel = docs.telemetry if not isinstance(docs.telemetry, bool) else None
+            result["telemetry"] = tel.model_dump(by_alias=True, exclude_none=True) if tel else {}
+
         # `content.docs.mcp: false`: aiui serve answers no MCP (docs_mcp.py)
         if docs and not docs.mcp:
             result["mcp"] = False
@@ -1112,7 +1118,8 @@ class Compiler:
             for directive, hosts in csp.PLUGINS.get(name, {}).items():
                 add(directive, *hosts)
         docs = self.config.content.docs if self.config.content else None
-        endpoints = [getattr(docs.feedback, "endpoint", None), getattr(docs.assistant, "endpoint", None)] if docs else []
+        endpoints = [getattr(docs.feedback, "endpoint", None), getattr(docs.assistant, "endpoint", None),
+                     getattr(docs.telemetry, "endpoint", None)] if docs else []
         add("connect-src", *(site_assets.origin(e) for e in endpoints if isinstance(e, str) and site_assets.is_url(e)))
         primary = self.config.navbar.primary if self.config.navbar else None
         if primary and primary.type == "github":  # the star count (docs/githubStars.ts)

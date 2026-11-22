@@ -503,6 +503,31 @@ class DocsAuthConfig(BaseModel):
         return shared + [(n, u.password[4:], u.groups) for n, u in self.users.items() if isinstance(u, DocsUserConfig)]
 
 
+class TelemetryConfig(BaseModel):
+    """Opt-in field telemetry of docs page loads (``aiui:docs-load`` records): the ones that went
+    wrong and a sampled share of good timings, sent with ``navigator.sendBeacon`` when the page is
+    hidden. No IP address, user id or query string is kept (docs/features/writing-docs.md#load-telemetry)."""
+
+    endpoint: Optional[str] = Field(
+        default=None,
+        description="Where records are POSTed (an https:// URL or a /path); unset: the aiui serve / "
+        "aiui dev endpoint, and a static host sends nothing",
+    )
+    sample_rate: float = Field(
+        default=0.1, ge=0, le=1, alias="sampleRate",
+        description="Share of successful loads also sent, for timings (0-1); problems are always sent",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("endpoint")
+    @classmethod
+    def _endpoint_url(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str) and not re.match(r"^(https?://\S+|/\S*)$", v):
+            raise ValueError("endpoint must be an http(s) URL or a path starting with /")
+        return v
+
+
 class ContentSourceConfig(BaseModel):
     """Configuration for a single content source (docs, blog, etc.)."""
 
@@ -516,6 +541,11 @@ class ContentSourceConfig(BaseModel):
     edit_link: Optional[EditLinkConfig] = Field(default=None, alias="editLink")
     last_updated: bool = Field(default=False, alias="lastUpdated")
     feedback: Union[FeedbackConfig, bool, None] = None
+    telemetry: Union[TelemetryConfig, bool] = Field(
+        default=False,
+        description="Send page-load problems and sampled timings home: true for the aiui serve endpoint "
+        "(aiui docs telemetry lists them), or {endpoint, sampleRate}; off by default",
+    )
     related: Union[bool, int] = Field(
         default=True,
         description="Related pages under each docs page: the number shown (default 3, at most 10), "
