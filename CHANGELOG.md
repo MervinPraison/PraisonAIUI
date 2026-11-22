@@ -714,6 +714,13 @@
 
 ### Fixed
 
+- **Optional docs requests never delay the page's `load` event.** The
+  previous / next page prefetch, hover and focus prefetch, the GitHub star
+  count and the telemetry chunk start after `load`, at idle. A docs request
+  waiting when the browser comes back online or the tab wakes up is replaced
+  by a fresh one at once (`aiui:docs-load` reason `network-change`) instead of
+  waiting out its time limit on a dead connection.
+
 - **A docs page no longer waits behind another tab's stuck request.** Chrome
   lets one request per URL fill its HTTP cache entry at a time, so a stuck
   request for a page's Markdown in another tab held every attempt in this

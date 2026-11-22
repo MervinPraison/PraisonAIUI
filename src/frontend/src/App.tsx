@@ -25,6 +25,7 @@ import { useImageZoom } from './docs/imageZoom'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { fetchWithRetry, inlinedManifest, prefetchInitialDoc } from './docs/docLoader'
+import { afterLoad } from './docs/afterLoad'
 import { appPathname, stripBase, withBase } from './lib/url'
 import { AskSelection } from './docs/AskSelection'
 import { DocsErrorBoundary, OptionalPart } from './docs/PartBoundary'
@@ -393,7 +394,8 @@ export default function App() {
         ])
         setConfig(configData)
         // Opt-in load telemetry: its own chunk, fetched only when the site turned it on.
-        if (configData.telemetry) void import('./docs/fieldTelemetry').then((m) => m.startFieldTelemetry(configData.telemetry, configData.docsTelemetry?.url, appPathname), () => {})
+        // Opt-in telemetry: its chunk loads after `load` (records made before are kept in window.__aiuiDocsLoad and sent too).
+        if (configData.telemetry) afterLoad(() => void import('./docs/fieldTelemetry').then((m) => m.startFieldTelemetry(configData.telemetry, configData.docsTelemetry?.url, appPathname), () => {}))
         setNav(navData)
         setRoutes(routesData)
 
