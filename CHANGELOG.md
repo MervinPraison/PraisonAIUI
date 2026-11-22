@@ -682,6 +682,10 @@
 
 ### Fixed
 
+- **Docs pages without code no longer download the code font.** The header's
+  `⌘K` search hint was drawn in the code face, so every page fetched it
+  (JetBrains Mono, 40 KB, in the Paper look; Geist Mono, 23 KB, otherwise). It
+  now uses the UI face, as the `Kbd` primitive does.
 - **Fewer requests on a first docs visit.** The docs App's icons used to come
   as one tiny file each when the app shell shared them (chevrons, check, copy,
   external link, play, sparkles): they are now part of the docs App's own

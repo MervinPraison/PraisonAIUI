@@ -59,6 +59,27 @@ test('the docs site draws in self-hosted Geist (latin woff2, same origin)', asyn
   }
 })
 
+test('the code face downloads only on pages that show code', async ({ page }) => {
+  const fonts: string[] = []
+  page.on('request', (r) => {
+    if (r.resourceType() === 'font') fonts.push(new URL(r.url()).pathname)
+  })
+  const mono = () => fonts.filter((url) => /\/assets\/(geist-mono|jetbrains-mono)-/.test(url))
+  // No code on the page: the header's ⌘K hint is drawn in the UI face, not the code face.
+  await page.goto('/docs/guide/second')
+  await expect(page.getByRole('heading', { name: 'Second page', level: 1 })).toBeVisible()
+  await expect(page.locator('.aiui-docs-kbd').first()).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
+  await page.waitForLoadState('networkidle')
+  expect(fonts.length).toBeGreaterThan(0)
+  expect(mono()).toEqual([])
+  // Code on the page: the code face loads.
+  await page.goto('/docs/markdown')
+  await expect(page.locator('#main-content [data-streamdown="inline-code"]').first()).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
+  await expect.poll(() => mono().length).toBeGreaterThan(0)
+})
+
 test('sidebar, section, frontmatter, relative links and previous / next', async ({ page }) => {
   const errors = collectPageErrors(page)
   await page.goto('/docs/guide/first')
