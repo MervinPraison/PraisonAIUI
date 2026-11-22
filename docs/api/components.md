@@ -119,6 +119,7 @@ and label are that string.
 | `image` | URL, or `{"src", "alt"}` | A small rounded thumbnail (`format: "wide"` for 16:9); `alt` defaults to the column label |
 | `progress` | 0..1 | A bar and its percent |
 | `date` | ISO text, or epoch seconds or ms | `Nov 22, 2026` in UTC; `format: "datetime"` adds the time, `"iso"` gives `2026-11-22`. Sorts by time |
+| `sparkline` | a list of numbers | A small trend line (no axes); sorts by the last point |
 
 A header click sorts ascending, descending, then back to the server's order:
 stable, numeric-aware (`1,234`, `1.2k`, `12%`, `2.5x`), empty cells last;

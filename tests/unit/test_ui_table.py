@@ -92,3 +92,8 @@ def test_date_column_type():
     assert t["columns"][0]["type"] == "date" and t["rows"] == [["2026-11-22"]]
     with pytest.raises(ValueError):
         table(columns=[{"key": "x", "type": "datetime"}], rows=[])
+
+
+def test_sparkline_column_type():
+    t = table(columns=[{"key": "trend", "type": "sparkline"}], rows=[{"trend": [1, 3, 2]}])
+    assert t["columns"][0]["type"] == "sparkline" and t["rows"] == [[[1, 3, 2]]]

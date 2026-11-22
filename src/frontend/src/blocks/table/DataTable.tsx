@@ -18,13 +18,14 @@ import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from '../BlockRenderer'
 import { useInFrame } from '../context'
+import { Sparkline, sparkValues } from '../chart/spark'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from '../normalize'
 import { cellsOf, cellText, filterIndexes, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns, toneClass, typeOf, type Column, type SortDir } from './model'
 
 const AUTO: Column = { key: '', label: '', type: 'auto', format: '', tones: {}, align: 'left', sortable: false }
 const colOf = (cols: readonly Column[], i: number): Column => cols[i] ?? AUTO
 const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const
-const NOWRAP = new Set(['number', 'date', 'badge', 'progress', 'image'])
+const NOWRAP = new Set(['number', 'date', 'badge', 'progress', 'image', 'sparkline'])
 const HEAD = 'sticky top-0 z-10 h-9 border-b border-border bg-background px-3 text-xs font-medium whitespace-nowrap text-muted-foreground'
 
 /** One cell's content by its column type. */
@@ -60,6 +61,10 @@ export function Cell({ value, col }: { value: unknown; col: Column }): ReactNode
     const src = safeUrl(rec ? rec.src : value, 'image')
     const size = col.format === 'wide' ? 'h-9 w-16' : 'size-9'
     return src ? <img src={src} alt={str(rec?.alt, col.label)} loading="lazy" decoding="async" className={cn('rounded-md bg-muted object-cover', size)} /> : null
+  }
+  if (type === 'sparkline') {
+    const values = sparkValues(value)
+    return values.length ? <span className="block w-24"><Sparkline values={values} height={20} fill={false} label={`${col.label}: ${cellText(value, col)}`} /></span> : null
   }
   if (type === 'progress') {
     const n = Math.min(1, Math.max(0, num(rec ? rec.value : value, 0)))

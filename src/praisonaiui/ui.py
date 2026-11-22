@@ -211,7 +211,7 @@ def chart(
 
 
 TABLE_COLUMN_TYPES = frozenset(
-    {"auto", "text", "number", "link", "badge", "tag", "image", "progress", "date"}
+    {"auto", "text", "number", "link", "badge", "tag", "image", "progress", "date", "sparkline"}
 )
 
 

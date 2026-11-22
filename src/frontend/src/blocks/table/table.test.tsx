@@ -97,6 +97,13 @@ test('TableBlock: search box, 50-row pages for 1,100 rows, row links', () => {
   assert.match(out, /<a href="\/c\/0"[^>]*>Channel 0<\/a>/)
 })
 
+test('sparkline columns: text is first to last point, sort by the last point', () => {
+  const [spark] = toColumns([{ key: 't', type: 'sparkline' }], [])
+  assert.equal(cellText([3, 5, 9], spark), '3 to 9')
+  assert.equal(cellText([], spark), '')
+  assert.equal(sortValue([3, 5, 9], spark), 9)
+})
+
 test('date columns: UTC days, seconds or ms, datetime and iso; sort by time', () => {
   cases(formatDate, [
     [['2026-11-22'], 'Nov 22, 2026'], [['2026-11-22', 'iso'], '2026-11-22'], [[Date.UTC(2026, 0, 2)], 'Jan 2, 2026'],

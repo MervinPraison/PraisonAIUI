@@ -5,7 +5,7 @@
  */
 import { arr, display, isRecord, num, str } from '../normalize'
 
-export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress' | 'date'
+export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress' | 'date' | 'sparkline'
 export type Align = 'left' | 'center' | 'right'
 
 export interface Column {
@@ -24,7 +24,7 @@ export interface Column {
   sortable: boolean
 }
 
-const TYPES = new Set<ColumnType>(['auto', 'text', 'number', 'link', 'badge', 'tag', 'image', 'progress', 'date'])
+const TYPES = new Set<ColumnType>(['auto', 'text', 'number', 'link', 'badge', 'tag', 'image', 'progress', 'date', 'sparkline'])
 const ALIGNS = new Set<Align>(['left', 'center', 'right'])
 
 function alignOf(v: unknown, type: ColumnType): Align {
@@ -85,6 +85,8 @@ export function typeOf(col: Column, v: unknown): ColumnType {
 /** The text a cell shows (also what search matches). */
 export function cellText(v: unknown, col: Column): string {
   if (v === null || v === undefined) return ''
+  // A trend reads as its first and last points.
+  if (col.type === 'sparkline') return Array.isArray(v) && v.length ? `${display(v[0])} to ${display(v[v.length - 1])}` : ''
   if (Array.isArray(v)) return v.map((x) => cellText(x, col)).join(', ')
   if (isRecord(v)) {
     const t = v.text ?? v.label ?? v.alt ?? v.value ?? v.href
@@ -162,7 +164,7 @@ const SCALE: Record<string, number> = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }
 
 export function sortValue(v: unknown, col: Column): SortValue {
   if (v === null || v === undefined || v === '') return null
-  if (Array.isArray(v)) return v.length ? sortValue(v[0], col) : null
+  if (Array.isArray(v)) return v.length ? sortValue(v[col.type === 'sparkline' ? v.length - 1 : 0], col) : null
   if (isRecord(v)) return sortValue(v.value ?? v.text ?? v.label ?? v.alt ?? null, col)
   if (col.type === 'date' && toTime(v) !== null) return toTime(v)
   if (typeof v === 'number') return Number.isFinite(v) ? v : null
