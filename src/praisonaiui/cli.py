@@ -631,7 +631,9 @@ def build(
         "GitHub Pages project site, '/' for the root. Default: site.basePath, else "
         "the path of seo.siteUrl",
     ),
-    strict: bool = typer.Option(False, "--strict", help="Fail (exit 1) on broken links in the docs"),
+    strict: bool = typer.Option(
+        False, "--strict", help="Fail (exit 1) on broken links, or on a page whose inlined Markdown the app would not use"
+    ),
 ) -> None:
     """Build manifests from configuration."""
     from praisonaiui.compiler import Compiler
@@ -670,6 +672,12 @@ def build(
             console.print(f"[yellow]Warning:[/yellow] {escape(warning)}")
         for note in result.notes:
             console.print(f"[dim]Note:[/dim] {escape(note)}")
+        if strict and result.inline_mismatches:
+            console.print(
+                f"[red]Error:[/red] {len(result.inline_mismatches)} page(s) inline Markdown the docs app "
+                "does not use; build stopped (--strict)"
+            )
+            raise typer.Exit(code=1)
     else:
         console.print(f"[red]Error:[/red] Build failed: {result.error}")
         raise typer.Exit(code=3)

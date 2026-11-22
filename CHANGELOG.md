@@ -690,6 +690,16 @@
   as one tiny file each when the app shell shared them (chevrons, check, copy,
   external link, play, sparkles): they are now part of the docs App's own
   chunk, 8 fewer requests per page (43 to 35 on this site's installation page).
+- **A docs page no longer waits behind another tab's stuck request.** Chrome
+  lets one request per URL fill its HTTP cache entry at a time, so a stuck
+  request for a page's Markdown in another tab held every attempt in this
+  one (two 5 s timeouts, then the page). Page Markdown and every retry are now
+  requested `cache: 'no-store'`; the first attempt has 3 s (was 5 s), the
+  skeleton says "Trying again (2 of 3)" from the second, and each outcome is
+  an `aiui:docs-load` record in `window.__aiuiDocsLoad`.
+  `aiui build --strict` fails when a page's inlined Markdown is keyed by
+  another URL than the app requests. See
+  [GitHub Pages → How pages load](docs/getting-started/github-pages.md#how-pages-load).
 - **Docs pages load a third less markdown renderer.** The HTML parser
   (rehype-raw and parse5, about 48 kB gzip) left the renderer chunk (147 kB to
   98 kB) and loads only for pages whose markdown has HTML or docs components;

@@ -74,6 +74,8 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
     const [loadedPath, setLoadedPath] = useState('')
     const [loadingContent, setLoadingContent] = useState(false)
     const [loadError, setLoadError] = useState(false)
+    // The request is past its first attempt: the skeleton says so (docLoader retries).
+    const [retrying, setRetrying] = useState<{ attempt: number; of: number } | null>(null)
     const [retryCount, setRetryCount] = useState(0)
     const articleRef = useRef<HTMLElement>(null)
     const loadedEventPath = useRef<string | null>(null)
@@ -97,6 +99,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         // The site root shows the docs home page (docs/index.md) when the nav has one.
         const sourcePath = docSourcePath(urlPath, selectedItem?.path)
         setLoadError(false)
+        setRetrying(null)
         if (!sourcePath) {
             setLoadingContent(false)
             setLoadedPath('')
@@ -143,7 +146,10 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
         setLoadingContent(true)
         loadedEventPath.current = null
 
-        loadDoc(mdUrl, controller.signal).then(async (result) => {
+        const onRetry = (attempt: number, of: number) => {
+            if (!controller.signal.aborted) setRetrying({ attempt, of })
+        }
+        loadDoc(mdUrl, controller.signal, onRetry).then(async (result) => {
             if (controller.signal.aborted) return
             if (!result.ok) return show(result)
             // Renderer + Shiki core + KaTeX before first paint (no raw-$$ or
@@ -244,6 +250,11 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
                             <Skeleton className="h-4 w-full" />
                             <Skeleton className="h-4 w-11/12" />
                             <Skeleton className="h-4 w-4/5" />
+                            {retrying && (
+                                <p className="aiui-docs-notice" aria-live="polite">
+                                    Taking longer than usual. Trying again ({retrying.attempt} of {retrying.of})…
+                                </p>
+                            )}
                         </div>
                     )}
                     {contentReady && selectedItem.deprecated && (

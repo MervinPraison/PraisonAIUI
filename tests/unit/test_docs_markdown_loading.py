@@ -37,14 +37,14 @@ def test_fetch_retry_leaves_callers_with_a_signal_alone():
 
 def test_app_loads_manifests_through_the_bounded_loader():
     app = (ROOT / "src/frontend/src/App.tsx").read_text(encoding="utf-8")
-    assert "fetchWithRetry(url)" in app
+    assert "fetchWithRetry(url, { kind: 'manifest' })" in app
     assert "fetch('/ui-config.json')" not in app
     assert "prefetchInitialDoc()" in app
 
 
 def test_docs_content_loads_through_the_bounded_loader():
     content = CONTENT.read_text(encoding="utf-8")
-    assert "loadDoc(mdUrl, controller.signal)" in content
+    assert "loadDoc(mdUrl, controller.signal, onRetry)" in content
     assert "fetch(mdUrl" not in content  # no unbounded fetch of its own
     loader = LOADER.read_text(encoding="utf-8")
-    assert "ATTEMPT_TIMEOUTS_MS = [5_000, 5_000, 10_000]" in loader
+    assert "ATTEMPT_TIMEOUTS_MS = [3_000, 5_000, 8_000]" in loader
