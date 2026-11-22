@@ -1,7 +1,8 @@
 // The chart block's data model (blocks/chart/model.ts): formats, inference, bins.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { chartKind, formatValue, histogram, isBelowReference, MAX_ROWS, references, seriesColor, toChartSpec, truncate } from '@/blocks/chart/model'
+import { cellKey, chartKind, facetSpecs, formatValue, heatColor, heatGrid, heatT, histogram, isBelowReference, MAX_FACETS, MAX_ROWS, references, seriesColor, sharedDomain, toChartSpec, truncate } from '@/blocks/chart/model'
+import { benchmarkText, MAX_SPARK_POINTS, sparkPath, sparkValues } from '@/blocks/chart/spark'
 
 test('formats: number, compact, percent, multiplier, duration', () => {
   const cases: [unknown, Parameters<typeof formatValue>[1], string][] = [
@@ -90,4 +91,54 @@ test('colour by reference, palette and truncation', () => {
   assert.equal(seriesColor(4), 'var(--chart-5)')
   assert.match(seriesColor(5), /^color-mix\(in oklab, var\(--chart-1\)/)
   assert.deepEqual([truncate('Wednesday', 5), truncate('Mon', 5)], ['Wedn…', 'Mon'])
+})
+
+test('heatmap: keys, grid order, sums, theme scale', () => {
+  const spec = toChartSpec({ chart_type: 'heatmap', data: [
+    { d: 'Mon', h: 9, n: 2 }, { d: 'Tue', h: 9, n: '4' }, { d: 'Mon', h: 10, n: 1 }, { d: 'Mon', h: 9, n: 1 }, { d: 'Wed', h: 11 },
+  ], x: 'h', y: 'd', value: 'n' })
+  assert.deepEqual([spec.x, spec.row, spec.series.map((s) => s.key), spec.legend, spec.references], ['h', 'd', ['n'], true, []])
+  const g = heatGrid(spec)
+  assert.deepEqual([g.cols, g.rows, g.min, g.max], [['9', '10', '11'], ['Mon', 'Tue', 'Wed'], 1, 4])
+  assert.equal(g.cells.get(cellKey('Mon', '9')), 3, 'a repeated cell sums')
+  assert.equal(g.cells.has(cellKey('Wed', '11')), false, 'no value: an empty cell')
+  assert.equal(toChartSpec({ chart_type: 'heatmap', data: [{ x: 1, y: 'a', value: 2 }] }).row, 'y', 'default keys x, y, value')
+  assert.match(heatColor(0), /^color-mix\(in oklab, var\(--chart-1\) 12%, var\(--muted\)\)$/)
+  assert.equal(heatColor(1), 'color-mix(in oklab, var(--chart-1) 100%, var(--muted))')
+  assert.deepEqual([heatT(1, g), heatT(4, g)], [0, 1])
+})
+
+test('sparkline kind: one series, no legend, small height; plain numbers', () => {
+  const s = toChartSpec({ chart_type: 'sparkline', data: [{ value: 1 }, { value: 3 }] })
+  assert.deepEqual([s.series.map((x) => x.key), s.legend, s.height], [['value'], false, 48])
+  assert.equal(chartKind('spark'), 'sparkline')
+})
+
+test('facets: one spec per value, shared domain, facet key never plotted', () => {
+  const data = [
+    { platform: 'A', month: 'Jan', views: 10 }, { platform: 'B', month: 'Jan', views: 40 }, { platform: 'A', month: 'Feb', views: 20 },
+  ]
+  const f = facetSpecs({ chart_type: 'bar', data, facet: 'platform' })
+  assert.deepEqual(f.map((x) => [x.label, x.spec.rows.length, x.spec.x, x.spec.height]), [['A', 2, 'month', 160], ['B', 1, 'month', 160]])
+  assert.deepEqual(f.map((x) => x.spec.yDomain), [[0, 40], [0, 40]], 'bars share a zero-based domain')
+  assert.deepEqual(facetSpecs({ data }), [], 'no facet key: no panels')
+  assert.deepEqual(facetSpecs({ data, facet: 'platform', y_domain: [0, 100] })[1].spec.yDomain, [0, 100])
+  assert.deepEqual(sharedDomain([toChartSpec({ chart_type: 'line', data: [{ m: 'a', v: 5 }, { m: 'b', v: 7 }] })]), [5, 7])
+  const many = Array.from({ length: MAX_FACETS + 5 }, (_, i) => ({ k: String(i), m: 'a', v: i }))
+  assert.equal(facetSpecs({ data: many, facet: 'k' }).length, MAX_FACETS)
+})
+
+test('sparkline path and benchmark text', () => {
+  assert.equal(sparkPath([0, 10], 100, 20), 'M0 18L100 2')
+  assert.equal(sparkPath([5], 100, 20), 'M0 10L100 10', 'one point: a flat line')
+  assert.equal(sparkPath([], 100, 20), '')
+  assert.deepEqual(sparkValues([1, '2', 'x', null, Infinity]), [1, 2])
+  assert.equal(sparkValues(Array.from({ length: MAX_SPARK_POINTS + 9 }, (_, i) => i)).length, MAX_SPARK_POINTS)
+  assert.deepEqual(benchmarkText(0.024, 0.41, 'median'), { text: '17x below median', sign: -1 })
+  assert.deepEqual(benchmarkText(1.2, 0.4, 'median'), { text: '3x above median', sign: 1 })
+  assert.deepEqual(benchmarkText(0.5, 0.4), { text: '25% above benchmark', sign: 1 })
+  assert.deepEqual(benchmarkText(0.25, 0.1), { text: '2.5x above benchmark', sign: 1 })
+  assert.deepEqual(benchmarkText('0.41', 0.41, 'median'), { text: 'at median', sign: 0 })
+  assert.deepEqual(benchmarkText('n/a', 0.41, 'median'), { text: 'median 0.41', sign: 0 })
+  assert.equal(benchmarkText(1, 'x'), null)
 })

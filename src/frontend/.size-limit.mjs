@@ -519,5 +519,6 @@ export default [
   // 11,598,491 B (+13,704 B, exactly the overage, 2026-11-22): native media, navigation and overlay blocks (blocks/mediaBlocks.tsx), card_grid, gallery links.
   // 11,608,392 B (+9,901 B, exactly the overage, 2026-11-22): the filter inputs' lazy chunks (blocks/inputs).
   // 11,608,459 B (+67 B, exactly the overage, 2026-11-22): filter bar keeps focus (remount only after a chip or Reset).
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11608459 B', brotli: false },
+  // 11,616,693 B (+8,234 B, exactly the overage, 2026-11-22): heatmap and sparkline chart kinds, small multiples, metric sparkline and benchmark.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11616693 B', brotli: false },
 ]

@@ -55,6 +55,7 @@ import { LazySection, StatusBlock } from './pageBlocks'
 import { LinkBlock, mediaBlocks } from './mediaBlocks'
 import { isSearchable, optionList } from './formState'
 import { useFormSubmit } from './useFormSubmit'
+import { benchmarkText, Sparkline, sparkValues } from './chart/spark'
 
 export type CoreBlockProps = { node: BlockNode; page?: ShellPage }
 type CoreBlock = ComponentType<CoreBlockProps>
@@ -189,11 +190,21 @@ function MetricBody({ p }: { p: Record<string, unknown> }) {
   const hasDelta = delta !== undefined && delta !== null && delta !== ''
   // A neutral note under the value ("median", "last 30 days"), never coloured.
   const caption = str(p.caption ?? p.help)
+  const spark = sparkValues(p.sparkline)
+  // "17x below median": the value against a benchmark, coloured like a delta.
+  const bench = p.benchmark == null ? null : benchmarkText(p.value, p.benchmark, str(p.benchmark_label) || 'benchmark')
   return (
     <>
       <div className={cn(META, 'truncate')}>{str(p.label ?? p.title)}</div>
       <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{display(p.value)}</div>
       {hasDelta && <div className={cn('text-xs font-medium tabular-nums', deltaTone(delta, p.delta_color))}>{display(delta)}</div>}
+      {bench && (
+        <div className={cn('text-xs font-medium tabular-nums', deltaTone(bench.sign, p.delta_color))} data-slot="metric-benchmark">
+          {bench.text}
+          {bench.sign !== 0 && <span className="font-normal text-muted-foreground">{` (${display(p.benchmark)})`}</span>}
+        </div>
+      )}
+      {spark.length > 0 && <div className="mt-1"><Sparkline values={spark} height={28} label={`${str(p.label ?? p.title) || 'Value'} trend`} /></div>}
       {caption && <div className={cn(META, 'break-words')} data-slot="metric-caption">{caption}</div>}
     </>
   )
