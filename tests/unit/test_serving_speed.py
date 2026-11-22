@@ -67,13 +67,13 @@ def _hashed_chunk() -> Path:
 
 
 def _run_app(tmp_path, monkeypatch, *extra: str):
-    import uvicorn
+    from praisonaiui import cli
 
     app_file = tmp_path / "proj" / "app.py"
     app_file.parent.mkdir(exist_ok=True)
     app_file.write_text(APP)
     calls = []
-    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: calls.append(target))
+    monkeypatch.setattr(cli, "_run_uvicorn", lambda target, **kw: calls.append(target))
     result = CliRunner().invoke(
         __import__("praisonaiui.cli", fromlist=["app"]).app,
         ["run", str(app_file), "--datastore", "memory", "--port", "8204", *extra],
