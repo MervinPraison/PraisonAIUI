@@ -34,6 +34,8 @@ export type DocsLoadReason =
     | 'network-error'
     /** The server answered 5xx. */
     | 'http-5xx'
+    /** The network came back or changed, or the tab woke up, while the attempt waited: a fresh request goes out at once (networkChange.ts). */
+    | 'network-change'
 
 export interface DocsLoadEvent {
     v: 1

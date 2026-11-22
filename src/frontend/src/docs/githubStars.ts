@@ -1,6 +1,7 @@
 // The star count on a `navbar.primary` of `type: github`: one public API call per repo per visitor
 // every six hours (answer or failure kept in localStorage); until known, the button shows no count.
 import { useEffect, useState } from 'react'
+import { afterLoad } from './afterLoad'
 
 const KEY = 'aiui-github-stars'
 const TTL_MS = 6 * 60 * 60 * 1000
@@ -71,8 +72,12 @@ export function useGithubStars(href: string | undefined): number | null {
     useEffect(() => {
         if (!repo) return
         let live = true
-        githubStars(repo, localStore()).then((n) => live && setStars(n))
-        return () => void (live = false)
+        // A cross-origin call: after `load` (afterLoad.ts), so the page's load never waits on GitHub.
+        const cancel = afterLoad(() => void githubStars(repo, localStore()).then((n) => live && setStars(n)))
+        return () => {
+            live = false
+            cancel()
+        }
     }, [repo])
     return stars
 }

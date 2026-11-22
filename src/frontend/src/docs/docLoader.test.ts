@@ -3,6 +3,7 @@ import { afterEach, describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
     DocLoadError,
+    NETWORK_CHANGE_MIN_MS,
     BOOT_DATA_ID,
     INITIAL_DOC_ID,
     adoptInlinedDoc,
@@ -342,6 +343,50 @@ describe('HTTP cache lock (a peer request for the same URL)', () => {
         await loadDoc('/docs/a.source.md', new AbortController().signal)
         prefetchDoc('/docs/b.source.md')
         assert.deepEqual(modes, ['no-store', 'no-store'])
+    })
+})
+
+describe('a network change during an attempt (a dead shared connection)', () => {
+    /** A watchNetwork stub: `change()` plays a network change to whoever listens now. */
+    const network = () => {
+        const listeners = new Set<() => void>()
+        return {
+            watch: (fn: () => void) => { listeners.add(fn); return () => void listeners.delete(fn) },
+            change: () => [...listeners].forEach((fn) => fn()),
+            listening: () => listeners.size,
+        }
+    }
+    const slow = { timeouts: [10_000, 10_000, 10_000], bodyTimeoutMs: 50, backoff: () => 0 }
+
+    test('ends the waiting attempt at once and sends a fresh request, recorded as network-change', async () => {
+        logged().length = 0
+        const net = network()
+        const { impl, calls } = scriptedFetch(['hang', new Response('# Page')])
+        const started = Date.now()
+        const result = fetchWithRetry('/docs/a.source.md', { ...slow, fetchImpl: impl, watchNetwork: net.watch })
+        await new Promise((r) => setTimeout(r, NETWORK_CHANGE_MIN_MS + 50))
+        net.change()
+        assert.equal((await result).text, '# Page')
+        assert.ok(Date.now() - started < 2_000) // not the 10 s limit
+        assert.equal(calls[0].aborted, true)
+        assert.deepEqual(logged().map((e) => [e.attempt, e.outcome, e.reason ?? null]), [[1, 'retry', 'network-change'], [2, 'ok', null]])
+        assert.equal(net.listening(), 0)
+        logged().length = 0
+    })
+
+    test('an attempt that just started, or the last one, is left alone', async () => {
+        const net = network()
+        const { impl, calls } = scriptedFetch([new Error('reset'), new Error('reset'), 'hang'])
+        const opts = { timeouts: [20, 20, 800], bodyTimeoutMs: 50, backoff: () => 0, fetchImpl: impl, watchNetwork: net.watch }
+        const result = assert.rejects(fetchWithRetry('/docs/a.source.md', opts), DocLoadError)
+        await new Promise((r) => setTimeout(r, 100))
+        assert.equal(calls.length, 3)
+        assert.equal(net.listening(), 0) // the last attempt does not listen
+        net.change()
+        await new Promise((r) => setTimeout(r, 0))
+        assert.equal(calls[2].aborted, false)
+        await result
+        logged().length = 0
     })
 })
 
