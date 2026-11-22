@@ -19,6 +19,7 @@ import { autoRoute, languageAt, languageItems, languageLinks, rememberLanguage, 
 import { docSearchGroups } from './docs/docNav'
 import { applyHeadTags, mergeTags, pageUrl, robotsContent } from './docs/seoMeta'
 import { canonicalDocPath, docPathAliases } from './docs/docSource'
+import { findNavItemIgnoringCase } from './docs/navMatch'
 import { scrollToHash, useHashScroll } from './docs/hashScroll'
 import { useHeadingAnchors } from './docs/headingAnchors'
 import { useImageZoom } from './docs/imageZoom'
@@ -259,8 +260,14 @@ export default function App() {
     if (!navData.items) return null
     // Else a URL that names the page another way: by its file (`/docs/adr/0001-x`,
     // `/docs/guide/index`) or without the docs base (`/getting-started/x`).
-    for (const target of [normalizedPath, ...docPathAliases(normalizedPath)]) {
+    const targets = [normalizedPath, ...docPathAliases(normalizedPath)]
+    for (const target of targets) {
       const found = findItem(navData.items, target)
+      if (found) return found
+    }
+    // Else the same URL in the wrong letter case (`/docs/API/x`): the caller moves to the page's own URL.
+    for (const target of targets) {
+      const found = findNavItemIgnoringCase(navData.items, target)
       if (found) return found
     }
     return null
@@ -356,6 +363,12 @@ export default function App() {
 
       const found = findNavItemByPath(nav, path)
       if (found) {
+        // A link that names the page another way (case, file name): show it under its own URL.
+        const foundPath = canonicalDocPath(found.path || path)
+        if (foundPath !== path) {
+          setCurrentPath(foundPath)
+          window.history.replaceState({ path: foundPath }, '', withBase(foundPath) + window.location.search + window.location.hash)
+        }
         selectNavItem(found)
         return
       }

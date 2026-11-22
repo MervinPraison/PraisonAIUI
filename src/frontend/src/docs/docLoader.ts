@@ -32,7 +32,7 @@
  * Every outcome is recorded as an `aiui:docs-load` event (loadEvents.ts).
  */
 import { docPathToSource, normalizeDocPath } from '../pathUtils'
-import { canonicalDocPath } from './docSource'
+import { canonicalDocPath, stripHtmlSuffix } from './docSource'
 import { appPathname, stripBase, withBase } from '../lib/url'
 import { devAlarm, recordDocsLoad, type DocsLoadReason } from './loadEvents'
 
@@ -439,7 +439,8 @@ export function docHrefMarkdownUrl(href: string, pageUrl: string, base = '/docs'
         return null
     }
     if (url.origin !== new URL(pageUrl).origin) return null
-    const path = normalizeDocPath(stripBase(url.pathname))
+    // A page's .html file URL names the page (docSource.ts stripHtmlSuffix).
+    const path = normalizeDocPath(stripHtmlSuffix(stripBase(url.pathname)))
     if (path !== '/' && !path.startsWith(`${base}/`)) return null
     const last = path.split('/').pop() || ''
     if (last.includes('.') && !last.endsWith('.md')) return null // assets, images

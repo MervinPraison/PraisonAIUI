@@ -704,6 +704,13 @@
 
 ### Fixed
 
+- **Docs URLs that name a page another way show the page.** `/docs/x.html`
+  and `/docs/x/index.html` asked for `x.html.source.md` and said "not found";
+  a wrong-case URL (`/docs/API/sessions`) did too. Both now show the page and
+  move to its own URL with `replaceState`. The home page's sidebar link went
+  to `/docs/index` through the legacy nav plugin; it now goes to `/`, and that
+  plugin's `replaceState` no longer adds a history entry.
+
 - **A docs page no longer waits behind another tab's stuck request.** Chrome
   lets one request per URL fill its HTTP cache entry at a time, so a stuck
   request for a page's Markdown in another tab held every attempt in this
