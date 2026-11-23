@@ -49,7 +49,7 @@ unavailable, `GET /api/knowledge/status` says so:
   "backend": "SDKKnowledgeManager",
   "status": "degraded",
   "embedding": {"available": false, "error": "<the provider's error>"},
-  "warnings": ["Embeddings unavailable: text-embedding-3-small is not accessible. Using keyword search; new entries are kept in memory and won't persist across restarts. Set OPENAI_EMBEDDING_MODEL to a model your provider project can access."]
+  "warnings": ["Embeddings unavailable: text-embedding-3-small is not accessible. Using keyword search; new entries are kept in memory and won't persist across restarts. Allow the model in your OpenAI project's model limits, or set OPENAI_EMBEDDING_MODEL to one you can use (local: ollama/nomic-embed-text)."]
 }
 ```
 

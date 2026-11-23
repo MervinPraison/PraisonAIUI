@@ -471,7 +471,8 @@ class SDKKnowledgeManager(KnowledgeProtocol):
         return (
             f"Embeddings unavailable: {_embedding_model()} is not accessible. Using "
             "keyword search; new entries are kept in memory and won't persist across "
-            "restarts. Set OPENAI_EMBEDDING_MODEL to a model your provider project can access."
+            "restarts. Allow the model in your OpenAI project's model limits, or set "
+            "OPENAI_EMBEDDING_MODEL to one you can use (local: ollama/nomic-embed-text)."
         )
 
     def search(

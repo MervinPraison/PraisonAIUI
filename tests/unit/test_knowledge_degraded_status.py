@@ -95,6 +95,9 @@ def test_status_reports_degraded_with_a_plain_reason(client, sdk):
     (warning,) = body["warnings"]
     assert warning.startswith("Embeddings unavailable: text-embedding-3-small is not accessible")
     assert "keyword search" in warning and "won't persist" in warning
+    # Every OpenAI embedding model fails in a project that does not allow them,
+    # so the hint names the project setting and a local model, not just the env var.
+    assert "model limits" in warning and "ollama/nomic-embed-text" in warning
 
 
 def test_add_surfaces_the_failed_write(client):
