@@ -82,7 +82,7 @@ def _get_schedule_store() -> ScheduleProtocol:
         try:
             from praisonaiagents.tools.schedule_tools import set_store
 
-            set_store(_schedule_store)
+            set_store(_SdkScheduleStore(_schedule_store))
             logger.info("SDK schedule_tools wired to config.yaml store")
         except ImportError:
             logger.debug("praisonaiagents.tools.schedule_tools not available for injection")
@@ -646,9 +646,21 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         self._reload()
         return self._jobs.get(job_id)
 
-    def list(self) -> List[Dict[str, Any]]:
+    def list(
+        self, agent_id: Optional[str] = None, principal: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List jobs; ``agent_id``/``principal`` filter like the SDK store.
+
+        praisonaiagents' schedule tools pass ``principal=`` so one user's
+        jobs stay hidden from another. ``None`` returns every job.
+        """
         self._reload()
-        return list(self._jobs.values())
+        jobs = list(self._jobs.values())
+        if agent_id is not None:
+            jobs = [j for j in jobs if _getattr_or_get(j, "agent_id") == agent_id]
+        if principal is not None:
+            jobs = [j for j in jobs if _getattr_or_get(j, "principal") == principal]
+        return jobs
 
     def _reload(self) -> None:
         """Reload from persistence to pick up external changes."""
@@ -665,17 +677,23 @@ class _InMemoryScheduleStore(ScheduleProtocol):
             return True
         return False
 
-    def get_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """Look up a job by name (SDK schedule_tools compatibility)."""
+    def get_by_name(self, name: str, principal: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Look up a job by name (SDK schedule_tools compatibility).
+
+        With ``principal``, a job owned by someone else counts as not found.
+        """
         self._reload()
-        for job in self._jobs.values():
+        for job in self.list(principal=principal):
             if _getattr_or_get(job, "name", "") == name:
                 return job
         return None
 
-    def remove_by_name(self, name: str) -> bool:
+    def remove_by_name(self, name: str, principal: Optional[str] = None) -> bool:
         """Remove a job by name (SDK schedule_tools compatibility)."""
+        self._reload()
         for jid, job in list(self._jobs.items()):
+            if principal is not None and _getattr_or_get(job, "principal") != principal:
+                continue
             if _getattr_or_get(job, "name", "") == name:
                 del self._jobs[jid]
                 self._persist()
@@ -704,6 +722,65 @@ class _InMemoryScheduleStore(ScheduleProtocol):
         return None
 
 
+class _SdkScheduleStore:
+    """The config.yaml store as praisonaiagents' schedule tools see it.
+
+    The tools read attributes (``job.enabled``, ``job.schedule.kind``) and
+    the dashboard API reads dicts. This view turns stored dicts into
+    ``ScheduleJob`` objects on the way out, so both share one ``schedules``
+    section in config.yaml.
+    """
+
+    def __init__(self, store: "_InMemoryScheduleStore"):
+        self._store = store
+
+    @staticmethod
+    def _job(d):
+        if d is None or not isinstance(d, dict):
+            return d
+        from praisonaiagents.scheduler.models import ScheduleJob
+
+        return ScheduleJob.from_dict(d)
+
+    def add(self, job):
+        return self._store.add(job)
+
+    def get(self, job_id: str):
+        return self._job(self._store.get(job_id))
+
+    def get_by_name(self, name: str, principal: Optional[str] = None):
+        return self._job(self._store.get_by_name(name, principal=principal))
+
+    def list(self, agent_id: Optional[str] = None, principal: Optional[str] = None):
+        return [self._job(j) for j in self._store.list(agent_id=agent_id, principal=principal)]
+
+    def remove(self, job_id: str) -> bool:
+        return self._store.remove(job_id)
+
+    def remove_by_name(self, name: str, principal: Optional[str] = None) -> bool:
+        return self._store.remove_by_name(name, principal=principal)
+
+    def update(self, job):
+        # Merge over the stored dict: the dataclass drops dashboard-only keys
+        # such as agent_name and run_count.
+        d = job if isinstance(job, dict) else _to_dict(job)
+        current = self._store.get(d.get("id")) or {}
+        return self._store.update({**current, **d})
+
+    def __getattr__(self, attr):
+        return getattr(self._store, attr)
+
+
+def _on_startup() -> None:
+    """Wire the store into the SDK tools and start the loop at server start.
+
+    Without this, an agent that schedules from chat before anyone opens the
+    Cron page writes to the SDK's own store, and saved jobs never fire.
+    """
+    _get_schedule_store()
+    _ensure_scheduler_started()
+
+
 class SchedulesFeature(BaseFeatureProtocol):
     """Schedule/cron management wired to praisonaiagents.scheduler."""
 
@@ -719,6 +796,9 @@ class SchedulesFeature(BaseFeatureProtocol):
         return self.feature_description
 
     def routes(self) -> List[Route]:
+        from praisonaiui.features.lifecycle import register_startup_hook
+
+        register_startup_hook(_on_startup)
         return [
             Route("/api/schedules", self._list, methods=["GET"]),
             Route("/api/schedules", self._add, methods=["POST"]),
