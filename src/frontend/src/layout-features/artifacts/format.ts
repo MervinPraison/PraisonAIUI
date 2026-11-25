@@ -7,6 +7,7 @@ import { safeUrl } from './viewers/urls'
 
 const KIND_NAMES: Record<string, string> = {
   table: 'Table', markdown: 'Document', file: 'File', image: 'Image', pdf: 'PDF', video: 'Video', a2ui: 'Interactive view',
+  whiteboard: 'Whiteboard', sheet: 'Sheet',
 }
 
 /** DOM ids of the canvas tabs and their panel. */
@@ -134,6 +135,9 @@ export function downloadOf(a: DerivedArtifact): { filename: string; mime: string
       return { filename: named ?? `${slug(a.title)}.md`, mime: 'text/markdown', text: a.content ?? '' }
     case 'a2ui':
       return { filename: `${slug(a.title)}.json`, mime: 'application/json', text: a.content ?? '[]' }
+    case 'whiteboard':
+    case 'sheet':
+      return { filename: `${slug(a.title)}.json`, mime: 'application/json', text: a.content ?? '{}' }
     default:
       return { filename: a.key.startsWith('file:') ? a.key.slice(5) : a.title, mime: a.mimeType ?? 'application/octet-stream', url: safeUrl(a.url) }
   }

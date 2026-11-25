@@ -658,6 +658,23 @@ test('fenced(): the fence outgrows any backtick run in the code; unsafe language
     assert.equal(fenced('x', 'py\n```html'), '```\nx\n```')
 })
 
+test('whiteboard and sheet fences draw the board and the grid, not a JSON code block', () => {
+    const board = JSON.stringify({ title: 'Retro', items: [{ type: 'sticky', text: 'Ship it', x: 8, y: 8, w: 80, h: 48 }] })
+    const book = JSON.stringify({ title: 'Budget', tabs: [{ name: 'Q1', grid: [['Item', 'Amount'], ['Ads', '10']], values: [['Item', 'Amount'], ['Ads', 10]] }] })
+    const html = chat(`${fenced(board, 'whiteboard')}\n${fenced(book, 'sheet')}`)
+    assert.match(html, /Ship it/)
+    assert.match(html, />Ads</)
+    assert.doesNotMatch(html, /data-streamdown="code-block"/)
+})
+
+test('an excalidraw fence is its own diagram, not the sticky board or a code block', () => {
+    const scene = JSON.stringify({ type: 'excalidraw', elements: [{ type: 'rectangle', x: 10, y: 10, text: 'Idea' }] })
+    const html = chat(fenced(scene, 'excalidraw'))
+    assert.match(html, /data-excalidraw="loading"/)
+    assert.match(html, /Loading diagram/)
+    assert.doesNotMatch(html, /data-streamdown="code-block"/)
+})
+
 test('a chat code element renders as a Streamdown code block (language label, controls), not a bare <pre>', () => {
     const html = chat(fenced('def f():\n    return "```"', 'python'))
     assert.match(html, /data-streamdown="code-block"/)

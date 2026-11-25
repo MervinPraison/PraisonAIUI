@@ -259,7 +259,7 @@ export interface RunsFeed {
 
 // ── artifacts ────────────────────────────────────────────────────────
 
-export type ArtifactKind = 'code' | 'table' | 'markdown' | 'file' | 'image' | 'pdf' | 'video' | 'a2ui'
+export type ArtifactKind = 'code' | 'table' | 'markdown' | 'file' | 'image' | 'pdf' | 'video' | 'a2ui' | 'whiteboard' | 'sheet'
 
 export interface Artifact {
   /** Stable within a session: a file name, a table's header signature, or kind + index. */

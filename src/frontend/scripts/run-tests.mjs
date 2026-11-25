@@ -39,6 +39,49 @@ function findTests(dir) {
   return found
 }
 
+/**
+ * Excalidraw's package imports JSON without an import attribute, so Node cannot
+ * load it. The chat loads the real board in the browser; tests only need the
+ * placeholder that shows before that import.
+ */
+const stubExcalidraw = {
+  name: 'aiui-stub-excalidraw',
+  setup(build) {
+    build.onResolve({ filter: /.*/ }, (args) => {
+      if (args.namespace !== 'file') return
+      if (args.path.includes('ExcalidrawBoard')) {
+        return { path: 'excalidraw-board', namespace: 'aiui-stub-excalidraw' }
+      }
+      if (args.path.includes('@excalidraw/') || args.path.startsWith('@excalidraw/')) {
+        return { path: '@excalidraw/stub', namespace: 'aiui-stub-excalidraw' }
+      }
+      if (args.path.includes('open-color')) {
+        return { path: 'open-color-stub', namespace: 'aiui-stub-excalidraw' }
+      }
+    })
+    build.onLoad({ filter: /.*/, namespace: 'aiui-stub-excalidraw' }, (args) => ({
+      contents:
+        args.path === 'excalidraw-board'
+          ? 'export default function ExcalidrawBoard(){ return null }'
+          : args.path === 'open-color-stub'
+            ? 'export default {}'
+            : 'export function Excalidraw(){return null} export function convertToExcalidrawElements(){return[]} export default Excalidraw',
+      loader: 'js',
+    }))
+  },
+}
+
+/** The real Excalidraw board pulls @excalidraw/excalidraw into the markdown test bundle. */
+const stubExcalidrawBoardSource = {
+  name: 'aiui-stub-excalidraw-board',
+  setup(build) {
+    build.onLoad({ filter: /ExcalidrawBoard\.tsx$/ }, () => ({
+      contents: 'export default function ExcalidrawBoard(): null { return null }',
+      loader: 'ts',
+    }))
+  },
+}
+
 /** Any `*.css` import (including bare package paths) becomes an empty module. */
 const ignoreCss = {
   name: 'aiui-ignore-css',
@@ -83,7 +126,7 @@ try {
       '.gif': 'dataurl',
       '.webp': 'dataurl',
     },
-    plugins: [ignoreCss],
+    plugins: [stubExcalidrawBoardSource, stubExcalidraw, ignoreCss],
     define: {
       'import.meta.env': JSON.stringify({ MODE: 'test', DEV: false, PROD: true, SSR: true, BASE_URL: '/' }),
     },

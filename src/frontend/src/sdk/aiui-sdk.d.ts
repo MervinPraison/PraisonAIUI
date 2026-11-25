@@ -617,7 +617,7 @@ declare module '@aiui/sdk' {
     kpis(window: 'today' | '24h' | '7d'): Feed<RunKpis | null>
     agents(): Feed<readonly AgentStatus[]>
   }
-  export type ArtifactKind = 'code' | 'table' | 'markdown' | 'file' | 'image' | 'pdf' | 'video' | 'a2ui'
+  export type ArtifactKind = 'code' | 'table' | 'markdown' | 'file' | 'image' | 'pdf' | 'video' | 'a2ui' | 'whiteboard' | 'sheet'
   export interface Artifact {
     key: string
     kind: ArtifactKind

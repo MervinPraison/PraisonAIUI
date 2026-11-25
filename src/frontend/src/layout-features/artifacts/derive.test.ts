@@ -264,3 +264,17 @@ test('keys stay within the server\'s MAX_KEY: a wide table, a long URL, stable a
   assert.deepEqual(two.versions.map((v) => v.version), [1, 2])
   assert.equal(new Set(two.versions.map((v) => v.key)).size, 1)
 })
+
+test('a whiteboard or sheet fence is its own artifact, even when it is short', () => {
+  const board = '```whiteboard id=wb_1\n{"id":"wb_1","title":"Retro","items":[]}\n```'
+  const sheet = '```sheet id=sh_1\n{"id":"sh_1","title":"Budget","tabs":[]}\n```'
+  const m = (id: string, text: string): DeriveMessage => ({ id, role: 'assistant', createdAt: T0, parts: [{ type: 'text', text }] })
+  const { versions } = deriveArtifacts([m('b', board), m('s', sheet)], 's')
+  assert.deepEqual(
+    versions.map((v) => [v.kind, v.key, v.title]),
+    [
+      ['whiteboard', 'whiteboard:wb_1', 'Retro'],
+      ['sheet', 'sheet:sh_1', 'Budget'],
+    ],
+  )
+})

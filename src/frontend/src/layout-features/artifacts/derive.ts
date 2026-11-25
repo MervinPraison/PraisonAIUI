@@ -356,6 +356,26 @@ export function boundKey(key: string): string {
 const headerSig = (header: readonly string[]) => header.map((h) => plainText(h).toLowerCase().replace(/\s+/g, ' ')).join('|')
 
 function fromFence(b: FenceBlock): Found {
+  if (b.language === 'whiteboard' || b.language === 'sheet') {
+    let title: string | undefined
+    let id = ''
+    try {
+      const doc = JSON.parse(b.body) as { title?: unknown; id?: unknown }
+      if (typeof doc.title === 'string' && doc.title.trim()) title = doc.title.trim()
+      if (typeof doc.id === 'string') id = doc.id.trim()
+    } catch {
+      /* the fence is still the artifact; the viewer shows the parse error */
+    }
+    return {
+      key: id ? `${b.language}:${id}` : '',
+      counter: id ? undefined : b.language,
+      kind: b.language,
+      title: title ?? (b.language === 'whiteboard' ? 'Whiteboard' : 'Sheet'),
+      language: b.language,
+      content: b.body,
+      lines: b.lines,
+    }
+  }
   const markdown = b.language === 'markdown'
   const kind: ArtifactKind = markdown ? 'markdown' : 'code'
   const firstHeading = markdown ? /^#{1,6}\s+(.+)$/m.exec(b.body)?.[1] : undefined
@@ -422,7 +442,8 @@ function scanMessage(m: DeriveMessage, opts: Required<DeriveOptions>): Found[] {
   for (const p of m.parts) {
     if (p.type === 'text' && 'text' in p) {
       for (const b of scanMarkdown(p.text)) {
-        if (b.type === 'fence' && b.lines >= opts.minLines) found.push(fromFence(b))
+        const studio = b.type === 'fence' && (b.language === 'whiteboard' || b.language === 'sheet')
+        if (b.type === 'fence' && (studio || b.lines >= opts.minLines)) found.push(fromFence(b))
         else if (b.type === 'table' && b.rows.length >= opts.minRows) found.push(fromTable(b))
       }
     } else if (p.type === 'data' && 'name' in p && p.name === 'element') {

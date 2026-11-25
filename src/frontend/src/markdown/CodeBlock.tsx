@@ -14,6 +14,8 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { WrapText } from 'lucide-react'
 import { defaultComponents, type ExtraProps } from 'streamdown'
+import SheetViewer from '@/layout-features/artifacts/viewers/SheetGrid'
+import WhiteboardViewer from '@/layout-features/artifacts/viewers/Whiteboard'
 
 type Props = JSX.IntrinsicElements['code'] & ExtraProps
 
@@ -45,9 +47,46 @@ function phoneWidth(): boolean {
     }
 }
 
+/** ```whiteboard and ```sheet fences draw the board and the grid, not the JSON. */
+function studioKind(props: Props): 'whiteboard' | 'sheet' | 'excalidraw' | null {
+    const raw = `${props.className ?? ''} ${(props as { 'data-language'?: string })['data-language'] ?? ''}`
+    const tokens = new Set(raw.split(/\s+/).filter(Boolean))
+    if (tokens.has('language-excalidraw') || tokens.has('excalidraw')) return 'excalidraw'
+    if (tokens.has('language-whiteboard') || tokens.has('whiteboard')) return 'whiteboard'
+    if (tokens.has('language-sheet') || tokens.has('sheet')) return 'sheet'
+    return null
+}
+
 export function ChatCode(props: Props) {
+    const studio = studioKind(props)
+    if (studio && 'data-block' in props) {
+        const text = codeText(props.children)
+        if (studio === 'excalidraw') return <ExcalidrawSlot content={text} />
+        return studio === 'whiteboard' ? <WhiteboardViewer content={text} /> : <SheetViewer content={text} />
+    }
     const block = 'data-block' in props && !/\blanguage-mermaid\b/.test(props.className ?? '')
     return block ? <CollapsibleCode {...props} /> : <DefaultCode {...props} />
+}
+
+/** Loaded only in the browser. Excalidraw touches window and is too large for the chat entry. */
+function ExcalidrawSlot({ content }: { content: string }) {
+    const [Board, setBoard] = useState<((p: { content: string }) => JSX.Element) | null>(null)
+    useEffect(() => {
+        let live = true
+        import('@/excalidraw/ExcalidrawBoard').then(
+            (m) => { if (live) setBoard(() => m.default) },
+            () => { if (live) setBoard(null) },
+        )
+        return () => { live = false }
+    }, [])
+    if (!Board) {
+        return (
+            <div data-excalidraw="loading" className="flex h-72 items-center justify-center rounded-lg border border-hairline text-sm text-tier-3">
+                Loading diagram…
+            </div>
+        )
+    }
+    return <Board content={content} />
 }
 
 function CollapsibleCode(props: Props) {

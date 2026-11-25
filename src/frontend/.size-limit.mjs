@@ -74,7 +74,8 @@ const LAYOUT_BUDGETS = {
   // 12.373 kB (+1 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 12.377 kB (+4 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 12.428 kB (+51 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-chat-canvas': '12.428 kB',
+  // 12.44 kB (+13 B, exactly the overage, 2026-11-25): chunk hash regroup from the chat excalidraw lazy import.
+  'layout-chat-canvas': '12.441 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -85,7 +86,8 @@ const LAYOUT_BUDGETS = {
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
   // 15.259 kB (+59 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-command': '15.259 kB',
+  // 15.27 kB (+8 B, exactly the overage, 2026-11-25): chunk hash regroup from the chat excalidraw lazy import.
+  'layout-command': '15.27 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -98,13 +100,15 @@ const LAYOUT_BUDGETS = {
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 13.26 kB (+50 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-mission': '13.26 kB',
+  // 13.27 kB (+10 B, exactly the overage, 2026-11-25): chunk hash regroup from the chat excalidraw lazy import.
+  'layout-mission': '13.27 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
 const KIT_BUDGET = '8.3 kB'
 const FEATURE_BUDGETS = {
-  'lf-artifacts': '30 kB',
+  // 30.79 kB (+791 B, exactly the overage, 2026-11-25): sticky whiteboard and sheet viewers in the canvas panel.
+  'lf-artifacts': '30.791 kB',
   // Track K, measured at 8.34 kB and 1.46 kB, + 10%.
   'lf-run-inspector': '9.2 kB',
   'lf-command-bar': '1.6 kB',
@@ -118,7 +122,7 @@ const CAPS = {
   layout: 24,
   'layout-mission': 28,
   'layout-kit': 10,
-  'lf-artifacts': 30,
+  'lf-artifacts': 31,
   'lf-run-inspector': 14,
   'lf-command-bar': 6,
   'lf-step-tracker': 6,
@@ -272,7 +276,8 @@ export default [
   // 143,597 B (+13 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
   // 143,604 B (+7 B, exactly the overage, 2026-11-22): forms submit on change (blocks/useFormSubmit.ts).
   // 143,624 B (+20 B, exactly the overage, 2026-11-22): chunk hashes renamed by the data table, inputs, chart kinds and page icons; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143624 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
+  // 143,774 B (+150 B, exactly the overage, 2026-11-25): excalidraw fence handling in markdown/CodeBlock.tsx (lazy board load).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143774 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -347,7 +352,8 @@ export default [
   // 257,139 B (+4 B, exactly the overage, 2026-11-22): forms submit on change (chat route, above).
   // 257,144 B (+5 B, exactly the overage, 2026-11-22): chunk hash renames from the filter bar fix; no chat code changed.
   // 257,741 B (+597 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph) in the classic sidebar, which is in the boot chunk, plus chunk renames from the data table and inputs.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257741 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
+  // 258,065 B (+324 B, exactly the overage, 2026-11-25): excalidraw fence handling in markdown/CodeBlock.tsx (lazy board load).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '258065 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -525,5 +531,6 @@ export default [
   // 11,608,392 B (+9,901 B, exactly the overage, 2026-11-22): the filter inputs' lazy chunks (blocks/inputs).
   // 11,608,459 B (+67 B, exactly the overage, 2026-11-22): filter bar keeps focus (remount only after a chip or Reset).
   // 11,641,429 B (+32,970 B, exactly the overage, 2026-11-22): data table v2 with row details and date/sparkline columns, multi-select/tags/date range/segmented inputs, heatmap/sparkline/small-multiple charts, app page icons.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11641429 B', brotli: false },
+  // 16,065,497 B (+4,424,068 B, exactly the overage, 2026-11-25): lazy @excalidraw/excalidraw for ```excalidraw chat fences (locales, fonts, subset chunks; not loaded until a diagram appears).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '16065497 B', brotli: false },
 ]
