@@ -47,6 +47,8 @@ declare module '@aiui/sdk' {
     replaces?: string
     /** Presentation family (list-detail, board, log, editor, gallery…). */
     pageType?: string
+    /** Optional short badge or count shown beside the page title in the sidebar. */
+    badge?: string
   }
 
   /** One selectable layout the server offers (manifest `layouts.available`). */
@@ -222,6 +224,8 @@ declare module '@aiui/sdk' {
   export interface NavigateOptions {
     /** Replace the current history entry instead of adding one. */
     replace?: boolean
+    /** Query parameters written into the target URL without a full reload. */
+    params?: Record<string, string | number | boolean | null | undefined | readonly (string | number | boolean)[]>
   }
   /** Go to a page of the app by id: `navigate('logs')`. */
   export function navigate(pageId: string, options?: NavigateOptions): void
@@ -397,7 +401,7 @@ declare module '@aiui/sdk' {
     group: string
     href: string
     active: boolean
-    badge?: number
+    badge?: number | string
   }
   export interface LayoutNav {
     /** At most 7 items. */

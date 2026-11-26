@@ -4,8 +4,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { ShellManifest } from '@/sdk/manifest'
-import { SidebarBrand } from '@/shell/Sidebar'
+import type { ShellManifest, ShellPage } from '@/sdk/manifest'
+import { SidebarBrand, SidebarNav } from '@/shell/Sidebar'
 
 const brand = (site: Record<string, unknown>) =>
   renderToStaticMarkup(createElement(SidebarBrand, { manifest: { sdk: 1, site, pages: [] } as unknown as ShellManifest }))
@@ -26,4 +26,16 @@ test('a configured logo replaces the glyph: an image path, or a short text mark'
   const text = brand({ title: 'Acme', logo: 'AC' })
   assert.match(text, />AC</)
   assert.doesNotMatch(text, /bg-primary/)
+})
+
+test('SidebarNav renders page.badge in expanded rail and appends it to collapsed aria-label', () => {
+  const pages: ShellPage[] = [
+    { id: 'alerts', title: 'Alerts', kind: 'blocks', group: 'Custom', badge: '4' },
+    { id: 'plain', title: 'Plain', kind: 'blocks', group: 'Custom' },
+  ]
+  const expanded = renderToStaticMarkup(createElement(SidebarNav, { pages, activeId: 'alerts', collapsed: false }))
+  assert.match(expanded, /data-page-badge=""[^>]*>4<\/span>/)
+  const collapsed = renderToStaticMarkup(createElement(SidebarNav, { pages, activeId: 'alerts', collapsed: true }))
+  assert.match(collapsed, /aria-label="Alerts \(4\)"/)
+  assert.doesNotMatch(collapsed, /data-page-badge=""/)
 })

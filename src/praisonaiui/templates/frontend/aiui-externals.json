@@ -24,7 +24,9 @@
     "theme-presets",
     "layouts",
     "layout-data",
-    "slots.dispose"
+    "slots.dispose",
+    "navigate.params",
+    "page.badge"
   ],
   "react": "19.2.4",
   "modules": {

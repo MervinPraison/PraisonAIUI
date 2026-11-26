@@ -87,7 +87,18 @@ function LoadingSkeleton() {
   )
 }
 
+function applyDynamicManifest(data: unknown): void {
+  if (!isRecord(data)) return
+  if (isRecord(data._badges)) {
+    window.dispatchEvent(new CustomEvent('aiui:badges-update', { detail: data._badges }))
+  }
+  if (data._refresh_manifest === true) {
+    window.dispatchEvent(new Event('aiui:manifest-refresh'))
+  }
+}
+
 function readyState(key: string, data: unknown): PageState {
+  applyDynamicManifest(data)
   const refreshEvery = isRecord(data) ? refreshSeconds(data._refresh_every) : 0
   return { status: 'ready', key, nodes: toBlockTree(data).nodes, updatedAt: Date.now(), refreshEvery }
 }
@@ -238,6 +249,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
           setState(readyState(endpoint, data))
           if (message) void notify(message, { type: 'success' })
         } else {
+          applyDynamicManifest(data)
           void notify(message || (label ? `${label}: done` : 'Done'), { type: 'success' })
         }
         return true

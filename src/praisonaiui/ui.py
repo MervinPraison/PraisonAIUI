@@ -37,6 +37,8 @@ def layout(
     *,
     refresh_every: float | None = None,
     params: dict[str, Any] | None = None,
+    badges: Mapping[str, Any] | None = None,
+    refresh_manifest: bool = False,
 ) -> dict:
     """Wrap components in a layout container.
 
@@ -51,12 +53,20 @@ def layout(
         params: In a page-action reply, the values the app shell writes into
             the page URL's query string (``_params``; ``None`` or ``""``
             removes a key), so a refresh or a shared link restores the view.
+        badges: App shell: live sidebar badge updates ``{page_id: value}``
+            (``None`` or ``""`` clears a page's badge) without reloading.
+        refresh_manifest: App shell: re-fetch ``/api/shell/manifest`` in the
+            background so dynamic server-computed badges/pages stay current.
     """
     out: dict[str, Any] = {"_components": list(children)}
     if refresh_every:
         out["_refresh_every"] = refresh_every
     if params is not None:
         out["_params"] = dict(params)
+    if badges is not None:
+        out["_badges"] = dict(badges)
+    if refresh_manifest:
+        out["_refresh_manifest"] = True
     return out
 
 
@@ -927,7 +937,12 @@ def header(text: str, *, level: int = 1) -> dict:
     return {"type": "header", "text": text, "level": level}
 
 
-def markdown_text(content: str) -> dict:
+def markdown_text(
+    content: str,
+    *,
+    toc: bool = False,
+    title: str | None = None,
+) -> dict:
     """A markdown-rendered text block.
 
     The app shell renders sanitised Markdown: raw HTML that is not on the
@@ -936,8 +951,29 @@ def markdown_text(content: str) -> dict:
 
     Args:
         content: Markdown content string
+        toc: Show an "On this page" table of contents for ``##`` / ``###`` headings
+        title: Optional document heading above the rendered markdown
     """
-    return {"type": "markdown_text", "content": content}
+    comp: dict[str, Any] = {"type": "markdown_text", "content": content}
+    if toc:
+        comp["toc"] = True
+    if title:
+        comp["title"] = title
+    return comp
+
+
+def doc_viewer(
+    content: str,
+    *,
+    title: str | None = None,
+    toc: bool = True,
+) -> dict:
+    """A markdown document viewer with an automatic table of contents.
+
+    Convenience wrapper around :func:`markdown_text` with ``toc=True`` by
+    default.
+    """
+    return markdown_text(content, toc=toc, title=title)
 
 
 def empty(text: str = "No data") -> dict:

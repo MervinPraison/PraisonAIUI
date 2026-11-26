@@ -121,6 +121,10 @@ export const SDK_FEATURES = [
   'layout-data',
   // registerSlot() returns a disposer
   'slots.dispose',
+  // navigate(pageId, { params }) query parameters
+  'navigate.params',
+  // ShellPage.badge / LayoutNavItem.badge (static or live sidebar badges)
+  'page.badge',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 
@@ -152,6 +156,8 @@ export interface ShellPage {
   replaces?: string
   /** Presentation family of the page (list-detail, board, log, editor, gallery…); styling only. */
   pageType?: string
+  /** Optional short badge or count shown beside the page title in the sidebar. */
+  badge?: string
 }
 
 /**
@@ -288,8 +294,9 @@ function normalizePage(p: ShellPage): ShellPage {
     layouts: p.layouts !== undefined && !isStringList(p.layouts),
     replaces: p.replaces !== undefined && typeof p.replaces !== 'string',
     pageType: p.pageType !== undefined && typeof p.pageType !== 'string',
+    badge: p.badge !== undefined && typeof p.badge !== 'string',
   }
-  if (!bad.layouts && !bad.replaces && !bad.pageType) return p
+  if (!bad.layouts && !bad.replaces && !bad.pageType && !bad.badge) return p
   const out = { ...p }
   for (const key of Object.keys(bad) as (keyof typeof bad)[]) if (bad[key]) delete out[key]
   return out

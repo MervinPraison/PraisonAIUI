@@ -52,7 +52,7 @@ function NavItem({
         href={pathForPage(page.id)}
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
-        aria-label={collapsed ? page.title : undefined}
+        aria-label={collapsed ? (page.badge ? `${page.title} (${page.badge})` : page.title) : undefined}
         onPointerEnter={collapsed && onTip ? (e) => onTip(page, e.currentTarget) : undefined}
         onPointerLeave={collapsed && onTip ? () => onTip(null) : undefined}
         onFocus={collapsed && onTip ? (e: FocusEvent<HTMLAnchorElement>) => onTip(page, e.currentTarget) : undefined}
@@ -73,6 +73,17 @@ function NavItem({
           className={active ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/nav:text-sidebar-accent-foreground'}
         />
         {!collapsed && <span className="min-w-0 truncate">{page.title}</span>}
+        {!collapsed && page.badge && (
+          <span
+            data-page-badge=""
+            className={cn(
+              'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[11px] leading-none font-medium tabular-nums',
+              active ? 'bg-background/70 text-sidebar-accent-foreground' : 'bg-sidebar-accent text-muted-foreground',
+            )}
+          >
+            {page.badge}
+          </span>
+        )}
       </a>
     </li>
   )

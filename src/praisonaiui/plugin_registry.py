@@ -202,13 +202,36 @@ class PageSpec:
     #: ``gallery``, ``overview``, ``settings`` or ``chat`` (DESIGN.md "Page
     #: templates"). Built-in pages get theirs from ``builtin/page_types.py``.
     page_type: Optional[str] = None
+    #: Optional short badge/count (static str/int or zero-arg callable) shown beside the page title in the sidebar.
+    badge: Any = None
 
     def to_dict(self) -> dict[str, Any]:
         d = _to_wire(self)
         d.pop("shellOnly", None)  # server-side routing only, never on the wire
         if self.layouts is not None:
             d["layouts"] = list(self.layouts)
+        if "badge" in d:
+            resolved = resolve_page_badge(self.badge)
+            if resolved:
+                d["badge"] = resolved
+            else:
+                d.pop("badge", None)
         return d
+
+
+def resolve_page_badge(raw: Any) -> Optional[str]:
+    """Evaluate a static or callable page badge safely into a non-empty string."""
+    if raw is None:
+        return None
+    if callable(raw):
+        try:
+            raw = raw()
+        except Exception:
+            return None
+    if raw is None or isinstance(raw, bool):
+        return None
+    text = str(raw).strip()
+    return text or None
 
 
 #: Layout ids (ADR 0003). Same rule as the browser (``LAYOUT_ID_PATTERN``).

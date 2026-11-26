@@ -1074,66 +1074,69 @@ def serve(
         console.print("Run 'aiui build' first or remove --no-build flag.")
         raise typer.Exit(code=2)
 
-    # Find available port
+    # Bind the listening port atomically before printing the URL, then hand
+    # that socket directly to uvicorn so another process cannot steal it.
     try:
-        actual_port = _find_available_port(host, port)
+        listen_sock, actual_port = _bind_free_port(host, port)
     except OSError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=4)
 
-    if actual_port != port:
-        console.print(_port_moved_message(host, port, actual_port))
+    try:
+        if actual_port != port:
+            console.print(_port_moved_message(host, port, actual_port))
 
-    origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
-    starlette_app = _static_site_app(output, origins)
+        origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+        starlette_app = _static_site_app(output, origins)
 
-    protocol = "https" if ssl_certfile else "http"
-    site_url = f"{protocol}://{host}:{actual_port}{_built_base_path(output)}"
-    console.print(f"\n[green]🚀[/green] Serving at [link]{site_url}[/link]")
-    if ssl_certfile:
-        console.print(f"[green]🔒[/green] TLS enabled with {ssl_certfile}")
-    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+        protocol = "https" if ssl_certfile else "http"
+        site_url = f"{protocol}://{host}:{actual_port}{_built_base_path(output)}"
+        console.print(f"\n[green]🚀[/green] Serving at [link]{site_url}[/link]")
+        if ssl_certfile:
+            console.print(f"[green]🔒[/green] TLS enabled with {ssl_certfile}")
+        console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
-    # Open a browser only for a person at a terminal (browser.py)
-    from praisonaiui.browser import open_url
+        # Open a browser only for a person at a terminal (browser.py)
+        from praisonaiui.browser import open_url
 
-    open_url(site_url, open_browser)
+        open_url(site_url, open_browser)
 
-    # Start file watcher in background thread if --watch
-    if watch and config is not None and config.exists():
-        import threading
+        # Start file watcher in background thread if --watch
+        if watch and config is not None and config.exists():
+            import threading
 
-        def _watch_and_rebuild() -> None:
-            try:
-                from watchfiles import watch as wf_watch
+            def _watch_and_rebuild() -> None:
+                try:
+                    from watchfiles import watch as wf_watch
 
-                for _changes in wf_watch(config.parent):
-                    console.print("[blue]↻[/blue] Detected changes, rebuilding...")
-                    try:
-                        build(config=config, output=output, minify=False, base_path=base_path)
-                        console.print("[green]✓[/green] Rebuild complete")
-                    except Exception as e:
-                        console.print(f"[red]✗[/red] Rebuild failed: {e}")
-            except Exception:
-                pass
+                    for _changes in wf_watch(config.parent):
+                        console.print("[blue]↻[/blue] Detected changes, rebuilding...")
+                        try:
+                            build(config=config, output=output, minify=False, base_path=base_path)
+                            console.print("[green]✓[/green] Rebuild complete")
+                        except Exception as e:
+                            console.print(f"[red]✗[/red] Rebuild failed: {e}")
+                except Exception:
+                    pass
 
-        watcher = threading.Thread(target=_watch_and_rebuild, daemon=True)
-        watcher.start()
+            watcher = threading.Thread(target=_watch_and_rebuild, daemon=True)
+            watcher.start()
 
-    # Run Uvicorn
-    import uvicorn
+        uvicorn_kwargs: dict = {
+            "host": host,
+            "port": actual_port,
+            "log_level": "info",
+            "timeout_graceful_shutdown": GRACEFUL_SHUTDOWN_SECONDS,
+        }
+        if ssl_certfile:
+            uvicorn_kwargs["ssl_certfile"] = str(ssl_certfile)
+        if ssl_keyfile:
+            uvicorn_kwargs["ssl_keyfile"] = str(ssl_keyfile)
+    except BaseException:
+        listen_sock.close()
+        raise
 
-    uvicorn_kwargs: dict = {
-        "host": host,
-        "port": actual_port,
-        "log_level": "info",
-        "timeout_graceful_shutdown": GRACEFUL_SHUTDOWN_SECONDS,
-    }
-    if ssl_certfile:
-        uvicorn_kwargs["ssl_certfile"] = str(ssl_certfile)
-    if ssl_keyfile:
-        uvicorn_kwargs["ssl_keyfile"] = str(ssl_keyfile)
-    uvicorn.run(starlette_app, **uvicorn_kwargs)
+    _run_uvicorn(starlette_app, sock=listen_sock, **uvicorn_kwargs)
 
 
 @app.command()
@@ -1579,18 +1582,20 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
 </body>
 </html>"""
 
-        # Find available port
-        def find_port(start: int) -> int:
-            for i in range(10):
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    try:
-                        s.bind((host, start + i))
-                        return start + i
-                    except OSError:
-                        continue
-            raise OSError("No available port")
+        # Bind available port atomically and hand the socket to TCPServer
+        listen_sock, actual_port = _bind_free_port(host, port)
 
-        actual_port = find_port(port)
+        def _open_tcp_server(sock: socket.socket, handler_cls: Any):
+            if issubclass(socketserver.TCPServer, socketserver.BaseServer):
+                class _BoundTCPServer(socketserver.TCPServer):
+                    def __init__(self) -> None:
+                        super().__init__(sock.getsockname(), handler_cls, bind_and_activate=False)
+                        self.socket = sock
+
+                return _BoundTCPServer()
+            addr = sock.getsockname()
+            sock.close()
+            return socketserver.TCPServer(addr, handler_cls)
 
         # Custom handler with API
         class DevHandler(http.server.SimpleHTTPRequestHandler):
@@ -1757,7 +1762,7 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
 
         open_url(f"http://localhost:{actual_port}")
 
-        with socketserver.TCPServer((host, actual_port), DevHandler) as httpd:
+        with _open_tcp_server(listen_sock, DevHandler) as httpd:
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:
@@ -2422,11 +2427,17 @@ def run(
     # its own routes. (It used to recopy the whole bundle into ./aiui on every
     # start, 0.2-1 s and ~11 MB that were never served.)
 
-    # Find available port. The standalone server binds it now and keeps the
-    # socket (uvicorn serves it), so the URL printed below is the bound one.
+    # Bind the port atomically and keep the listening socket so uvicorn /
+    # AIUIGateway serves that exact socket (only a custom user main() binds
+    # its own port from PORT/HOST env vars).
+    has_user_main = (
+        backend == "praisonai"
+        and hasattr(user_module, "main")
+        and callable(getattr(user_module, "main"))
+    )
     listen_sock = None
     try:
-        if backend == "praisonai":
+        if has_user_main:
             actual_port = _find_available_port(host, port)
         else:
             listen_sock, actual_port = _bind_free_port(host, port)
@@ -2448,6 +2459,8 @@ def run(
         from praisonaiui.integration import AIUIGateway, check_praisonai_available
 
         if not check_praisonai_available():
+            if listen_sock is not None:
+                listen_sock.close()
             console.print(
                 "[red]Error:[/red] praisonai package not installed. "
                 "Install with: pip install praisonai"
@@ -2459,6 +2472,7 @@ def run(
             host=host,
             port=actual_port,
             static_dir=str(static_dir) if static_dir else None,
+            sock=listen_sock,
         )
 
         # Register agents from user module

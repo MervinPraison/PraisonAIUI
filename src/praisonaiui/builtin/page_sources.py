@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 from praisonaiui.builtin.page_types import shell_row_fields
-from praisonaiui.plugin_registry import PageSpec
+from praisonaiui.plugin_registry import PageSpec, resolve_page_badge
 
 _log = logging.getLogger("praisonaiui.server")
 
@@ -59,6 +59,7 @@ def table_page(
     native: bool,
     has_action: bool,
     builtin_spec: Optional[PageSpec] = None,
+    badge: Optional[str] = None,
 ) -> PageRecord:
     """A row of the host page table: a built-in page, or an app page from
     the ``register_page`` / ``@aiui.page`` adapter (``custom``)."""
@@ -87,6 +88,9 @@ def table_page(
         if spec.shell_layout:
             entry["layout"] = spec.shell_layout
         entry.update(shell_row_fields(spec))
+    resolved_badge = badge if badge is not None else (resolve_page_badge(spec.badge) if spec is not None else None)
+    if resolved_badge:
+        entry["badge"] = resolved_badge
     if has_action:
         entry["actionEndpoint"] = f"/api/pages/{row['id']}/action"
     record = spec or PageSpec(
@@ -148,6 +152,9 @@ def shell_page(spec: PageSpec) -> PageRecord:
         entry["layouts"] = list(spec.layouts)
     if spec.replaces:
         entry["replaces"] = spec.replaces
+    resolved_badge = resolve_page_badge(spec.badge)
+    if resolved_badge:
+        entry["badge"] = resolved_badge
     entry.update(shell_row_fields(spec))
     return PageRecord(spec, entry, None)
 
@@ -175,12 +182,14 @@ def folder_page(manifest: dict[str, Any]) -> Optional[PageRecord]:
     source = f"dashboard-plugin:{manifest['name']}"
     module = f"/dashboard-plugins/{manifest['name']}/{manifest['entry']}"
     css = f"/dashboard-plugins/{manifest['name']}/{manifest['css']}" if manifest.get("css") else None
+    badge = resolve_page_badge(page.get("badge"))
     shell_row = {
         "order": 100,
         **page,
         "kind": "legacy",
         "module": module,
         **({"css": css} if css else {}),
+        **({"badge": badge} if badge else {}),
         "source": source,
     }
     spec = PageSpec(
@@ -193,6 +202,7 @@ def folder_page(manifest: dict[str, Any]) -> Optional[PageRecord]:
         description=page.get("description", ""),
         module=module,
         css=css,
+        badge=badge,
         source=source,
     )
     return PageRecord(spec, shell_row, page)

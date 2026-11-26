@@ -76,7 +76,8 @@ const LAYOUT_BUDGETS = {
   // 12.428 kB (+51 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 12.436 kB (+8 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
   // 12.438 kB (+2 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
-  'layout-chat-canvas': '12.438 kB',
+  // 12.47 kB (+32 B, exactly the overage, 2026-11-26): NavList renders string/numeric page.badge across selectable layouts.
+  'layout-chat-canvas': '12.47 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -90,7 +91,8 @@ const LAYOUT_BUDGETS = {
   // 15.265 kB (+6 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
   // 15.266 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
   // 15.267 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from remote select & pagination blocks; no layout code changed.
-  'layout-command': '15.267 kB',
+  // 15.318 kB (+51 B, exactly the overage, 2026-11-26): command rail & NavList string/numeric page.badge support.
+  'layout-command': '15.318 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -105,7 +107,8 @@ const LAYOUT_BUDGETS = {
   // 13.26 kB (+50 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 13.271 kB (+11 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
   // 13.272 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from remote select & pagination blocks; no layout code changed.
-  'layout-mission': '13.272 kB',
+  // 13.304 kB (+32 B, exactly the overage, 2026-11-26): NavList string/numeric page.badge support.
+  'layout-mission': '13.304 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -169,7 +172,8 @@ const defaultLayoutFirstScreen = [
   {
     name: '/chat first screen JS with the default layout (boot + layout-chat-canvas + kit + chat route)',
     path: abs([...new Set([...bootJs, ...groupFiles(DEFAULT_LAYOUT).filter((f) => f.endsWith('.js')), ...chatRouteJs])]),
-    limit: '270 kB',
+    // 270,273 B (+273 B, exactly the overage, 2026-11-26): live sidebar badge/manifest updates in ShellApp + NavList badge fallback.
+    limit: '270273 B',
     gzip: true,
   },
 ]
@@ -279,7 +283,8 @@ export default [
   // 143,597 B (+13 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
   // 143,604 B (+7 B, exactly the overage, 2026-11-22): forms submit on change (blocks/useFormSubmit.ts).
   // 143,624 B (+20 B, exactly the overage, 2026-11-22): chunk hashes renamed by the data table, inputs, chart kinds and page icons; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143624 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
+  // 143,628 B (+4 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no chat code changed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143628 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -355,7 +360,8 @@ export default [
   // 257,144 B (+5 B, exactly the overage, 2026-11-22): chunk hash renames from the filter bar fix; no chat code changed.
   // 257,741 B (+597 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph) in the classic sidebar, which is in the boot chunk, plus chunk renames from the data table and inputs.
   // 257,910 B (+169 B, exactly the overage, 2026-11-26): navigate(pageId, { params }) query serialization in sdk/services.ts & shell/router.ts.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257910 B', gzip: true },
+  // 258,339 B (+429 B, exactly the overage, 2026-11-26): sidebar page badge pill, layoutNav propagation, live badge/manifest refresh in ShellApp.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '258339 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -373,7 +379,8 @@ export default [
   // imports were shared with the docs App before; the docs App now draws its own
   // (virtual:aiui-icons/inline), so they count here. They load with Try it instead of on
   // every docs page.
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7566 B', gzip: true },
+  // 7,568 B (+2 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no Try it code changed.
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7568 B', gzip: true },
   // 127.8 kB measured + 10% (2026-11-22). Never on the boot path (npm run
   // check:closure fails if recharts reaches it).
   { name: 'chart block chunk (lazy, recharts; minus boot and the blocks page)', path: abs(chartFiles), limit: '140.6 kB', gzip: true },
@@ -537,5 +544,6 @@ export default [
   // 11,646,736 B (+2,999 B, exactly the overage, 2026-11-26): chart x_domain, log scales, histogram clamping, heatmap clip/tooltip, barh y2, free facets.
   // 11,648,443 B (+1,707 B, exactly the overage, 2026-11-26): table numeric threshold tones, lazy row detail drawer, gallery caption alongside title.
   // 11,652,890 B (+4,447 B, exactly the overage, 2026-11-26): remote combobox options_url, native color_picker_input & pagination blocks.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11652890 B', brotli: false },
+  // 11,658,218 B (+5,328 B, exactly the overage, 2026-11-26): BlockPage markdown doc viewer with TOC, sidebar page badges across all layouts, live badge/manifest refresh.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11658218 B', brotli: false },
 ]

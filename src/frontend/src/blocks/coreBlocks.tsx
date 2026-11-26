@@ -46,6 +46,7 @@ import { fenced } from '@/markdown/fence'
 import type { ShellPage } from '@/sdk/manifest'
 import { registerBlock, type BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
+import { DocViewer } from './DocViewer'
 import { HtmlBlock } from './HtmlBlock'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
 import { hrefLinkOnClick, pageLinkProps } from './mediaModel'
@@ -121,6 +122,9 @@ function HeadingBlock({ node }: CoreBlockProps) {
 function MarkdownBlock({ node }: CoreBlockProps) {
   const p = propsOf(node)
   const content = str(p.content ?? p.text, typeof node.children === 'string' ? node.children : '')
+  if (p.toc || str(p.title)) {
+    return <DocViewer content={content} title={str(p.title) || undefined} toc={Boolean(p.toc)} />
+  }
   return <Markdown variant="docs" className="min-w-0">{content}</Markdown>
 }
 

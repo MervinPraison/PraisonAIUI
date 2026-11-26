@@ -391,6 +391,7 @@ def page(
     description: str = "",
     order: int = 100,
     refresh_every: float | None = None,
+    badge: str | int | Callable[[], str | int | None] | None = None,
 ) -> Callable[[F], F]:
     """Decorator to register a custom dashboard page.
 
@@ -415,6 +416,8 @@ def page(
         description: Brief subtitle shown in page header
         order: Sort order within group (lower = first)
         refresh_every: Re-fetch the page every N seconds while it is visible
+        badge: Optional short text/count (or zero-arg callable returning one)
+            shown beside the page title in the sidebar
     """
 
     def decorator(func: F) -> F:
@@ -429,6 +432,7 @@ def page(
             handler=func,
             order=order,
             refresh_every=refresh_every,
+            badge=badge,
         )
         return func
 

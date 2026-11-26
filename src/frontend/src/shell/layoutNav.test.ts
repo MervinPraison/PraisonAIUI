@@ -144,3 +144,10 @@ test('the manifest’s shown groups (the app’s own pages, or set_pages("all"))
     ],
   )
 })
+
+test('buildLayoutNav carries ShellPage.badge onto LayoutNavItem for all layouts', () => {
+  const pages = [page('inbox', { group: 'Main', badge: '7' }), page('plain', { group: 'Main' })]
+  const nav = buildLayoutNav({ pages, groups: {}, spec: { id: 'alpha', primary: ['inbox'] }, activeId: 'inbox', go: () => {} })
+  assert.equal(nav.primary[0]?.badge, '7')
+  assert.equal(nav.groups[0]?.items[0]?.badge, undefined)
+})
