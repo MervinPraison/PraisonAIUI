@@ -53,6 +53,8 @@ _agents: dict[str, dict[str, Any]] = {}
 _pages: dict[str, dict[str, Any]] = {}
 # Registry for page action handlers (form submissions)
 _page_actions: dict[str, Callable] = {}
+# Registry for sidebar page badges (static str/int or zero-arg callable)
+_page_badges: dict[str, Any] = {}
 # User-defined page whitelist — None means "show all built-in pages"
 _enabled_pages: Optional[set[str]] = None
 _all_pages_listed = False  # set_pages("all"): every layout lists every group
@@ -131,6 +133,7 @@ def reset_state() -> None:
     _agents.clear()
     _pages.clear()
     _page_actions.clear()
+    _page_badges.clear()
     page_params.reset()
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
@@ -1497,6 +1500,7 @@ def _page_records(
             native=p["id"] in _NATIVE_PAGES,
             has_action=p["id"] in _page_actions,
             builtin_spec=spec_by_id.get(p["id"]),
+            badge=_resolve_page_badge(p["id"]),
         )
         for p in _pages.values()
     ]
@@ -1849,6 +1853,22 @@ def register_agent(name: str, agent: Any) -> None:
     }
 
 
+def _resolve_page_badge(page_id: str) -> Optional[str]:
+    """Evaluate a page's static or dynamic sidebar badge, safely."""
+    raw = _page_badges.get(page_id)
+    if raw is None:
+        return None
+    if callable(raw):
+        try:
+            raw = raw()
+        except Exception:
+            return None
+    if raw is None or isinstance(raw, bool):
+        return None
+    text = str(raw).strip()
+    return text or None
+
+
 def register_page(
     id: str,
     *,
@@ -1860,6 +1880,7 @@ def register_page(
     handler: Optional[Callable] = None,
     order: int = 100,
     refresh_every: Optional[float] = None,
+    badge: Any = None,
 ) -> None:
     """Register a dashboard page.
 
@@ -1878,6 +1899,8 @@ def register_page(
             ``params`` (the query string, see ``page_params``)
         order: Sort order within group (lower = first, default 100)
         refresh_every: Re-fetch the page every N seconds while it is visible
+        badge: Optional short text/count (or zero-arg callable) shown beside
+            the page title in the sidebar
     """
     page_params.set_refresh_every(id, refresh_every)  # validates before registering
     endpoint = api_endpoint or f"/api/pages/{id}/data"
@@ -1890,6 +1913,10 @@ def register_page(
         "api_endpoint": endpoint,
         "order": order,
     }
+    if badge is None:
+        _page_badges.pop(id, None)
+    else:
+        _page_badges[id] = badge
     _custom_page_ids.add(id)
     if handler:
         register_callback(f"page:{id}", handler)

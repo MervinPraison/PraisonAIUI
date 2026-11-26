@@ -58,6 +58,7 @@ class AIUIGateway:
         port: int = 8080,
         static_dir: Optional[str] = None,
         ui_config: Optional[Dict[str, Any]] = None,
+        sock: Any = None,
     ):
         """Initialize the AIUI Gateway.
 
@@ -66,6 +67,7 @@ class AIUIGateway:
             port: Port to listen on
             static_dir: Directory containing the React SPA build
             ui_config: UI configuration dict (from compiler output)
+            sock: Optional pre-bound listening socket (avoids port-bind races)
         """
         if not HAS_PRAISONAI:
             raise ImportError(
@@ -77,6 +79,7 @@ class AIUIGateway:
         self._port = port
         self._static_dir = Path(static_dir) if static_dir else None
         self._ui_config = ui_config or {}
+        self._sock = sock
 
         # Internal gateway instance
         self._gateway: Optional[WebSocketGateway] = None
@@ -255,7 +258,15 @@ class AIUIGateway:
 
         logger.info(f"AIUI Gateway started on http://{self._host}:{self._port}")
 
-        await self._server.serve()
+        if self._sock is not None:
+            sock = self._sock
+            self._sock = None
+            try:
+                await self._server.serve(sockets=[sock])
+            finally:
+                sock.close()
+        else:
+            await self._server.serve()
 
     async def stop(self) -> None:
         """Stop the gateway server."""

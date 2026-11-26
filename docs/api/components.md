@@ -709,17 +709,23 @@ aiui.header("Dashboard", level=1)
 | `text` | `str` | ✅ | — | Heading text |
 | `level` | `int` | ❌ | `1` | Heading level 1–6 |
 
-### `aiui.markdown_text(content)`
+### `aiui.markdown_text(content, *, toc, title)`
 
 A markdown-rendered text block.
 
 ```python
 aiui.markdown_text("**Bold**, *italic*, and `code`.")
+aiui.markdown_text(guide_md, toc=True, title="Architecture Guide")
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `content` | `str` | ✅ | Markdown content string |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `content` | `str` | ✅ | — | Markdown content string |
+| `toc` | `bool` | ❌ | `False` | App shell: show an "On this page" table of contents for `##` / `###` headings (sticky on desktop, collapsible on mobile) |
+| `title` | `str` | ❌ | `None` | Optional document heading above the rendered markdown |
+
+`aiui.doc_viewer(content, *, title=None, toc=True)` is a convenience wrapper
+around `markdown_text(..., toc=True)`.
 
 The app shell renders sanitised Markdown: `<svg>`, `<script>`, `<style>`,
 `style` attributes and event handlers are removed. Put raw HTML and SVG in

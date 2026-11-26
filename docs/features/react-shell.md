@@ -37,7 +37,7 @@ never rewritten.
 
 `AIUI_SHELL=legacy` turns `app` back into `dashboard`, whatever the config
 says. It is the documented way back once the default flips (see
-[flip criteria](#when-the-default-flips)).
+[flip criteria](#when-the-default-flipped)).
 
 ```bash
 AIUI_SHELL=legacy aiui run app.py   # always the vanilla dashboard

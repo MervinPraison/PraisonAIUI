@@ -202,6 +202,8 @@ class PageSpec:
     #: ``gallery``, ``overview``, ``settings`` or ``chat`` (DESIGN.md "Page
     #: templates"). Built-in pages get theirs from ``builtin/page_types.py``.
     page_type: Optional[str] = None
+    #: Optional short badge/count shown beside the page title in the sidebar.
+    badge: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         d = _to_wire(self)

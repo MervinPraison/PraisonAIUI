@@ -118,3 +118,42 @@ def test_run_uvicorn_serves_the_bound_socket(tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+
+
+def test_serve_binds_port_atomically_and_hands_uvicorn_the_socket(
+    tmp_path, monkeypatch, taken_port
+):
+    out_dir = tmp_path / "site"
+    out_dir.mkdir()
+    (out_dir / "index.html").write_text("<h1>ok</h1>", encoding="utf-8")
+    served = []
+
+    def fake_run(target, *, sock, **kw):
+        socket.create_connection(("127.0.0.1", sock.getsockname()[1]), timeout=2).close()
+        served.append((sock.getsockname()[1], kw["port"]))
+        sock.close()
+
+    monkeypatch.setattr(cli, "_run_uvicorn", fake_run)
+    result = CliRunner().invoke(
+        cli.app,
+        ["serve", "--output", str(out_dir), "--port", str(taken_port), "--no-build", "--no-open"],
+    )
+    assert result.exit_code == 0, result.output
+    bound, passed = served[-1]
+    assert bound == passed != taken_port
+    assert f"http://127.0.0.1:{bound}" in result.output
+
+
+def test_concurrent_bind_free_port_returns_distinct_ports(taken_port):
+    sockets = []
+    ports = []
+    try:
+        for _ in range(4):
+            sock, port = cli._bind_free_port("127.0.0.1", taken_port, max_attempts=20)
+            sockets.append(sock)
+            ports.append(port)
+        assert taken_port not in ports
+        assert len(set(ports)) == 4
+    finally:
+        for s in sockets:
+            s.close()

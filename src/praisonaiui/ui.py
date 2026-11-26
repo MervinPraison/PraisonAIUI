@@ -927,7 +927,12 @@ def header(text: str, *, level: int = 1) -> dict:
     return {"type": "header", "text": text, "level": level}
 
 
-def markdown_text(content: str) -> dict:
+def markdown_text(
+    content: str,
+    *,
+    toc: bool = False,
+    title: str | None = None,
+) -> dict:
     """A markdown-rendered text block.
 
     The app shell renders sanitised Markdown: raw HTML that is not on the
@@ -936,8 +941,29 @@ def markdown_text(content: str) -> dict:
 
     Args:
         content: Markdown content string
+        toc: Show an "On this page" table of contents for ``##`` / ``###`` headings
+        title: Optional document heading above the rendered markdown
     """
-    return {"type": "markdown_text", "content": content}
+    comp: dict[str, Any] = {"type": "markdown_text", "content": content}
+    if toc:
+        comp["toc"] = True
+    if title:
+        comp["title"] = title
+    return comp
+
+
+def doc_viewer(
+    content: str,
+    *,
+    title: str | None = None,
+    toc: bool = True,
+) -> dict:
+    """A markdown document viewer with an automatic table of contents.
+
+    Convenience wrapper around :func:`markdown_text` with ``toc=True`` by
+    default.
+    """
+    return markdown_text(content, toc=toc, title=title)
 
 
 def empty(text: str = "No data") -> dict:

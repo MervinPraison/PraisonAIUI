@@ -59,6 +59,7 @@ def table_page(
     native: bool,
     has_action: bool,
     builtin_spec: Optional[PageSpec] = None,
+    badge: Optional[str] = None,
 ) -> PageRecord:
     """A row of the host page table: a built-in page, or an app page from
     the ``register_page`` / ``@aiui.page`` adapter (``custom``)."""
@@ -87,6 +88,9 @@ def table_page(
         if spec.shell_layout:
             entry["layout"] = spec.shell_layout
         entry.update(shell_row_fields(spec))
+    resolved_badge = badge if badge is not None else (spec.badge if spec is not None else None)
+    if resolved_badge:
+        entry["badge"] = resolved_badge
     if has_action:
         entry["actionEndpoint"] = f"/api/pages/{row['id']}/action"
     record = spec or PageSpec(
@@ -148,6 +152,8 @@ def shell_page(spec: PageSpec) -> PageRecord:
         entry["layouts"] = list(spec.layouts)
     if spec.replaces:
         entry["replaces"] = spec.replaces
+    if spec.badge:
+        entry["badge"] = spec.badge
     entry.update(shell_row_fields(spec))
     return PageRecord(spec, entry, None)
 

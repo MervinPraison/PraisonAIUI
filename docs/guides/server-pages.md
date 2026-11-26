@@ -187,6 +187,11 @@ async def sync_action(data):
 `aiui.register_page(..., refresh_every=10)` set a fixed period; the data
 reply carries it as `_refresh_every` unless the handler set that key.
 
+`@aiui.page(..., badge=...)` and `aiui.register_page(..., badge=...)` show a
+short pill beside the page title in the app shell sidebar. Pass a string, an
+integer, or a zero-argument callable (evaluated when the manifest is served)
+for live counts such as unread items or queued jobs.
+
 ## Shell support
 
 The app shell supports everything in this guide. The legacy `dashboard`
