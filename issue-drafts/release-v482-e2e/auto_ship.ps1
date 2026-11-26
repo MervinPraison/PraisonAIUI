@@ -103,8 +103,19 @@ chore: gitignore local workspaces; v4.8.2 release E2E harness
 
   git add -- $toStage
   git commit -m $msg
-  git push -u origin HEAD
-  $url = gh pr create --draft --fill --base $base --head (git rev-parse --abbrev-ref HEAD) 2>&1
+  $headBranch = git rev-parse --abbrev-ref HEAD
+  $pushRemote = 'origin'
+  git push -u $pushRemote HEAD 2>&1 | Out-Host
+  if ($LASTEXITCODE -ne 0) {
+    if (git remote | Select-String -Pattern '^fork$') {
+      $pushRemote = 'fork'
+      git push -u $pushRemote HEAD 2>&1 | Out-Host
+    }
+  }
+  if ($LASTEXITCODE -ne 0) { throw 'git push failed (check origin/fork permissions)' }
+
+  $headRef = if ($pushRemote -eq 'fork') { "$((gh api user -q .login))/$(gh repo view $pushRemote --json name -q .name):$headBranch" } else { $headBranch }
+  $url = gh pr create --draft --fill --base $base --head $headRef 2>&1
   if ($LASTEXITCODE -ne 0) {
     $view = gh pr view --json url 2>$null | ConvertFrom-Json
     if ($view.url) { Write-Host "PR: $($view.url)" -ForegroundColor Green; exit 0 }
