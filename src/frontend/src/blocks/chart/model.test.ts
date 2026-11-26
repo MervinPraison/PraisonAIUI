@@ -126,6 +126,35 @@ test('facets: one spec per value, shared domain, facet key never plotted', () =>
   assert.deepEqual(sharedDomain([toChartSpec({ chart_type: 'line', data: [{ m: 'a', v: 5 }, { m: 'b', v: 7 }] })]), [5, 7])
   const many = Array.from({ length: MAX_FACETS + 5 }, (_, i) => ({ k: String(i), m: 'a', v: i }))
   assert.equal(facetSpecs({ data: many, facet: 'k' }).length, MAX_FACETS)
+  const free = facetSpecs({ chart_type: 'bar', data, facet: 'platform', facet_scales: 'free' })
+  assert.deepEqual(free.map((x) => x.spec.yDomain), [undefined, undefined], 'free facets keep independent scales')
+})
+
+test('x_domain, log scales, tooltip fields and outlier clipping', () => {
+  const sc = toChartSpec({
+    chart_type: 'scatter',
+    data: [{ subs: 0, lift: 2, posts: 5 }, { subs: 1000, lift: 1.5, posts: 12 }, { subs: 5e7, lift: 3, posts: 9 }],
+    x: 'subs',
+    x_domain: [100, 1e7],
+    x_scale: 'log',
+    y_scale: 'log',
+    tooltip: ['posts', { key: 'subs', label: 'Subscribers', format: 'compact' }],
+    clip: true,
+  })
+  assert.deepEqual(sc.xDomain, [100, 1e7])
+  assert.deepEqual([sc.xScale, sc.yScale], ['log', 'log'])
+  assert.deepEqual(sc.series.map((s) => s.key), ['lift'], 'tooltip keys are not auto-plotted as series')
+  assert.deepEqual(sc.tooltip, [{ key: 'posts', label: 'posts' }, { key: 'subs', label: 'Subscribers', format: 'compact' }])
+  assert.equal(sc.rows[0].subs, 100, 'clip=true clamps to x_domain[0] before log check')
+  assert.equal(sc.rows[2].subs, 1e7, 'clip=true clamps upper scatter x')
+
+  const h = toChartSpec({ chart_type: 'histogram', data: [0.5, 1.5, 2.5, 12].map((v) => ({ v })), x: 'v', bins: 2, clip: [0, 4] })
+  assert.deepEqual(h.rows.map((r) => [r.bin, r.count]), [['0–2', 2], ['2–4+', 2]])
+
+  const hm = toChartSpec({ chart_type: 'heatmap', data: [{ x: '9', y: 'Mon', value: 20, posts: 7 }], clip: [0, 5], tooltip: ['posts'] })
+  const g = heatGrid(hm)
+  assert.deepEqual([g.min, g.max], [0, 5])
+  assert.equal(g.cellRows.get(cellKey('Mon', '9'))?.posts, 7)
 })
 
 test('sparkline path and benchmark text', () => {

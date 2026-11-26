@@ -530,5 +530,6 @@ export default [
   // 11,608,459 B (+67 B, exactly the overage, 2026-11-22): filter bar keeps focus (remount only after a chip or Reset).
   // 11,641,429 B (+32,970 B, exactly the overage, 2026-11-22): data table v2 with row details and date/sparkline columns, multi-select/tags/date range/segmented inputs, heatmap/sparkline/small-multiple charts, app page icons.
   // 11,643,737 B (+2,308 B, exactly the overage, 2026-11-26): URL _params on action POSTs, filter_bar(method="get"), SPA page_link/params navigation.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11643737 B', brotli: false },
+  // 11,646,736 B (+2,999 B, exactly the overage, 2026-11-26): chart x_domain, log scales, histogram clamping, heatmap clip/tooltip, barh y2, free facets.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11646736 B', brotli: false },
 ]

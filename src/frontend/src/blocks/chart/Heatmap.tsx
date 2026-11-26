@@ -5,7 +5,7 @@
  * sideways inside the figure (the scroller takes keyboard focus).
  */
 import { useState, type JSX } from 'react'
-import { cellKey, formatValue, heatColor, heatGrid, heatT, truncate, type ChartSpec, type ValueFormat } from './model'
+import { cellKey, formatValue, heatColor, heatGrid, heatT, truncate, type ChartSpec, type Row, type ValueFormat } from './model'
 
 const CHAR_PX = 6.5
 const CELL_MIN = 18
@@ -13,7 +13,7 @@ const CELL_H = 22
 const HEAD = 18
 const TICK = { fill: 'var(--muted-foreground)', fontSize: 11 }
 
-type Hover = { row: string; col: string; value: number | undefined; left: number; top: number }
+type Hover = { row: string; col: string; value: number | undefined; raw?: Row; left: number; top: number }
 
 export function Heatmap({ spec, width }: { spec: ChartSpec; width: number }): JSX.Element {
   const g = heatGrid(spec)
@@ -51,16 +51,24 @@ export function Heatmap({ spec, width }: { spec: ChartSpec; width: number }): JS
               {truncate(r, Math.max(3, Math.floor((labelW - 8) / CHAR_PX)))}
             </text>
             {g.cols.map((c, ci) => {
-              const v = g.cells.get(cellKey(r, c))
+              const key = cellKey(r, c)
+              const v = g.cells.get(key)
+              const raw = g.cellRows.get(key)
               const x = labelW + ci * cellW
               const y = HEAD + ri * CELL_H
+              const extraText = raw && spec.tooltip.length
+                ? spec.tooltip
+                    .filter((tf) => raw[tf.key] !== null && raw[tf.key] !== undefined && raw[tf.key] !== '')
+                    .map((tf) => `, ${tf.label}: ${formatValue(raw[tf.key], tf.format ?? 'number')}`)
+                    .join('')
+                : ''
               return (
                 <rect key={c} x={x + 1} y={y + 1} width={cellW - 2} height={CELL_H - 2} rx={2}
                   fill={v === undefined ? 'transparent' : heatColor(heatT(v, g))}
                   stroke={v === undefined ? 'var(--border)' : 'none'}
-                  onMouseEnter={() => setHover({ row: r, col: c, value: v, left: x + cellW / 2, top: y })}
+                  onMouseEnter={() => setHover({ row: r, col: c, value: v, raw, left: x + cellW / 2, top: y })}
                 >
-                  <title>{`${r}, ${fmtX(c)}: ${v === undefined ? 'no data' : formatValue(v, spec.yFormat ?? 'number')}`}</title>
+                  <title>{`${r}, ${fmtX(c)}: ${v === undefined ? 'no data' : formatValue(v, spec.yFormat ?? 'number')}${extraText}`}</title>
                 </rect>
               )
             })}
@@ -75,6 +83,16 @@ export function Heatmap({ spec, width }: { spec: ChartSpec; width: number }): JS
             <span className="flex-1 text-muted-foreground">{vKey}</span>
             <span className="font-medium tabular-nums text-foreground">{hover.value === undefined ? 'no data' : formatValue(hover.value, spec.yFormat ?? 'number')}</span>
           </div>
+          {hover.raw && spec.tooltip.map((tf) => {
+            const val = hover.raw?.[tf.key]
+            if (val === null || val === undefined || val === '') return null
+            return (
+              <div key={tf.key} className="mt-0.5 flex items-center gap-2">
+                <span className="flex-1 text-muted-foreground">{tf.label}</span>
+                <span className="font-medium tabular-nums text-foreground">{formatValue(val, tf.format ?? 'number')}</span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

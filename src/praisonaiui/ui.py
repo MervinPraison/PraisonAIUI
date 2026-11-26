@@ -109,6 +109,60 @@ def board(*, columns: Sequence[dict]) -> dict:
 
 CHART_KINDS = ("bar", "barh", "line", "area", "scatter", "pie", "donut", "histogram", "heatmap", "sparkline")
 CHART_FORMATS = ("number", "compact", "percent", "multiplier", "duration")
+CHART_SCALES = ("linear", "log")
+CHART_FACET_SCALES = ("shared", "free")
+
+
+def _chart_domain(name: str, domain: Sequence[Any]) -> list[float]:
+    if not isinstance(domain, (list, tuple)) or len(domain) != 2:
+        raise ValueError(f"{name} must be a 2-element [min, max] sequence")
+    out: list[float] = []
+    for v in domain:
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(f"{name} bounds must be numbers")
+        out.append(v)
+    return out
+
+
+def _chart_tooltip(tooltip: Sequence[str | Mapping[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for item in tooltip:
+        if isinstance(item, str):
+            if item:
+                out.append({"key": item})
+            continue
+        if not isinstance(item, Mapping) or not item.get("key"):
+            raise ValueError("chart tooltip items must be field keys or {'key': ...} dicts")
+        entry: dict[str, Any] = {"key": str(item["key"])}
+        if item.get("label"):
+            entry["label"] = str(item["label"])
+        if item.get("format") is not None:
+            fmt = str(item["format"])
+            if fmt not in CHART_FORMATS:
+                raise ValueError(f"tooltip format must be one of {', '.join(CHART_FORMATS)}")
+            entry["format"] = fmt
+        out.append(entry)
+    return out
+
+
+def _chart_clip(clip: Any) -> Any:
+    if isinstance(clip, bool):
+        return True if clip else None
+    if isinstance(clip, (int, float)):
+        return [None, clip]
+    if isinstance(clip, (list, tuple)) and len(clip) == 2:
+        out: list[Any] = []
+        for v in clip:
+            if v is None:
+                out.append(None)
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
+                out.append(v)
+            else:
+                raise ValueError("chart clip bounds must be numbers or None")
+        if out[0] is None and out[1] is None:
+            return None
+        return out
+    raise ValueError("chart clip must be a bool, a max number, or a [min, max] pair")
 
 
 def _chart_reference(reference: Any) -> list[dict]:
@@ -142,13 +196,19 @@ def chart(
     color_by_reference: bool = False,
     x_format: str | None = None,
     y_format: str | None = None,
+    x_domain: Sequence[float] | None = None,
     y_domain: Sequence[float] | None = None,
+    x_scale: str | None = None,
+    y_scale: str | None = None,
+    tooltip: Sequence[str | Mapping[str, Any]] | None = None,
+    clip: bool | int | float | Sequence[int | float | None] | None = None,
     bins: int | None = None,
     height: int | None = None,
     caption: str | None = None,
     legend: bool | None = None,
     value: str | None = None,
     facet: str | None = None,
+    facet_scales: str | None = None,
     kind: str | None = None,
 ) -> dict:
     """A chart drawn in the browser (tooltips, theme colours, responsive width).
@@ -158,19 +218,23 @@ def chart(
         chart_type: One of ``CHART_KINDS``; ``bar`` is columns, ``barh`` horizontal bars.
         x: Category key (scatter: x value; histogram: measured value). Default: first text column.
         y: Series key or keys. Default: every numeric column.
-        y2: Secondary series drawn as faint bars on its own scale (counts behind a line).
+        y2: Secondary series drawn as faint bars on its own scale (bar, barh, line, area).
         labels: Display names for keys. label: key naming each scatter point.
         stacked: Stack the series (bar, barh, area).
         reference: A value, values or ``{value, label}`` dicts drawn as dashed lines.
         color_by_reference: Bars below the first reference are muted.
         x_format / y_format: One of ``CHART_FORMATS`` (k/M, %, x, seconds → 1:05).
-        y_domain: ``[min, max]`` of the value axis, e.g. ``[0, 1]`` for a 0-100% curve.
+        x_domain / y_domain: ``[min, max]`` bounds of the x / value axis (scatter, barh, histogram, etc.).
+        x_scale / y_scale: ``"linear"`` (default) or ``"log"`` (non-positive values are omitted).
+        tooltip: Extra row keys (or ``{"key", "label", "format"}`` dicts) shown in the tooltip.
+        clip: Clamp outliers to ``x_domain``/``y_domain`` (``True``), to an upper cap (number), or ``[min, max]``.
         bins: Histogram bin count (default: Sturges' rule, at most 30).
         height: Plot height in px. caption: muted line under the chart.
         legend: Show the legend (default: more than one series).
         value: Heatmap cell value key (default ``value``); ``x`` is the column key and
             ``y`` the row key (defaults ``x`` and ``y``).
-        facet: Key whose values split the rows into small charts sharing one value scale.
+        facet: Key whose values split the rows into small charts.
+        facet_scales: ``"shared"`` (default, one value scale) or ``"free"`` (each panel fits its own data).
         kind: Alias of ``chart_type``.
         See docs/api/components.md for examples.
     """
@@ -181,6 +245,11 @@ def chart(
     for name, fmt in (("x_format", x_format), ("y_format", y_format)):
         if fmt is not None and fmt not in CHART_FORMATS:
             raise ValueError(f"{name} must be one of {', '.join(CHART_FORMATS)}")
+    for name, sc in (("x_scale", x_scale), ("y_scale", y_scale)):
+        if sc is not None and sc not in CHART_SCALES:
+            raise ValueError(f"{name} must be one of {', '.join(CHART_SCALES)}")
+    if facet_scales is not None and facet_scales not in CHART_FACET_SCALES:
+        raise ValueError(f"facet_scales must be one of {', '.join(CHART_FACET_SCALES)}")
     rows = list(data or [])
     if chart_type in ("histogram", "sparkline") and rows and not isinstance(rows[0], dict):
         rows = [{"value": v} for v in rows]
@@ -198,13 +267,19 @@ def chart(
         "color_by_reference": True if color_by_reference else None,
         "x_format": x_format,
         "y_format": y_format,
-        "y_domain": None if y_domain is None else [y_domain[0], y_domain[1]],
+        "x_domain": None if x_domain is None else _chart_domain("x_domain", x_domain),
+        "y_domain": None if y_domain is None else _chart_domain("y_domain", y_domain),
+        "x_scale": x_scale if x_scale and x_scale != "linear" else None,
+        "y_scale": y_scale if y_scale and y_scale != "linear" else None,
+        "tooltip": _chart_tooltip(tooltip) if tooltip else None,
+        "clip": None if clip is None else _chart_clip(clip),
         "bins": None if bins is None else int(bins),
         "height": None if height is None else int(height),
         "caption": caption or None,
         "legend": None if legend is None else bool(legend),
         "value": value,
         "facet": facet,
+        "facet_scales": facet_scales if facet_scales and facet_scales != "shared" else None,
     }
     comp.update({k: v for k, v in opts.items() if v is not None})
     return comp
