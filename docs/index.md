@@ -96,8 +96,8 @@ Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentat
 </CardGroup>
 
 <CardGroup cols={3}>
-<Card title="Choose a UI style" icon="layers" href="features/styles.md">
-Compare the React app shell, classic chat, agents, playground, dashboard and docs styles side by side.
+<Card title="UI Components" icon="component" href="components/overview.md">
+Explore all 70 Python and YAML UI builders — cards, tables, charts, forms, media and live notifications.
 </Card>
 <Card title="Build a plugin" icon="plug" href="features/plugins.md">
 Extend the app with custom pages, settings sections, nav groups and themes from a Python package.
