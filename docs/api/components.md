@@ -224,20 +224,24 @@ aiui.chart("Views by platform", chart_type="line", data=rows, x="month", y="view
 | `kind` | `str` | — | Alias of `chart_type` |
 | `x` | `str` | first text column | Category key. Scatter: the x value (default: first numeric column). Histogram: the measured value |
 | `y` | `str \| list[str]` | every numeric column | Series key, or keys for several series |
-| `y2` | `str` | — | A secondary series drawn as faint bars on its own scale (vertical charts) |
+| `y2` | `str` | — | A secondary series drawn as faint bars on its own scale (`bar`, `barh`, `line`, `area`) |
 | `labels` | `dict[str, str]` | — | Display names for keys in the legend and tooltip |
 | `label` | `str` | — | Scatter: key naming each point in the tooltip |
+| `tooltip` | `list[str \| dict]` | — | Extra row keys (or `{"key", "label", "format"}` dicts) shown in the tooltip (including scatter & heatmap) |
 | `stacked` | `bool` | `False` | Stack the series (`bar`, `barh`, `area`) |
 | `reference` | number, list of numbers, `{value, label}` or a list of them | — | Dashed reference lines (a vertical line on `barh`) |
 | `color_by_reference` | `bool` | `False` | Bars at or above the first reference keep the series colour; bars below it are muted |
 | `x_format`, `y_format` | `str` | — | `number` (1,234.5), `compact` (1.2k, 3.4M), `percent` (0.25 → 25%), `multiplier` (1.5x), `duration` (seconds → 1:05). Axis ticks default to `compact`, tooltips to `number` |
-| `y_domain` | `[min, max]` | auto | Value axis range, e.g. `[0, 1]` with `y_format="percent"` |
+| `x_domain`, `y_domain` | `[min, max]` | auto | X / value axis range, e.g. `x_domain=[1e3, 1e7]` on scatter or `y_domain=[0, 1]` with `y_format="percent"` |
+| `x_scale`, `y_scale` | `str` | `"linear"` | `"linear"` or `"log"` (non-positive values are omitted safely) |
+| `clip` | `bool \| number \| [min, max]` | — | Clamp outliers to `x_domain`/`y_domain` (`True`), an upper cap (number), or `[min, max]` (histogram edge bins show `≤`/`+`; heatmap colour scale clamps to bounds) |
 | `bins` | `int` | Sturges' rule (max 30) | Histogram bin count |
 | `height` | `int` | 240 | Plot height in px; `barh` grows with its rows, pie and donut are 260 |
 | `caption` | `str` | — | A line of muted text under the chart |
 | `legend` | `bool` | more than one series | Show the legend |
 | `value` | `str` | `"value"` | Heatmap: the cell value key. `x` is the column key and `y` the row key (defaults `x` and `y`) |
-| `facet` | `str` | — | Key whose values split the rows into small charts in a responsive grid, sharing one value scale (at most 24 panels) |
+| `facet` | `str` | — | Key whose values split the rows into small charts in a responsive grid (at most 24 panels) |
+| `facet_scales` | `str` | `"shared"` | `"shared"` (one value scale across all panels) or `"free"` (each panel scales to its own data) |
 
 **Heatmap.** Columns and rows keep the order they first appear in `data`,
 so sort the rows (Mon..Sun, 0..23) before passing them; a repeated cell

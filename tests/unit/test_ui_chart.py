@@ -81,6 +81,43 @@ def test_heatmap_sparkline_facet_and_kind_alias():
     s = chart("Trend", data=[1, 2, 3], chart_type="sparkline")
     assert s["data"] == [{"value": 1}, {"value": 2}, {"value": 3}]
     f = chart("Views", data=[{"platform": "A", "m": "Jan", "v": 1}], chart_type="line", facet="platform")
-    assert f["facet"] == "platform" and "value" not in f
+    assert f["facet"] == "platform" and "value" not in f and "facet_scales" not in f
+    f_free = chart("Views", data=[{"platform": "A", "m": "Jan", "v": 1}], chart_type="line", facet="platform", facet_scales="free")
+    assert f_free["facet_scales"] == "free"
     with pytest.raises(ValueError, match="chart_type"):
         chart("c", kind="sankey")
+
+
+def test_domains_scales_tooltip_clip_and_validation():
+    c = chart(
+        "Reach",
+        chart_type="scatter",
+        data=[{"subs": 1000, "lift": 1.5, "posts": 12}],
+        x="subs",
+        y="lift",
+        x_domain=[1e3, 1e7],
+        y_domain=[0.1, 10],
+        x_scale="log",
+        y_scale="log",
+        tooltip=["posts", {"key": "subs", "label": "Subscribers", "format": "compact"}],
+        clip=5,
+    )
+    assert c["x_domain"] == [1000.0, 10000000.0]
+    assert c["y_domain"] == [0.1, 10]
+    assert c["x_scale"] == "log" and c["y_scale"] == "log"
+    assert c["tooltip"] == [{"key": "posts"}, {"key": "subs", "label": "Subscribers", "format": "compact"}]
+    assert c["clip"] == [None, 5]
+    assert chart("Clip bool", clip=True)["clip"] is True
+    assert chart("Clip range", clip=(0, 5))["clip"] == [0, 5]
+    assert "x_scale" not in chart("Lin", x_scale="linear")
+    for bad in (
+        {"x_scale": "sqrt"},
+        {"y_scale": "exp"},
+        {"facet_scales": "auto"},
+        {"x_domain": [1]},
+        {"tooltip": [{}]},
+        {"tooltip": [{"key": "a", "format": "eur"}]},
+        {"clip": "5"},
+    ):
+        with pytest.raises(ValueError):
+            chart("Bad", **bad)

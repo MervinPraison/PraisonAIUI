@@ -54,9 +54,10 @@ type TipEntry = { dataKey?: unknown; name?: unknown; value?: unknown; color?: st
 function ChartTooltip({ spec, active, payload, label }: { spec: ChartSpec; active?: boolean; payload?: readonly TipEntry[]; label?: unknown }) {
   if (!active || !payload?.length) return null
   const row = (payload[0].payload ?? {}) as Row
+  const raw = (spec.kind === 'scatter' && row.raw && typeof row.raw === 'object' ? (row.raw as Row) : row)
   const scatter = spec.kind === 'scatter'
   const title = scatter ? (spec.label ? String(row.name ?? '') : '') : formatValue(label ?? row[spec.x], spec.kind === 'histogram' ? undefined : spec.xFormat)
-  const entries = scatter
+  const baseEntries = scatter
     ? [
         { name: spec.x, value: formatValue(row.x, tipFmt(spec.xFormat)), color: undefined },
         { name: String(row.series ?? ''), value: formatValue(row.y, tipFmt(spec.yFormat)), color: String(row.color ?? '') },
@@ -72,6 +73,11 @@ function ChartTooltip({ spec, active, payload, label }: { spec: ChartSpec; activ
           color: isY2 ? MUTED_COLOR : (e.color ?? s?.color),
         }
       })
+  const extraEntries = spec.tooltip
+    .map((tf) => ({ name: tf.label, rawVal: raw[tf.key], fmt: tf.format }))
+    .filter((x) => x.rawVal !== null && x.rawVal !== undefined && x.rawVal !== '')
+    .map((x) => ({ name: x.name, value: formatValue(x.rawVal, x.fmt ?? 'number'), color: undefined as string | undefined }))
+  const entries = [...baseEntries, ...extraEntries]
   return (
     <div className="min-w-32 rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
       {title && <div className="mb-1 font-medium text-foreground">{title}</div>}
@@ -116,6 +122,13 @@ function valueAxisWidth(spec: ChartSpec): number {
 
 type KindRenderer = (spec: ChartSpec, width: number) => JSX.Element
 
+type PlotDomain = [number, number] | ['auto', 'auto'] | [(min: number) => number, 'auto']
+
+function axisDomain(explicit: [number, number] | undefined, log: boolean, zeroBase: boolean): PlotDomain {
+  if (explicit) return log ? [Math.max(1e-9, explicit[0]), Math.max(1e-8, explicit[1])] : explicit
+  return log || !zeroBase ? ['auto', 'auto'] : [(min: number) => Math.min(0, min), 'auto']
+}
+
 /** bar, barh, line, area, histogram: one ComposedChart, with optional y2 bars behind. */
 const cartesian: KindRenderer = (spec, width) => {
   const horizontal = spec.kind === 'barh'
@@ -123,8 +136,10 @@ const cartesian: KindRenderer = (spec, width) => {
   const stackId = spec.stacked ? 'stack' : undefined
   const fmtX = (v: unknown) => formatValue(v, spec.xFormat)
   const fmtY = (v: unknown) => formatValue(v, axisFmt(spec.yFormat))
-  // Bars and areas grow from zero; a line fits its data.
-  const domain = spec.yDomain ?? (spec.kind === 'line' ? ['auto', 'auto'] : [(min: number) => Math.min(0, min), 'auto'])
+  const yLog = spec.yScale === 'log'
+  const valueBounds = spec.yDomain ?? (horizontal ? spec.xDomain : undefined)
+  // Bars and areas grow from zero (unless log-scaled); a line fits its data.
+  const domain = axisDomain(valueBounds, yLog, spec.kind !== 'line')
   const labelChars = Math.max(...spec.rows.map((r) => String(r[spec.x] ?? '').length), 1)
   const labelWidth = Math.max(40, Math.min(labelChars * CHAR_PX + 8, width * 0.38, 180))
   const maxChars = Math.max(3, Math.floor((labelWidth - 8) / CHAR_PX))
@@ -142,20 +157,30 @@ const cartesian: KindRenderer = (spec, width) => {
       <CartesianGrid stroke={GRID} strokeDasharray="3 3" horizontal={!horizontal} vertical={horizontal} />
       {horizontal ? (
         <>
-          <XAxis type="number" tickFormatter={fmtY} domain={domain} tick={TICK} tickLine={false} axisLine={AXIS_LINE} />
+          <XAxis type="number" scale={yLog ? 'log' : 'auto'} tickFormatter={fmtY} domain={domain} allowDataOverflow={!!valueBounds} tick={TICK} tickLine={false} axisLine={AXIS_LINE} />
+          {spec.y2 && <XAxis xAxisId="y2" type="number" orientation="top" hide domain={[0, (max: number) => (max || 1) * 2]} />}
           <YAxis type="category" dataKey={spec.x} width={labelWidth} interval={0} tick={TICK} tickLine={false} axisLine={AXIS_LINE}
             tickFormatter={(v: unknown) => truncate(fmtX(v), maxChars)} />
         </>
       ) : (
         <>
           <XAxis dataKey={spec.x} tickFormatter={fmtX} tick={TICK} tickLine={false} axisLine={AXIS_LINE} minTickGap={12} interval="preserveStartEnd" />
-          <YAxis width={valueAxisWidth(spec)} tickFormatter={fmtY} domain={domain} tick={TICK} tickLine={false} axisLine={false} allowDataOverflow={!!spec.yDomain} />
+          <YAxis width={valueAxisWidth(spec)} scale={yLog ? 'log' : 'auto'} tickFormatter={fmtY} domain={domain} tick={TICK} tickLine={false} axisLine={false} allowDataOverflow={!!valueBounds} />
           {spec.y2 && <YAxis yAxisId="y2" orientation="right" hide domain={[0, (max: number) => (max || 1) * 2]} />}
         </>
       )}
       {tooltip(spec, bars ? { fill: 'var(--muted)', opacity: 0.6 } : { stroke: 'var(--border)' })}
-      {spec.y2 && !horizontal && (
-        <Bar yAxisId="y2" dataKey={spec.y2.key} name={spec.y2.label} fill={MUTED_COLOR} fillOpacity={0.18} isAnimationActive={false} />
+      {spec.y2 && (
+        <Bar
+          yAxisId={horizontal ? undefined : 'y2'}
+          xAxisId={horizontal ? 'y2' : undefined}
+          dataKey={spec.y2.key}
+          name={spec.y2.label}
+          fill={MUTED_COLOR}
+          fillOpacity={0.18}
+          radius={horizontal ? [0, 3, 3, 0] : [3, 3, 0, 0]}
+          isAnimationActive={false}
+        />
       )}
       {spec.series.map((s) => {
         if (spec.kind === 'line')
@@ -173,22 +198,48 @@ const cartesian: KindRenderer = (spec, width) => {
   )
 }
 
-const scatter: KindRenderer = (spec, width) => (
-  <ScatterChart width={width} height={spec.height} margin={MARGIN} accessibilityLayer>
-    <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-    <XAxis type="number" dataKey="x" name={spec.x} domain={['auto', 'auto']} tickFormatter={(v: unknown) => formatValue(v, axisFmt(spec.xFormat))} tick={TICK} tickLine={false} axisLine={AXIS_LINE} />
-    <YAxis type="number" dataKey="y" width={valueAxisWidth(spec)} domain={spec.yDomain ?? ['auto', 'auto']} tickFormatter={(v: unknown) => formatValue(v, axisFmt(spec.yFormat))} tick={TICK} tickLine={false} axisLine={false} />
-    {tooltip(spec, { stroke: 'var(--border)', strokeDasharray: '3 3' })}
-    {spec.series.map((s) => (
-      <Scatter key={s.key} name={s.label} fill={s.color} isAnimationActive={false}
-        data={spec.rows
-          .map((r) => ({ x: r[spec.x], y: r[s.key], name: spec.label ? r[spec.label] : undefined, series: s.label, color: s.color }))
-          .filter((d) => d.x !== null && d.y !== null)}
+const scatter: KindRenderer = (spec, width) => {
+  const xLog = spec.xScale === 'log'
+  const yLog = spec.yScale === 'log'
+  return (
+    <ScatterChart width={width} height={spec.height} margin={MARGIN} accessibilityLayer>
+      <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
+      <XAxis
+        type="number"
+        dataKey="x"
+        name={spec.x}
+        scale={xLog ? 'log' : 'auto'}
+        domain={axisDomain(spec.xDomain, xLog, false)}
+        allowDataOverflow={!!spec.xDomain}
+        tickFormatter={(v: unknown) => formatValue(v, axisFmt(spec.xFormat))}
+        tick={TICK}
+        tickLine={false}
+        axisLine={AXIS_LINE}
       />
-    ))}
-    {referenceLines(spec, 'y')}
-  </ScatterChart>
-)
+      <YAxis
+        type="number"
+        dataKey="y"
+        width={valueAxisWidth(spec)}
+        scale={yLog ? 'log' : 'auto'}
+        domain={axisDomain(spec.yDomain, yLog, false)}
+        allowDataOverflow={!!spec.yDomain}
+        tickFormatter={(v: unknown) => formatValue(v, axisFmt(spec.yFormat))}
+        tick={TICK}
+        tickLine={false}
+        axisLine={false}
+      />
+      {tooltip(spec, { stroke: 'var(--border)', strokeDasharray: '3 3' })}
+      {spec.series.map((s) => (
+        <Scatter key={s.key} name={s.label} fill={s.color} isAnimationActive={false}
+          data={spec.rows
+            .map((r) => ({ x: r[spec.x], y: r[s.key], name: spec.label ? r[spec.label] : undefined, series: s.label, color: s.color, raw: r }))
+            .filter((d) => typeof d.x === 'number' && typeof d.y === 'number' && (!xLog || d.x > 0) && (!yLog || d.y > 0))}
+        />
+      ))}
+      {referenceLines(spec, 'y')}
+    </ScatterChart>
+  )
+}
 
 const radial: KindRenderer = (spec, width) => {
   const s = spec.series[0]
