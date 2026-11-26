@@ -551,5 +551,6 @@ export default [
   // 11,652,890 B (+4,447 B, exactly the overage, 2026-11-26): remote combobox options_url, native color_picker_input & pagination blocks.
   // 11,658,218 B (+5,328 B, exactly the overage, 2026-11-26): BlockPage markdown doc viewer with TOC, sidebar page badges across all layouts, live badge/manifest refresh.
   // 11,680,322 B (+22,104 B, exactly the overage, 2026-11-26): modular @aiui/sdk notifications store, NotificationBell, lazy NotificationPanel & server SSE source.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11680322 B', brotli: false },
+  // 11,695,329 B (+15,007 B, exactly the overage, 2026-11-26): lazy RichBlocks chunk (stepper, timeline, diff_viewer, tree_view, copy_field, rating_input).
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11695329 B', brotli: false },
 ]

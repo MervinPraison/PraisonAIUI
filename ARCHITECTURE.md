@@ -246,7 +246,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 274,091 B |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,680,322 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,695,329 B |
 
 Streamdown, Shiki, Mermaid, KaTeX, `@assistant-ui` and recharts never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).

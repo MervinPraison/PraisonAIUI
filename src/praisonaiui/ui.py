@@ -1849,3 +1849,164 @@ def filter_bar(
     if update_url:
         comp["update_url"] = True
     return comp
+
+
+# ── Rich Compound Blocks ─────────────────────────────────────────────────────
+
+STEPPER_ORIENTATIONS = ("horizontal", "vertical")
+
+
+def stepper(
+    steps: Sequence[dict],
+    *,
+    active: int = 0,
+    orientation: str = "horizontal",
+    title: str | None = None,
+) -> dict:
+    """A multi-step workflow or onboarding progress indicator.
+
+    Args:
+        steps: Sequence of step dicts (``title``, optional ``description``,
+            ``status`` in ``pending`` | ``active`` | ``done`` | ``error``).
+        active: Zero-based index of the active step (when per-step ``status`` is omitted).
+        orientation: ``"horizontal"`` (default) or ``"vertical"``.
+        title: Optional accessible label for the step list.
+    """
+    if orientation not in STEPPER_ORIENTATIONS:
+        raise ValueError(f"orientation must be one of {', '.join(STEPPER_ORIENTATIONS)}")
+    comp: dict[str, Any] = {
+        "type": "stepper",
+        "steps": [dict(s) for s in steps],
+        "active": max(0, int(active)),
+        "orientation": orientation,
+    }
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def timeline(items: Sequence[dict], *, title: str | None = None) -> dict:
+    """A chronological vertical timeline for activity feeds and audit logs.
+
+    Args:
+        items: Sequence of event dicts (``title``, optional ``description``,
+            ``timestamp``, ``badge``, ``status`` in ``default`` | ``info`` |
+            ``success`` | ``warning`` | ``error``).
+        title: Optional heading above the timeline.
+    """
+    comp: dict[str, Any] = {"type": "timeline", "items": [dict(i) for i in items]}
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def diff_viewer(
+    before: str,
+    after: str,
+    *,
+    title: str | None = None,
+    before_label: str = "Before",
+    after_label: str = "After",
+) -> dict:
+    """A line-by-line unified diff viewer for comparing prompts, configs, or code.
+
+    Args:
+        before: Original text.
+        after: Modified text.
+        title: Optional header title.
+        before_label: Label for the original version.
+        after_label: Label for the modified version.
+    """
+    comp: dict[str, Any] = {
+        "type": "diff_viewer",
+        "before": str(before),
+        "after": str(after),
+        "before_label": before_label,
+        "after_label": after_label,
+    }
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def tree_view(
+    nodes: Sequence[dict],
+    *,
+    title: str | None = None,
+    default_expanded: bool = False,
+) -> dict:
+    """A collapsible hierarchical tree for files, RAG sources, or agent trees.
+
+    Args:
+        nodes: Recursive list of dicts (``label``, optional ``children``,
+            ``badge``, ``href``, ``expanded``).
+        title: Optional heading above the tree.
+        default_expanded: Whether branches start expanded when ``expanded`` is unset.
+    """
+    comp: dict[str, Any] = {
+        "type": "tree_view",
+        "nodes": [dict(n) for n in nodes],
+        "default_expanded": bool(default_expanded),
+    }
+    if title is not None:
+        comp["title"] = title
+    return comp
+
+
+def copy_field(
+    value: str,
+    *,
+    label: str | None = None,
+    secret: bool = False,
+) -> dict:
+    """A copyable command, token, or snippet box with one-click clipboard copy.
+
+    Args:
+        value: Text copied to the clipboard when the user clicks Copy.
+        label: Optional label above the field.
+        secret: When ``True``, masks the displayed value behind a reveal toggle.
+    """
+    comp: dict[str, Any] = {
+        "type": "copy_field",
+        "value": str(value),
+        "secret": bool(secret),
+    }
+    if label is not None:
+        comp["label"] = label
+    return comp
+
+
+def rating_input(
+    label: str = "",
+    *,
+    value: int = 0,
+    max_stars: int = 5,
+    name: str | None = None,
+    readonly: bool = False,
+    auto_submit: bool = False,
+) -> dict:
+    """An accessible star rating display or interactive form input.
+
+    Args:
+        label: Field label.
+        value: Initial selected star count (0..``max_stars``).
+        max_stars: Number of stars (1..10, default 5).
+        name: Form field name for ``aiui.form`` / ``aiui.filter_bar``.
+        readonly: When ``True``, renders a static rating display.
+        auto_submit: Submit the enclosing form immediately on change.
+    """
+    if not (1 <= int(max_stars) <= 10):
+        raise ValueError("max_stars must be between 1 and 10")
+    clamped = max(0, min(int(max_stars), int(value)))
+    comp: dict[str, Any] = {
+        "type": "rating_input",
+        "label": label,
+        "value": clamped,
+        "max_stars": int(max_stars),
+        "readonly": bool(readonly),
+    }
+    if name is not None:
+        comp["name"] = name
+    if auto_submit:
+        comp["auto_submit"] = True
+    return comp
