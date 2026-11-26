@@ -2,8 +2,8 @@
  * Core block renderers: React + design tokens for the `_components` types
  * page handlers use most (praisonaiui/ui.py; dashboard.js renderComponent*).
  * Media, navigation and overlay types (link, avatar, players, breadcrumb,
- * dialog, popover, ...) are in mediaBlocks.tsx. Other types (pagination,
- * a2ui_surface, ...) render through LegacyBlockFallback. `chart` is a lazy
+ * pagination, dialog, popover, ...) are in mediaBlocks.tsx. Other types
+ * (a2ui_surface, ...) render through LegacyBlockFallback. `chart` is a lazy
  * chunk of its own (blocks/chart, with the chart library). `html` /
  * `html_embed` render in a sandboxed frame (./HtmlBlock).
  *
@@ -929,6 +929,29 @@ function SliderInputBlock({ node }: CoreBlockProps) {
   )
 }
 
+function ColorPickerInputBlock({ node }: CoreBlockProps) {
+  const p = propsOf(node)
+  const id = useId()
+  const [value, setValue] = useState(() => str(p.value, '#000000') || '#000000')
+  return (
+    <Field id={id} label={str(p.label)}>
+      <div className="flex items-center gap-2.5">
+        <input
+          id={id}
+          type="color"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="h-8 w-10 cursor-pointer rounded-md border border-input bg-transparent p-0.5 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          {...inputAttrs(p)}
+        />
+        <output htmlFor={id} className="font-mono text-xs text-muted-foreground tabular-nums">
+          {value}
+        </output>
+      </div>
+    </Field>
+  )
+}
+
 // ── page templates (components/page, DESIGN.md "Page templates") ─────
 
 /** A template block: its own chunk, imported on first render (BlockRenderer suspends). */
@@ -1015,6 +1038,7 @@ const CORE: Record<string, CoreBlock> = {
   switch_input: SwitchInputBlock,
   radio_input: RadioInputBlock,
   slider_input: SliderInputBlock,
+  color_picker_input: ColorPickerInputBlock,
   multiselect_input: MultiSelect,
   tags_input: TagsInput,
   date_range_input: DateRangeInput,

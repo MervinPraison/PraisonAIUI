@@ -7,7 +7,7 @@ from praisonaiui import ui
 
 
 def test_new_helpers_are_exported():
-    for name in ("tags_input", "date_range_input", "segmented_input", "filter_bar"):
+    for name in ("tags_input", "date_range_input", "segmented_input", "filter_bar", "list_detail"):
         assert name in aiui.__all__
         assert getattr(aiui, name) is getattr(ui, name)
 
@@ -18,18 +18,44 @@ def test_select_input_searchable_and_auto_submit_are_additive():
     s = aiui.select_input("Channel", options=["a"], searchable=True, auto_submit=True)
     assert s["searchable"] is True and s["auto_submit"] is True
     assert aiui.select_input("X", options=[], searchable=False)["searchable"] is False
+    remote = aiui.select_input(
+        "Creator",
+        options_url="/api/creators/search",
+        value="ch_1",
+        selected_label="Ada Lovelace",
+        placeholder="Search creators...",
+        name="creator",
+    )
+    assert remote == {
+        "type": "select_input",
+        "label": "Creator",
+        "options": [],
+        "value": "ch_1",
+        "name": "creator",
+        "options_url": "/api/creators/search",
+        "placeholder": "Search creators...",
+        "selected_label": "Ada Lovelace",
+    }
 
 
 def test_auto_submit_on_existing_inputs():
     for comp in (
         aiui.text_input("Q", auto_submit=True),
         aiui.number_input("N", auto_submit=True),
+        aiui.slider_input("V", auto_submit=True),
+        aiui.textarea_input("T", auto_submit=True),
         aiui.checkbox_input("C", auto_submit=True),
         aiui.switch_input("S", auto_submit=True),
         aiui.radio_input("R", options=["a"], auto_submit=True),
+        aiui.date_input("D", name="d", auto_submit=True),
+        aiui.time_input("Tm", name="tm", auto_submit=True),
+        aiui.color_picker_input("Color", name="color", auto_submit=True),
     ):
         assert comp["auto_submit"] is True
     assert "auto_submit" not in aiui.text_input("Q")
+    assert aiui.date_input("D", name="d")["name"] == "d"
+    assert aiui.time_input("Tm", name="tm")["name"] == "tm"
+    assert aiui.color_picker_input("Color", name="color")["name"] == "color"
 
 
 def test_form_submit_on_change_is_opt_in():
@@ -44,8 +70,42 @@ def test_multiselect_keeps_old_shape_and_takes_name():
         "options": ["A"],
         "value": ["A"],
     }
-    m = aiui.multiselect_input("Tags", options=[{"value": "a", "label": "A"}], name="t", placeholder="Pick")
+    m = aiui.multiselect_input(
+        "Tags",
+        options=[{"value": "a", "label": "A"}],
+        name="t",
+        placeholder="Pick",
+        options_url="/api/tags/search",
+        selected_labels={"a": "Alpha"},
+    )
     assert m["name"] == "t" and m["placeholder"] == "Pick"
+    assert m["options_url"] == "/api/tags/search"
+    assert m["selected_labels"] == {"a": "Alpha"}
+
+
+def test_pagination_action_and_list_detail_helper():
+    plain_p = aiui.pagination(total=100, page=2, per_page=25)
+    assert "action" not in plain_p
+    act_p = aiui.pagination(total=100, page=2, per_page=25, id="list", action="explore")
+    assert act_p["action"] == "explore" and act_p["id"] == "list"
+
+    ld = aiui.list_detail(
+        rows=[{"id": "r1", "title": "Alpha", "detail": {"Owner": "Ada"}}],
+        columns=["title"],
+        title="Sessions",
+        page_size=10,
+        search=True,
+        empty="None",
+    )
+    assert ld == {
+        "type": "list_detail",
+        "rows": [{"id": "r1", "title": "Alpha", "detail": {"Owner": "Ada"}}],
+        "title": "Sessions",
+        "columns": ["title"],
+        "page_size": 10,
+        "search": True,
+        "empty": "None",
+    }
 
 
 def test_tags_input():

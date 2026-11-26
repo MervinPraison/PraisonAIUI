@@ -8,19 +8,21 @@
  * (mediaBlocks()), so coreBlocks can read it while the import cycle through
  * BlockRenderer is still resolving.
  */
-import { useMemo, type CSSProperties, type JSX, type KeyboardEvent, type MouseEvent } from 'react'
-import { Download } from 'lucide-react'
+import { useMemo, useRef, useState, type CSSProperties, type JSX, type KeyboardEvent, type MouseEvent } from 'react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem } from '@/components/ui/pagination'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
+import { useBlockContext } from './context'
 import { hrefLinkOnClick, initials, pageLinkProps } from './mediaModel'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNode, toBlockNodes } from './normalize'
 
@@ -315,6 +317,81 @@ function CardGridBlock({ node }: Props) {
   )
 }
 
+function pageWindow(current: number, pages: number): (number | 'gap')[] {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1)
+  const out: (number | 'gap')[] = [1]
+  const lo = Math.max(2, current - 1)
+  const hi = Math.min(pages - 1, current + 1)
+  if (lo > 2) out.push('gap')
+  for (let i = lo; i <= hi; i++) out.push(i)
+  if (hi < pages - 1) out.push('gap')
+  out.push(pages)
+  return out
+}
+
+function PaginationBlock({ node }: Props) {
+  const p = propsOf(node)
+  const ctx = useBlockContext()
+  const ref = useRef<HTMLDivElement>(null)
+  const total = Math.max(0, Math.floor(num(p.total, 0)))
+  const perPage = Math.max(1, Math.floor(num(p.per_page, 10)))
+  const pages = Math.max(1, Math.ceil(total / perPage))
+  const [current, setCurrent] = useState(() => Math.min(pages, Math.max(1, Math.floor(num(p.page, 1)))))
+  const clamped = Math.min(pages, Math.max(1, current))
+  const id = str(p.id) || undefined
+  const action = str(p.action) || undefined
+  const from = total === 0 ? 0 : (clamped - 1) * perPage + 1
+  const to = Math.min(total, clamped * perPage)
+  const go = (next: number) => {
+    const target = Math.min(pages, Math.max(1, next))
+    if (target === clamped) return
+    setCurrent(target)
+    ref.current?.dispatchEvent(
+      new CustomEvent('aiui:pagination', { detail: { id, page: target, per_page: perPage, total }, bubbles: true }),
+    )
+    if (action) void ctx.runAction({ body: { action, page: target, per_page: perPage, ...(id ? { id } : {}) }, label: 'Page' })
+  }
+  return (
+    <div ref={ref} data-pagination-id={id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+      <span>{total === 0 ? '0 items' : `${from}–${to} of ${total}`}</span>
+      <Pagination aria-label="Pagination" className="mx-0 w-auto justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Previous page" disabled={clamped <= 1} onClick={() => go(clamped - 1)}>
+              <ChevronLeft aria-hidden />
+            </Button>
+          </PaginationItem>
+          {pageWindow(clamped, pages).map((slot, i) =>
+            slot === 'gap' ? (
+              <PaginationItem key={`g${i}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={slot}>
+                <Button
+                  type="button"
+                  variant={slot === clamped ? 'outline' : 'ghost'}
+                  size="sm"
+                  aria-current={slot === clamped ? 'page' : undefined}
+                  aria-label={`Page ${slot}`}
+                  onClick={() => go(slot)}
+                >
+                  {slot}
+                </Button>
+              </PaginationItem>
+            ),
+          )}
+          <PaginationItem>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Next page" disabled={clamped >= pages} onClick={() => go(clamped + 1)}>
+              <ChevronRight aria-hidden />
+            </Button>
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  )
+}
+
 /** Block type → renderer, merged into the core set by coreBlocks.tsx (which maps `link` itself). */
 // eslint-disable-next-line react-refresh/only-export-components -- registry table
 export function mediaBlocks(): Record<string, (props: Props) => JSX.Element | null> {
@@ -324,6 +401,7 @@ export function mediaBlocks(): Record<string, (props: Props) => JSX.Element | nu
     video_player: PlayerBlock,
     file_download: FileDownloadBlock,
     breadcrumb: BreadcrumbBlock,
+    pagination: PaginationBlock,
     tooltip_wrap: TooltipBlock,
     popover: PopoverBlock,
     dialog: DialogBlock,

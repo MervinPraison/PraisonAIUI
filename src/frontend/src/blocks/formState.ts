@@ -4,7 +4,7 @@
  * the active-filter chips. Plain functions, so they are tested without a DOM.
  */
 import type { BlockNode } from '@/sdk/registry'
-import { arr, isRecord, str } from './normalize'
+import { arr, isRecord, safeUrl, str } from './normalize'
 
 /** The key an element posts under: `name`, else its label (legacy form_action). */
 export function fieldKey(el: Element): string {
@@ -77,7 +77,27 @@ export const SEARCHABLE_OVER = 20
 
 export function isSearchable(p: Record<string, unknown>): boolean {
   if (typeof p.searchable === 'boolean') return p.searchable
+  if (str(p.options_url)) return true
   return arr(p.options).length > SEARCHABLE_OVER
+}
+
+/** Parse a remote options JSON reply (`[...]`, `{options: [...]}`, or `{items: [...]}`). */
+export function parseRemoteOptions(data: unknown): Option[] {
+  if (Array.isArray(data)) return optionList(data)
+  if (isRecord(data)) {
+    if (Array.isArray(data.options)) return optionList(data.options)
+    if (Array.isArray(data.items)) return optionList(data.items)
+  }
+  return []
+}
+
+/** Build a safe remote options search URL with `?q=<query>` (null for unsafe URLs). */
+export function remoteOptionsUrl(base: string, query: string): string | null {
+  const safe = safeUrl(base)
+  if (!safe) return null
+  const q = query.trim()
+  const sep = safe.includes('?') ? '&' : '?'
+  return `${safe}${sep}q=${encodeURIComponent(q)}`
 }
 
 /**

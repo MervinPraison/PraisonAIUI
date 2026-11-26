@@ -452,30 +452,44 @@ aiui.number_input("Age", value=28, min_val=0, max_val=150, step=1)
 | `max_val` | `int\|float` | ❌ | `None` | Maximum allowed |
 | `step` | `int\|float` | ❌ | `1` | Increment step |
 
-### `aiui.select_input(label, *, options, value, name, searchable, auto_submit)`
+### `aiui.select_input(label, *, options, value, name, searchable, auto_submit, options_url, placeholder, selected_label)`
 
 ```python
 aiui.select_input("Country", options=["USA", "UK", "Canada"], value="USA")
 aiui.select_input("Channel", options=channels, name="channel")  # 1,000+ options: searchable
+aiui.select_input(
+    "Creator",
+    options_url="/api/creators/search",
+    value=creator_id,
+    selected_label=creator_name,
+    placeholder="Search creators...",
+    name="creator",
+)
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
-| `options` | `Sequence[str]` | ✅ | — | Option strings, or `{"value", "label"}` dicts |
+| `options` | `Sequence[str \| dict]` | ❌ | `()` | Option strings, or `{"value", "label"}` dicts (optional when `options_url` is set) |
 | `value` | `str` | ❌ | `""` | Default selected |
 | `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
-| `searchable` | `bool` | ❌ | `None` | `True`: a type-to-search list (combobox). `None`: searchable when there are more than 20 options. `False`: always a plain dropdown |
+| `searchable` | `bool` | ❌ | `None` | `True`: a type-to-search list (combobox). `None`: searchable when there are more than 20 options or `options_url` is set. `False`: always a plain dropdown |
 | `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form when the value changes |
+| `options_url` | `str` | ❌ | `None` | Endpoint queried with `?q=<text>` (debounced 200 ms) returning `[{"value", "label"}]`, `["str"]`, or `{"options": [...]}` |
+| `placeholder` | `str` | ❌ | `None` | Placeholder text shown when no value is selected |
+| `selected_label` | `str` | ❌ | `None` | Display label for the initial `value` when `options_url` is used and `options` is omitted |
 
 In the app shell the searchable list filters as you type (names that start
 with the text first) and renders at most 100 rows, with a "N more: type to
-narrow" line, so a list of a thousand options opens instantly. Arrow keys,
-Enter and Escape work as in any listbox; the value posts by `name` like a
-plain select.
+narrow" line, so a list of a thousand options opens instantly. When
+`options_url` is set, typing queries the server endpoint with `?q=...` and
+remembers chosen labels across searches. Arrow keys, Enter and Escape work as
+in any listbox; the value posts by `name` like a plain select.
 
 `auto_submit=True` is also accepted by `text_input` (debounced 400 ms),
-`number_input`, `checkbox_input`, `switch_input` and `radio_input`.
+`number_input`, `slider_input`, `textarea_input`, `checkbox_input`,
+`switch_input`, `radio_input`, `date_input`, `time_input` and
+`color_picker_input`.
 
 ### `aiui.slider_input(label, *, value, min_val, max_val, step)`
 
@@ -538,20 +552,23 @@ aiui.textarea_input("Bio", value="Developer", placeholder="About you...", rows=3
 | `placeholder` | `str` | ❌ | `""` | Placeholder text |
 | `rows` | `int` | ❌ | `4` | Visible rows |
 
-### `aiui.multiselect_input(label, *, options, value, name, placeholder, auto_submit)`
+### `aiui.multiselect_input(label, *, options, value, name, placeholder, auto_submit, options_url, selected_labels)`
 
 ```python
 aiui.multiselect_input("Tags", options=["AI", "ML", "NLP"], value=["AI"], name="tags")
+aiui.multiselect_input("Topics", options_url="/api/topics/search", value=["t1"], selected_labels={"t1": "AI"}, name="topics")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
-| `options` | `Sequence[str]` | ✅ | — | Choices: strings or `{"value", "label"}` dicts |
+| `options` | `Sequence[str \| dict]` | ❌ | `()` | Choices: strings or `{"value", "label"}` dicts (optional when `options_url` is set) |
 | `value` | `Sequence[str]` | ❌ | `()` | Default selections |
 | `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
 | `placeholder` | `str` | ❌ | `None` | Text of the add button while nothing is chosen |
 | `auto_submit` | `bool` | ❌ | `False` | Submit the form when the selection changes |
+| `options_url` | `str` | ❌ | `None` | Endpoint queried with `?q=<text>` (debounced 200 ms) for remote options |
+| `selected_labels` | `dict[str, str]` | ❌ | `None` | Initial `{value: label}` map so chips show labels before a search runs |
 
 Chosen values show as chips with a remove button; "Add" opens a searchable
 list. In a form it posts a **list** of the chosen values.
@@ -595,38 +612,44 @@ aiui.segmented_input("platform", ["YouTube", "LinkedIn", "X"], multi=True)
 A row of toggle pills (`aria-pressed`). Single choice posts the value (the
 first option when `value` is empty); `multi=True` posts a **list**.
 
-### `aiui.date_input(label, *, value)`
+### `aiui.date_input(label, *, value, name, auto_submit)`
 
 ```python
-aiui.date_input("Start Date", value="2026-01-15")
+aiui.date_input("Start Date", value="2026-01-15", name="start_date")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
 | `value` | `str` | ❌ | `None` | ISO date string |
+| `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form on change |
 
-### `aiui.time_input(label, *, value)`
+### `aiui.time_input(label, *, value, name, auto_submit)`
 
 ```python
-aiui.time_input("Alarm", value="08:30")
+aiui.time_input("Alarm", value="08:30", name="alarm")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
 | `value` | `str` | ❌ | `None` | `"HH:MM"` string |
+| `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form on change |
 
-### `aiui.color_picker_input(label, *, value)`
+### `aiui.color_picker_input(label, *, value, name, auto_submit)`
 
 ```python
-aiui.color_picker_input("Brand Color", value="#6366f1")
+aiui.color_picker_input("Brand Color", value="#6366f1", name="brand_color")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `label` | `str` | ✅ | — | Input label |
 | `value` | `str` | ❌ | `"#000000"` | Default hex color |
+| `name` | `str` | ❌ | `None` | Submit key in a form (else `label`) |
+| `auto_submit` | `bool` | ❌ | `False` | Submit the enclosing form on change |
 
 ---
 
@@ -904,16 +927,19 @@ initials), `badges` (strings or `{"text", "variant"}`), `stats`
 (`[{"label", "value"}]`), and `href` (+ `target`) or `page` to make the whole
 card a link.
 
-### `list_detail` (block dict)
+### `aiui.list_detail(*, rows, columns, title, page_size, search, empty)`
 
 A list with a detail panel beside it (below it on a phone): a dense table with
 a sticky header, a search box, keyboard selection (Up and Down move, Enter
 opens, Escape closes) and pages. Selecting a row shows its other columns and
-its `detail` dict as key facts. There is no Python helper; return the dict.
+its `detail` dict as key facts.
 
 ```python
-{"type": "list_detail", "title": "Sessions", "columns": ["title", {"key": "tokens", "align": "end"}],
- "rows": [{"id": "s1", "title": "Sorting", "tokens": 3412, "detail": {"Cost": "$0.02"}}]}
+aiui.list_detail(
+    title="Sessions",
+    columns=["title", {"key": "tokens", "align": "end"}],
+    rows=[{"id": "s1", "title": "Sorting", "tokens": 3412, "detail": {"Cost": "$0.02"}}],
+)
 ```
 
 | Key | Type | Description |
@@ -1135,12 +1161,13 @@ aiui.breadcrumb([
 |-----------|------|----------|-------------|
 | `items` | `Sequence[dict]` | ✅ | List of `{"label": str, "href": str\|None}` |
 
-### `aiui.pagination(*, total, page, per_page, id)`
+### `aiui.pagination(*, total, page, per_page, id, action)`
 
 Pagination controls.
 
 ```python
 aiui.pagination(total=250, page=3, per_page=25)
+aiui.pagination(total=250, page=3, per_page=25, action="explore")
 ```
 
 | Parameter | Type | Required | Default | Description |
@@ -1149,6 +1176,7 @@ aiui.pagination(total=250, page=3, per_page=25)
 | `page` | `int` | ❌ | `1` | Current page (1-based) |
 | `per_page` | `int` | ❌ | `10` | Items per page |
 | `id` | `str` | ❌ | `None` | Identifier echoed in the page-change event |
+| `action` | `str` | ❌ | `None` | App shell: POST `{id, page, per_page, total}` to `/api/pages/{page}/action` |
 
 The control is optimistic: clicking ←, →, or a page number updates the active
 page and dispatches a bubbling `aiui:pagination` DOM event. Buttons that would

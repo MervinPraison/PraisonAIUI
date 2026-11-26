@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { BlockNode } from '@/sdk/registry'
+import { isSearchable, parseRemoteOptions, remoteOptionsUrl } from '../formState'
 import { MultiSelect, SearchableSelect } from './Combobox'
 import { DateRangeInput, FilterBar, SegmentedInput, TagsInput } from './FilterInputs'
 
@@ -63,4 +64,49 @@ test('filter bar: a search form with chips and Reset for active filters', () => 
   )
   assert.match(getBar, /<form role="search" aria-label="Filters"/)
   assert.match(getBar, /aria-label="Clear Query: ai"/)
+})
+
+test('remote options_url helpers: URL builder, payload parser and isSearchable', () => {
+  assert.equal(isSearchable({ options: [], options_url: '/api/creators' }), true)
+  assert.equal(remoteOptionsUrl('/api/creators', 'ada'), '/api/creators?q=ada')
+  assert.equal(remoteOptionsUrl('/api/creators?platform=yt', 'ada'), '/api/creators?platform=yt&q=ada')
+  assert.equal(remoteOptionsUrl('javascript:alert(1)', 'x'), null)
+  assert.deepEqual(parseRemoteOptions(['a', { value: 'b', label: 'Bee' }]), [
+    { value: 'a', label: 'a' },
+    { value: 'b', label: 'Bee' },
+  ])
+  assert.deepEqual(parseRemoteOptions({ options: [{ value: '1', label: 'One' }] }), [{ value: '1', label: 'One' }])
+  assert.deepEqual(parseRemoteOptions({ items: [{ value: '2', label: 'Two' }] }), [{ value: '2', label: 'Two' }])
+})
+
+test('remote select and multiselect display remembered initial labels when options is empty', () => {
+  const single = renderToStaticMarkup(
+    <SearchableSelect
+      node={node('select_input', {
+        name: 'creator',
+        label: 'Creator',
+        options: [],
+        options_url: '/api/creators',
+        value: 'ch_1',
+        selected_label: 'Ada Lovelace',
+      })}
+    />,
+  )
+  assert.match(single, /value="ch_1"/)
+  assert.match(single, />Ada Lovelace</)
+
+  const multi = renderToStaticMarkup(
+    <MultiSelect
+      node={node('multiselect_input', {
+        name: 'tags',
+        label: 'Tags',
+        options: [],
+        options_url: '/api/tags',
+        value: ['t1'],
+        selected_labels: { t1: 'Deep Tech' },
+      })}
+    />,
+  )
+  assert.match(multi, /aria-label="Remove Deep Tech"/)
+  assert.match(multi, />Deep Tech</)
 })

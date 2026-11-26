@@ -652,22 +652,30 @@ def number_input(
 def select_input(
     label: str,
     *,
-    options: Sequence[str],
+    options: Sequence[Any] = (),
     value: str = "",
     name: str | None = None,
     searchable: bool | None = None,
+    options_url: str | None = None,
+    placeholder: str | None = None,
+    selected_label: str | None = None,
     auto_submit: bool = False,
 ) -> dict:
     """A dropdown select input.
 
     Args:
         label: Input label
-        options: List of option strings
+        options: List of option strings or ``{"value", "label"}`` dicts
         value: Default selected value
         name: Optional explicit submit-key for ``form_action``.
         searchable: ``True`` shows a type-to-search list (a combobox) instead
             of a plain dropdown; ``None`` (default) does so when there are
-            more than 20 options; ``False`` never does.
+            more than 20 options or ``options_url`` is set; ``False`` never does.
+        options_url: Optional same-origin endpoint accepting ``?q=<query>`` and
+            returning JSON ``list`` or ``{"options": [...]}`` for server-loaded search.
+        placeholder: Placeholder text for the searchable combobox trigger.
+        selected_label: Display label for ``value`` when using ``options_url``
+            before the remote options are fetched.
         auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {
@@ -680,6 +688,12 @@ def select_input(
         comp["name"] = name
     if searchable is not None:
         comp["searchable"] = searchable
+    if options_url is not None:
+        comp["options_url"] = options_url
+    if placeholder is not None:
+        comp["placeholder"] = placeholder
+    if selected_label is not None:
+        comp["selected_label"] = selected_label
     return _auto(comp, auto_submit)
 
 
@@ -691,6 +705,7 @@ def slider_input(
     max_val: int | float = 100,
     step: int | float = 1,
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A slider input.
 
@@ -701,6 +716,7 @@ def slider_input(
         max_val: Maximum value
         step: Increment step
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {
         "type": "slider_input",
@@ -712,7 +728,7 @@ def slider_input(
     }
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 def checkbox_input(
@@ -792,6 +808,7 @@ def textarea_input(
     placeholder: str = "",
     rows: int = 4,
     name: str | None = None,
+    auto_submit: bool = False,
 ) -> dict:
     """A multi-line text area input.
 
@@ -801,6 +818,7 @@ def textarea_input(
         placeholder: Placeholder text
         rows: Number of visible rows
         name: Optional explicit submit-key for ``form_action``.
+        auto_submit: Submit the enclosing form when the value changes.
     """
     comp: dict[str, Any] = {
         "type": "textarea_input",
@@ -811,7 +829,7 @@ def textarea_input(
     }
     if name is not None:
         comp["name"] = name
-    return comp
+    return _auto(comp, auto_submit)
 
 
 # ── Tier 3: Layout & Advanced Components ─────────────────────────────
@@ -988,10 +1006,12 @@ def callout(content: str, *, variant: str = "info", title: str | None = None) ->
 def multiselect_input(
     label: str,
     *,
-    options: Sequence[Any],
+    options: Sequence[Any] = (),
     value: Sequence[str] = (),
     name: str | None = None,
     placeholder: str | None = None,
+    options_url: str | None = None,
+    selected_labels: Mapping[str, str] | None = None,
     auto_submit: bool = False,
 ) -> dict:
     """A searchable multi-select: chosen values show as removable chips.
@@ -1004,6 +1024,10 @@ def multiselect_input(
         value: Default selected values
         name: Optional explicit submit-key for ``form``.
         placeholder: Text of the "add" button when nothing is chosen.
+        options_url: Optional same-origin endpoint accepting ``?q=<query>`` and
+            returning JSON ``list`` or ``{"options": [...]}`` for server-loaded search.
+        selected_labels: Optional ``{value: label}`` map for initially selected values
+            when using ``options_url``.
         auto_submit: Submit the enclosing form when the selection changes.
     """
     comp: dict[str, Any] = {
@@ -1016,6 +1040,10 @@ def multiselect_input(
         comp["name"] = name
     if placeholder is not None:
         comp["placeholder"] = placeholder
+    if options_url is not None:
+        comp["options_url"] = options_url
+    if selected_labels:
+        comp["selected_labels"] = {str(k): str(v) for k, v in selected_labels.items()}
     return _auto(comp, auto_submit)
 
 
@@ -1120,27 +1148,48 @@ def segmented_input(
     return _auto(comp, auto_submit)
 
 
-def date_input(label: str, *, value: str | None = None) -> dict:
+def date_input(
+    label: str,
+    *,
+    value: str | None = None,
+    name: str | None = None,
+    auto_submit: bool = False,
+) -> dict:
     """A date picker input.
 
     Args:
         label: Input label
         value: Default date as ISO string (e.g. "2026-01-15")
+        name: Optional explicit submit-key for ``form``
+        auto_submit: Submit the enclosing form when the value changes
     """
     comp: dict[str, Any] = {"type": "date_input", "label": label}
     if value is not None:
         comp["value"] = value
-    return comp
+    if name is not None:
+        comp["name"] = name
+    return _auto(comp, auto_submit)
 
 
-def color_picker_input(label: str, *, value: str = "#000000") -> dict:
+def color_picker_input(
+    label: str,
+    *,
+    value: str = "#000000",
+    name: str | None = None,
+    auto_submit: bool = False,
+) -> dict:
     """A color picker input.
 
     Args:
         label: Input label
         value: Default hex color (e.g. "#ff5733")
+        name: Optional explicit submit-key for ``form``
+        auto_submit: Submit the enclosing form when the value changes
     """
-    return {"type": "color_picker_input", "label": label, "value": value}
+    comp: dict[str, Any] = {"type": "color_picker_input", "label": label, "value": value}
+    if name is not None:
+        comp["name"] = name
+    return _auto(comp, auto_submit)
 
 
 def audio_player(src: str, *, autoplay: bool = False, title: str | None = None) -> dict:
@@ -1377,16 +1426,59 @@ def tooltip_wrap(child: dict, *, content: str) -> dict:
 # ── Tier C: Completeness Components ──────────────────────────────────
 
 
-def time_input(label: str, *, value: str | None = None) -> dict:
+def time_input(
+    label: str,
+    *,
+    value: str | None = None,
+    name: str | None = None,
+    auto_submit: bool = False,
+) -> dict:
     """A time picker input.
 
     Args:
         label: Input label
         value: Default time as "HH:MM" string
+        name: Optional explicit submit-key for ``form``
+        auto_submit: Submit the enclosing form when the value changes
     """
     comp: dict[str, Any] = {"type": "time_input", "label": label}
     if value is not None:
         comp["value"] = value
+    if name is not None:
+        comp["name"] = name
+    return _auto(comp, auto_submit)
+
+
+def list_detail(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    columns: Sequence[str | Mapping[str, Any]] | None = None,
+    title: str | None = None,
+    page_size: int | None = None,
+    search: bool | None = None,
+    empty: str | None = None,
+) -> dict:
+    """A searchable list with a side detail panel (the ``list_detail`` template block).
+
+    Args:
+        rows: List of row dicts (optional ``id`` and ``detail`` key-value dict)
+        columns: Column keys or ``{"key", "label", "align"}`` dicts
+        title: Accessible label for the list
+        page_size: Rows per page (default 25)
+        search: Force the search box on even when rows fit on one page
+        empty: Text shown when no rows match
+    """
+    comp: dict[str, Any] = {"type": "list_detail", "rows": [dict(r) for r in rows]}
+    if columns is not None:
+        comp["columns"] = [dict(c) if isinstance(c, Mapping) else str(c) for c in columns]
+    if title is not None:
+        comp["title"] = title
+    if page_size is not None:
+        comp["page_size"] = int(page_size)
+    if search is not None:
+        comp["search"] = bool(search)
+    if empty is not None:
+        comp["empty"] = empty
     return comp
 
 
@@ -1486,18 +1578,28 @@ def breadcrumb(items: Sequence[dict]) -> dict:
     return {"type": "breadcrumb", "items": list(items)}
 
 
-def pagination(*, total: int, page: int = 1, per_page: int = 10, id: str | None = None) -> dict:
+def pagination(
+    *,
+    total: int,
+    page: int = 1,
+    per_page: int = 10,
+    id: str | None = None,
+    action: str | None = None,
+) -> dict:
     """Pagination controls.
 
     Clicking a page updates the control and dispatches a bubbling
     ``aiui:pagination`` DOM event with ``{id, page, per_page, total}`` so
-    the host can re-slice or fetch rows.
+    the host can re-slice or fetch rows. When ``action`` is set in the app
+    shell, clicking a page also posts ``{action, page, per_page, ...}`` to
+    the page action endpoint.
 
     Args:
         total: Total number of items
         page: Current page number (1-based)
         per_page: Items per page
         id: Optional identifier echoed in the event to tell controls apart
+        action: Optional page action name to POST when a page is selected
     """
     comp: dict[str, Any] = {
         "type": "pagination",
@@ -1507,6 +1609,8 @@ def pagination(*, total: int, page: int = 1, per_page: int = 10, id: str | None 
     }
     if id is not None:
         comp["id"] = id
+    if action is not None:
+        comp["action"] = action
     return comp
 
 

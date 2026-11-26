@@ -319,6 +319,7 @@ def __getattr__(name: str):
         "tooltip_wrap",
         # Tier C — completeness
         "time_input",
+        "list_detail",
         "gallery",
         "card_grid",
         "link_button",
@@ -779,6 +780,7 @@ __all__ = [
     "tooltip_wrap",
     # Tier C — completeness
     "time_input",
+    "list_detail",
     "gallery",
     "card_grid",
     "link_button",

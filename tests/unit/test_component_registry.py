@@ -79,7 +79,7 @@ class TestPythonJSComponentParity:
 
         # Blocks that render only in the React app shell (blocks/inputs and the
         # media blocks); the legacy dashboard is frozen and shows them as JSON.
-        app_shell_only = {"tags_input", "date_range_input", "segmented_input", "filter_bar", "card_grid"}
+        app_shell_only = {"tags_input", "date_range_input", "segmented_input", "filter_bar", "card_grid", "list_detail"}
         missing = py_types - js_cases - app_shell_only
         assert not missing, (
             f"Python component types missing JS renderer: {sorted(missing)}"
