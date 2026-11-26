@@ -43,8 +43,8 @@ PraisonAI-Tools, not here.
 
 | Surface | How to get it | State |
 |---|---|---|
-| Dashboard (vanilla JS) | default style `dashboard` | Default. Frozen output (ARCHITECTURE R6) |
-| React app shell | `style: app`, `aiui.set_style("app")`, `AIUI_SHELL=app`; kill switch `AIUI_SHELL=legacy` | Opt-in for `create_app()` (default stays `dashboard`); the default of `aiui run` for a plain chat app, in the `chat` layout (`--style chat` keeps the classic chat). React chat; other pages through the legacy host or block pages |
+| React app shell | default style (`style: app`, `aiui.set_style("app")`, `AIUI_SHELL=app`) | Default (owner decision, 2026-11-22). React chat; other pages through the legacy host or block pages |
+| Dashboard (vanilla JS) | `--style dashboard`, `aiui.set_style("dashboard")`, `style: dashboard`, or kill switch `AIUI_SHELL=legacy` | Legacy UI. Frozen output when requested (ARCHITECTURE R6) |
 | Chat and agent styles | `style: chat`, `agents`, `playground`, `custom` | Older React App (`legacy-app-entry`), Streamdown markdown |
 | Docs | `style: docs`, `aiui build` / `aiui serve` | Supported |
 | Plugins | entry point `praisonaiui.plugins`, `aiui.register_plugin()`, browser `@aiui/sdk` | Supported; built-ins use the same model |
@@ -88,8 +88,10 @@ PraisonAI-Tools, not here.
 
 ### Flip criteria: making `app` the default
 
-The default stays `dashboard` until **all** of these hold (ADR-0001 §9; status
-in `docs/features/react-shell.md` "When the default flips"):
+The owner made `app` the default on 2026-11-22 (PR #595, overriding the original
+ADR-0001 §9 gate before every item below was met; live status is tracked in
+`docs/features/react-shell.md` "When the default flipped"). The remaining
+criteria are kept as the follow-up work list:
 
 1. Every `/api/pages` id renders in the app shell with status ready, 0 page
    errors and 0 leak delta in the Playwright sweep.
@@ -105,8 +107,9 @@ in `docs/features/react-shell.md` "When the default flips"):
 6. One minor release has shipped with `app` opt-in, then two weeks with no open
    P1 from opt-in users.
 
-After the flip **(planned)**: `_style or "app"`, `AIUI_SHELL=legacy` stays the
-documented way back, and the dashboard shell code is deleted in a later phase.
+Current state: `_style or DEFAULT_STYLE` (`"app"`), `AIUI_SHELL=legacy` and
+`style: dashboard` stay the documented way back, and removing the legacy
+dashboard shell code remains **(planned)** for a later phase.
 
 ---
 
