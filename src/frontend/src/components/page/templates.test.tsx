@@ -321,6 +321,21 @@ test('gallery block: href, page and video items open from a focusable title link
   assert.match(html, /<a href="\/launch.mp4" target="_blank" rel="noopener noreferrer" data-stretch="">Launch<span class="sr-only"> \(video\)<\/span><\/a>/)
   assert.match(html, /<a href="\/sync" data-stretch="">Sync<\/a>/)
   assert.doesNotMatch(html, /javascript:/)
+  const capHtml = renderToStaticMarkup(
+    <GalleryBlock
+      node={{
+        type: 'gallery',
+        props: {
+          items: [
+            { src: '/a.png', title: 'Launch', caption: '120k views' },
+            { src: '/b.png', title: 'Recap', subtitle: '@ada', caption: '2.4x lift' },
+          ],
+        },
+      }}
+    />,
+  )
+  assert.match(capHtml, /Launch[\s\S]*120k views/)
+  assert.match(capHtml, /Recap[\s\S]*@ada[\s\S]*2\.4x lift/)
   const css = readFileSync(path.join(process.cwd(), 'src/components/page/page.css'), 'utf8')
   assert.match(css, /\.aiui-tpl-tile:has\(a\[data-stretch\]:focus-visible\) \{\s*outline: 2px solid var\(--ring\);/)
 })

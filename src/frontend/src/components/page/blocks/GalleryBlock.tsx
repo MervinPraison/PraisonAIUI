@@ -20,7 +20,18 @@ export function GalleryBlock({ node }: { node: BlockNode }) {
     .filter(isRecord)
     .map((it, i) => {
       const src = safeUrl(it.src ?? it.image ?? it.url, 'image')
-      const title = str(it.title ?? it.caption ?? it.alt ?? it.name, `Item ${i + 1}`)
+      const hasTitle = it.title != null && str(it.title) !== ''
+      const caption = it.caption != null ? str(it.caption) : ''
+      const title = hasTitle ? str(it.title) : str(it.caption ?? it.alt ?? it.name, `Item ${i + 1}`)
+      const rawSub = it.subtitle != null ? str(it.subtitle) : undefined
+      const rawDesc = it.description != null ? str(it.description) : undefined
+      let subtitle = rawSub
+      let description = rawDesc
+      if (hasTitle && caption) {
+        if (!subtitle) subtitle = caption
+        else if (!description) description = caption
+        else subtitle = `${subtitle} · ${caption}`
+      }
       const video = safeUrl(it.video)
       const page = str(it.page)
       const nav = page ? pageLinkProps(page, isRecord(it.params) ? it.params : undefined) : undefined
@@ -30,9 +41,9 @@ export function GalleryBlock({ node }: { node: BlockNode }) {
       return {
         id: str(it.id, String(i)),
         title,
-        subtitle: it.subtitle != null ? str(it.subtitle) : undefined,
+        subtitle,
         tag: it.tag != null ? str(it.tag) : undefined,
-        description: it.description != null ? str(it.description) : undefined,
+        description,
         image: src ? { src, alt: str(it.alt ?? it.caption, '') } : undefined,
         href,
         target,

@@ -100,19 +100,21 @@ aiui.table(columns=[
 | `row_href_key` | `str` | — | Key (in dict rows, or a column key) holding each row's link. The first cell becomes the link and a click on the row opens it |
 | `row_detail` | `bool` | — | A click (or Enter) on a row opens a side panel listing the row's fields |
 | `detail_key` | `str` | — | Key in dict rows holding a list of block dicts the side panel renders instead of the fields (implies `row_detail`) |
+| `detail_load_key` | `str` | — | Key in dict rows holding a lazy section key loaded via `POST /api/pages/{id}/action` (`{"_lazy": key, "_params": ...}`) when that row's side panel opens (implies `row_detail`) |
+| `detail_load` | `str` | — | Prefix for lazy row detail keys (`f"{detail_load}{row_id_or_index}"`; implies `row_detail`) |
 | `max_height` | `int \| str` | — | Height of the scrolling body (px or CSS length, `0` for none). Default `70vh`, so the header stays in view |
 | `caption` | `str` | — | Accessible name of the table and its search box |
 
 Column dict keys: `key`, `label`, `type`, `format`, `decimals`, `tones`,
-`href_key`, `width` (px or CSS length), `align` (`left`, `center`, `right`)
-and `sortable` (`False` for one column). A plain string is a column whose key
-and label are that string.
+`tone_above`, `tone_below`, `thresholds`, `href_key`, `width` (px or CSS length),
+`align` (`left`, `center`, `right`) and `sortable` (`False` for one column). A
+plain string is a column whose key and label are that string.
 
 | `type` | Cell value | Shows |
 |--------|-----------|-------|
 | `auto` (default) | anything | Text as sent; a column of numbers lines up at the end; `{"text", "href"}` is a link and `{"src", "alt"}` an image |
 | `text` | any | The value as text |
-| `number` | number | Right-aligned, tabular figures. `format`: `compact` (1.2k, 3.4M), `percent` (a fraction: 0.123 → 12.3%), `multiplier` or `x` (2.3x), `fixed` (exactly `decimals`, default 2); none groups digits. `decimals` sets the fraction digits |
+| `number` | number (or `{"value", "tone"}`) | Right-aligned, tabular figures. `format`: `compact` (1.2k, 3.4M), `percent` (a fraction: 0.123 → 12.3%), `multiplier` or `x` (2.3x), `fixed` (exactly `decimals`, default 2); none groups digits. `decimals` sets the fraction digits. Optional threshold colouring: `tone_above` (number or `[n, tone]`, default `success`), `tone_below` (number or `[n, tone]`, default `error`), or ordered `thresholds: [{"gte": 1, "tone": "success"}, {"lt": 0.5, "tone": "error"}]` |
 | `link` | `{"text", "href", "external"}` or a URL; or text with the column's `href_key` | A link. Only http(s), mailto, tel and relative URLs are kept |
 | `badge` | text, or `{"text", "tone"}` | A badge; `tones` maps a value to `success`, `warning`, `error` or `info` |
 | `tag` | a list (or comma-separated text) | One badge per item, toned like `badge` |
@@ -878,8 +880,10 @@ aiui.gallery([
 
 Optional per item: `title`, `subtitle`, `tag`, `description`, and a link that
 makes the whole tile clickable and keyboard focusable: `href` (+ `target`, e.g.
-`"_blank"`), `page` (an app page id, opened in place) or `video` (a video URL:
-the thumbnail gets a play mark and opens it, in a new tab unless `target` is set).
+`"_blank"`), `page` (an app page id, opened in place, with optional `params`) or
+`video` (a video URL: the thumbnail gets a play mark and opens it, in a new tab
+unless `target` is set). When both `title` and `caption` are given, `caption`
+renders visibly under the title alongside any `subtitle`.
 
 ### `aiui.card_grid(items, *, columns)`
 

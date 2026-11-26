@@ -8,6 +8,14 @@ import { arr, display, isRecord, num, str } from '../normalize'
 export type ColumnType = 'auto' | 'text' | 'number' | 'link' | 'badge' | 'tag' | 'image' | 'progress' | 'date' | 'sparkline'
 export type Align = 'left' | 'center' | 'right'
 
+export interface NumberThreshold {
+  gte?: number
+  gt?: number
+  lte?: number
+  lt?: number
+  tone: string
+}
+
 export interface Column {
   key: string
   label: string
@@ -17,6 +25,8 @@ export interface Column {
   decimals?: number
   /** badge/tag: cell value → success | warning | error | info. */
   tones: Record<string, string>
+  /** number: ordered threshold rules (`gte`/`gt`/`lte`/`lt` → tone). */
+  thresholds: NumberThreshold[]
   width?: string
   align: Align
   /** True when the server set `align` (inference leaves it alone). */
@@ -32,6 +42,39 @@ function alignOf(v: unknown, type: ColumnType): Align {
   if (s === 'end') return 'right'
   if (ALIGNS.has(s as Align)) return s as Align
   return type === 'number' ? 'right' : 'left'
+}
+
+function parseThresholds(rec: Record<string, unknown>): NumberThreshold[] {
+  const out: NumberThreshold[] = []
+  for (const item of arr(rec.thresholds)) {
+    if (!isRecord(item)) continue
+    const tone = str(item.tone)
+    if (!tone) continue
+    const rule: NumberThreshold = { tone }
+    const gte = toNumber(item.gte)
+    const gt = toNumber(item.gt)
+    const lte = toNumber(item.lte)
+    const lt = toNumber(item.lt)
+    if (gte !== null) rule.gte = gte
+    if (gt !== null) rule.gt = gt
+    if (lte !== null) rule.lte = lte
+    if (lt !== null) rule.lt = lt
+    if (rule.gte !== undefined || rule.gt !== undefined || rule.lte !== undefined || rule.lt !== undefined) out.push(rule)
+  }
+  const addBound = (raw: unknown, op: 'gte' | 'lt', fallbackTone: string) => {
+    if (raw === undefined || raw === null) return
+    if (typeof raw === 'number' && Number.isFinite(raw)) out.push({ [op]: raw, tone: fallbackTone })
+    else if (Array.isArray(raw) && raw.length >= 1) {
+      const n = toNumber(raw[0])
+      if (n !== null) out.push({ [op]: n, tone: str(raw[1], fallbackTone) })
+    } else if (isRecord(raw)) {
+      const n = toNumber(raw.value)
+      if (n !== null) out.push({ [op]: n, tone: str(raw.tone, fallbackTone) })
+    }
+  }
+  addBound(rec.tone_above, 'gte', 'success')
+  addBound(rec.tone_below, 'lt', 'error')
+  return out
 }
 
 /** `columns` (strings or dicts) or, without them, `headers` → column config. */
@@ -50,6 +93,7 @@ export function toColumns(columns: unknown, headers: unknown, sortable = true): 
       format: str(rec.format),
       decimals: rec.decimals === undefined ? undefined : Math.min(10, Math.max(0, num(rec.decimals, 0))),
       tones: isRecord(rec.tones) ? Object.fromEntries(Object.entries(rec.tones).map(([k, v]) => [k, str(v)])) : {},
+      thresholds: parseThresholds(rec),
       width,
       align: alignOf(rec.align, type),
       alignSet: rec.align !== undefined,
@@ -223,4 +267,32 @@ const TONE_CLASS: Record<string, string> = {
 /** A badge's tone classes (`danger` is `error`); unknown tones are neutral. */
 export function toneClass(tone: string): string | undefined {
   return TONE_CLASS[tone === 'danger' || tone === 'destructive' ? 'error' : tone]
+}
+
+const NUM_TONE_CLASS: Record<string, string> = {
+  success: 'font-medium text-success',
+  warning: 'font-medium text-warning',
+  error: 'font-medium text-destructive',
+  info: 'font-medium text-info',
+}
+
+/** Semantic text colour for a threshold-styled number cell (WCAG AA tokens). */
+export function numberToneClass(tone: string): string | undefined {
+  return NUM_TONE_CLASS[tone === 'danger' || tone === 'destructive' ? 'error' : tone]
+}
+
+/** First matching threshold tone for a numeric cell (or explicit `{value, tone}`). */
+export function numberTone(v: unknown, col: Pick<Column, 'thresholds'>): string | undefined {
+  if (isRecord(v) && str(v.tone)) return str(v.tone)
+  if (!col.thresholds.length) return undefined
+  const n = toNumber(isRecord(v) ? v.value : v)
+  if (n === null) return undefined
+  for (const r of col.thresholds) {
+    if (r.gte !== undefined && n < r.gte) continue
+    if (r.gt !== undefined && n <= r.gt) continue
+    if (r.lte !== undefined && n > r.lte) continue
+    if (r.lt !== undefined && n >= r.lt) continue
+    return r.tone
+  }
+  return undefined
 }

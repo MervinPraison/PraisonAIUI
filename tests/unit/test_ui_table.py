@@ -97,3 +97,22 @@ def test_date_column_type():
 def test_sparkline_column_type():
     t = table(columns=[{"key": "trend", "type": "sparkline"}], rows=[{"trend": [1, 3, 2]}])
     assert t["columns"][0]["type"] == "sparkline" and t["rows"] == [[[1, 3, 2]]]
+
+
+def test_number_threshold_tones_and_lazy_row_detail():
+    col = {
+        "key": "lift",
+        "type": "number",
+        "format": "multiplier",
+        "tone_above": 1.0,
+        "tone_below": [0.5, "warning"],
+        "thresholds": [{"gte": 2.0, "tone": "info"}],
+    }
+    rows = [{"lift": 1.4, "sec": "row:a"}, {"lift": 0.4, "sec": ""}]
+    t = table(columns=[col], rows=rows, detail_load_key="sec")
+    assert t["columns"][0]["tone_above"] == 1.0
+    assert t["columns"][0]["thresholds"] == [{"gte": 2.0, "tone": "info"}]
+    assert t["row_detail"] is True
+    assert t["row_detail_loads"] == ["row:a", None]
+    pref = table(headers=["A"], rows=[[1]], row_ids=["x"], detail_load="item:")
+    assert pref["row_detail"] is True and pref["detail_load"] == "item:"
