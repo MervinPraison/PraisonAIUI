@@ -11,10 +11,10 @@ hero:
   imageDark: images/app-shell-chat-canvas-dark.webp
   imageAlt: The app shell in the Chat and Canvas layout and its Paper look. On the left an agent compares sorting algorithms, ran a tool and waits for approval to install numpy; on the right the canvas shows the comparison table above the sort_demo.py script it wrote
   actions:
+    - text: Step-by-step tutorial
+      link: tutorials/01-first-chat.md
     - text: Quick start
       link: getting-started/quickstart.md
-    - text: View on GitHub
-      link: https://github.com/MervinPraison/PraisonAIUI
       theme: alt
 features:
   - title: Chat and canvas
