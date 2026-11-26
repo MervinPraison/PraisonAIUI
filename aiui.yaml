@@ -34,6 +34,15 @@ navigation:
             - getting-started/quickstart
             - features/styles
             - getting-started/cli
+        - group: "Step-by-Step Learning Path"
+          icon: graduation-cap
+          pages:
+            - tutorials/01-first-chat
+            - tutorials/02-connect-ai
+            - tutorials/03-welcome-and-starters
+            - tutorials/04-steps-and-tools
+            - tutorials/05-rich-ui-and-pages
+            - tutorials/06-theme-auth-deploy
         - group: "Examples"
           icon: code
           pages:

@@ -180,8 +180,8 @@ aiui health --detailed         # per-feature health
 ## Next steps
 
 <CardGroup cols={3}>
-<Card title="CLI" icon="terminal" href="cli.md">
-The commands you will use most.
+<Card title="Step-by-step learning path" icon="graduation-cap" href="../tutorials/01-first-chat.md">
+Build a full AI app one feature at a time, from first message to production deploy.
 </Card>
 <Card title="Python API" icon="code" href="../api/python.md">
 Decorators, message functions and the `set_*` setters.
