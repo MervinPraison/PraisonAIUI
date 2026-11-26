@@ -2275,6 +2275,10 @@ def run(
 ) -> None:
     """Run the AI chat server with your app.py or config.yaml file.
 
+    If ``app.py`` defines its own ``create_app()`` factory, ``aiui run`` invokes it
+    (passing ``static_dir`` / ``config_path`` when accepted, and preserving CLI
+    ``--config`` / bundled UI when the factory takes no arguments).
+
     Example:
         aiui run app.py
         aiui run app.py --port 3000 --reload
