@@ -4,7 +4,7 @@ nav_title: Components
 
 # Component API Reference
 
-Python functions for building dashboard UIs. Each function returns a dict that the frontend renders as a real UI element — **36 components** organized into tiers.
+Python functions for building app and dashboard UIs. Each function returns a plain dict that the frontend renders as a real UI block — **70 builders** organized by category. Looking for visual examples in both Python and zero-code YAML? Browse the [UI Components gallery](../components/overview.md).
 
 ```python
 import praisonaiui as aiui
@@ -1449,29 +1449,42 @@ All components use `db-*` prefixed CSS classes:
 | Badge | `.db-badge`, `.db-badge-secondary`, `.db-badge-destructive` |
 | Tabs | `.db-tabs`, `.db-tab-list`, `.db-tab-btn`, `.db-tab-panel` |
 
+### `aiui.board(*, columns)`
+
+A Kanban-style board with horizontal columns of cards.
+
+```python
+aiui.board(columns=[
+    {"title": "To Do", "cards": [aiui.card("Write docs", footer="agent-a")]},
+    {"title": "Done", "cards": [aiui.card("Ship v0.3", footer="agent-b")]},
+])
+```
+
+### `aiui.definition_list(items, *, title=None)`
+
+A structured label/value definition list (`[{"label": ..., "value": ...}]`).
+
+```python
+aiui.definition_list(
+    [{"label": "Runtime", "value": "Python 3.12"}, {"label": "Shell", "value": "React App"}],
+    title="Environment",
+)
+```
+
+### `aiui.form_action(action, *, children, submit_label="Submit")`
+
+Deprecated alias for `aiui.form()`. Prefer `aiui.form(...)` in new code.
+
 ### Extending with Custom Components
 
-To add a new component type:
+In the React app shell (`style: app`), register new block types through `@aiui/sdk` without touching core files:
 
-1. **Python**: Add function to `ui.py`:
-   ```python
-   def timeline(events: list[dict]) -> dict:
-       return {"type": "timeline", "events": events}
-   ```
+```tsx
+import { registerBlock } from '@aiui/sdk'
 
-2. **Frontend**: Add renderer to `dashboard.js`:
-   ```javascript
-   function renderTimeline(comp) {
-       const el = document.createElement('div');
-       el.className = 'db-timeline';
-       // ... render events
-       return el;
-   }
-   
-   // Add to switch statement in renderComponent()
-   case 'timeline': return renderTimeline(comp);
-   ```
+registerBlock('timeline', ({ block }) => (
+  <div>{(block.events as Array<{ label: string }>).map((e, i) => <div key={i}>{e.label}</div>)}</div>
+))
+```
 
-3. **CSS**: Add styles for `.db-timeline`
-
-Until the frontend renderer is added, unknown types render as formatted JSON.
+Optionally register a JSON Schema contract in Python with `aiui.register_component_schema("timeline", ...)` (see [UI Plugins](../features/plugins.md)). Unknown component types render safely as formatted JSON.

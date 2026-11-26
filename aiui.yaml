@@ -133,6 +133,17 @@ navigation:
             - features/deployment
             - features/connect
             - health-endpoints
+    - tab: "UI Components"
+      groups:
+        - group: "Component Gallery"
+          icon: component
+          pages:
+            - components/overview
+            - components/layout
+            - components/data-display
+            - components/inputs-and-forms
+            - components/feedback-and-notifications
+            - components/media-and-content
     - tab: "Docs UI"
       groups:
         - group: "Start Building Docs"
