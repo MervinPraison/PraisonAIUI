@@ -1,1330 +1,4 @@
 {
-  "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/react/v0_9/index.js": {
-    "file": "assets/index-BQyhQBXj.js",
-    "name": "index",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/react/v0_9/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_vendor-react-1PD0iOg-.js",
-      "_default-CShAaVDX.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/web_core/src/v0_9/index.js": {
-    "file": "assets/index-DFpOEpyB.js",
-    "name": "index",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/web_core/src/v0_9/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_default-CShAaVDX.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2": {
-    "file": "assets/geist-mono-latin-wght-normal-XN7g48iV.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2": {
-    "file": "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2": {
-    "file": "assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2": {
-    "file": "assets/newsreader-latin-wght-normal-CCVVNp6i.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2": {
-    "file": "assets/source-sans-3-latin-wght-normal-Bo_j9asI.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/@streamdown/math/dist/index.js": {
-    "file": "assets/index-BlYbsowF.js",
-    "name": "index",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/@streamdown/math/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_markdown-kit-Dvw6o-YO.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_AMS-Regular.woff2": {
-    "file": "assets/KaTeX_AMS-Regular-BQhdFMY1.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_AMS-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2": {
-    "file": "assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff2": {
-    "file": "assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Fraktur-Bold.woff2": {
-    "file": "assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Fraktur-Bold.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Fraktur-Regular.woff2": {
-    "file": "assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Fraktur-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2": {
-    "file": "assets/KaTeX_Main-Bold-Cx986IdX.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-BoldItalic.woff2": {
-    "file": "assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-BoldItalic.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Italic.woff2": {
-    "file": "assets/KaTeX_Main-Italic-NWA7e6Wa.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Italic.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2": {
-    "file": "assets/KaTeX_Main-Regular-B22Nviop.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Math-BoldItalic.woff2": {
-    "file": "assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Math-BoldItalic.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2": {
-    "file": "assets/KaTeX_Math-Italic-t53AETM-.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Bold.woff2": {
-    "file": "assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Bold.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Italic.woff2": {
-    "file": "assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Italic.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Regular.woff2": {
-    "file": "assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_SansSerif-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Script-Regular.woff2": {
-    "file": "assets/KaTeX_Script-Regular-D3wIWfF6.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Script-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size1-Regular.woff2": {
-    "file": "assets/KaTeX_Size1-Regular-mCD8mA8B.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size1-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size2-Regular.woff2": {
-    "file": "assets/KaTeX_Size2-Regular-Dy4dx90m.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size2-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size4-Regular.woff2": {
-    "file": "assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Size4-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Typewriter-Regular.woff2": {
-    "file": "assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/fonts/KaTeX_Typewriter-Regular.woff2"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.min.css": {
-    "file": "assets/katex-DLVrwanO.css",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.min.css"
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.mjs": {
-    "file": "assets/katex-HP8lGamR.js",
-    "name": "katex",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs": {
-    "file": "assets/abnfDiagram-VCTEODGH-DD76R5B0.js",
-    "name": "abnfDiagram-VCTEODGH",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-SVP7TREG-e3ttYqLS.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs": {
-    "file": "assets/architectureDiagram-5GKGNRK7-BayvjaQF.js",
-    "name": "architectureDiagram-5GKGNRK7",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_cytoscape.esm-DzSz-X2X.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs": {
-    "file": "assets/blockDiagram-I7D4REHJ-Cm-RMiXF.js",
-    "name": "blockDiagram-I7D4REHJ",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_mermaid.core-BelKprrc.js",
-      "_isArguments-CZI-n-T8.js",
-      "_channel-C8s1Aron.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs": {
-    "file": "assets/c4Diagram-7LVT6UL2-CEf6pFeP.js",
-    "name": "c4Diagram-7LVT6UL2",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs": {
-    "file": "assets/classDiagram-ZZMXUADV-CFsXtR7f.js",
-    "name": "classDiagram-ZZMXUADV",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-TICWLB2K-Bw5XD_iY.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs": {
-    "file": "assets/classDiagram-v2-VYDZK3BY-CFsXtR7f.js",
-    "name": "classDiagram-v2-VYDZK3BY",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-TICWLB2K-Bw5XD_iY.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs": {
-    "file": "assets/cose-bilkent-JH36ORCC-DnTibCbS.js",
-    "name": "cose-bilkent-JH36ORCC",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_cytoscape.esm-DzSz-X2X.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs": {
-    "file": "assets/cynefinDiagram-5FMLGOSQ-Bl3VajE6.js",
-    "name": "cynefinDiagram-5FMLGOSQ",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs": {
-    "file": "assets/dagre-GXQ25YYZ-cW5sB_wd.js",
-    "name": "dagre-GXQ25YYZ",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_layout-BTAn91V6.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs": {
-    "file": "assets/diagram-S7CK7UJ4-Dwlp2TWe.js",
-    "name": "diagram-S7CK7UJ4",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-2Q5K7J3B-D0eLgKrI.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs": {
-    "file": "assets/diagram-UQ7AKVKN-CyT21VAc.js",
-    "name": "diagram-UQ7AKVKN",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs": {
-    "file": "assets/diagram-VSXAHHWV-DPzgb3QK.js",
-    "name": "diagram-VSXAHHWV",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs": {
-    "file": "assets/diagram-VX7I27RA-DHRHNjBS.js",
-    "name": "diagram-VX7I27RA",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_defaultLocale-DX6XiGOO.js",
-      "_ordinal-DILIJJjt.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js",
-      "_init-Dmth1JHB.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs": {
-    "file": "assets/diagram-Z3DM3KII-J8dFE2Zc.js",
-    "name": "diagram-Z3DM3KII",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs": {
-    "file": "assets/ebnfDiagram-PWID7BFC-D0_ypOus.js",
-    "name": "ebnfDiagram-PWID7BFC",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-SVP7TREG-e3ttYqLS.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs": {
-    "file": "assets/erDiagram-RLTQ6QDP-DSqKchI1.js",
-    "name": "erDiagram-RLTQ6QDP",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_mermaid.core-BelKprrc.js",
-      "_channel-C8s1Aron.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs": {
-    "file": "assets/ganttDiagram-EL5Y4UJY-CH_6pQOL.js",
-    "name": "ganttDiagram-EL5Y4UJY",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_time-CmVBMC_0.js",
-      "_linear-Bj7eedkA.js",
-      "_isArguments-CZI-n-T8.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_init-Dmth1JHB.js",
-      "_defaultLocale-DX6XiGOO.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs": {
-    "file": "assets/gitGraphDiagram-WWUBYQGX-Dqmzvi7X.js",
-    "name": "gitGraphDiagram-WWUBYQGX",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-2Q5K7J3B-D0eLgKrI.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs": {
-    "file": "assets/infoDiagram-27XIBGKW-BmizU8bh.js",
-    "name": "infoDiagram-27XIBGKW",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs": {
-    "file": "assets/ishikawaDiagram-5VMMS53U-bFwnjzwx.js",
-    "name": "ishikawaDiagram-5VMMS53U",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs": {
-    "file": "assets/journeyDiagram-3NMN7TZE-CmY4AdHr.js",
-    "name": "journeyDiagram-3NMN7TZE",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_mermaid.core-BelKprrc.js",
-      "_arc-DncHnQTc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs": {
-    "file": "assets/kanban-definition-UXKFOSKX-DP5t2jRA.js",
-    "name": "kanban-definition-UXKFOSKX",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs": {
-    "file": "assets/mindmap-definition-YA3MSWOX-BdGn52Cd.js",
-    "name": "mindmap-definition-YA3MSWOX",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs": {
-    "file": "assets/pegDiagram-XKGWAZYB-BeVvinZk.js",
-    "name": "pegDiagram-XKGWAZYB",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-SVP7TREG-e3ttYqLS.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs": {
-    "file": "assets/pieDiagram-E7YTZNPT-CZaNm-L4.js",
-    "name": "pieDiagram-E7YTZNPT",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_arc-DncHnQTc.js",
-      "_ordinal-DILIJJjt.js",
-      "_isArguments-CZI-n-T8.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_init-Dmth1JHB.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs": {
-    "file": "assets/quadrantDiagram-AXDQQJYC-DIUjyiI9.js",
-    "name": "quadrantDiagram-AXDQQJYC",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_linear-Bj7eedkA.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js",
-      "_init-Dmth1JHB.js",
-      "_defaultLocale-DX6XiGOO.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs": {
-    "file": "assets/railroadDiagram-O6MQD6OU-BVbj5d6j.js",
-    "name": "railroadDiagram-O6MQD6OU",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-SVP7TREG-e3ttYqLS.js",
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs": {
-    "file": "assets/requirementDiagram-BXWQKSXE-CbUz7R5m.js",
-    "name": "requirementDiagram-BXWQKSXE",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs": {
-    "file": "assets/sankeyDiagram-P5KCCOFB-KfNtZoB-.js",
-    "name": "sankeyDiagram-P5KCCOFB",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_ordinal-DILIJJjt.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js",
-      "_init-Dmth1JHB.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs": {
-    "file": "assets/sequenceDiagram-WJ2MYXX4-C2K7DSfN.js",
-    "name": "sequenceDiagram-WJ2MYXX4",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-2Q5K7J3B-D0eLgKrI.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs": {
-    "file": "assets/sizeCapture-INFHLROL-BN9XQ5Eo.js",
-    "name": "sizeCapture-INFHLROL",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs": {
-    "file": "assets/stateDiagram-D77RDMKH-L5aVBGbh.js",
-    "name": "stateDiagram-D77RDMKH",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-IMKFNOWR-CqocmpQL.js",
-      "_mermaid.core-BelKprrc.js",
-      "_layout-BTAn91V6.js",
-      "_isArguments-CZI-n-T8.js",
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs": {
-    "file": "assets/stateDiagram-v2-MP3YSRHH-13TX0beu.js",
-    "name": "stateDiagram-v2-MP3YSRHH",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-IMKFNOWR-CqocmpQL.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs": {
-    "file": "assets/swimlanes-42K2YHIH-Bcqxylim.js",
-    "name": "swimlanes-42K2YHIH",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs": {
-    "file": "assets/swimlanesDiagram-VR7AAH4N-eoNmoh5I.js",
-    "name": "swimlanesDiagram-VR7AAH4N",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_flowDiagram-HODETNUW-Dz-sTnsH.js",
-      "_mermaid.core-BelKprrc.js",
-      "_chunk-5VM5RSS4-Ckwavbq-.js",
-      "_chunk-XXDRQBXY-DjfiAWc8.js",
-      "_chunk-POPQ4Y6H-urQm-eWu.js",
-      "_chunk-F27PBJKO-DB_KyZkf.js",
-      "_channel-C8s1Aron.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs": {
-    "file": "assets/timeline-definition-24CTP7MA-B75Qm6F3.js",
-    "name": "timeline-definition-24CTP7MA",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_arc-DncHnQTc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs": {
-    "file": "assets/vennDiagram-4TSXK5OY-Cbf1OZ6_.js",
-    "name": "vennDiagram-4TSXK5OY",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs": {
-    "file": "assets/wardleyDiagram-VM6X3IG4-Z6X7K6Hw.js",
-    "name": "wardleyDiagram-VM6X3IG4",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-JWPE2WC7-BZAauTvl.js",
-      "_mermaid.core-BelKprrc.js",
-      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_isArguments-CZI-n-T8.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs": {
-    "file": "assets/xychartDiagram-S5SC5T6Z-D9Ew0lt2.js",
-    "name": "xychartDiagram-S5SC5T6Z",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid.core-BelKprrc.js",
-      "_band-CquvqAHh.js",
-      "_linear-Bj7eedkA.js",
-      "_isArguments-CZI-n-T8.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_init-Dmth1JHB.js",
-      "_ordinal-DILIJJjt.js",
-      "_defaultLocale-DX6XiGOO.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/rehype-raw/index.js": {
-    "file": "assets/index-C3u3vZAP.js",
-    "name": "index",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/rehype-raw/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_markdown-kit-Dvw6o-YO.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/apache.mjs": {
-    "file": "assets/apache-Pmp26Uib.js",
-    "name": "apache",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/apache.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/astro.mjs": {
-    "file": "assets/astro-DOly5024.js",
-    "name": "astro",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/astro.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "_postcss-DnzrXTVv.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/awk.mjs": {
-    "file": "assets/awk-DMzUqQB5.js",
-    "name": "awk",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/awk.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bash.mjs": {
-    "file": "assets/bash-Yzrsuije.js",
-    "name": "bash",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bash.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bat.mjs": {
-    "file": "assets/bat-CickPsom.js",
-    "name": "bat",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bat.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bicep.mjs": {
-    "file": "assets/bicep-Bmn6On1c.js",
-    "name": "bicep",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bicep.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs": {
-    "file": "assets/c-BIGW1oBm.js",
-    "name": "c",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/clojure.mjs": {
-    "file": "assets/clojure-P80f7IUj.js",
-    "name": "clojure",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/clojure.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cmake.mjs": {
-    "file": "assets/cmake-D1j8_8rp.js",
-    "name": "cmake",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cmake.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cpp.mjs": {
-    "file": "assets/cpp-BMRokrvK.js",
-    "name": "cpp",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cpp.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csharp.mjs": {
-    "file": "assets/csharp-B_TYUkTI.js",
-    "name": "csharp",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csharp.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs": {
-    "file": "assets/css-Z72CF80r.js",
-    "name": "css",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csv.mjs": {
-    "file": "assets/csv-fuZLfV_i.js",
-    "name": "csv",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csv.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dart.mjs": {
-    "file": "assets/dart-CtKP3W-j.js",
-    "name": "dart",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dart.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/diff.mjs": {
-    "file": "assets/diff-D97Zzqfu.js",
-    "name": "diff",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/diff.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/docker.mjs": {
-    "file": "assets/docker-BcOcwvcX.js",
-    "name": "docker",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/docker.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dotenv.mjs": {
-    "file": "assets/dotenv-De0Btta0.js",
-    "name": "dotenv",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dotenv.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elixir.mjs": {
-    "file": "assets/elixir-DkJLSxtU.js",
-    "name": "elixir",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elixir.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elm.mjs": {
-    "file": "assets/elm-DbKCFpqz.js",
-    "name": "elm",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elm.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fish.mjs": {
-    "file": "assets/fish-BvzEVeQv.js",
-    "name": "fish",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fish.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fsharp.mjs": {
-    "file": "assets/fsharp-CXgrBDvD.js",
-    "name": "fsharp",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fsharp.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/markdown.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/gleam.mjs": {
-    "file": "assets/gleam-BspZqrRM.js",
-    "name": "gleam",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/gleam.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs": {
-    "file": "assets/glsl-DplSGwfg.js",
-    "name": "glsl",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/go.mjs": {
-    "file": "assets/go-C27-OAKa.js",
-    "name": "go",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/go.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/graphql.mjs": {
-    "file": "assets/graphql-ChdNCCLP.js",
-    "name": "graphql",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/graphql.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/groovy.mjs": {
-    "file": "assets/groovy-gcz8RCvz.js",
-    "name": "groovy",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/groovy.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/handlebars.mjs": {
-    "file": "assets/handlebars-DPT5vKgj.js",
-    "name": "handlebars",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/handlebars.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/yaml.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/haskell.mjs": {
-    "file": "assets/haskell-Df6bDoY_.js",
-    "name": "haskell",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/haskell.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/hcl.mjs": {
-    "file": "assets/hcl-BWvSN4gD.js",
-    "name": "hcl",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/hcl.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs": {
-    "file": "assets/html-BlS82ilI.js",
-    "name": "html",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/http.mjs": {
-    "file": "assets/http-Bu2soQVN.js",
-    "name": "http",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/http.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bash.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/graphql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ini.mjs": {
-    "file": "assets/ini-BEwlwnbL.js",
-    "name": "ini",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ini.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs": {
-    "file": "assets/java-CylS5w8V.js",
-    "name": "java",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs": {
-    "file": "assets/javascript-wDzz0qaB.js",
-    "name": "javascript",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jinja.mjs": {
-    "file": "assets/jinja-DFQZVq3b.js",
-    "name": "jinja",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jinja.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs": {
-    "file": "assets/json-Cp-IABpG.js",
-    "name": "json",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsonl.mjs": {
-    "file": "assets/jsonl-DcaNXYhu.js",
-    "name": "jsonl",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsonl.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs": {
-    "file": "assets/jsx-g9-lgVsj.js",
-    "name": "jsx",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/julia.mjs": {
-    "file": "assets/julia-Cu79e8SL.js",
-    "name": "julia",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/julia.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cpp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/python.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/r.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/kotlin.mjs": {
-    "file": "assets/kotlin-BdnUsdx6.js",
-    "name": "kotlin",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/kotlin.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/lua.mjs": {
-    "file": "assets/lua-BaeVxFsk.js",
-    "name": "lua",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/lua.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/make.mjs": {
-    "file": "assets/make-CHLpvVh8.js",
-    "name": "make",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/make.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/markdown.mjs": {
-    "file": "assets/markdown-Cvjx9yec.js",
-    "name": "markdown",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/markdown.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/matlab.mjs": {
-    "file": "assets/matlab-D7o27uSR.js",
-    "name": "matlab",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/matlab.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nginx.mjs": {
-    "file": "assets/nginx-BpAMiNFr.js",
-    "name": "nginx",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nginx.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/lua.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nix.mjs": {
-    "file": "assets/nix-CwoSXNpI.js",
-    "name": "nix",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nix.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/objective-c.mjs": {
-    "file": "assets/objective-c-DXmwc3jG.js",
-    "name": "objective-c",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/objective-c.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/perl.mjs": {
-    "file": "assets/perl-5klg-GXX.js",
-    "name": "perl",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/perl.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/php.mjs": {
-    "file": "assets/php-DoruYMF0.js",
-    "name": "php",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/php.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/powershell.mjs": {
-    "file": "assets/powershell-Dd0kTxKP.js",
-    "name": "powershell",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/powershell.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/prisma.mjs": {
-    "file": "assets/prisma-Vru482bI.js",
-    "name": "prisma",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/prisma.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/proto.mjs": {
-    "file": "assets/proto-C7zT0LnQ.js",
-    "name": "proto",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/proto.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/python.mjs": {
-    "file": "assets/python-B6aJPvgy.js",
-    "name": "python",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/python.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/r.mjs": {
-    "file": "assets/r-Cf5RLm7j.js",
-    "name": "r",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/r.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs": {
-    "file": "assets/regexp-CDVJQ6XC.js",
-    "name": "regexp",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ruby.mjs": {
-    "file": "assets/ruby-DXzQ8jPu.js",
-    "name": "ruby",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ruby.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/graphql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cpp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bash.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/lua.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/yaml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/rust.mjs": {
-    "file": "assets/rust-DPvrY3IQ.js",
-    "name": "rust",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/rust.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sass.mjs": {
-    "file": "assets/sass-Cj5Yp3dK.js",
-    "name": "sass",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sass.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scala.mjs": {
-    "file": "assets/scala-CqE71os6.js",
-    "name": "scala",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scala.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scss.mjs": {
-    "file": "assets/scss-Cw6XMfVs.js",
-    "name": "scss",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scss.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/solidity.mjs": {
-    "file": "assets/solidity-DijEV5ha.js",
-    "name": "solidity",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/solidity.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs": {
-    "file": "assets/sql-DkvoVjww.js",
-    "name": "sql",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/svelte.mjs": {
-    "file": "assets/svelte-DoIXUgJc.js",
-    "name": "svelte",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/svelte.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "_postcss-DnzrXTVv.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/swift.mjs": {
-    "file": "assets/swift-C2oV4EkX.js",
-    "name": "swift",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/swift.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/terraform.mjs": {
-    "file": "assets/terraform-BETggiCN.js",
-    "name": "terraform",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/terraform.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/toml.mjs": {
-    "file": "assets/toml-vGWfd6FD.js",
-    "name": "toml",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/toml.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs": {
-    "file": "assets/tsx-COt5Ahok.js",
-    "name": "tsx",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs": {
-    "file": "assets/typescript-BPQ3VLAy.js",
-    "name": "typescript",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vb.mjs": {
-    "file": "assets/vb-Cu-pLBUe.js",
-    "name": "vb",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vb.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vue.mjs": {
-    "file": "assets/vue-CwSeJimo.js",
-    "name": "vue",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vue.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/wgsl.mjs": {
-    "file": "assets/wgsl-Dx-B1_4e.js",
-    "name": "wgsl",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/wgsl.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs": {
-    "file": "assets/xml-sdJ4AIDG.js",
-    "name": "xml",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/yaml.mjs": {
-    "file": "assets/yaml-Buea-lGh.js",
-    "name": "yaml",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/yaml.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/zig.mjs": {
-    "file": "assets/zig-VOosw3JB.js",
-    "name": "zig",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/zig.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-dark.mjs": {
-    "file": "assets/github-dark-DHJKELXO.js",
-    "name": "github-dark",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-dark.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-light.mjs": {
-    "file": "assets/github-light-DAi9KRSo.js",
-    "name": "github-light",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-light.mjs",
-    "isDynamicEntry": true
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/sonner/dist/index.mjs": {
-    "file": "assets/index-DHNCbKBB.js",
-    "name": "index",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/sonner/dist/index.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_vendor-react-1PD0iOg-.js"
-    ]
-  },
-  "../../../blocks-params-nav/src/frontend/node_modules/streamdown/dist/highlighted-body-JLMTFACH.js": {
-    "file": "assets/highlighted-body-JLMTFACH-BF6IAbY3.js",
-    "name": "highlighted-body-JLMTFACH",
-    "src": "../../../blocks-params-nav/src/frontend/node_modules/streamdown/dist/highlighted-body-JLMTFACH.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_mermaid-WFAXDIZX-DeN3inRN.js",
-      "_vendor-react-1PD0iOg-.js",
-      "_preload-helper-PPVm8Dsz.js",
-      "_TokenGate-Dk6Zc80m.js",
-      "_pluginLoaders-COwVOrL7.js",
-      "_slug-kER3EZTy.js",
-      "_notify-HYkVO28d.js",
-      "_markdown-kit-Dvw6o-YO.js"
-    ]
-  },
   "_BlockPage-CGUIbLZ0.js": {
     "file": "assets/BlockPage-CGUIbLZ0.js",
     "name": "BlockPage",
@@ -1473,8 +147,8 @@
       "_breadcrumb-C1RvVilM.js"
     ],
     "dynamicImports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/web_core/src/v0_9/index.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/@a2ui/react/v0_9/index.js"
+      "node_modules/@a2ui/web_core/src/v0_9/index.js",
+      "node_modules/@a2ui/react/v0_9/index.js"
     ]
   },
   "_TokenGate-Dk6Zc80m.js": {
@@ -2083,7 +757,7 @@
       "_markdown-kit-Dvw6o-YO.js"
     ],
     "dynamicImports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/streamdown/dist/highlighted-body-JLMTFACH.js",
+      "node_modules/streamdown/dist/highlighted-body-JLMTFACH.js",
       "_mermaid.core-BelKprrc.js",
       "src/markdown/mermaidFullscreen.ts"
     ],
@@ -2101,49 +775,49 @@
       "_isArguments-CZI-n-T8.js"
     ],
     "dynamicImports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/katex/dist/katex.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs",
+      "node_modules/katex/dist/katex.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs",
       "_flowDiagram-HODETNUW-Dz-sTnsH.js",
       "_flowDiagram-HODETNUW-Dz-sTnsH.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs",
       "_flowDiagram-HODETNUW-Dz-sTnsH.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs"
+      "node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs",
+      "node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs"
     ]
   },
   "_model-Do1HSBPG.js": {
@@ -2220,8 +894,8 @@
       "_vendor-react-1PD0iOg-.js"
     ],
     "dynamicImports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/sonner/dist/index.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/sonner/dist/index.mjs"
+      "node_modules/sonner/dist/index.mjs",
+      "node_modules/sonner/dist/index.mjs"
     ]
   },
   "_ordinal-DILIJJjt.js": {
@@ -2292,8 +966,8 @@
     ],
     "dynamicImports": [
       "src/markdown/shikiPlugin.ts",
-      "../../../blocks-params-nav/src/frontend/node_modules/@streamdown/math/dist/index.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/rehype-raw/index.js"
+      "node_modules/@streamdown/math/dist/index.js",
+      "node_modules/rehype-raw/index.js"
     ]
   },
   "_postcss-DnzrXTVv.js": {
@@ -3230,6 +1904,1332 @@
     ],
     "css": [
       "assets/index.css"
+    ]
+  },
+  "node_modules/@a2ui/react/v0_9/index.js": {
+    "file": "assets/index-BQyhQBXj.js",
+    "name": "index",
+    "src": "node_modules/@a2ui/react/v0_9/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-1PD0iOg-.js",
+      "_default-CShAaVDX.js"
+    ]
+  },
+  "node_modules/@a2ui/web_core/src/v0_9/index.js": {
+    "file": "assets/index-DFpOEpyB.js",
+    "name": "index",
+    "src": "node_modules/@a2ui/web_core/src/v0_9/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_default-CShAaVDX.js"
+    ]
+  },
+  "node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2": {
+    "file": "assets/geist-mono-latin-wght-normal-XN7g48iV.woff2",
+    "src": "node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2": {
+    "file": "assets/geist-latin-wght-normal-BgDaEnEv.woff2",
+    "src": "node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2": {
+    "file": "assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+    "src": "node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2": {
+    "file": "assets/newsreader-latin-wght-normal-CCVVNp6i.woff2",
+    "src": "node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2": {
+    "file": "assets/source-sans-3-latin-wght-normal-Bo_j9asI.woff2",
+    "src": "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2"
+  },
+  "node_modules/@streamdown/math/dist/index.js": {
+    "file": "assets/index-BlYbsowF.js",
+    "name": "index",
+    "src": "node_modules/@streamdown/math/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_markdown-kit-Dvw6o-YO.js",
+      "node_modules/katex/dist/katex.mjs"
+    ]
+  },
+  "node_modules/katex/dist/fonts/KaTeX_AMS-Regular.woff2": {
+    "file": "assets/KaTeX_AMS-Regular-BQhdFMY1.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_AMS-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2": {
+    "file": "assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff2": {
+    "file": "assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Caligraphic-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Fraktur-Bold.woff2": {
+    "file": "assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Fraktur-Bold.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Fraktur-Regular.woff2": {
+    "file": "assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Fraktur-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2": {
+    "file": "assets/KaTeX_Main-Bold-Cx986IdX.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Main-Bold.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Main-BoldItalic.woff2": {
+    "file": "assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Main-BoldItalic.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Main-Italic.woff2": {
+    "file": "assets/KaTeX_Main-Italic-NWA7e6Wa.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Main-Italic.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2": {
+    "file": "assets/KaTeX_Main-Regular-B22Nviop.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Math-BoldItalic.woff2": {
+    "file": "assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Math-BoldItalic.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2": {
+    "file": "assets/KaTeX_Math-Italic-t53AETM-.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_SansSerif-Bold.woff2": {
+    "file": "assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_SansSerif-Bold.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_SansSerif-Italic.woff2": {
+    "file": "assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_SansSerif-Italic.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_SansSerif-Regular.woff2": {
+    "file": "assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_SansSerif-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Script-Regular.woff2": {
+    "file": "assets/KaTeX_Script-Regular-D3wIWfF6.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Script-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Size1-Regular.woff2": {
+    "file": "assets/KaTeX_Size1-Regular-mCD8mA8B.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Size1-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Size2-Regular.woff2": {
+    "file": "assets/KaTeX_Size2-Regular-Dy4dx90m.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Size2-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Size4-Regular.woff2": {
+    "file": "assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Size4-Regular.woff2"
+  },
+  "node_modules/katex/dist/fonts/KaTeX_Typewriter-Regular.woff2": {
+    "file": "assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2",
+    "src": "node_modules/katex/dist/fonts/KaTeX_Typewriter-Regular.woff2"
+  },
+  "node_modules/katex/dist/katex.min.css": {
+    "file": "assets/katex-DLVrwanO.css",
+    "src": "node_modules/katex/dist/katex.min.css"
+  },
+  "node_modules/katex/dist/katex.mjs": {
+    "file": "assets/katex-HP8lGamR.js",
+    "name": "katex",
+    "src": "node_modules/katex/dist/katex.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs": {
+    "file": "assets/abnfDiagram-VCTEODGH-DD76R5B0.js",
+    "name": "abnfDiagram-VCTEODGH",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-SVP7TREG-e3ttYqLS.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs": {
+    "file": "assets/architectureDiagram-5GKGNRK7-BayvjaQF.js",
+    "name": "architectureDiagram-5GKGNRK7",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_cytoscape.esm-DzSz-X2X.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs": {
+    "file": "assets/blockDiagram-I7D4REHJ-Cm-RMiXF.js",
+    "name": "blockDiagram-I7D4REHJ",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_mermaid.core-BelKprrc.js",
+      "_isArguments-CZI-n-T8.js",
+      "_channel-C8s1Aron.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs": {
+    "file": "assets/c4Diagram-7LVT6UL2-CEf6pFeP.js",
+    "name": "c4Diagram-7LVT6UL2",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs": {
+    "file": "assets/classDiagram-ZZMXUADV-CFsXtR7f.js",
+    "name": "classDiagram-ZZMXUADV",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-TICWLB2K-Bw5XD_iY.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs": {
+    "file": "assets/classDiagram-v2-VYDZK3BY-CFsXtR7f.js",
+    "name": "classDiagram-v2-VYDZK3BY",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-TICWLB2K-Bw5XD_iY.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs": {
+    "file": "assets/cose-bilkent-JH36ORCC-DnTibCbS.js",
+    "name": "cose-bilkent-JH36ORCC",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_cytoscape.esm-DzSz-X2X.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs": {
+    "file": "assets/cynefinDiagram-5FMLGOSQ-Bl3VajE6.js",
+    "name": "cynefinDiagram-5FMLGOSQ",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs": {
+    "file": "assets/dagre-GXQ25YYZ-cW5sB_wd.js",
+    "name": "dagre-GXQ25YYZ",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_layout-BTAn91V6.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs": {
+    "file": "assets/diagram-S7CK7UJ4-Dwlp2TWe.js",
+    "name": "diagram-S7CK7UJ4",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-2Q5K7J3B-D0eLgKrI.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs": {
+    "file": "assets/diagram-UQ7AKVKN-CyT21VAc.js",
+    "name": "diagram-UQ7AKVKN",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs": {
+    "file": "assets/diagram-VSXAHHWV-DPzgb3QK.js",
+    "name": "diagram-VSXAHHWV",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs": {
+    "file": "assets/diagram-VX7I27RA-DHRHNjBS.js",
+    "name": "diagram-VX7I27RA",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_defaultLocale-DX6XiGOO.js",
+      "_ordinal-DILIJJjt.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js",
+      "_init-Dmth1JHB.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs": {
+    "file": "assets/diagram-Z3DM3KII-J8dFE2Zc.js",
+    "name": "diagram-Z3DM3KII",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs": {
+    "file": "assets/ebnfDiagram-PWID7BFC-D0_ypOus.js",
+    "name": "ebnfDiagram-PWID7BFC",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-SVP7TREG-e3ttYqLS.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs": {
+    "file": "assets/erDiagram-RLTQ6QDP-DSqKchI1.js",
+    "name": "erDiagram-RLTQ6QDP",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_mermaid.core-BelKprrc.js",
+      "_channel-C8s1Aron.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs": {
+    "file": "assets/ganttDiagram-EL5Y4UJY-CH_6pQOL.js",
+    "name": "ganttDiagram-EL5Y4UJY",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_time-CmVBMC_0.js",
+      "_linear-Bj7eedkA.js",
+      "_isArguments-CZI-n-T8.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_init-Dmth1JHB.js",
+      "_defaultLocale-DX6XiGOO.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs": {
+    "file": "assets/gitGraphDiagram-WWUBYQGX-Dqmzvi7X.js",
+    "name": "gitGraphDiagram-WWUBYQGX",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-2Q5K7J3B-D0eLgKrI.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs": {
+    "file": "assets/infoDiagram-27XIBGKW-BmizU8bh.js",
+    "name": "infoDiagram-27XIBGKW",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs": {
+    "file": "assets/ishikawaDiagram-5VMMS53U-bFwnjzwx.js",
+    "name": "ishikawaDiagram-5VMMS53U",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs": {
+    "file": "assets/journeyDiagram-3NMN7TZE-CmY4AdHr.js",
+    "name": "journeyDiagram-3NMN7TZE",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_mermaid.core-BelKprrc.js",
+      "_arc-DncHnQTc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs": {
+    "file": "assets/kanban-definition-UXKFOSKX-DP5t2jRA.js",
+    "name": "kanban-definition-UXKFOSKX",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs": {
+    "file": "assets/mindmap-definition-YA3MSWOX-BdGn52Cd.js",
+    "name": "mindmap-definition-YA3MSWOX",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs": {
+    "file": "assets/pegDiagram-XKGWAZYB-BeVvinZk.js",
+    "name": "pegDiagram-XKGWAZYB",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-SVP7TREG-e3ttYqLS.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs": {
+    "file": "assets/pieDiagram-E7YTZNPT-CZaNm-L4.js",
+    "name": "pieDiagram-E7YTZNPT",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_arc-DncHnQTc.js",
+      "_ordinal-DILIJJjt.js",
+      "_isArguments-CZI-n-T8.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_init-Dmth1JHB.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs": {
+    "file": "assets/quadrantDiagram-AXDQQJYC-DIUjyiI9.js",
+    "name": "quadrantDiagram-AXDQQJYC",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_linear-Bj7eedkA.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js",
+      "_init-Dmth1JHB.js",
+      "_defaultLocale-DX6XiGOO.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs": {
+    "file": "assets/railroadDiagram-O6MQD6OU-BVbj5d6j.js",
+    "name": "railroadDiagram-O6MQD6OU",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-SVP7TREG-e3ttYqLS.js",
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs": {
+    "file": "assets/requirementDiagram-BXWQKSXE-CbUz7R5m.js",
+    "name": "requirementDiagram-BXWQKSXE",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs": {
+    "file": "assets/sankeyDiagram-P5KCCOFB-KfNtZoB-.js",
+    "name": "sankeyDiagram-P5KCCOFB",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_ordinal-DILIJJjt.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js",
+      "_init-Dmth1JHB.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs": {
+    "file": "assets/sequenceDiagram-WJ2MYXX4-C2K7DSfN.js",
+    "name": "sequenceDiagram-WJ2MYXX4",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-2Q5K7J3B-D0eLgKrI.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs": {
+    "file": "assets/sizeCapture-INFHLROL-BN9XQ5Eo.js",
+    "name": "sizeCapture-INFHLROL",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs": {
+    "file": "assets/stateDiagram-D77RDMKH-L5aVBGbh.js",
+    "name": "stateDiagram-D77RDMKH",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-IMKFNOWR-CqocmpQL.js",
+      "_mermaid.core-BelKprrc.js",
+      "_layout-BTAn91V6.js",
+      "_isArguments-CZI-n-T8.js",
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs": {
+    "file": "assets/stateDiagram-v2-MP3YSRHH-13TX0beu.js",
+    "name": "stateDiagram-v2-MP3YSRHH",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-IMKFNOWR-CqocmpQL.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs": {
+    "file": "assets/swimlanes-42K2YHIH-Bcqxylim.js",
+    "name": "swimlanes-42K2YHIH",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs": {
+    "file": "assets/swimlanesDiagram-VR7AAH4N-eoNmoh5I.js",
+    "name": "swimlanesDiagram-VR7AAH4N",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_flowDiagram-HODETNUW-Dz-sTnsH.js",
+      "_mermaid.core-BelKprrc.js",
+      "_chunk-5VM5RSS4-Ckwavbq-.js",
+      "_chunk-XXDRQBXY-DjfiAWc8.js",
+      "_chunk-POPQ4Y6H-urQm-eWu.js",
+      "_chunk-F27PBJKO-DB_KyZkf.js",
+      "_channel-C8s1Aron.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs": {
+    "file": "assets/timeline-definition-24CTP7MA-B75Qm6F3.js",
+    "name": "timeline-definition-24CTP7MA",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_arc-DncHnQTc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs": {
+    "file": "assets/vennDiagram-4TSXK5OY-Cbf1OZ6_.js",
+    "name": "vennDiagram-4TSXK5OY",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs": {
+    "file": "assets/wardleyDiagram-VM6X3IG4-Z6X7K6Hw.js",
+    "name": "wardleyDiagram-VM6X3IG4",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-JWPE2WC7-BZAauTvl.js",
+      "_mermaid.core-BelKprrc.js",
+      "_cynefin-OW5HDTMX-Cw4XG9Zj.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_isArguments-CZI-n-T8.js"
+    ]
+  },
+  "node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs": {
+    "file": "assets/xychartDiagram-S5SC5T6Z-D9Ew0lt2.js",
+    "name": "xychartDiagram-S5SC5T6Z",
+    "src": "node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid.core-BelKprrc.js",
+      "_band-CquvqAHh.js",
+      "_linear-Bj7eedkA.js",
+      "_isArguments-CZI-n-T8.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_init-Dmth1JHB.js",
+      "_ordinal-DILIJJjt.js",
+      "_defaultLocale-DX6XiGOO.js"
+    ]
+  },
+  "node_modules/rehype-raw/index.js": {
+    "file": "assets/index-C3u3vZAP.js",
+    "name": "index",
+    "src": "node_modules/rehype-raw/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_markdown-kit-Dvw6o-YO.js"
+    ]
+  },
+  "node_modules/shiki/dist/langs/apache.mjs": {
+    "file": "assets/apache-Pmp26Uib.js",
+    "name": "apache",
+    "src": "node_modules/shiki/dist/langs/apache.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/astro.mjs": {
+    "file": "assets/astro-DOly5024.js",
+    "name": "astro",
+    "src": "node_modules/shiki/dist/langs/astro.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/json.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "_postcss-DnzrXTVv.js",
+      "node_modules/shiki/dist/langs/tsx.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/awk.mjs": {
+    "file": "assets/awk-DMzUqQB5.js",
+    "name": "awk",
+    "src": "node_modules/shiki/dist/langs/awk.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/bash.mjs": {
+    "file": "assets/bash-Yzrsuije.js",
+    "name": "bash",
+    "src": "node_modules/shiki/dist/langs/bash.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/bat.mjs": {
+    "file": "assets/bat-CickPsom.js",
+    "name": "bat",
+    "src": "node_modules/shiki/dist/langs/bat.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/bicep.mjs": {
+    "file": "assets/bicep-Bmn6On1c.js",
+    "name": "bicep",
+    "src": "node_modules/shiki/dist/langs/bicep.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/c.mjs": {
+    "file": "assets/c-BIGW1oBm.js",
+    "name": "c",
+    "src": "node_modules/shiki/dist/langs/c.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/clojure.mjs": {
+    "file": "assets/clojure-P80f7IUj.js",
+    "name": "clojure",
+    "src": "node_modules/shiki/dist/langs/clojure.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/cmake.mjs": {
+    "file": "assets/cmake-D1j8_8rp.js",
+    "name": "cmake",
+    "src": "node_modules/shiki/dist/langs/cmake.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/cpp.mjs": {
+    "file": "assets/cpp-BMRokrvK.js",
+    "name": "cpp",
+    "src": "node_modules/shiki/dist/langs/cpp.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/regexp.mjs",
+      "node_modules/shiki/dist/langs/glsl.mjs",
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/csharp.mjs": {
+    "file": "assets/csharp-B_TYUkTI.js",
+    "name": "csharp",
+    "src": "node_modules/shiki/dist/langs/csharp.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/css.mjs": {
+    "file": "assets/css-Z72CF80r.js",
+    "name": "css",
+    "src": "node_modules/shiki/dist/langs/css.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/csv.mjs": {
+    "file": "assets/csv-fuZLfV_i.js",
+    "name": "csv",
+    "src": "node_modules/shiki/dist/langs/csv.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/dart.mjs": {
+    "file": "assets/dart-CtKP3W-j.js",
+    "name": "dart",
+    "src": "node_modules/shiki/dist/langs/dart.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/diff.mjs": {
+    "file": "assets/diff-D97Zzqfu.js",
+    "name": "diff",
+    "src": "node_modules/shiki/dist/langs/diff.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/docker.mjs": {
+    "file": "assets/docker-BcOcwvcX.js",
+    "name": "docker",
+    "src": "node_modules/shiki/dist/langs/docker.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/dotenv.mjs": {
+    "file": "assets/dotenv-De0Btta0.js",
+    "name": "dotenv",
+    "src": "node_modules/shiki/dist/langs/dotenv.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/elixir.mjs": {
+    "file": "assets/elixir-DkJLSxtU.js",
+    "name": "elixir",
+    "src": "node_modules/shiki/dist/langs/elixir.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/elm.mjs": {
+    "file": "assets/elm-DbKCFpqz.js",
+    "name": "elm",
+    "src": "node_modules/shiki/dist/langs/elm.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/glsl.mjs",
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/fish.mjs": {
+    "file": "assets/fish-BvzEVeQv.js",
+    "name": "fish",
+    "src": "node_modules/shiki/dist/langs/fish.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/fsharp.mjs": {
+    "file": "assets/fsharp-CXgrBDvD.js",
+    "name": "fsharp",
+    "src": "node_modules/shiki/dist/langs/fsharp.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/markdown.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/gleam.mjs": {
+    "file": "assets/gleam-BspZqrRM.js",
+    "name": "gleam",
+    "src": "node_modules/shiki/dist/langs/gleam.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/glsl.mjs": {
+    "file": "assets/glsl-DplSGwfg.js",
+    "name": "glsl",
+    "src": "node_modules/shiki/dist/langs/glsl.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/go.mjs": {
+    "file": "assets/go-C27-OAKa.js",
+    "name": "go",
+    "src": "node_modules/shiki/dist/langs/go.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/graphql.mjs": {
+    "file": "assets/graphql-ChdNCCLP.js",
+    "name": "graphql",
+    "src": "node_modules/shiki/dist/langs/graphql.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/jsx.mjs",
+      "node_modules/shiki/dist/langs/tsx.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/groovy.mjs": {
+    "file": "assets/groovy-gcz8RCvz.js",
+    "name": "groovy",
+    "src": "node_modules/shiki/dist/langs/groovy.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/handlebars.mjs": {
+    "file": "assets/handlebars-DPT5vKgj.js",
+    "name": "handlebars",
+    "src": "node_modules/shiki/dist/langs/handlebars.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/yaml.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/haskell.mjs": {
+    "file": "assets/haskell-Df6bDoY_.js",
+    "name": "haskell",
+    "src": "node_modules/shiki/dist/langs/haskell.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/hcl.mjs": {
+    "file": "assets/hcl-BWvSN4gD.js",
+    "name": "hcl",
+    "src": "node_modules/shiki/dist/langs/hcl.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/html.mjs": {
+    "file": "assets/html-BlS82ilI.js",
+    "name": "html",
+    "src": "node_modules/shiki/dist/langs/html.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/http.mjs": {
+    "file": "assets/http-Bu2soQVN.js",
+    "name": "http",
+    "src": "node_modules/shiki/dist/langs/http.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/bash.mjs",
+      "node_modules/shiki/dist/langs/json.mjs",
+      "node_modules/shiki/dist/langs/xml.mjs",
+      "node_modules/shiki/dist/langs/graphql.mjs",
+      "node_modules/shiki/dist/langs/java.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/jsx.mjs",
+      "node_modules/shiki/dist/langs/tsx.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/ini.mjs": {
+    "file": "assets/ini-BEwlwnbL.js",
+    "name": "ini",
+    "src": "node_modules/shiki/dist/langs/ini.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/java.mjs": {
+    "file": "assets/java-CylS5w8V.js",
+    "name": "java",
+    "src": "node_modules/shiki/dist/langs/java.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/javascript.mjs": {
+    "file": "assets/javascript-wDzz0qaB.js",
+    "name": "javascript",
+    "src": "node_modules/shiki/dist/langs/javascript.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/jinja.mjs": {
+    "file": "assets/jinja-DFQZVq3b.js",
+    "name": "jinja",
+    "src": "node_modules/shiki/dist/langs/jinja.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/json.mjs": {
+    "file": "assets/json-Cp-IABpG.js",
+    "name": "json",
+    "src": "node_modules/shiki/dist/langs/json.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/jsonl.mjs": {
+    "file": "assets/jsonl-DcaNXYhu.js",
+    "name": "jsonl",
+    "src": "node_modules/shiki/dist/langs/jsonl.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/jsx.mjs": {
+    "file": "assets/jsx-g9-lgVsj.js",
+    "name": "jsx",
+    "src": "node_modules/shiki/dist/langs/jsx.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/julia.mjs": {
+    "file": "assets/julia-Cu79e8SL.js",
+    "name": "julia",
+    "src": "node_modules/shiki/dist/langs/julia.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/cpp.mjs",
+      "node_modules/shiki/dist/langs/python.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/r.mjs",
+      "node_modules/shiki/dist/langs/sql.mjs",
+      "node_modules/shiki/dist/langs/regexp.mjs",
+      "node_modules/shiki/dist/langs/glsl.mjs",
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/kotlin.mjs": {
+    "file": "assets/kotlin-BdnUsdx6.js",
+    "name": "kotlin",
+    "src": "node_modules/shiki/dist/langs/kotlin.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/lua.mjs": {
+    "file": "assets/lua-BaeVxFsk.js",
+    "name": "lua",
+    "src": "node_modules/shiki/dist/langs/lua.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/make.mjs": {
+    "file": "assets/make-CHLpvVh8.js",
+    "name": "make",
+    "src": "node_modules/shiki/dist/langs/make.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/markdown.mjs": {
+    "file": "assets/markdown-Cvjx9yec.js",
+    "name": "markdown",
+    "src": "node_modules/shiki/dist/langs/markdown.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/matlab.mjs": {
+    "file": "assets/matlab-D7o27uSR.js",
+    "name": "matlab",
+    "src": "node_modules/shiki/dist/langs/matlab.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/nginx.mjs": {
+    "file": "assets/nginx-BpAMiNFr.js",
+    "name": "nginx",
+    "src": "node_modules/shiki/dist/langs/nginx.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/lua.mjs",
+      "node_modules/shiki/dist/langs/c.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/nix.mjs": {
+    "file": "assets/nix-CwoSXNpI.js",
+    "name": "nix",
+    "src": "node_modules/shiki/dist/langs/nix.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/objective-c.mjs": {
+    "file": "assets/objective-c-DXmwc3jG.js",
+    "name": "objective-c",
+    "src": "node_modules/shiki/dist/langs/objective-c.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/perl.mjs": {
+    "file": "assets/perl-5klg-GXX.js",
+    "name": "perl",
+    "src": "node_modules/shiki/dist/langs/perl.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/xml.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/sql.mjs",
+      "node_modules/shiki/dist/langs/java.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/php.mjs": {
+    "file": "assets/php-DoruYMF0.js",
+    "name": "php",
+    "src": "node_modules/shiki/dist/langs/php.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/xml.mjs",
+      "node_modules/shiki/dist/langs/sql.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/json.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/java.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/powershell.mjs": {
+    "file": "assets/powershell-Dd0kTxKP.js",
+    "name": "powershell",
+    "src": "node_modules/shiki/dist/langs/powershell.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/prisma.mjs": {
+    "file": "assets/prisma-Vru482bI.js",
+    "name": "prisma",
+    "src": "node_modules/shiki/dist/langs/prisma.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/proto.mjs": {
+    "file": "assets/proto-C7zT0LnQ.js",
+    "name": "proto",
+    "src": "node_modules/shiki/dist/langs/proto.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/python.mjs": {
+    "file": "assets/python-B6aJPvgy.js",
+    "name": "python",
+    "src": "node_modules/shiki/dist/langs/python.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/r.mjs": {
+    "file": "assets/r-Cf5RLm7j.js",
+    "name": "r",
+    "src": "node_modules/shiki/dist/langs/r.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/regexp.mjs": {
+    "file": "assets/regexp-CDVJQ6XC.js",
+    "name": "regexp",
+    "src": "node_modules/shiki/dist/langs/regexp.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/ruby.mjs": {
+    "file": "assets/ruby-DXzQ8jPu.js",
+    "name": "ruby",
+    "src": "node_modules/shiki/dist/langs/ruby.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/xml.mjs",
+      "node_modules/shiki/dist/langs/sql.mjs",
+      "node_modules/shiki/dist/langs/graphql.mjs",
+      "node_modules/shiki/dist/langs/cpp.mjs",
+      "node_modules/shiki/dist/langs/c.mjs",
+      "node_modules/shiki/dist/langs/bash.mjs",
+      "node_modules/shiki/dist/langs/lua.mjs",
+      "node_modules/shiki/dist/langs/yaml.mjs",
+      "node_modules/shiki/dist/langs/java.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/jsx.mjs",
+      "node_modules/shiki/dist/langs/tsx.mjs",
+      "node_modules/shiki/dist/langs/regexp.mjs",
+      "node_modules/shiki/dist/langs/glsl.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/rust.mjs": {
+    "file": "assets/rust-DPvrY3IQ.js",
+    "name": "rust",
+    "src": "node_modules/shiki/dist/langs/rust.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/sass.mjs": {
+    "file": "assets/sass-Cj5Yp3dK.js",
+    "name": "sass",
+    "src": "node_modules/shiki/dist/langs/sass.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/scala.mjs": {
+    "file": "assets/scala-CqE71os6.js",
+    "name": "scala",
+    "src": "node_modules/shiki/dist/langs/scala.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/scss.mjs": {
+    "file": "assets/scss-Cw6XMfVs.js",
+    "name": "scss",
+    "src": "node_modules/shiki/dist/langs/scss.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/css.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/solidity.mjs": {
+    "file": "assets/solidity-DijEV5ha.js",
+    "name": "solidity",
+    "src": "node_modules/shiki/dist/langs/solidity.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/sql.mjs": {
+    "file": "assets/sql-DkvoVjww.js",
+    "name": "sql",
+    "src": "node_modules/shiki/dist/langs/sql.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/svelte.mjs": {
+    "file": "assets/svelte-DoIXUgJc.js",
+    "name": "svelte",
+    "src": "node_modules/shiki/dist/langs/svelte.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "_postcss-DnzrXTVv.js"
+    ]
+  },
+  "node_modules/shiki/dist/langs/swift.mjs": {
+    "file": "assets/swift-C2oV4EkX.js",
+    "name": "swift",
+    "src": "node_modules/shiki/dist/langs/swift.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/terraform.mjs": {
+    "file": "assets/terraform-BETggiCN.js",
+    "name": "terraform",
+    "src": "node_modules/shiki/dist/langs/terraform.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/toml.mjs": {
+    "file": "assets/toml-vGWfd6FD.js",
+    "name": "toml",
+    "src": "node_modules/shiki/dist/langs/toml.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/tsx.mjs": {
+    "file": "assets/tsx-COt5Ahok.js",
+    "name": "tsx",
+    "src": "node_modules/shiki/dist/langs/tsx.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/typescript.mjs": {
+    "file": "assets/typescript-BPQ3VLAy.js",
+    "name": "typescript",
+    "src": "node_modules/shiki/dist/langs/typescript.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/vb.mjs": {
+    "file": "assets/vb-Cu-pLBUe.js",
+    "name": "vb",
+    "src": "node_modules/shiki/dist/langs/vb.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/vue.mjs": {
+    "file": "assets/vue-CwSeJimo.js",
+    "name": "vue",
+    "src": "node_modules/shiki/dist/langs/vue.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/json.mjs",
+      "node_modules/shiki/dist/langs/html.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/wgsl.mjs": {
+    "file": "assets/wgsl-Dx-B1_4e.js",
+    "name": "wgsl",
+    "src": "node_modules/shiki/dist/langs/wgsl.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/xml.mjs": {
+    "file": "assets/xml-sdJ4AIDG.js",
+    "name": "xml",
+    "src": "node_modules/shiki/dist/langs/xml.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/shiki/dist/langs/java.mjs"
+    ]
+  },
+  "node_modules/shiki/dist/langs/yaml.mjs": {
+    "file": "assets/yaml-Buea-lGh.js",
+    "name": "yaml",
+    "src": "node_modules/shiki/dist/langs/yaml.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/langs/zig.mjs": {
+    "file": "assets/zig-VOosw3JB.js",
+    "name": "zig",
+    "src": "node_modules/shiki/dist/langs/zig.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/themes/github-dark.mjs": {
+    "file": "assets/github-dark-DHJKELXO.js",
+    "name": "github-dark",
+    "src": "node_modules/shiki/dist/themes/github-dark.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/shiki/dist/themes/github-light.mjs": {
+    "file": "assets/github-light-DAi9KRSo.js",
+    "name": "github-light",
+    "src": "node_modules/shiki/dist/themes/github-light.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/sonner/dist/index.mjs": {
+    "file": "assets/index-DHNCbKBB.js",
+    "name": "index",
+    "src": "node_modules/sonner/dist/index.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-1PD0iOg-.js"
+    ]
+  },
+  "node_modules/streamdown/dist/highlighted-body-JLMTFACH.js": {
+    "file": "assets/highlighted-body-JLMTFACH-BF6IAbY3.js",
+    "name": "highlighted-body-JLMTFACH",
+    "src": "node_modules/streamdown/dist/highlighted-body-JLMTFACH.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_mermaid-WFAXDIZX-DeN3inRN.js",
+      "_vendor-react-1PD0iOg-.js",
+      "_preload-helper-PPVm8Dsz.js",
+      "_TokenGate-Dk6Zc80m.js",
+      "_pluginLoaders-COwVOrL7.js",
+      "_slug-kER3EZTy.js",
+      "_notify-HYkVO28d.js",
+      "_markdown-kit-Dvw6o-YO.js"
     ]
   },
   "src/app-layouts/chat-canvas/Frame.tsx": {
@@ -4988,82 +4988,82 @@
       "_markdown-kit-Dvw6o-YO.js"
     ],
     "dynamicImports": [
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/apache.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/astro.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/awk.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bash.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bat.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/bicep.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/c.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/clojure.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cmake.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/cpp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csharp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/css.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/csv.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dart.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/diff.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/docker.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/dotenv.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elixir.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/elm.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fish.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/fsharp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/gleam.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/glsl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/go.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/graphql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/groovy.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/handlebars.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/haskell.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/hcl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/html.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/http.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ini.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/java.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/javascript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jinja.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/json.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsonl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/jsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/julia.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/kotlin.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/lua.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/make.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/markdown.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/matlab.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nginx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/nix.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/objective-c.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/perl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/php.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/powershell.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/prisma.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/proto.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/python.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/r.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/regexp.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/ruby.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/rust.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sass.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scala.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/scss.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/solidity.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/sql.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/svelte.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/swift.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/terraform.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/toml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/tsx.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/typescript.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vb.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/vue.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/wgsl.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/xml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/yaml.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/langs/zig.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-light.mjs",
-      "../../../blocks-params-nav/src/frontend/node_modules/shiki/dist/themes/github-dark.mjs",
+      "node_modules/shiki/dist/langs/apache.mjs",
+      "node_modules/shiki/dist/langs/astro.mjs",
+      "node_modules/shiki/dist/langs/awk.mjs",
+      "node_modules/shiki/dist/langs/bash.mjs",
+      "node_modules/shiki/dist/langs/bat.mjs",
+      "node_modules/shiki/dist/langs/bicep.mjs",
+      "node_modules/shiki/dist/langs/c.mjs",
+      "node_modules/shiki/dist/langs/clojure.mjs",
+      "node_modules/shiki/dist/langs/cmake.mjs",
+      "node_modules/shiki/dist/langs/cpp.mjs",
+      "node_modules/shiki/dist/langs/csharp.mjs",
+      "node_modules/shiki/dist/langs/css.mjs",
+      "node_modules/shiki/dist/langs/csv.mjs",
+      "node_modules/shiki/dist/langs/dart.mjs",
+      "node_modules/shiki/dist/langs/diff.mjs",
+      "node_modules/shiki/dist/langs/docker.mjs",
+      "node_modules/shiki/dist/langs/dotenv.mjs",
+      "node_modules/shiki/dist/langs/elixir.mjs",
+      "node_modules/shiki/dist/langs/elm.mjs",
+      "node_modules/shiki/dist/langs/fish.mjs",
+      "node_modules/shiki/dist/langs/fsharp.mjs",
+      "node_modules/shiki/dist/langs/gleam.mjs",
+      "node_modules/shiki/dist/langs/glsl.mjs",
+      "node_modules/shiki/dist/langs/go.mjs",
+      "node_modules/shiki/dist/langs/graphql.mjs",
+      "node_modules/shiki/dist/langs/groovy.mjs",
+      "node_modules/shiki/dist/langs/handlebars.mjs",
+      "node_modules/shiki/dist/langs/haskell.mjs",
+      "node_modules/shiki/dist/langs/hcl.mjs",
+      "node_modules/shiki/dist/langs/html.mjs",
+      "node_modules/shiki/dist/langs/http.mjs",
+      "node_modules/shiki/dist/langs/ini.mjs",
+      "node_modules/shiki/dist/langs/java.mjs",
+      "node_modules/shiki/dist/langs/javascript.mjs",
+      "node_modules/shiki/dist/langs/jinja.mjs",
+      "node_modules/shiki/dist/langs/json.mjs",
+      "node_modules/shiki/dist/langs/jsonl.mjs",
+      "node_modules/shiki/dist/langs/jsx.mjs",
+      "node_modules/shiki/dist/langs/julia.mjs",
+      "node_modules/shiki/dist/langs/kotlin.mjs",
+      "node_modules/shiki/dist/langs/lua.mjs",
+      "node_modules/shiki/dist/langs/make.mjs",
+      "node_modules/shiki/dist/langs/markdown.mjs",
+      "node_modules/shiki/dist/langs/matlab.mjs",
+      "node_modules/shiki/dist/langs/nginx.mjs",
+      "node_modules/shiki/dist/langs/nix.mjs",
+      "node_modules/shiki/dist/langs/objective-c.mjs",
+      "node_modules/shiki/dist/langs/perl.mjs",
+      "node_modules/shiki/dist/langs/php.mjs",
+      "node_modules/shiki/dist/langs/powershell.mjs",
+      "node_modules/shiki/dist/langs/prisma.mjs",
+      "node_modules/shiki/dist/langs/proto.mjs",
+      "node_modules/shiki/dist/langs/python.mjs",
+      "node_modules/shiki/dist/langs/r.mjs",
+      "node_modules/shiki/dist/langs/regexp.mjs",
+      "node_modules/shiki/dist/langs/ruby.mjs",
+      "node_modules/shiki/dist/langs/rust.mjs",
+      "node_modules/shiki/dist/langs/sass.mjs",
+      "node_modules/shiki/dist/langs/scala.mjs",
+      "node_modules/shiki/dist/langs/scss.mjs",
+      "node_modules/shiki/dist/langs/solidity.mjs",
+      "node_modules/shiki/dist/langs/sql.mjs",
+      "node_modules/shiki/dist/langs/svelte.mjs",
+      "node_modules/shiki/dist/langs/swift.mjs",
+      "node_modules/shiki/dist/langs/terraform.mjs",
+      "node_modules/shiki/dist/langs/toml.mjs",
+      "node_modules/shiki/dist/langs/tsx.mjs",
+      "node_modules/shiki/dist/langs/typescript.mjs",
+      "node_modules/shiki/dist/langs/vb.mjs",
+      "node_modules/shiki/dist/langs/vue.mjs",
+      "node_modules/shiki/dist/langs/wgsl.mjs",
+      "node_modules/shiki/dist/langs/xml.mjs",
+      "node_modules/shiki/dist/langs/yaml.mjs",
+      "node_modules/shiki/dist/langs/zig.mjs",
+      "node_modules/shiki/dist/themes/github-light.mjs",
+      "node_modules/shiki/dist/themes/github-dark.mjs",
       "aiui-code-themes"
     ]
   },
@@ -5153,7 +5153,7 @@
     "imports": [
       "_vendor-react-1PD0iOg-.js",
       "_mount-C9sldEV_.js",
-      "../../../blocks-params-nav/src/frontend/node_modules/sonner/dist/index.mjs",
+      "node_modules/sonner/dist/index.mjs",
       "_install-CFHrBfFF.js",
       "_notify-HYkVO28d.js",
       "_preload-helper-PPVm8Dsz.js",
