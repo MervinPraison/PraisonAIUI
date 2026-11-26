@@ -69,7 +69,7 @@ for (const mode of ['light', 'dark'] as const satisfies readonly ColorMode[]) {
     const errors = collectPageErrors(page)
     const lazyCalls: Record<string, unknown>[] = []
 
-    await page.route('**/api/plugins/hello/blocks**', async (route) => {
+    await page.route('**/api/plugins/hello/pages/hello-blocks**', async (route) => {
       const req = route.request()
       if (req.method() === 'POST') {
         const body = req.postDataJSON() as Record<string, unknown>

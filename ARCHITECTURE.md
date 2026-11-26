@@ -239,7 +239,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,566 B |
 | Chart block chunk (lazy; recharts, minus boot and the blocks page) | 140.6 kB |
-| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.436 / 10.5 / 15.265 / 18.6 / 13.271 kB |
+| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.438 / 10.5 / 15.266 / 18.6 / 13.271 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
