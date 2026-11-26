@@ -207,7 +207,7 @@ wheels = [
 
 [[package]]
 name = "aiui"
-version = "0.3.179"
+version = "0.3.180"
 source = { editable = "." }
 dependencies = [
     { name = "croniter" },
