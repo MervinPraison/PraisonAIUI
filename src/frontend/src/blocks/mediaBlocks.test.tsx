@@ -10,7 +10,20 @@ import { toBlockNodes } from '@/blocks/normalize'
 
 const html = (components: unknown[]) => renderMarkup(<BlockList nodes={toBlockNodes(components)} />).split('<!-- -->').join('')
 
-const NATIVE = ['avatar', 'audio_player', 'video_player', 'file_download', 'breadcrumb', 'tooltip_wrap', 'popover', 'dialog', 'card_grid', 'link']
+const NATIVE = [
+  'avatar',
+  'audio_player',
+  'video_player',
+  'file_download',
+  'breadcrumb',
+  'tooltip_wrap',
+  'popover',
+  'dialog',
+  'card_grid',
+  'link',
+  'color_picker_input',
+  'pagination',
+]
 
 test('the media, navigation and overlay types have native renderers', () => {
   for (const type of NATIVE) assert.ok(CORE_BLOCK_TYPES.includes(type) && typeof getCoreBlock(type) === 'function', type)
@@ -141,4 +154,24 @@ test('card_grid: cards with avatar, badges, stats and a stretched link; columns 
   assert.match(out, /<a href="\/creator-grace\?tab=videos"/)
   assert.match(out, /<img src="\/g.png" alt=""/)
   assert.doesNotMatch(out, /javascript:/)
+})
+
+test('color_picker_input: native color input with hex readout, name and auto_submit', () => {
+  const out = html([
+    { type: 'color_picker_input', label: 'Accent', name: 'accent', value: '#3b82f6', auto_submit: true },
+  ])
+  assert.match(out, /type="color"/)
+  assert.match(out, /name="accent"/)
+  assert.match(out, /data-auto-submit=""/)
+  assert.match(out, /value="#3b82f6"/)
+  assert.match(out, />#3b82f6</)
+})
+
+test('pagination: accessible nav with active page, prev/next and windowed ellipsis', () => {
+  const out = html([{ type: 'pagination', total: 250, page: 5, per_page: 25, id: 'items' }])
+  assert.match(out, /<nav[^>]*aria-label="Pagination"/)
+  assert.match(out, /aria-label="Previous page"/)
+  assert.match(out, /aria-label="Next page"/)
+  assert.match(out, /aria-current="page"[^>]*>5</)
+  assert.match(out, /aria-label="Page 10"/)
 })
