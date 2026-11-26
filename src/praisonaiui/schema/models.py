@@ -1692,6 +1692,10 @@ class Config(BaseModel):
     auth: Optional[AuthConfig] = None
     widgets: list[InputWidgetConfig] = Field(default_factory=list)
     dashboard: Optional[DashboardConfig] = None
+    pages: list[Union[str, dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Visible built-in page ids and/or declarative block-page definitions",
+    )
     extensions: Optional[ExtensionsConfig] = None
     mcp: Optional[McpConfig] = Field(default=None, description="MCP servers and what users may add (docs/features/mcp.md)")
     seo: Optional[SEOConfig] = None
