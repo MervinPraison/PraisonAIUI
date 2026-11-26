@@ -71,6 +71,9 @@ export const SDK_EXPORTS = [
   'setLayout',
   'provideLayoutData',
   'useLayoutData',
+  // Headless Notification Center store & hook (feature notifications).
+  'notifications',
+  'useNotifications',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -125,6 +128,8 @@ export const SDK_FEATURES = [
   'navigate.params',
   // ShellPage.badge / LayoutNavItem.badge (static or live sidebar badges)
   'page.badge',
+  // Headless Notification Center (notifications, useNotifications, header bell)
+  'notifications',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

@@ -13,6 +13,7 @@ import { artifactsBuiltin } from './artifacts'
 import { chatBuiltin } from './chat'
 import { layoutsBuiltin } from './layouts'
 import { guidedPagesBuiltin } from './layouts/guided'
+import { notificationsBuiltin } from './notifications'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
 
 export type { BuiltinContext, BuiltinPlugin, BuiltinSdk } from './types'
@@ -20,6 +21,7 @@ export type { BuiltinContext, BuiltinPlugin, BuiltinSdk } from './types'
 export const BUILTIN_PLUGINS: readonly BuiltinPlugin[] = Object.freeze([
   chatBuiltin,
   approvalsBuiltin,
+  notificationsBuiltin,
   layoutsBuiltin,
   // Guided's own pages (start, templates): the server lists them only while
   // Guided is offered, so this activates only then.

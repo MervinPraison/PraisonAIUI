@@ -647,11 +647,23 @@ async def action_buttons(buttons: list[dict]) -> None:
 TOAST_TYPES = ("info", "success", "warning", "error")
 
 
-async def notify(message: str, type: str = "info", *, duration: Optional[int] = None) -> bool:
+async def notify(
+    message: str,
+    type: str = "info",
+    *,
+    duration: Optional[int] = None,
+    persist: bool = False,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    action: Optional[dict] = None,
+    dedupe_key: Optional[str] = None,
+) -> bool:
     """Pop a short notice (a toast) in the chat that sent the current message.
 
     *type* is info, success, warning or error; *duration* is in milliseconds.
-    The notice is not saved with the reply. Returns False outside a handler.
+    Pass ``persist=True`` to also record the notification in the server
+    Notification Center (broadcast over SSE to the header bell across tabs).
+    Returns False outside a handler unless ``persist=True``.
     (``aiui.toast`` is different: it builds a toast component for a page.)
 
     Example:
@@ -661,11 +673,27 @@ async def notify(message: str, type: str = "info", *, duration: Optional[int] = 
         raise ValueError(f"type must be one of {', '.join(TOAST_TYPES)}")
     if duration is not None and (not isinstance(duration, int) or duration <= 0):
         raise ValueError("duration must be a positive number of milliseconds")
+    if persist:
+        from praisonaiui.features.notifications import push_notification
+
+        push_notification(
+            str(message),
+            description=description,
+            type=type,
+            category=category,
+            action=action,
+            dedupe_key=dedupe_key,
+            source="chat",
+        )
     ctx = _get_context()
     if not (ctx and ctx._stream_queue):
-        return False
+        return bool(persist)
     event: dict = {"type": "toast", "message": str(message), "variant": type}
     if duration is not None:
         event["duration"] = duration
+    if description is not None:
+        event["description"] = str(description)
+    if category is not None:
+        event["category"] = str(category)
     await ctx._stream_queue.put(event)
     return True

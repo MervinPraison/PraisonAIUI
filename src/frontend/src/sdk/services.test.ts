@@ -102,6 +102,8 @@ test('every @aiui/sdk export is a function, a hook, a component or a constant', 
   const constants: Record<string, (v: unknown) => boolean> = {
     SDK_VERSION: (v) => v === 1,
     SDK_FEATURES: (v) => Array.isArray(v) && v.every((f) => typeof f === 'string'),
+    notifications: (v) =>
+      typeof v === 'object' && v !== null && Object.isFrozen(v) && typeof (v as { push?: unknown }).push === 'function',
   }
   const api = sdkApi as Record<string, unknown>
   for (const name of SDK_EXPORTS) {

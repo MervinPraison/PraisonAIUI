@@ -102,11 +102,13 @@ export function TopBar({
 
 export function PhoneTopBar({
   line,
+  chrome,
   canCreate,
   onMenu,
   onNewChat,
 }: {
   line: TitleLine
+  chrome: LayoutChrome
   /** The sessions feed is on (New chat has something to do). */
   canCreate: boolean
   onMenu(): void
@@ -132,13 +134,14 @@ export function PhoneTopBar({
         </h1>
         {line.subtitle}
       </div>
-      {canCreate ? (
-        <Button variant="ghost" size="icon" className="size-11 rounded-xl text-foreground" aria-label="New chat" onClick={onNewChat}>
-          <SquarePen className="size-5" />
-        </Button>
-      ) : (
-        <span className="size-11 shrink-0" aria-hidden="true" />
-      )}
+      <div className="flex shrink-0 items-center gap-0.5">
+        <chrome.Slot name="header:actions" className="flex items-center gap-0.5" />
+        {canCreate && (
+          <Button variant="ghost" size="icon" className="size-11 rounded-xl text-foreground" aria-label="New chat" onClick={onNewChat}>
+            <SquarePen className="size-5" />
+          </Button>
+        )}
+      </div>
     </header>
   )
 }

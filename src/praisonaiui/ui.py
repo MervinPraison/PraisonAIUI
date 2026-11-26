@@ -39,6 +39,7 @@ def layout(
     params: dict[str, Any] | None = None,
     badges: Mapping[str, Any] | None = None,
     refresh_manifest: bool = False,
+    notifications: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict:
     """Wrap components in a layout container.
 
@@ -57,6 +58,8 @@ def layout(
             (``None`` or ``""`` clears a page's badge) without reloading.
         refresh_manifest: App shell: re-fetch ``/api/shell/manifest`` in the
             background so dynamic server-computed badges/pages stay current.
+        notifications: App shell: notification items pushed into the header
+            Notification Center (``_notifications``).
     """
     out: dict[str, Any] = {"_components": list(children)}
     if refresh_every:
@@ -67,6 +70,8 @@ def layout(
         out["_badges"] = dict(badges)
     if refresh_manifest:
         out["_refresh_manifest"] = True
+    if notifications:
+        out["_notifications"] = [dict(item) for item in notifications]
     return out
 
 

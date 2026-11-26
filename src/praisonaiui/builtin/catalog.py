@@ -931,4 +931,9 @@ BUILTIN_PLUGINS = BUILTIN_PLUGINS + (
         feature_refs=(feature(".run_ledger", "RunLedgerFeature"),),
         for_layouts=("command", "mission"),
     ),
+    BuiltinPlugin(
+        "notifications",
+        "In-app notification center (bell inbox, REST & SSE feed)",
+        feature_refs=(feature(".notifications", "NotificationsFeature"),),
+    ),
 )

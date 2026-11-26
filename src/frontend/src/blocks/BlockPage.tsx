@@ -95,6 +95,13 @@ function applyDynamicManifest(data: unknown): void {
   if (data._refresh_manifest === true) {
     window.dispatchEvent(new Event('aiui:manifest-refresh'))
   }
+  if (Array.isArray(data._notifications)) {
+    for (const entry of data._notifications) {
+      if (isRecord(entry)) {
+        window.dispatchEvent(new CustomEvent('aiui:notification', { detail: entry }))
+      }
+    }
+  }
 }
 
 function readyState(key: string, data: unknown): PageState {

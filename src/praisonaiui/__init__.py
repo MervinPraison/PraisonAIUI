@@ -260,6 +260,17 @@ def __getattr__(name: str):
         "get_realtime_manager",
         "set_realtime_manager",
     }
+    _notifications_attrs = {
+        "NotificationStoreProtocol",
+        "push_notification",
+        "list_notifications",
+        "mark_notification_read",
+        "mark_all_notifications_read",
+        "remove_notification",
+        "clear_notifications",
+        "get_notification_store",
+        "set_notification_store",
+    }
     _task_attrs = {"Task", "TaskList", "TaskStatus"}
     _ui_attrs = {
         "layout",
@@ -463,6 +474,10 @@ def __getattr__(name: str):
         if name == "set_realtime":
             return realtime.set_realtime_manager
         return getattr(realtime, name)
+    if name in _notifications_attrs:
+        from praisonaiui.features import notifications as _notifications
+
+        return getattr(_notifications, name)
     if name in _task_attrs:
         from praisonaiui import tasks
 
@@ -800,4 +815,14 @@ __all__ = [
     "date_range_input",
     "segmented_input",
     "filter_bar",
+    # Notifications
+    "NotificationStoreProtocol",
+    "push_notification",
+    "list_notifications",
+    "mark_notification_read",
+    "mark_all_notifications_read",
+    "remove_notification",
+    "clear_notifications",
+    "get_notification_store",
+    "set_notification_store",
 ]

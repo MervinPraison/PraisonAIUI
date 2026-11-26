@@ -26,6 +26,8 @@ import {
   type AiuiMessage, type AiuiSessionSignals, type AiuiToolPart, type ConnectionStatus, type JSONObject, type WireEvent,
 } from './protocol'
 import { notify as toast, type NotifyType } from '@/sdk/notify'
+import { notifications } from '@/sdk/notifications'
+import { getPageId } from '@/sdk/services'
 import { AskUnavailableError, canRegenerate, isAbortError, isDisconnectError, type AiuiTransport, type AttachedRun } from './transports'
 
 export interface SessionThread {
@@ -294,6 +296,23 @@ function endTurn(sid: string, turn: Turn) {
     return n
   })
   set(sid, { isRunning: false, reconnecting: false }, true)
+  const finished = e.state.messages.find((m) => m.id === turn.messageId)
+  if (typeof window !== 'undefined' && finished && finished.role === 'assistant' && finished.status?.type === 'complete') {
+    const awayFromChat = getPageId() !== 'chat' || (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+    if (awayFromChat) {
+      const textPart = finished.parts.find((p) => p.type === 'text' && p.text.trim())
+      const preview = textPart && textPart.type === 'text' ? textPart.text.trim().slice(0, 140) : undefined
+      notifications.push({
+        dedupeKey: `chat-reply-${sid}-${turn.messageId}`,
+        title: finished.agentName ? `New message from ${finished.agentName}` : 'New message',
+        description: preview,
+        type: 'info',
+        category: 'chat',
+        source: 'chat',
+        action: { label: 'Open chat', page: 'chat' },
+      })
+    }
+  }
   for (const fn of [...settledFns]) fn(sid)
   reloadIfRemoteSeen(sid)
 }
@@ -318,7 +337,13 @@ function handleEvent(sid: string, turn: Turn, ev: WireEvent) {
   if (ev.type === 'toast') {
     // aiui.notify: a notice for this tab's turn, never part of the reply.
     const type = ['info', 'success', 'warning', 'error'].includes(ev.variant as string) ? (ev.variant as NotifyType) : 'info'
-    void toast(String(ev.message ?? ''), { type, duration: typeof ev.duration === 'number' && ev.duration > 0 ? ev.duration : undefined })
+    void toast(String(ev.message ?? ''), {
+      type,
+      description: typeof ev.description === 'string' ? ev.description : undefined,
+      category: typeof ev.category === 'string' ? ev.category : 'chat',
+      source: 'chat',
+      duration: typeof ev.duration === 'number' && ev.duration > 0 ? ev.duration : undefined,
+    })
     return
   }
   let signals: Partial<AiuiSessionSignals> | undefined

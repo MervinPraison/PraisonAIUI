@@ -13,10 +13,20 @@
  */
 import { useSyncExternalStore } from 'react'
 import type { ExternalToast } from 'sonner'
+import { _setNotificationToastForwarder, notifications, type NotificationAction } from './notifications'
 
 export type NotifyType = 'default' | 'info' | 'success' | 'warning' | 'error'
 export interface NotifyOptions extends ExternalToast {
   type?: NotifyType
+  /**
+   * Record this toast in the Notification Center bell (default: true).
+   * Pass `false` for purely ephemeral notices that should not persist in the center.
+   */
+  record?: boolean
+  /** Optional category tag for filtering inside the Notification Center. */
+  category?: string
+  /** Optional source tag (defaults to `'toast'`). */
+  source?: string
 }
 
 let toasterRequested = false
@@ -58,10 +68,31 @@ export function dismiss(id?: string | number): Promise<void> {
   )
 }
 
-/** Show a toast. Returns the sonner toast id once sonner has loaded. */
+function toNotificationAction(action: ExternalToast['action']): NotificationAction | undefined {
+  if (!action || typeof action !== 'object' || !('label' in action)) return undefined
+  const label = typeof action.label === 'string' ? action.label : ''
+  const onClick = typeof action.onClick === 'function' ? () => action.onClick({} as never) : undefined
+  if (!label || !onClick) return undefined
+  return { label, onClick }
+}
+
+/** Show a toast (and by default record it in the Notification Center). Returns the sonner toast id once loaded. */
 export function notify(message: string, opts: NotifyOptions = {}): Promise<string | number | undefined> {
   requestToaster()
-  const { type = 'default', ...rest } = opts
+  const { type = 'default', record = true, category, source, ...rest } = opts
+  if (record) {
+    const id = rest.id !== undefined ? String(rest.id) : undefined
+    notifications.push({
+      id,
+      dedupeKey: id,
+      title: message,
+      description: typeof rest.description === 'string' ? rest.description : undefined,
+      type,
+      category,
+      source: source ?? 'toast',
+      action: toNotificationAction(rest.action),
+    })
+  }
   return import('sonner').then(
     ({ toast }) => (type === 'default' ? toast(message, rest) : toast[type](message, rest)),
     (err: unknown) => {
@@ -70,3 +101,12 @@ export function notify(message: string, opts: NotifyOptions = {}): Promise<strin
     },
   )
 }
+
+_setNotificationToastForwarder((item) => {
+  void notify(item.title, {
+    id: item.dedupeKey ?? item.id,
+    type: item.type,
+    description: item.description,
+    record: false,
+  })
+})

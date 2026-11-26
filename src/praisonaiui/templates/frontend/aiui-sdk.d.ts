@@ -239,6 +239,12 @@ declare module '@aiui/sdk' {
     /** A toast with the same id replaces the earlier one. */
     id?: string | number
     action?: { label: string; onClick: () => void }
+    /** Record this toast in the Notification Center (default: true). */
+    record?: boolean
+    /** Optional category tag for Notification Center filtering. */
+    category?: string
+    /** Optional source tag (defaults to 'toast'). */
+    source?: string
   }
   /** Show a toast. Resolves to the toast id once the toaster has loaded. */
   export function notify(message: string, options?: NotifyOptions): Promise<string | number | undefined>
@@ -661,6 +667,111 @@ declare module '@aiui/sdk' {
   ): () => void
   /** React hook: the feed, or null while nothing provides it or it is loading. */
   export function useLayoutData<K extends keyof LayoutDataMap>(kind: K): LayoutDataMap[K] | null
+
+  // ── notifications (feature 'notifications') ────────────────────────
+
+  export type NotificationType = NotifyType
+  export interface NotificationAction {
+    label: string
+    /** SPA page id opened via `navigate(page, { params })`. */
+    page?: string
+    params?: Record<string, string | string[]>
+    /** Safe same-origin path or http(s) URL. */
+    href?: string
+    /** Optional client-side click handler. */
+    onClick?: () => void
+  }
+  export interface NotificationItem {
+    readonly id: string
+    readonly title: string
+    readonly description?: string
+    readonly type: NotificationType
+    readonly category?: string
+    readonly source?: string
+    readonly createdAt: number
+    readonly read: boolean
+    readonly pinned?: boolean
+    readonly dedupeKey?: string
+    readonly action?: NotificationAction
+    readonly meta?: Readonly<Record<string, unknown>>
+  }
+  export interface PushNotificationInput {
+    id?: string
+    title: string
+    description?: string
+    type?: NotificationType
+    category?: string
+    source?: string
+    createdAt?: number
+    read?: boolean
+    pinned?: boolean
+    dedupeKey?: string
+    action?: NotificationAction
+    meta?: Record<string, unknown>
+    /** Also show a transient toast (default: false). */
+    toast?: boolean
+  }
+  export interface NotificationSnapshot {
+    readonly items: readonly NotificationItem[]
+    readonly unreadCount: number
+  }
+  export interface ClearNotificationsOptions {
+    includePinned?: boolean
+    readOnly?: boolean
+  }
+  export interface SyncNotificationsOptions {
+    source?: string
+    replaceSource?: boolean
+  }
+  export interface NotificationSourceContext {
+    push(input: PushNotificationInput): NotificationItem
+    markRead(id: string, opts?: { localOnly?: boolean }): boolean
+    markAllRead(opts?: { localOnly?: boolean }): number
+    remove(id: string, opts?: { localOnly?: boolean }): boolean
+    clear(opts?: ClearNotificationsOptions & { localOnly?: boolean }): number
+    sync(items: readonly PushNotificationInput[], opts?: SyncNotificationsOptions): void
+  }
+  export interface NotificationSource {
+    connect?(ctx: NotificationSourceContext): (() => void) | void
+    onMarkRead?(id: string, item: NotificationItem): void
+    onMarkUnread?(id: string, item: NotificationItem): void
+    onMarkAllRead?(): void
+    onRemove?(id: string, item: NotificationItem): void
+    onClear?(opts: ClearNotificationsOptions): void
+  }
+  export interface NotificationFilter {
+    category?: string
+    unreadOnly?: boolean
+  }
+  export interface UseNotificationsResult {
+    readonly items: readonly NotificationItem[]
+    readonly unreadCount: number
+    readonly totalUnreadCount: number
+    readonly categories: readonly string[]
+    push(input: PushNotificationInput): NotificationItem
+    markRead(id: string): boolean
+    markUnread(id: string): boolean
+    markAllRead(): number
+    remove(id: string): boolean
+    clear(opts?: ClearNotificationsOptions): number
+  }
+  export const notifications: {
+    readonly push: (input: PushNotificationInput) => NotificationItem
+    readonly get: () => NotificationSnapshot
+    readonly unreadCount: () => number
+    readonly markRead: (id: string, opts?: { localOnly?: boolean }) => boolean
+    readonly markUnread: (id: string, opts?: { localOnly?: boolean }) => boolean
+    readonly markAllRead: (opts?: { localOnly?: boolean }) => number
+    readonly remove: (id: string, opts?: { localOnly?: boolean }) => boolean
+    readonly clear: (opts?: ClearNotificationsOptions & { localOnly?: boolean }) => number
+    readonly sync: (items: readonly PushNotificationInput[], opts?: SyncNotificationsOptions) => void
+    readonly subscribe: (listener: () => void) => () => void
+    readonly registerSource: (id: string, source: NotificationSource) => () => void
+    readonly configure: (opts: { maxItems?: number }) => void
+    readonly reset: () => void
+  }
+  /** React hook subscribing to the headless Notification Center store. */
+  export function useNotifications(filter?: NotificationFilter): UseNotificationsResult
 
   // ── default export ─────────────────────────────────────────────────
 
