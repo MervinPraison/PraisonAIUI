@@ -22,6 +22,23 @@ import type { ShellManifest } from './manifest'
 export interface NavigateOptions {
   /** Replace the current history entry instead of adding one (redirects). */
   replace?: boolean
+  /** Query parameters for the target page (written as `?k=v`). */
+  params?: Record<string, unknown>
+}
+
+export function queryForParams(params?: Record<string, unknown>): string {
+  if (!params) return ''
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (!k || k.startsWith('_')) continue
+    for (const x of Array.isArray(v) ? v : [v]) {
+      if (x === true) q.append(k, 'true')
+      else if (typeof x === 'string' && x) q.append(k, x)
+      else if (typeof x === 'number' && Number.isFinite(x)) q.append(k, String(x))
+    }
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
 }
 
 export interface ShellHost {
@@ -41,9 +58,12 @@ const LOCATION_CHANGE_EVENT = 'aiui:locationchange'
 const defaultHost: ShellHost = {
   navigate(pageId, opts) {
     const path = `/${encodeURIComponent(pageId)}`
-    if (window.location.pathname === path) return
-    if (opts?.replace) window.history.replaceState({ pageId }, '', path)
-    else window.history.pushState({ pageId }, '', path)
+    const hasParams = opts?.params !== undefined
+    const search = hasParams ? queryForParams(opts.params) : ''
+    if (window.location.pathname === path && (!hasParams || window.location.search === search)) return
+    const url = `${path}${search}`
+    if (opts?.replace) window.history.replaceState({ pageId }, '', url)
+    else window.history.pushState({ pageId }, '', url)
   },
   getToken: () => '',
   getPageId() {

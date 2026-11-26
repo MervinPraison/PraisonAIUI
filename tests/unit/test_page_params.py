@@ -120,6 +120,16 @@ def test_ui_helpers_shapes_are_additive():
     assert "method" not in form and "update_url" not in form
     assert aiui.form("p", children=[], method="GET")["method"] == "get"
     assert aiui.form("p", children=[], update_url=True)["update_url"] is True
+    fb = aiui.filter_bar("p", inputs=[])
+    assert "method" not in fb and "update_url" not in fb
+    fb_get = aiui.filter_bar(inputs=[], method="GET", update_url=True)
+    assert fb_get["action"] == "" and fb_get["method"] == "get" and fb_get["update_url"] is True
+    lnk = aiui.page_link("creator", "Ada", params={"creator": "ada", "tag": ["ai", "dev"], "empty": "", "off": False, "_priv": "x"})
+    assert lnk["page"] == "creator"
+    assert lnk["params"] == {"creator": "ada", "tag": ["ai", "dev"]}
+    assert lnk["href"] == "/creator?creator=ada&tag=ai&tag=dev"
+    plain_lnk = aiui.page_link("sync", "Sync")
+    assert plain_lnk["href"] == "/sync" and "params" not in plain_lnk
 
 
 def test_status_block():

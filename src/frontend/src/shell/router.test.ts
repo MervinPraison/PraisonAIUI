@@ -167,6 +167,18 @@ test('navigate pushes /<id>, is a no-op on the current page, and replace does no
   assert.equal(win.location.search, '?x=1', 'navigating to the current page keeps its query')
   navigate('logs', { replace: true })
   assert.deepEqual(win.history.entries(), ['/', '/logs'])
+  // Explicit params write a query string, including when staying on the same page.
+  navigate('logs', { params: { level: 'error', tag: ['a', 'b'], empty: '', _skip: '1' } })
+  assert.equal(win.location.pathname, '/logs')
+  assert.equal(win.location.search, '?level=error&tag=a&tag=b')
+  const lenBefore = win.history.length
+  navigate('logs', { params: { level: 'error', tag: ['a', 'b'] } })
+  assert.equal(win.history.length, lenBefore, 'same page + same query: no duplicate entry')
+  navigate('creator', { params: { creator: 'ada' } })
+  assert.equal(win.location.pathname, '/creator')
+  assert.equal(win.location.search, '?creator=ada')
+  navigate('creator', { params: {} })
+  assert.equal(win.location.search, '', 'explicit empty params clears query string')
 })
 
 test('subscribeLocation fires on push, replace and back/forward until unsubscribed', () => {

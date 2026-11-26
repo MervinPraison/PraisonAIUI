@@ -1343,19 +1343,46 @@ def link_button(label: str, href: str, *, variant: str = "outline", external: bo
     return {"type": "link", "text": label, "href": href, "external": external, "variant": variant}
 
 
-def page_link(page_id: str, label: str | None = None, *, variant: str | None = None) -> dict:
+def page_link(
+    page_id: str,
+    label: str | None = None,
+    *,
+    variant: str | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict:
     """A link to another page of the app, opened without a full reload.
 
     Args:
         page_id: Id of the target page (as given to ``@aiui.page``)
         label: Link text (defaults to the page id)
         variant: Render as a button ("outline", "primary", ...) instead of a text link
+        params: Optional query parameters appended to the target URL
     """
-    from urllib.parse import quote
+    from urllib.parse import quote, urlencode
 
     href = "/" + quote(page_id, safe="")
+    clean_params: dict[str, Any] = {}
+    if params:
+        pairs: list[tuple[str, str]] = []
+        for key, value in params.items():
+            if not key or str(key).startswith("_"):
+                continue
+            items = value if isinstance(value, (list, tuple)) else [value]
+            kept: list[str] = []
+            for item in items:
+                if item is None or item is False or item == "":
+                    continue
+                text = "true" if item is True else str(item)
+                pairs.append((str(key), text))
+                kept.append(text)
+            if kept:
+                clean_params[str(key)] = kept if isinstance(value, (list, tuple)) else kept[0]
+        if pairs:
+            href = f"{href}?{urlencode(pairs)}"
     text = label if label is not None else page_id
     comp: dict[str, Any] = {"type": "link", "text": text, "href": href, "page": page_id}
+    if clean_params:
+        comp["params"] = clean_params
     if variant is not None:
         comp["variant"] = variant
     return comp
@@ -1540,31 +1567,39 @@ def status(
 
 
 def filter_bar(
-    action: str,
+    action: str = "",
     *,
     inputs: Sequence[dict],
     chips: bool = True,
     defaults: Mapping[str, Any] | None = None,
     reset_label: str = "Reset",
+    method: str = "post",
+    update_url: bool = False,
 ) -> dict:
     """A compact row of filters that applies as soon as one changes.
 
     It posts like :func:`form` (every input by ``name`` to the page action
     ``action``, normally the page id), so the action handler should return the
-    page rebuilt from the posted values. With ``chips``, each active filter
-    shows as a chip with a button that clears it, plus a "Reset" control that
-    clears them all. A filter is active when its value differs from its reset
-    value: ``defaults[name]`` when given, else the first option of a select,
-    radio or single segmented input, else empty. Number and slider inputs show
-    a chip only when ``defaults`` names them.
+    page rebuilt from the posted values. Pass ``method="get"`` to write the
+    filter values directly into the page URL and re-fetch the page data without
+    an action handler. With ``chips``, each active filter shows as a chip with
+    a button that clears it, plus a "Reset" control that clears them all. A
+    filter is active when its value differs from its reset value:
+    ``defaults[name]`` when given, else the first option of a select, radio or
+    single segmented input, else empty. Number and slider inputs show a chip
+    only when ``defaults`` names them.
 
     Args:
-        action: Action identifier (typically the page id).
+        action: Action identifier (typically the page id; optional with ``method="get"``).
         inputs: Input components (``select_input``, ``multiselect_input``,
             ``date_range_input``, ``segmented_input``, ``text_input``, ...).
         chips: Show the active filters as removable chips.
         defaults: Reset value per input name (a date range takes ``{"start", "end"}``).
         reset_label: Label of the control that clears every filter.
+        method: ``"post"`` (default) or ``"get"`` (write values into the URL
+            query string and re-fetch page data).
+        update_url: With ``method="post"``, also write submitted values into
+            the page URL after a successful action.
     """
     comp: dict[str, Any] = {
         "type": "filter_bar",
@@ -1575,4 +1610,8 @@ def filter_bar(
     }
     if defaults:
         comp["defaults"] = dict(defaults)
+    if method.lower() == "get":
+        comp["method"] = "get"
+    if update_url:
+        comp["update_url"] = True
     return comp

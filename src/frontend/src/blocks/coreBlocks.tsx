@@ -48,6 +48,7 @@ import { registerBlock, type BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
 import { HtmlBlock } from './HtmlBlock'
 import { InFrameContext, useBlockContext, useInFrame } from './context'
+import { hrefLinkOnClick, pageLinkProps } from './mediaModel'
 import { notify, type NotifyType } from '@/sdk/notify'
 import { arr, display, hardBreaks, isRecord, num, safeUrl, str, toBlockNodes } from './normalize'
 import { tabForKey } from './tabKeys'
@@ -666,12 +667,26 @@ function ActionButton({ spec }: { spec: Record<string, unknown> }) {
   const [busy, setBusy] = useState(false)
   const label = str(spec.label ?? spec.text, 'Button')
   const variant = buttonVariant(spec.variant)
+  const page = str(spec.page)
+  if (page) {
+    const attrs = pageLinkProps(page, isRecord(spec.params) ? spec.params : undefined)
+    return (
+      <Button asChild size="sm" variant={variant}>
+        <a {...attrs}>{label}</a>
+      </Button>
+    )
+  }
   const href = safeUrl(spec.href)
   if (href) {
     const external = spec.external === true
     return (
       <Button asChild size="sm" variant={variant}>
-        <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+        <a
+          href={href}
+          target={external ? '_blank' : undefined}
+          rel={external ? 'noopener noreferrer' : undefined}
+          onClick={external ? undefined : hrefLinkOnClick(href)}
+        >
           {label}
         </a>
       </Button>

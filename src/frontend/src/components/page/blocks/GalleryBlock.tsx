@@ -3,7 +3,7 @@
  * lazily by blocks/coreBlocks.tsx, in its own chunk. The template does not
  * depend on the block layer, so a React page uses it without the blocks chunk.
  */
-import { pageLinkProps } from '@/blocks/mediaModel'
+import { hrefLinkOnClick, pageLinkProps } from '@/blocks/mediaModel'
 import { arr, isRecord, safeUrl, str } from '@/blocks/normalize'
 import type { BlockNode } from '@/sdk/registry'
 import { Gallery, type GalleryItem } from '../Gallery'
@@ -23,9 +23,10 @@ export function GalleryBlock({ node }: { node: BlockNode }) {
       const title = str(it.title ?? it.caption ?? it.alt ?? it.name, `Item ${i + 1}`)
       const video = safeUrl(it.video)
       const page = str(it.page)
-      const nav = page ? pageLinkProps(page) : undefined
+      const nav = page ? pageLinkProps(page, isRecord(it.params) ? it.params : undefined) : undefined
       const href = nav?.href ?? safeUrl(it.href) ?? video
       const target = nav ? undefined : str(it.target) || (href && href === video ? '_blank' : undefined)
+      const onOpen = nav?.onClick ?? (href && !target ? hrefLinkOnClick(href) : undefined)
       return {
         id: str(it.id, String(i)),
         title,
@@ -35,7 +36,7 @@ export function GalleryBlock({ node }: { node: BlockNode }) {
         image: src ? { src, alt: str(it.alt ?? it.caption, '') } : undefined,
         href,
         target,
-        onOpen: nav?.onClick,
+        onOpen,
         video: video !== undefined || it.kind === 'video',
       }
     })

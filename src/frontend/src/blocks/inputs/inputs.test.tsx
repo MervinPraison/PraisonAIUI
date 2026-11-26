@@ -58,4 +58,9 @@ test('filter bar: a search form with chips and Reset for active filters', () => 
   assert.match(html, /<form role="search" aria-label="Filters"/)
   assert.match(html, /aria-label="Clear Creator: Ann"/)
   assert.match(html, />Clear all</)
+  const getBar = renderToStaticMarkup(
+    <FilterBar node={node('filter_bar', { method: 'get' }, [node('text_input', { name: 'q', label: 'Query', value: 'ai' })])} />,
+  )
+  assert.match(getBar, /<form role="search" aria-label="Filters"/)
+  assert.match(getBar, /aria-label="Clear Query: ai"/)
 })

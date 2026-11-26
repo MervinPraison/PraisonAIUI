@@ -232,21 +232,21 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
 | Chat route (added by `/chat`) | 143,579 B |
-| `/chat` first-screen JS (boot + chat route) | 257,066 B |
+| `/chat` first-screen JS (boot + chat route) | 257,910 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,566 B |
 | Chart block chunk (lazy; recharts, minus boot and the blocks page) | 140.6 kB |
-| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.373 / 10.5 / 15.2 / 18.6 / 13.207 kB |
+| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.436 / 10.5 / 15.265 / 18.6 / 13.271 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
 | `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270 kB |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,573,449 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,643,737 B |
 
 Streamdown, Shiki, Mermaid, KaTeX, `@assistant-ui` and recharts never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).

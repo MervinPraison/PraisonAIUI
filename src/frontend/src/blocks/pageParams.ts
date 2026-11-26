@@ -56,6 +56,12 @@ export function mergeSearch(search: string, values: Record<string, unknown>): st
   return s ? `?${s}` : ''
 }
 
+/** Attach the page URL's query params as `_params` on an action POST body (unless already set). */
+export function actionBodyWithParams(body: Record<string, unknown>, search: string): Record<string, unknown> {
+  if ('_params' in body) return body
+  return { ...body, _params: paramsFromSearch(search) }
+}
+
 /** Write `values` into the current URL's query string (replaceState). */
 export function writeParams(values: Record<string, unknown>): void {
   const { location, history } = window

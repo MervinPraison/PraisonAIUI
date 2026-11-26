@@ -710,18 +710,22 @@ aiui.link("Docs", href="https://docs.praison.ai", external=True)
 | `href` | `str` | ✅ | — | URL |
 | `external` | `bool` | ❌ | `False` | Open in new tab? |
 
-### `aiui.link_button(label, href, *, variant, external)` and `aiui.page_link(page_id, label, *, variant)`
+### `aiui.link_button(label, href, *, variant, external)` and `aiui.page_link(page_id, label, *, variant, params)`
 
 `link_button` is a link drawn as a button (`variant`: `"outline"` default,
 `"primary"`, `"secondary"`, `"ghost"`, `"link"`). `page_link` links to another
 page of the app by id; in the app shell a click opens it in place (no reload),
-Ctrl/Cmd-click still opens a new tab, and `variant` draws it as a button. Both
-return a `link` dict, so the legacy dashboard shows a plain link.
+Ctrl/Cmd-click still opens a new tab, `params` appends query parameters to the
+target URL, and `variant` draws it as a button. Both return a `link` dict, so
+the legacy dashboard shows a plain link. Gallery items, `card_grid` cards,
+breadcrumbs, table `link` cells and `button_group` items also accept `page`
+with optional `params` (and same-origin `/page?k=v` hrefs navigate in place in
+the app shell).
 
 ```python
 aiui.link_button("Open report", "/files/report.html", variant="primary", external=True)
 aiui.page_link("sync", "Go to Sync")
-aiui.page_link("creators", "Browse creators", variant="outline")
+aiui.page_link("creators", "Browse creators", variant="outline", params={"tier": "top"})
 ```
 
 ### `aiui.button_group(buttons)`
@@ -1235,35 +1239,30 @@ change made while one is in flight posts once more when it returns. Leave it
 off for a form whose button starts a job; mark single inputs with
 `auto_submit=True` instead.
 
-### `aiui.filter_bar(action, *, inputs, chips, defaults, reset_label)`
+### `aiui.filter_bar(action, *, inputs, chips, defaults, reset_label, method, update_url)`
 
 ```python
 @aiui.page("explore", title="Explore")
-async def explore():
-    return build({})
-
-@aiui.register_page_action("explore")
-async def explore_action(data):
-    return build(data)          # rebuild the page from the posted filters
-
-def build(f):
+async def explore(params):
     return aiui.layout([
-        aiui.filter_bar("explore", defaults={"channel": "All"}, inputs=[
-            aiui.select_input("Channel", options=["All", *channels], value=f.get("channel", "All"), name="channel"),
-            aiui.multiselect_input("Format", options=formats, value=f.get("formats", []), name="formats"),
-            aiui.date_range_input("posted", label="Posted", start=f.get("posted_start"), end=f.get("posted_end")),
+        aiui.filter_bar(method="get", defaults={"channel": "All"}, inputs=[
+            aiui.select_input("Channel", options=["All", *channels], value=params.get("channel", "All"), name="channel"),
+            aiui.multiselect_input("Format", options=formats, value=params.get("formats", []), name="formats"),
+            aiui.date_range_input("posted", label="Posted", start=params.get("posted_start"), end=params.get("posted_end")),
         ]),
-        aiui.table(headers=[...], rows=query(f)),
+        aiui.table(headers=[...], rows=query(params)),
     ])
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `action` | `str` | ✅ | — | Action id (normally the page id) |
+| `action` | `str` | ❌ | `""` | Action id (normally the page id; optional with `method="get"`) |
 | `inputs` | `Sequence[dict]` | ✅ | — | Input components |
 | `chips` | `bool` | ❌ | `True` | Show active filters as removable chips |
 | `defaults` | `dict` | ❌ | `None` | Reset value per input name (`{"start", "end"}` for a date range) |
 | `reset_label` | `str` | ❌ | `"Reset"` | Label of the control that clears all filters |
+| `method` | `str` | ❌ | `"post"` | `"get"` writes filter values into the page URL and re-fetches page data (no action handler needed) |
+| `update_url` | `bool` | ❌ | `False` | With `method="post"`, also write submitted values into the page URL after a successful action |
 
 A compact wrapping row (a `search` landmark) that posts like `form` with
 `submit_on_change`. Under it, each active filter is a chip ("Channel: Ann ×",

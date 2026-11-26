@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 import type { ShellPage } from '@/sdk/manifest'
 import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from './BlockRenderer'
-import { initials, pageLinkProps } from './mediaModel'
+import { hrefLinkOnClick, initials, pageLinkProps } from './mediaModel'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNode, toBlockNodes } from './normalize'
 
 type Props = { node: BlockNode; page?: ShellPage }
@@ -51,14 +51,19 @@ function badgeVariant(v: unknown): BadgeVariant {
 
 type LinkAttrs = { href: string; target?: string; rel?: string; onClick?: (e: MouseEvent<HTMLAnchorElement>) => void }
 
-/** Link attributes for `{href, target, external}` or `{page}` (an app page id); null without a safe target. */
+/** Link attributes for `{href, target, external}` or `{page, params}` (an app page id); null without a safe target. */
 function linkAttrs(spec: Record<string, unknown>): LinkAttrs | null {
   const page = str(spec.page)
-  if (page) return pageLinkProps(page)
+  if (page) return pageLinkProps(page, isRecord(spec.params) ? spec.params : undefined)
   const href = safeUrl(spec.href)
   if (!href) return null
   const target = spec.external === true ? '_blank' : str(spec.target) || undefined
-  return { href, target, rel: target === '_blank' ? 'noopener noreferrer' : undefined }
+  return {
+    href,
+    target,
+    rel: target === '_blank' ? 'noopener noreferrer' : undefined,
+    onClick: target ? undefined : hrefLinkOnClick(href),
+  }
 }
 
 // ── links ────────────────────────────────────────────────────────────
