@@ -207,7 +207,12 @@ def test_notifications_routes_require_auth_in_all_modes(monkeypatch):
     assert ok.status_code == 200
 
 
-def test_disabling_builtin_notifications_unmounts_routes():
+def test_disabling_builtin_notifications_unmounts_routes(monkeypatch):
+    import praisonaiui.features as features_mod
+
+    monkeypatch.setattr(features_mod, "_features", {})
+    monkeypatch.setattr(features_mod, "_builtin_registered", {})
+    monkeypatch.setattr(features_mod, "_plugin_registered", {})
     aiui.set_extensions(disabled=["builtin.notifications"])
     try:
         client = TestClient(srv.create_app())

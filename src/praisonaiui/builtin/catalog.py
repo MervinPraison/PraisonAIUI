@@ -876,6 +876,11 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         ),
     ),
     BuiltinPlugin(
+        "notifications",
+        "In-app notification center (bell inbox, REST & SSE feed)",
+        feature_refs=(feature(".notifications", "NotificationsFeature"),),
+    ),
+    BuiltinPlugin(
         "layout-mission",
         "Mission Control layout: agents, runs, approvals and spend at a glance",
         layout_specs=(
@@ -930,10 +935,5 @@ BUILTIN_PLUGINS = BUILTIN_PLUGINS + (
         "Per-run steps, tokens and cost; run KPIs and agent status",
         feature_refs=(feature(".run_ledger", "RunLedgerFeature"),),
         for_layouts=("command", "mission"),
-    ),
-    BuiltinPlugin(
-        "notifications",
-        "In-app notification center (bell inbox, REST & SSE feed)",
-        feature_refs=(feature(".notifications", "NotificationsFeature"),),
     ),
 )
