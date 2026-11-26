@@ -1585,10 +1585,17 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
         # Bind available port atomically and hand the socket to TCPServer
         listen_sock, actual_port = _bind_free_port(host, port)
 
-        class _BoundTCPServer(socketserver.TCPServer):
-            def __init__(self, sock: socket.socket, handler_cls: Any):
-                super().__init__(sock.getsockname(), handler_cls, bind_and_activate=False)
-                self.socket = sock
+        def _open_tcp_server(sock: socket.socket, handler_cls: Any):
+            if issubclass(socketserver.TCPServer, socketserver.BaseServer):
+                class _BoundTCPServer(socketserver.TCPServer):
+                    def __init__(self) -> None:
+                        super().__init__(sock.getsockname(), handler_cls, bind_and_activate=False)
+                        self.socket = sock
+
+                return _BoundTCPServer()
+            addr = sock.getsockname()
+            sock.close()
+            return socketserver.TCPServer(addr, handler_cls)
 
         # Custom handler with API
         class DevHandler(http.server.SimpleHTTPRequestHandler):
@@ -1755,7 +1762,7 @@ def _examples_dashboard(examples_dir: Path, port: int, host: str) -> None:
 
         open_url(f"http://localhost:{actual_port}")
 
-        with _BoundTCPServer(listen_sock, DevHandler) as httpd:
+        with _open_tcp_server(listen_sock, DevHandler) as httpd:
             try:
                 httpd.serve_forever()
             except KeyboardInterrupt:

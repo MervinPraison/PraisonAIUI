@@ -107,7 +107,7 @@ export interface LayoutNavItem {
   group: string
   href: string
   active: boolean
-  badge?: number
+  badge?: number | string
 }
 
 export interface LayoutNav {

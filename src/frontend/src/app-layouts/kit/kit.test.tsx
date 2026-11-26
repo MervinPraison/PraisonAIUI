@@ -296,3 +296,15 @@ test('BrandTile: no logo or an emoji logo is the single-colour glyph; images and
   assert.match(html, /<svg[^>]*stroke="currentColor"[^>]*data-brand-glyph/)
   assert.doesNotMatch(html, /\p{Extended_Pictographic}/u)
 })
+
+test('NavList renders string and numeric item.badge even when a badge callback returns undefined', () => {
+  const out = renderToStaticMarkup(
+    createElement(NavList, {
+      items: [item('inbox', { badge: 'New' }), item('queue', { badge: 5 })],
+      go: () => {},
+      badge: (i) => (i.id === 'queue' ? 9 : undefined),
+    }),
+  )
+  assert.match(out, /data-page-badge=""[^>]*>New<\/span>/)
+  assert.match(out, /data-page-badge=""[^>]*aria-label="9 new">9<\/span>/)
+})

@@ -37,6 +37,8 @@ def layout(
     *,
     refresh_every: float | None = None,
     params: dict[str, Any] | None = None,
+    badges: Mapping[str, Any] | None = None,
+    refresh_manifest: bool = False,
 ) -> dict:
     """Wrap components in a layout container.
 
@@ -51,12 +53,20 @@ def layout(
         params: In a page-action reply, the values the app shell writes into
             the page URL's query string (``_params``; ``None`` or ``""``
             removes a key), so a refresh or a shared link restores the view.
+        badges: App shell: live sidebar badge updates ``{page_id: value}``
+            (``None`` or ``""`` clears a page's badge) without reloading.
+        refresh_manifest: App shell: re-fetch ``/api/shell/manifest`` in the
+            background so dynamic server-computed badges/pages stay current.
     """
     out: dict[str, Any] = {"_components": list(children)}
     if refresh_every:
         out["_refresh_every"] = refresh_every
     if params is not None:
         out["_params"] = dict(params)
+    if badges is not None:
+        out["_badges"] = dict(badges)
+    if refresh_manifest:
+        out["_refresh_manifest"] = True
     return out
 
 

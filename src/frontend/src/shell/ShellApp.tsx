@@ -140,6 +140,50 @@ export function ShellApp({ initialManifest }: { initialManifest: ShellManifest |
     }
   }, [boot.status])
 
+  useEffect(() => {
+    if (boot.status !== 'ready') return
+    let alive = true
+    const onBadges = (e: Event) => {
+      const detail = (e as CustomEvent<Record<string, unknown>>).detail
+      if (!detail || typeof detail !== 'object') return
+      setBoot((cur) => {
+        if (cur.status !== 'ready') return cur
+        let changed = false
+        const pages = cur.manifest.pages.map((p) => {
+          if (!(p.id in detail)) return p
+          const v = detail[p.id]
+          const nextBadge = v === null || v === undefined || v === false || v === '' ? undefined : String(v).trim() || undefined
+          if (p.badge === nextBadge) return p
+          changed = true
+          const copy = { ...p }
+          if (nextBadge) copy.badge = nextBadge
+          else delete copy.badge
+          return copy
+        })
+        if (!changed) return cur
+        const manifest = { ...cur.manifest, pages }
+        activateShell(manifest)
+        return { status: 'ready', manifest }
+      })
+    }
+    const onRefresh = () => {
+      void fetchManifest()
+        .then((next) => {
+          if (!alive) return
+          activateShell(next)
+          setBoot({ status: 'ready', manifest: next })
+        })
+        .catch(() => undefined)
+    }
+    window.addEventListener('aiui:badges-update', onBadges)
+    window.addEventListener('aiui:manifest-refresh', onRefresh)
+    return () => {
+      alive = false
+      window.removeEventListener('aiui:badges-update', onBadges)
+      window.removeEventListener('aiui:manifest-refresh', onRefresh)
+    }
+  }, [boot.status])
+
   const reload = () => setBoot({ status: 'loading' })
 
   return (

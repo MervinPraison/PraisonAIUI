@@ -13,8 +13,8 @@ export interface PhoneTab {
   href?: string
   icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
   active?: boolean
-  /** Count on the tab (0 hides it). */
-  badge?: number
+  /** Count or short label on the tab (0 or empty hides it). */
+  badge?: number | string
   onSelect(): void
 }
 

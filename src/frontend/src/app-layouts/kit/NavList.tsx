@@ -19,8 +19,8 @@ export interface NavListProps {
   onNavigate?(pageId: string): void
   size?: KitSize
   renderIcon?(item: LayoutNavItem): ReactNode
-  /** Count shown at the row end (`item.badge` otherwise). */
-  badge?(item: LayoutNavItem): number | undefined
+  /** Count or short label shown at the row end (`item.badge` otherwise). */
+  badge?(item: LayoutNavItem): number | string | undefined
   className?: string
   'aria-label'?: string
 }
@@ -30,7 +30,7 @@ export function NavList({ items, go, onNavigate, size = 'default', renderIcon, b
   return (
     <ul className={cn('m-0 flex list-none flex-col gap-0.5 p-0', className)} aria-label={rest['aria-label']}>
       {items.map((item) => {
-        const count = badge ? badge(item) : item.badge
+        const count = badge?.(item) ?? item.badge
         return (
           <li key={item.id}>
             <a
@@ -47,8 +47,12 @@ export function NavList({ items, go, onNavigate, size = 'default', renderIcon, b
             >
               {renderIcon ? renderIcon(item) : <NavIcon item={item} className={cn(item.active && 'text-primary')} />}
               <span className="min-w-0 flex-1 truncate">{item.title}</span>
-              {count ? (
-                <span className="ml-auto text-xs text-muted-foreground tabular-nums" aria-label={`${count} new`}>
+              {count !== undefined && count !== null && count !== '' && count !== 0 ? (
+                <span
+                  data-page-badge=""
+                  className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums"
+                  aria-label={typeof count === 'number' ? `${count} new` : undefined}
+                >
                   {count}
                 </span>
               ) : null}

@@ -142,7 +142,8 @@ function Rail({
 }) {
   const link = (item: RailItem | LayoutNavItem) => {
     const goKey = 'go' in item && item.go ? `G ${item.go.toUpperCase()}` : undefined
-    const badge = item.id === 'runs' ? runBadge : (item.badge ?? 0)
+    const badge = item.id === 'runs' ? runBadge : item.badge
+    const showBadge = typeof badge === 'number' ? badge > 0 : Boolean(badge)
     return (
       <a
         key={item.id}
@@ -158,10 +159,10 @@ function Rail({
       >
         <ItemIcon item={item} />
         <span className={cn('max-w-full truncate text-2xs tracking-tight', item.active ? 'font-semibold' : 'font-medium')}>{item.title}</span>
-        {badge > 0 && (
+        {showBadge && (
           <span
             className="absolute top-0.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-semibold text-primary-foreground"
-            aria-label={item.id === 'runs' ? `${badge} active ${badge === 1 ? 'run' : 'runs'}` : `${badge} new`}
+            aria-label={item.id === 'runs' ? `${badge} active ${badge === 1 ? 'run' : 'runs'}` : typeof badge === 'number' ? `${badge} new` : undefined}
           >
             {badge}
           </span>

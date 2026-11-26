@@ -74,6 +74,7 @@ function toItem(page: ShellPage, activeId: string): LayoutNavItem {
   }
   if (page.navIcon) item.navIcon = page.navIcon
   if (page.icon) item.icon = page.icon
+  if (page.badge) item.badge = page.badge
   return item
 }
 

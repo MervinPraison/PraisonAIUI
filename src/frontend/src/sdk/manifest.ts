@@ -121,6 +121,10 @@ export const SDK_FEATURES = [
   'layout-data',
   // registerSlot() returns a disposer
   'slots.dispose',
+  // navigate(pageId, { params }) query parameters
+  'navigate.params',
+  // ShellPage.badge / LayoutNavItem.badge (static or live sidebar badges)
+  'page.badge',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

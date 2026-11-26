@@ -69,3 +69,19 @@ def test_page_badges_static_callable_and_error_safe():
         assert any(p["id"] == "queue-live" for p in api_pages.json()["pages"])
     finally:
         srv.reset_state()
+
+
+def test_plugin_page_spec_dynamic_badge_and_layout_live_badge_keys():
+    from praisonaiui.plugin_registry import PageSpec
+
+    n = {"v": 2}
+    spec = PageSpec(id="ext-alerts", title="Ext Alerts", kind="blocks", badge=lambda: n["v"])
+    assert spec.to_dict()["badge"] == "2"
+    n["v"] = 9
+    assert spec.to_dict()["badge"] == "9"
+    spec_none = PageSpec(id="ext-none", title="None", kind="blocks", badge=lambda: None)
+    assert "badge" not in spec_none.to_dict()
+
+    out = aiui.layout([aiui.text("ok")], badges={"inbox": 5}, refresh_manifest=True)
+    assert out["_badges"] == {"inbox": 5}
+    assert out["_refresh_manifest"] is True
