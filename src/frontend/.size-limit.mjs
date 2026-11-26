@@ -176,7 +176,8 @@ const defaultLayoutFirstScreen = [
     path: abs([...new Set([...bootJs, ...groupFiles(DEFAULT_LAYOUT).filter((f) => f.endsWith('.js')), ...chatRouteJs])]),
     // 270,273 B (+273 B, exactly the overage, 2026-11-26): live sidebar badge/manifest updates in ShellApp + NavList badge fallback.
     // 274,091 B (+3,818 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
-    limit: '274091 B',
+    // 274,261 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
+    limit: '274261 B',
     gzip: true,
   },
 ]
@@ -288,7 +289,8 @@ export default [
   // 143,624 B (+20 B, exactly the overage, 2026-11-22): chunk hashes renamed by the data table, inputs, chart kinds and page icons; no chat code changed.
   // 143,628 B (+4 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no chat code changed.
   // 144,081 B (+453 B, exactly the overage, 2026-11-26): chat-engine emits background reply notifications & forwards toast metadata to @aiui/sdk notifications.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '144081 B', gzip: true },
+  // 144,251 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '144251 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -366,7 +368,8 @@ export default [
   // 257,910 B (+169 B, exactly the overage, 2026-11-26): navigate(pageId, { params }) query serialization in sdk/services.ts & shell/router.ts.
   // 258,339 B (+429 B, exactly the overage, 2026-11-26): sidebar page badge pill, layoutNav propagation, live badge/manifest refresh in ShellApp.
   // 262,141 B (+3,802 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262141 B', gzip: true },
+  // 262,321 B (+180 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262321 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives

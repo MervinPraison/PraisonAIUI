@@ -64,7 +64,7 @@ export function StepperBlock({ node }: CoreBlockProps): JSX.Element {
               className={cn(
                 'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
                 state === 'done' && 'bg-success-soft text-success',
-                state === 'active' && 'bg-primary text-primary-foreground ring-2 ring-ring/40',
+                state === 'active' && 'bg-primary text-primary-foreground ring-2 ring-ring',
                 state === 'error' && 'bg-danger-soft text-destructive',
                 state === 'pending' && 'bg-fill-3 text-tier-3',
               )}
@@ -102,7 +102,7 @@ export function StepperBlock({ node }: CoreBlockProps): JSX.Element {
 // ── 2. Timeline ───────────────────────────────────────────────────────────────
 
 const DOT_TONES: Record<string, string> = {
-  default: 'bg-fill-1',
+  default: 'bg-fill-3',
   info: 'bg-info-soft text-info',
   success: 'bg-success-soft text-success',
   warning: 'bg-warning-soft text-warning',
@@ -117,7 +117,7 @@ export function TimelineBlock({ node }: CoreBlockProps): JSX.Element {
   return (
     <div data-aiui-timeline="" className="flex min-w-0 flex-col gap-3">
       {title && <h3 className="text-sm font-medium text-tier-1">{title}</h3>}
-      <ol className="flex min-w-0 flex-col gap-4 border-l border-hairline pl-4">
+      <ol className="flex min-w-0 flex-col gap-3 border-l border-hairline pl-3">
         {items.map((item, idx) => {
           const toneKey = str(item.status, 'default')
           const dotClass = Object.prototype.hasOwnProperty.call(DOT_TONES, toneKey)
@@ -128,22 +128,24 @@ export function TimelineBlock({ node }: CoreBlockProps): JSX.Element {
           const ts = str(item.timestamp)
           const badge = str(item.badge)
           return (
-            <li key={str(item.id) || idx} className="relative min-w-0">
+            <li key={str(item.id) || idx} className="flex min-w-0 items-start gap-2.5">
               <span
                 aria-hidden="true"
                 className={cn(
-                  'absolute -left-5 top-1.5 size-2.5 rounded-full border border-hairline',
+                  'mt-1.5 size-2 shrink-0 rounded-full border border-hairline',
                   dotClass,
                 )}
               />
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="text-sm font-medium text-tier-1">{itemTitle}</span>
-                  {badge && <Badge variant="secondary">{badge}</Badge>}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-sm font-medium text-tier-1">{itemTitle}</span>
+                    {badge && <Badge variant="secondary">{badge}</Badge>}
+                  </div>
+                  {ts && <time className="text-xs text-tier-3 tabular-nums">{ts}</time>}
                 </div>
-                {ts && <time className="text-xs text-tier-3 tabular-nums">{ts}</time>}
+                {desc && <p className="mt-1 text-xs text-tier-2">{desc}</p>}
               </div>
-              {desc && <p className="mt-1 text-xs text-tier-2">{desc}</p>}
             </li>
           )
         })}
@@ -183,7 +185,7 @@ export function DiffViewerBlock({ node }: CoreBlockProps): JSX.Element {
           </Badge>
         </div>
       </div>
-      <div className="min-w-0 overflow-x-auto font-mono text-xs leading-5">
+      <div className="min-w-0 overflow-x-auto font-mono text-xs leading-relaxed">
         {diff.lines.length === 0 ? (
           <p className="px-3 py-4 font-sans text-tier-3">No content to compare.</p>
         ) : (
@@ -199,16 +201,16 @@ export function DiffViewerBlock({ node }: CoreBlockProps): JSX.Element {
                     line.kind === 'same' && 'text-tier-2',
                   )}
                 >
-                  <td className="w-8 select-none border-r border-hairline px-2 text-right text-tier-4 tabular-nums">
+                  <td className="select-none border-r border-border px-2 text-right text-tier-4 tabular-nums">
                     {line.oldLine ?? ''}
                   </td>
-                  <td className="w-8 select-none border-r border-hairline px-2 text-right text-tier-4 tabular-nums">
+                  <td className="select-none border-r border-border px-2 text-right text-tier-4 tabular-nums">
                     {line.newLine ?? ''}
                   </td>
-                  <td className="w-6 select-none px-1.5 text-center font-semibold">
+                  <td className="select-none px-1.5 text-center font-medium">
                     {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
                   </td>
-                  <td className="whitespace-pre px-2">{line.text}</td>
+                  <td className="whitespace-pre-wrap px-2">{line.text}</td>
                 </tr>
               ))}
             </tbody>
@@ -279,7 +281,7 @@ function TreeNodeRow({
         )}
       </div>
       {hasChildren && open && (
-        <ul id={panelId} className="ml-4 border-l border-hairline pl-2">
+        <ul id={panelId} className="border-l border-hairline pl-4">
           {children.map((child, i) => (
             <TreeNodeRow
               key={str(child.id) || i}
@@ -486,7 +488,7 @@ export function RatingInputBlock({ node }: CoreBlockProps): JSX.Element {
               aria-checked={rating === val}
               aria-label={`${val} of ${maxStars} stars`}
               onClick={() => setRating((cur) => (cur === val ? 0 : val))}
-              className="flex size-7 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-6 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Star
                 aria-hidden="true"
@@ -498,10 +500,24 @@ export function RatingInputBlock({ node }: CoreBlockProps): JSX.Element {
             </button>
           )
         })}
-        <span className="ml-1.5 text-xs text-tier-3 tabular-nums">
+        <span className="ml-2 text-xs text-tier-3 tabular-nums">
           {rating}/{maxStars}
         </span>
       </div>
     </div>
   )
+}
+
+const RICH_MAP: Record<string, (props: CoreBlockProps) => JSX.Element> = {
+  stepper: StepperBlock,
+  timeline: TimelineBlock,
+  diff_viewer: DiffViewerBlock,
+  tree_view: TreeViewBlock,
+  copy_field: CopyFieldBlock,
+  rating_input: RatingInputBlock,
+}
+
+export default function RichBlock(props: CoreBlockProps): JSX.Element {
+  const Impl = RICH_MAP[props.node.type]
+  return Impl ? <Impl {...props} /> : <></>
 }
