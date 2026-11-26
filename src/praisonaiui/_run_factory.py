@@ -15,6 +15,51 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
+
+def build_run_app(
+    user_module: Any | None,
+    *,
+    static_dir: Optional[Path],
+    config_path: Optional[Path],
+) -> Any:
+    """Return the ASGI app for ``aiui run`` (honouring a module-defined ``create_app``)."""
+    from inspect import Parameter, signature
+
+    from praisonaiui.server import create_app as default_create_app
+
+    resolved_static = static_dir if static_dir and static_dir.exists() else None
+
+    if user_module is not None:
+        factory = getattr(user_module, "create_app", None)
+        if callable(factory) and getattr(factory, "__module__", None) == getattr(
+            user_module, "__name__", None
+        ):
+            try:
+                params = signature(factory).parameters
+            except (TypeError, ValueError):
+                params = {}
+            has_varkw = any(p.kind is Parameter.VAR_KEYWORD for p in params.values())
+            accepts_static = has_varkw or "static_dir" in params
+            accepts_config = has_varkw or "config_path" in params
+
+            kwargs: dict[str, Any] = {}
+            if accepts_static and resolved_static is not None:
+                kwargs["static_dir"] = resolved_static
+            if accepts_config and config_path is not None:
+                kwargs["config_path"] = config_path
+
+            # If CLI supplied static_dir or config_path that a zero-arg user
+            # factory cannot accept, run the factory for its registration side
+            # effects and serve default_create_app so --config (including auth)
+            # and static_dir are never silently dropped.
+            dropped_static = resolved_static is not None and not accepts_static
+            dropped_config = config_path is not None and not accepts_config
+            app = factory(**kwargs) if kwargs else factory()
+            if not dropped_static and not dropped_config:
+                return app
+
+    return default_create_app(static_dir=resolved_static, config_path=config_path)
+
 SPEC_ENV = "AIUI_RUN_SPEC"
 
 
@@ -57,16 +102,19 @@ def create() -> Any:
         _load_user_module,
         _make_datastore,
     )
-    from praisonaiui.server import create_app, set_datastore, set_style
+    from praisonaiui.server import set_datastore, set_style
 
     app_file = Path(spec["app_file"])
+    user_module: Any | None = None
     if spec.get("is_yaml"):
         import yaml
 
         with open(app_file, encoding="utf-8") as fh:
             _apply_chat_yaml(yaml.safe_load(fh) or {})
-    elif _load_user_module(app_file) is None:
-        raise RuntimeError(f"Could not load {app_file}")
+    else:
+        user_module = _load_user_module(app_file)
+        if user_module is None:
+            raise RuntimeError(f"Could not load {app_file}")
 
     if spec.get("pages") is not None:
         _apply_pages_flag(spec["pages"])
@@ -81,7 +129,8 @@ def create() -> Any:
 
     static_dir = Path(spec["static_dir"]) if spec.get("static_dir") else None
     config_path = Path(spec["config_path"]) if spec.get("config_path") else None
-    return create_app(
-        static_dir=static_dir if static_dir and static_dir.exists() else None,
+    return build_run_app(
+        user_module,
+        static_dir=static_dir,
         config_path=config_path,
     )
