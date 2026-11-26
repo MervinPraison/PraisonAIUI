@@ -305,6 +305,47 @@ class ChannelsFeature(BaseFeatureProtocol):
         """
         return _get_config_secret(config, "app_token", "SLACK_APP_TOKEN")
 
+    @staticmethod
+    def _build_bot_config(config: Dict[str, Any], token: str) -> Any:
+        """Build a BotConfig from UI channel config.
+
+        Dashboard channels default to ``unknown_user_policy=allow`` so DMs are
+        not silently dropped (BotConfig / gateway default is ``deny``).
+        """
+        from praisonaiagents.bots import BotConfig
+
+        _raw_allowed = config.get("allowed_users") or []
+        if isinstance(_raw_allowed, str):
+            _raw_allowed = [s.strip() for s in _raw_allowed.split(",") if s.strip()]
+
+        _raw_channels = config.get("allowed_channels") or []
+        if isinstance(_raw_channels, str):
+            _raw_channels = [s.strip() for s in _raw_channels.split(",") if s.strip()]
+
+        group_policy = config.get("group_policy", "mention_only")
+        mention_required = group_policy == "mention_only"
+
+        _raw_uup = config.get("unknown_user_policy")
+        if isinstance(_raw_uup, str) and _raw_uup.strip():
+            unknown_user_policy = _raw_uup.strip().lower()
+        else:
+            # UI channels have no allowlist UI yet — open DMs by default.
+            unknown_user_policy = "allow"
+
+        kwargs: Dict[str, Any] = dict(
+            token=token,
+            allowed_users=list(_raw_allowed),
+            allowed_channels=list(_raw_channels),
+            mention_required=mention_required,
+            group_policy=group_policy,
+            unknown_user_policy=unknown_user_policy,
+        )
+        _raw_owner = config.get("owner_user_id")
+        if _raw_owner is not None and str(_raw_owner).strip():
+            kwargs["owner_user_id"] = str(_raw_owner).strip()
+
+        return BotConfig(**kwargs)
+
     async def _start_channel_bot(self, channel_id: str, entry: Dict[str, Any]) -> Optional[str]:
         """Start a bot for the given channel.
 
@@ -315,6 +356,14 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         Returns None on success, or an error string on failure.
         """
+        # Avoid duplicate pollers (Telegram allows one getUpdates per token).
+        if channel_id in _live_bots or (
+            self._get_gateway() is not None
+            and channel_id in getattr(self._get_gateway(), "_channel_bots", {})
+        ):
+            await self._stop_channel_bot(channel_id)
+            await asyncio.sleep(1)
+
         platform = entry["platform"]
         config = entry.get("config", {})
         fallback_errors: List[str] = []
@@ -365,15 +414,17 @@ class ChannelsFeature(BaseFeatureProtocol):
         except ImportError:
             pass  # agent may be None — some bots can work without one
 
+        bot_config = self._build_bot_config(config, token)
+
         bot = None
         # ── Strategy 1: via gateway _create_bot ─────────────────────────
         gw = self._get_gateway()
         if gw is not None and hasattr(gw, "_create_bot"):
             try:
-                from praisonaiagents.bots import BotConfig
-
-                bot_config = BotConfig(token=token)
-                ch_cfg: Dict[str, Any] = {"token": token}
+                ch_cfg: Dict[str, Any] = {
+                    "token": token,
+                    "unknown_user_policy": bot_config.unknown_user_policy,
+                }
                 if platform == "slack":
                     ch_cfg["app_token"] = self._resolve_slack_app_token(config)
                 if platform == "whatsapp":
@@ -408,7 +459,7 @@ class ChannelsFeature(BaseFeatureProtocol):
 
         # ── Strategy 2: direct import from praisonai.bots ───────────────
         if bot is None:
-            bot = self._create_bot_direct(platform, token, agent, config)
+            bot = self._create_bot_direct(platform, token, agent, config, bot_config)
 
         if bot is None:
             details = f" ({'; '.join(fallback_errors)})" if fallback_errors else ""
@@ -458,7 +509,13 @@ class ChannelsFeature(BaseFeatureProtocol):
         return None  # success
 
     @staticmethod
-    def _create_bot_direct(platform: str, token: str, agent: Any, config: Dict[str, Any]) -> Any:
+    def _create_bot_direct(
+        platform: str,
+        token: str,
+        agent: Any,
+        config: Dict[str, Any],
+        bot_config: Any = None,
+    ) -> Any:
         """Try injected backend, then direct import by platform name."""
         from praisonaiui.backends import get_channel_bot_factory
 
@@ -506,6 +563,8 @@ class ChannelsFeature(BaseFeatureProtocol):
                 cls = getattr(mod, class_name)
                 # All bot constructors accept (token=, agent=, config=)
                 kwargs: Dict[str, Any] = {"token": token}
+                if bot_config is not None:
+                    kwargs["config"] = bot_config
                 if agent is not None:
                     kwargs["agent"] = agent
                 if platform == "slack":
@@ -645,7 +704,9 @@ class ChannelsFeature(BaseFeatureProtocol):
         if hasattr(bot, "_session") and hasattr(bot._session, "chat"):
             _original_chat = bot._session.chat
 
-            async def _wrapped_chat(agent: Any, user_id: str, text: str) -> str:
+            async def _wrapped_chat(
+                agent: Any, user_id: str, text: str, **kwargs: Any
+            ) -> str:
                 """Wrap agent chat to broadcast responses AND intermediate
                 tool/step events to the Chat UI.
 
@@ -824,7 +885,7 @@ class ChannelsFeature(BaseFeatureProtocol):
                 drain_task = asyncio.create_task(_drain_events())
 
                 try:
-                    response = await _original_chat(agent, user_id, text)
+                    response = await _original_chat(agent, user_id, text, **kwargs)
                 finally:
                     # Signal drain to stop and clean up callback
                     try:

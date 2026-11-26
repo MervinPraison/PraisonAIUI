@@ -1,0 +1,7 @@
+Double-click or run in PowerShell:
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0main.ps1"
+
+Or from this folder:
+
+  .\main.ps1

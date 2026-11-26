@@ -1,0 +1,230 @@
+{
+  "readme_first_agent": {
+    "name": "readme_first_agent",
+    "ok": true,
+    "seconds": 44.18,
+    "error": null,
+    "notes": {
+      "type": "str",
+      "len": 5,
+      "preview": "READY",
+      "contains_ready": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "Applied rules: agents (pass rules=False to turn off)\n",
+    "log_has_schema_error": false
+  },
+  "readme_output_verbose": {
+    "name": "readme_output_verbose",
+    "ok": true,
+    "seconds": 2.78,
+    "error": null,
+    "notes": {
+      "len": 103,
+      "preview": "| Metric        | Value |\n|---------------|-------|\n| Sample Metric | 123   |\n| Example Value | 456   |",
+      "has_pipe": true
+    },
+    "stdout_tail": "\u250c\u2500 Agent Info \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                                                                              \u2502\n\u2502  \ud83d\udc64 Agent: Agent                                                             \u2502\n\u2502  Role: Senior Data Analyst                                                   \u2502\n\u2502                                                                              \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n\n\ud83d\udcdd Reply with a one-line markdown table of 2 rows: metric,value\n\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Response (2.7s) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502                                                                              \u2502\n\u2502                                                                              \u2502\n\u2502  Metric         Value                                                        \u2502\n\u2502  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500                                                        \u2502\n\u2502  Sample Metric  123                                                          \u2502\n\u2502  Example Value  456                                                          \u2502\n\u2502                                                                              \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "tool_must_fire": {
+    "name": "tool_must_fire",
+    "ok": true,
+    "seconds": 4.79,
+    "error": null,
+    "notes": {
+      "tool_calls": 1,
+      "preview": "6006",
+      "has_6006": true,
+      "tool_fired": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "Registry is None for tool add_numbers\n",
+    "log_has_schema_error": false
+  },
+  "readme_agents_alias_no_tasks": {
+    "name": "readme_agents_alias_no_tasks",
+    "ok": true,
+    "seconds": 4.6,
+    "error": null,
+    "notes": {
+      "team_type": "AgentTeam",
+      "result_type": "str",
+      "len": 250,
+      "preview": "AI systems, particularly through machine learning, can exceed human capabilities in specific tasks like medical image analysis and data pattern recognition by using algorithms to identify patterns and enhance performance without explicit programming.",
+      "task_count": 2,
+      "process": "sequential"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "sequential_team_context": {
+    "name": "sequential_team_context",
+    "ok": true,
+    "seconds": 3.51,
+    "error": null,
+    "notes": {
+      "preview": "Gold, represented by the symbol Au, is highly valued for its use in jewelry and electronics.",
+      "t1": "Au",
+      "t2": "Gold, represented by the symbol Au, is highly valued for its use in jewelry and electronics.",
+      "t2_mentions_au": true,
+      "t1_status": "completed",
+      "t2_status": "completed"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "hierarchical_team": {
+    "name": "hierarchical_team",
+    "ok": true,
+    "seconds": 3.67,
+    "error": null,
+    "notes": {
+      "preview": "{'task_status': {0: 'not started', 1: 'failed'}, 'task_results': {0: None, 1: TaskOutput(description='Decide the order of tasks and which agent executes them', summary='Decide the', raw='1. **Validate Config** - Agent: Command Line Interface\\n   - Command: `aiui validate --config aiui.template.yaml`\\n\\n2. **Lint Code** - Agent: Command Line Interface\\n   - Command: `ruff check src/ tests/`\\n\\n3. **Test with Coverage** - Agent: Command Line Interface\\n   - Command: `pytest tests/unit tests/integration -v --cov=src/praisonaiui`\\n\\n4. **Build Frontend** - Agent: Command Line Interface\\n   - Comma",
+      "task_status": "not started",
+      "task_result": "",
+      "contains_4": true
+    },
+    "stdout_tail": "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 \u26a0 Error \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Manager parse error: LiteLLM is required but not installed. Please install   \u2502\n\u2502 with: pip install 'praisonaiagents[llm]'                                     \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n",
+    "stderr_tail": "Manager parse error: LiteLLM is required but not installed. Please install with: pip install 'praisonaiagents[llm]'\nTraceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\llm\\llm.py\", line 717, in __init__\n    import litellm\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\litellm\\__init__.py\", line 18, in <module>\n    import dotenv as _dotenv\nModuleNotFoundError: No module named 'dotenv'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\process\\process.py\", line 1893, in hierarchical\n    parsed_instructions = self._get_manager_instructions_with_fallback(\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\process\\process.py\", line 573, in _get_manager_instructions_with_fallback\n    llm = self._create_llm_instance()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\process\\process.py\", line 117, in _create_llm_instance\n    return LLM(model=self.manager_llm, temperature=0.7)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\llm\\llm.py\", line 720, in __init__\n    raise ImportError(\nImportError: LiteLLM is required but not installed. Please install with: pip install 'praisonaiagents[llm]'\nHierarchical process ended with 0/1 tasks completed; some tasks were not executed.\n",
+    "log_has_schema_error": false
+  },
+  "structured_pydantic": {
+    "name": "structured_pydantic",
+    "ok": true,
+    "seconds": 2.09,
+    "error": null,
+    "notes": {
+      "type": "Pair",
+      "repr": "Pair(city='Paris', country='France')",
+      "is_model": true,
+      "is_str": false
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "memory_persist": {
+    "name": "memory_persist",
+    "ok": true,
+    "seconds": 3.29,
+    "error": null,
+    "notes": {
+      "preview": "ORANGE-PANDA",
+      "recalled": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "agentflow_two_steps": {
+    "name": "agentflow_two_steps",
+    "ok": true,
+    "seconds": 3.51,
+    "error": null,
+    "notes": {
+      "type": "dict",
+      "preview": "{'output': 'STEP2-OK', 'steps': [{'step': 'Writer', 'output': 'STEP1-OK', 'status': 'completed', 'retries': 0}, {'step': 'Reader', 'output': 'STEP2-OK', 'status': 'completed', 'retries': 0}], 'variables': {'input': 'Produce STEP1-OK then pass it on.', 'Writer_output': 'STEP1-OK', 'Reader_output': 'STEP2-OK'}, 'status': 'completed'}",
+      "has_step1": true,
+      "has_step2": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "handoff": {
+    "name": "handoff",
+    "ok": true,
+    "seconds": 5.58,
+    "error": null,
+    "notes": {
+      "preview": "The result of \\( 17 \\times 19 \\) is 323.",
+      "has_323": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "guardrail_blocks": {
+    "name": "guardrail_blocks",
+    "ok": true,
+    "seconds": 8.69,
+    "error": null,
+    "notes": {
+      "preview": "Hello! How can I assist you today? If you have any questions or need help, feel free to ask!",
+      "leaked": false,
+      "type": "str"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "Agent None: Guardrail validation failed (retry 1/3): blocked secret token\nAgent None: Guardrail validation failed (retry 2/3): blocked secret token\n",
+    "log_has_schema_error": false
+  },
+  "verbose_false_agentteam": {
+    "name": "verbose_false_agentteam",
+    "ok": false,
+    "seconds": 0.02,
+    "error": "TypeError: AgentTeam.__init__() got an unexpected keyword argument 'verbose'",
+    "notes": {
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\e2e-audit-logs\\praisonai-live-sdk-e2e-20260825.py\", line 35, in run_case\n    rec[\"notes\"] = fn() or {}\n                   ^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\e2e-audit-logs\\praisonai-live-sdk-e2e-20260825.py\", line 244, in case_verbose_false_agentteam\n    AgentTeam(agents=[a], tasks=[t], verbose=False)\nTypeError: AgentTeam.__init__() got an unexpected keyword argument 'verbose'\n"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "context_summarize": {
+    "name": "context_summarize",
+    "ok": true,
+    "seconds": 1.52,
+    "error": null,
+    "notes": {
+      "preview": "OK"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "execution_config": {
+    "name": "execution_config",
+    "ok": true,
+    "seconds": 1.9,
+    "error": null,
+    "notes": {
+      "type": "AutonomyResult",
+      "reason": "goal",
+      "output": "DONE"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  },
+  "knowledge_url": {
+    "name": "knowledge_url",
+    "ok": false,
+    "seconds": 0.25,
+    "error": "ImportError: Required packages not installed. Please install using: pip install \"praisonaiagents[knowledge]\"",
+    "notes": {
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 87, in _deps\n    from markitdown import MarkItDown\nModuleNotFoundError: No module named 'markitdown'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\e2e-audit-logs\\praisonai-live-sdk-e2e-20260825.py\", line 35, in run_case\n    rec[\"notes\"] = fn() or {}\n                   ^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\e2e-audit-logs\\praisonai-live-sdk-e2e-20260825.py\", line 277, in case_knowledge_url\n    k.add(\"https://example.com\")\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 522, in add\n    return self._process_single_input(file_path, user_id, agent_id, run_id, metadata)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 572, in _process_single_input\n    return self._process_url(input_path, user_id, agent_id, run_id, metadata)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 815, in _process_url\n    result = self.markdown.convert_stream(\n             ^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\AppData\\Roaming\\uv\\python\\cpython-3.11-windows-x86_64-none\\Lib\\functools.py\", line 1001, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 316, in markdown\n    return self._deps['markdown']\n           ^^^^^^^^^^\n  File \"C:\\Users\\DELL\\AppData\\Roaming\\uv\\python\\cpython-3.11-windows-x86_64-none\\Lib\\functools.py\", line 1001, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 92, in _deps\n    raise ImportError(\nImportError: Required packages not installed. Please install using: pip install \"praisonaiagents[knowledge]\"\n"
+    },
+    "stdout_tail": "",
+    "stderr_tail": "Error processing input https://example.com: Required packages not installed. Please install using: pip install \"praisonaiagents[knowledge]\"\nTraceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 87, in _deps\n    from markitdown import MarkItDown\nModuleNotFoundError: No module named 'markitdown'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 572, in _process_single_input\n    return self._process_url(input_path, user_id, agent_id, run_id, metadata)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 815, in _process_url\n    result = self.markdown.convert_stream(\n             ^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\AppData\\Roaming\\uv\\python\\cpython-3.11-windows-x86_64-none\\Lib\\functools.py\", line 1001, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 316, in markdown\n    return self._deps['markdown']\n           ^^^^^^^^^^\n  File \"C:\\Users\\DELL\\AppData\\Roaming\\uv\\python\\cpython-3.11-windows-x86_64-none\\Lib\\functools.py\", line 1001, in __get__\n    val = self.func(instance)\n          ^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\DELL\\Downloads\\praisonui\\issue-drafts\\release-v482-e2e\\.venv\\Lib\\site-packages\\praisonaiagents\\knowledge\\knowledge.py\", line 92, in _deps\n    raise ImportError(\nImportError: Required packages not installed. Please install using: pip install \"praisonaiagents[knowledge]\"\n",
+    "log_has_schema_error": false
+  },
+  "skip_on_failure": {
+    "name": "skip_on_failure",
+    "ok": true,
+    "seconds": 3.43,
+    "error": null,
+    "notes": {
+      "preview": "SUCCESS",
+      "t1_status": "completed",
+      "t2_status": "completed",
+      "t2_ran": true
+    },
+    "stdout_tail": "",
+    "stderr_tail": "",
+    "log_has_schema_error": false
+  }
+}
