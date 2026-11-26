@@ -194,6 +194,57 @@ all selectable layouts). Pass a string, an integer, or a zero-argument callable
 queued jobs. To update badges dynamically after an action without reloading the
 page, return `aiui.layout([...], badges={"inbox": 2})` (or `refresh_manifest=True`).
 
+## 6. Declarative YAML pages
+
+`aiui run app.yaml` can declare server-driven block pages directly in YAML
+(alongside built-in page ids such as `chat`):
+
+```yaml
+style: app
+branding:
+  title: "Operations"
+pages:
+  - chat
+  - id: overview
+    title: "Overview"
+    icon: "bar-chart-2"
+    group: "Workspace"
+    badge: "Live"
+    refresh_every: 30
+    components:
+      - type: columns
+        children:
+          - type: metric
+            label: "Active users"
+            value: "1,420"
+            delta: "+12%"
+          - type: card
+            title: "Status"
+            value: "Healthy"
+      - type: table
+        columns:
+          - { key: "name", label: "Service", type: "text" }
+          - { key: "lift", label: "Lift", type: "number", format: "multiplier", tone_above: 1.0 }
+        rows:
+          - { name: "API", lift: 1.8 }
+  - id: runbook
+    title: "Runbook"
+    icon: "book-open"
+    group: "Docs"
+    markdown_file: "./runbook.md"
+    toc: true
+```
+
+Every component block (`card`, `metric`, `table`, `chart`, `gallery`,
+`card_grid`, `filter_bar`, `select_input`, `list_detail`, `markdown_text`,
+`doc_viewer`, `pagination`, `color_picker_input`, …) uses the same JSON/YAML
+dict format as Python's `aiui.*` helpers. Large apps can split page definitions
+into separate files with `$ref:` (e.g. `- $ref: ./pages/overview.yaml`). Edits
+to the YAML file, any `$ref`-included file, or a referenced `markdown_file`
+reload dynamically on the next fetch without restarting the server. Set
+`api_endpoint:` instead of `components:` to back a YAML-declared page with a
+custom API or plugin endpoint.
+
 ## Shell support
 
 The app shell supports everything in this guide. The legacy `dashboard`

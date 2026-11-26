@@ -1848,7 +1848,7 @@ def _apply_chat_yaml_layout(layout: Any) -> None:
     )
 
 
-def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
+def _apply_chat_yaml(chat_yaml: dict, *, source_file: Optional[Path] = None) -> Optional[str]:
     """Apply a YAML chat config (style, dashboard, theme, branding, pages,
     layout, extensions) through the public APIs and register its callbacks.
 
@@ -1875,7 +1875,9 @@ def _apply_chat_yaml(chat_yaml: dict) -> Optional[str]:
     if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
         _aiui.set_branding(**chat_yaml["branding"])
     if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
-        _aiui.set_pages(chat_yaml["pages"])
+        from praisonaiui.yaml_pages import apply_yaml_pages
+
+        apply_yaml_pages(chat_yaml["pages"], source_file=source_file)
     if "layout" in chat_yaml:
         # The same block as aiui.yaml's layout: (or just the default's id).
         try:
@@ -2306,12 +2308,11 @@ def run(
     is_yaml = app_file.suffix in (".yaml", ".yml")
 
     if is_yaml:
-        # Load YAML chat configuration
+        # Load YAML chat configuration ($ref includes resolved)
         console.print(f"[yellow]{_icon('⏳', '...')}[/yellow] Loading {app_file}...")
-        import yaml as _yaml
+        from praisonaiui.schema.loader import load_config_file
 
-        with open(app_file, encoding="utf-8") as f:
-            chat_yaml = _yaml.safe_load(f) or {}
+        chat_yaml = load_config_file(app_file) or {}
 
         # Apply config from YAML; a --datastore flag wins over it.
         if datastore is None and chat_yaml.get("datastore"):
@@ -2328,7 +2329,7 @@ def run(
                 f"[yellow]Warning:[/yellow] {app_file.name}: key {key!r} is not used by "
                 "aiui run (ignored)"
             )
-        style = _apply_chat_yaml(chat_yaml) or style
+        style = _apply_chat_yaml(chat_yaml, source_file=app_file) or style
         is_chat_mode = True
     else:
         # Load the user's app module FIRST to register callbacks
