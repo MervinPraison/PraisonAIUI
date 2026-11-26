@@ -83,24 +83,27 @@ Open <http://127.0.0.1:8000>. The app opens in the React app shell, in its
 
 ## Pick a starting point
 
-<CardGroup cols={2}>
-<Card title="Put a chat UI on your agent" icon="message-square" href="getting-started/quickstart.md">
-Stream replies, tool calls and approvals from the agent you already have.
+<CardGroup cols={3}>
+<Card title="Chat UI" icon="message-square" href="chat-ui/overview.md">
+Build streaming AI chat apps with starters, profiles, reasoning steps, tool calls and an artifacts canvas.
 </Card>
-<Card title="Choose a UI style" icon="panels-top-left" href="features/styles.md">
-The app shell, the chat, the dashboard and the other styles, side by side.
+<Card title="App & Dashboard" icon="panels-top-left" href="app-ui/overview.md">
+Combine chat with selectable layouts, Python or YAML data pages, notifications, themes and plugins.
 </Card>
-<Card title="Layouts and the canvas" icon="layout-dashboard" href="features/layouts.md">
-Five frames for the same app, and the canvas the agent's work opens in.
+<Card title="Docs UI" icon="book-open" href="docs-ui/overview.md">
+Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentation site like this one.
 </Card>
-<Card title="Build a page or extension" icon="plug" href="features/plugins.md">
-Add pages, settings and themes from a Python package.
+</CardGroup>
+
+<CardGroup cols={3}>
+<Card title="Choose a UI style" icon="layers" href="features/styles.md">
+Compare the React app shell, classic chat, agents, playground, dashboard and docs styles side by side.
 </Card>
-<Card title="Publish Markdown docs" icon="book-open" href="features/writing-docs.md">
-A folder of Markdown becomes a site like this one.
+<Card title="Build a plugin" icon="plug" href="features/plugins.md">
+Extend the app with custom pages, settings sections, nav groups and themes from a Python package.
 </Card>
 <Card title="Deploy with sign-in" icon="shield-check" href="features/deployment.md">
-Behind a proxy, with auth on every route and WebSocket.
+Run behind a reverse proxy with deny-by-default auth on every HTTP route and WebSocket.
 </Card>
 </CardGroup>
 

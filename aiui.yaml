@@ -24,30 +24,68 @@ seo:
 # ("features/layouts") or its file path without .md ("adr/0001-...").
 navigation:
   tabs:
-    - tab: "Get started"
+    - tab: "Get Started"
       groups:
-        - group: "Get started"
+        - group: "Start Here"
           icon: rocket
           pages:
             - index
             - getting-started/installation
             - getting-started/quickstart
-            - guides/focused-app
-            - guides/server-pages
+            - features/styles
             - getting-started/cli
-            - getting-started/github-pages
         - group: "Examples"
           icon: code
           pages:
             - examples/basic
             - examples/advanced
-    - tab: "Guides"
+    - tab: "Chat UI"
       groups:
-        - group: "App and layouts"
+        - group: "Core Concepts"
+          icon: message-square
+          pages:
+            - chat-ui/overview
+            - chat-ui/lifecycle
+            - chat-ui/messages-and-streaming
+            - chat-ui/starters-and-profiles
+            - features/steps
+            - features/sessions
+            - features/handler-context
+        - group: "Canvas & Rich Media"
+          icon: sparkles
+          pages:
+            - features/a2ui-canvas
+            - features/message-elements
+            - features/attachments
+            - features/image-preview-chat
+            - features/media-analysis
+        - group: "Agents, Tools & Voice"
+          icon: bot
+          pages:
+            - features/gateway-chat
+            - features/subagent-tree
+            - features/code-execution
+            - features/model-fallback
+            - features/mcp
+            - features/tts
+            - features/realtime-voice-input
+        - group: "Integrations"
+          icon: zap
+          pages:
+            - concepts/providers
+            - features/praisonai-package-integration
+            - features/standalone-vs-integrated
+            - features/backend-integration
+    - tab: "App & Dashboard"
+      groups:
+        - group: "App Shell & Pages"
           icon: panels-top-left
           pages:
-            - features/styles
+            - app-ui/overview
             - features/react-shell
+            - guides/focused-app
+            - guides/server-pages
+            - features/notifications
             - group: "Layouts"
               pages:
                 - features/layouts
@@ -57,37 +95,7 @@ navigation:
                 - features/layouts/guided
                 - features/layouts/mission
                 - features/layout-data
-        - group: "Chat"
-          icon: message-square
-          pages:
-            - features/gateway-chat
-            - features/sessions
-            - features/handler-context
-            - features/attachments
-            - features/message-elements
-            - features/image-preview-chat
-            - features/steps
-            - features/a2ui-canvas
-            - features/code-execution
-            - features/model-fallback
-            - features/subagent-tree
-            - features/tts
-            - features/realtime-voice-input
-            - features/media-analysis
-        - group: "Theming"
-          icon: palette
-          pages:
-            - features/theming
-            - features/theme-system
-            - features/dark-mode
-            - features/css-architecture
-        - group: "Plugins"
-          icon: plug
-          pages:
-            - features/plugins
-            - features/marketplace
-            - features/how-to-add-a-feature
-        - group: "Dashboard"
+        - group: "Built-in Dashboard"
           icon: layout-dashboard
           pages:
             - features/dashboard
@@ -97,39 +105,54 @@ navigation:
             - features/browser-automation
             - features/channel-chat-bridge
             - features/device-pairing
-            - features/pwa
-            - features/config-hot-reload
             - features/knowledge-embeddings
-        - group: "Docs sites"
-          icon: book-open
+            - features/config-hot-reload
+            - features/pwa
+        - group: "Theming & Plugins"
+          icon: palette
           pages:
-            - features/writing-docs
-            - features/content-sources
-            - features/navigation
-            - features/openapi
-            - features/api-reference-python
-            - concepts/templates
-            - concepts/slots
-            - features/widget-zones
-            - features/seo
-            - features/redirects
-            - features/content-security-policy
-            - features/analytics
-            - features/ai-ready-docs
-            - features/i18n
-            - features/hot-reload
-        - group: "Integrations"
-          icon: zap
-          pages:
-            - concepts/providers
-            - features/praisonai-package-integration
-            - features/standalone-vs-integrated
-            - features/backend-integration
-        - group: "Deployment and security"
+            - features/theming
+            - features/theme-system
+            - features/dark-mode
+            - features/css-architecture
+            - features/plugins
+            - features/marketplace
+            - features/how-to-add-a-feature
+        - group: "Deploy & Security"
           icon: shield-check
           pages:
             - features/deployment
+            - features/connect
             - health-endpoints
+    - tab: "Docs UI"
+      groups:
+        - group: "Start Building Docs"
+          icon: book-open
+          pages:
+            - docs-ui/overview
+            - features/writing-docs
+            - features/content-sources
+            - features/navigation
+            - getting-started/github-pages
+        - group: "Layout & Customization"
+          icon: layers
+          pages:
+            - concepts/templates
+            - concepts/slots
+            - features/widget-zones
+            - features/hot-reload
+            - features/i18n
+        - group: "API Docs, SEO & Auth"
+          icon: globe
+          pages:
+            - features/openapi
+            - features/api-reference-python
+            - features/seo
+            - features/redirects
+            - features/ai-ready-docs
+            - features/analytics
+            - features/docs-auth
+            - features/content-security-policy
     - tab: "Reference"
       groups:
         - group: "Reference"
