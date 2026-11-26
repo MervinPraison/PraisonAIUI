@@ -26,7 +26,8 @@
     "layout-data",
     "slots.dispose",
     "navigate.params",
-    "page.badge"
+    "page.badge",
+    "notifications"
   ],
   "react": "19.2.4",
   "modules": {
@@ -135,7 +136,9 @@
       "useLayout",
       "setLayout",
       "provideLayoutData",
-      "useLayoutData"
+      "useLayoutData",
+      "notifications",
+      "useNotifications"
     ]
   }
 }

@@ -130,7 +130,7 @@ export default function ChatCanvasFrame(props: LayoutProps) {
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         {phone ? (
-          <PhoneTopBar line={line} canCreate={canCreate} onMenu={() => setMenuOpen(true)} onNewChat={newChat} />
+          <PhoneTopBar line={line} chrome={chrome} canCreate={canCreate} onMenu={() => setMenuOpen(true)} onNewChat={newChat} />
         ) : (
           <TopBar line={line} chrome={chrome} collapsed={collapsed} onExpand={toggleSidebar} share={onChat && !!sessions?.state.activeId} onChatPage={onChat} />
         )}

@@ -876,6 +876,11 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
         ),
     ),
     BuiltinPlugin(
+        "notifications",
+        "In-app notification center (bell inbox, REST & SSE feed)",
+        feature_refs=(feature(".notifications", "NotificationsFeature"),),
+    ),
+    BuiltinPlugin(
         "layout-mission",
         "Mission Control layout: agents, runs, approvals and spend at a glance",
         layout_specs=(

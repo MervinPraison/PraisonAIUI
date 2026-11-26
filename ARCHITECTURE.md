@@ -33,9 +33,9 @@ Markdown. Pages and features extend through one plugin model: Python records
 
 | Layer | Paths | Owns |
 |---|---|---|
-| **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), plugin contributions: settings sections, nav groups, theme presets (`sdk/contributions.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`) |
+| **Core, browser** | `src/frontend/src/shell/`, `src/frontend/src/sdk/`, `main.tsx` | Boot split, router, sidebar, header, command palette, slot hosts, registries (`sdk/registry.ts`), plugin contributions: settings sections, nav groups, theme presets (`sdk/contributions.ts`), manifest contract (`sdk/manifest.ts`), plugin loader (`sdk/loadPlugins.ts`), shell services (`sdk/services.ts`, `sdk/notify.ts`, `sdk/notifications.ts`) |
 | **Core, Python** | `server.py` (`create_app`, `_build_html`, `_build_shell_manifest`, externals shims), `plugin_registry.py` (`PluginRegistry`, `ExtensionPolicy`, `SDK_API_VERSION = 1`), `features/__init__.py` (feature registry), `http_guard.py`, `auth.py` | HTTP host, auth, manifest, plugin discovery and policy |
-| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`, `builtin.layouts` with the six layout descriptors in `builtin/layouts/`, and `builtin.overview` / `builtin.sessions` / `builtin.agents` / `builtin.knowledge` / `builtin.logs` / `builtin.config` / `builtin.cron`, whose React pages in `src/frontend/src/app-pages/` render inside a layout frame while the classic frame keeps the legacy view, and `builtin.connect` and `builtin.api-reference`, React-only shell pages in every frame); `src/praisonaiui/builtin/catalog.py` (57 `BuiltinPlugin` records, 38 pages plus 5 shell-only pages, 48 feature refs) | Every page and feature that ships with aiui |
+| **First-party plugins** | `src/frontend/src/builtin/` (`BUILTIN_PLUGINS`: `builtin.chat`, `builtin.approvals`, `builtin.notifications`, `builtin.layouts` with the six layout descriptors in `builtin/layouts/`, and `builtin.overview` / `builtin.sessions` / `builtin.agents` / `builtin.knowledge` / `builtin.logs` / `builtin.config` / `builtin.cron`, whose React pages in `src/frontend/src/app-pages/` render inside a layout frame while the classic frame keeps the legacy view, and `builtin.connect` and `builtin.api-reference`, React-only shell pages in every frame); `src/praisonaiui/builtin/catalog.py` (58 `BuiltinPlugin` records, 38 pages plus 5 shell-only pages, 49 feature refs) | Every page and feature that ships with aiui |
 | **Engines** (libraries the plugins use) | `chat-engine/` (protocol reducer, store, transports, `useAiuiRuntime`, Thread), `markdown/` (`<Markdown>` on Streamdown), `blocks/` (BlockPage, core blocks), `legacy/` (`LegacyViewHost`, `runtime.ts`, `bridge.css`) | Reusable rendering and protocol code; never imported by the core |
 | **Layouts** (ADR 0003) | `src/frontend/src/app-layouts/<id>/` (one frame per layout, chunk `layout-<id>`), `app-layouts/kit/` (shared frame pieces, chunk `layout-kit`), `src/frontend/src/layout-features/<name>/` (layout-specific features, chunk `lf-<name>`: `run-inspector`, `command-bar`, `step-tracker`, `mission-board`, `artifacts`); the host is `shell/LayoutHost.tsx`, `shell/ClassicFrame.tsx` the core's own frame | The frame around the routed page; loaded only when that layout is on screen (R17) |
 | **Design system** | `components/ui/` (shadcn on `radix-ui`), `styles/theme.css`, `index.css`, `themes.ts`, `lib/utils.ts`; Python `themes.py` `get_seed_theme_css()` | Tokens and primitives ([DESIGN.md](src/frontend/DESIGN.md)) |
@@ -142,7 +142,7 @@ built-in commands never import plugins.
 each in a fresh interpreter), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 33 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 35 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
@@ -231,22 +231,22 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Budget | Limit |
 |---|---|
 | Shell boot (JS + CSS before first paint) | 150 kB |
-| Chat route (added by `/chat`) | 143,628 B |
-| `/chat` first-screen JS (boot + chat route) | 258,339 B |
+| Chat route (added by `/chat`) | 144,081 B |
+| `/chat` first-screen JS (boot + chat route) | 262,141 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
 | Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,568 B |
 | Chart block chunk (lazy; recharts, minus boot and the blocks page) | 140.6 kB |
-| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.47 / 10.5 / 15.318 / 18.6 / 13.304 kB |
+| Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.486 / 10.5 / 15.32 / 18.6 / 13.304 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
-| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 270,273 B |
+| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 274,091 B |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
-| Wheel: all of `dist/assets` (uncompressed) | 11,658,218 B |
+| Wheel: all of `dist/assets` (uncompressed) | 11,680,322 B |
 
 Streamdown, Shiki, Mermaid, KaTeX, `@assistant-ui` and recharts never enter the static
 closure of the entry, the shell or the legacy App (`npm run check:closure`).
