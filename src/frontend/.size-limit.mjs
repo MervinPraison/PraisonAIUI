@@ -89,7 +89,8 @@ const LAYOUT_BUDGETS = {
   // 15.259 kB (+59 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 15.265 kB (+6 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
   // 15.266 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
-  'layout-command': '15.266 kB',
+  // 15.267 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from remote select & pagination blocks; no layout code changed.
+  'layout-command': '15.267 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -103,7 +104,8 @@ const LAYOUT_BUDGETS = {
   // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 13.26 kB (+50 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 13.271 kB (+11 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
-  'layout-mission': '13.271 kB',
+  // 13.272 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from remote select & pagination blocks; no layout code changed.
+  'layout-mission': '13.272 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -534,5 +536,6 @@ export default [
   // 11,643,737 B (+2,308 B, exactly the overage, 2026-11-26): URL _params on action POSTs, filter_bar(method="get"), SPA page_link/params navigation.
   // 11,646,736 B (+2,999 B, exactly the overage, 2026-11-26): chart x_domain, log scales, histogram clamping, heatmap clip/tooltip, barh y2, free facets.
   // 11,648,443 B (+1,707 B, exactly the overage, 2026-11-26): table numeric threshold tones, lazy row detail drawer, gallery caption alongside title.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11648443 B', brotli: false },
+  // 11,652,890 B (+4,447 B, exactly the overage, 2026-11-26): remote combobox options_url, native color_picker_input & pagination blocks.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11652890 B', brotli: false },
 ]
