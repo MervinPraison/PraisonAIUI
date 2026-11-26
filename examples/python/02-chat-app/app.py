@@ -1,11 +1,10 @@
-"""Chat App — Full callback showcase with PraisonAIUI.
+"""Chat App — Full chat lifecycle, steps, prompts, buttons, and notifications.
 
-What's New (vs chat/):
-    • @welcome — greet users when they open the chat
-    • @button — handle action button clicks
-    • @profiles — offer selectable agent personas
-    • @starters — suggest conversation starters
-    • @goodbye, @cancel — lifecycle hooks
+Showcases:
+    - @aiui.welcome, @aiui.on_chat_start, @aiui.reply, @aiui.cancel, @aiui.goodbye
+    - @aiui.profiles, @aiui.starters, @aiui.author_rename
+    - @aiui.step() for collapsible, timed tool traces
+    - aiui.action_buttons() + @aiui.button() + aiui.notify(..., persist=True)
 
 Run:
     aiui run app.py
@@ -14,82 +13,76 @@ Run:
 import praisonaiui as aiui
 
 
+@aiui.step("Analyze prompt", type="tool")
+def analyze_prompt(text: str) -> dict:
+    return {"words": len(text.split()), "chars": len(text)}
+
+
 @aiui.welcome
 async def on_welcome():
-    """Called when a user opens the chat."""
-    await aiui.say("👋 Welcome! I'm your AI assistant. How can I help you today?")
+    await aiui.say("Welcome! Pick a starter below or choose an assistant profile.")
+
+
+@aiui.on_chat_start
+async def on_start():
+    aiui.user_session["turns"] = 0
+
+
+@aiui.profiles
+def get_profiles():
+    return [
+        {"name": "General", "description": "Everyday answers and brainstorming", "default": True},
+        {"name": "Code", "description": "Focused code generation and review"},
+        {"name": "Writer", "description": "Clear, concise editing and drafting"},
+    ]
+
+
+@aiui.author_rename
+def rename_author(name: str) -> str:
+    return {"Code": "Code Helper", "Writer": "Writing Coach"}.get(name, name)
+
+
+@aiui.starters
+def get_starters():
+    return [
+        {"label": "Say hello", "message": "Hello! What can you do?"},
+        {"label": "Help me code", "message": "Write a concise Python retry decorator."},
+        {"label": "Draft an update", "message": "Draft a 3-sentence project status update."},
+    ]
 
 
 @aiui.reply
-async def on_message(message: str):
-    """Called when a user sends a message."""
-    # Show thinking steps
-    await aiui.think("Understanding your request...")
-    await aiui.think("Formulating response...")
+async def on_message(message):
+    turns = aiui.user_session.get("turns", 0) + 1
+    aiui.user_session["turns"] = turns
+    profile = message.agent_name or "General"
 
-    # Echo the message back (replace with actual AI logic)
-    await aiui.say(f"You said: {message}")
+    async with aiui.Step("Prepare reply", type="run") as step:
+        stats = analyze_prompt(message.text)
+        await step.stream_token(f"Profile: {profile} · {stats['words']} words")
 
-    # Show action buttons
+    await aiui.say(f"**[{profile} · Turn {turns}]** You said: {message.text}")
     await aiui.action_buttons([
-        {"name": "helpful", "label": "👍 Helpful"},
-        {"name": "not_helpful", "label": "👎 Not helpful"},
+        {"name": "helpful", "label": "Helpful"},
+        {"name": "save_note", "label": "Save to notifications"},
     ])
 
 
 @aiui.button("helpful")
 async def on_helpful():
-    """Called when user clicks the helpful button."""
-    await aiui.say("Thank you for the feedback! 🎉")
+    await aiui.notify("Thanks for the feedback!", type="success")
 
 
-@aiui.button("not_helpful")
-async def on_not_helpful():
-    """Called when user clicks the not helpful button."""
-    await aiui.say("I'm sorry to hear that. I'll try to do better!")
-
-
-@aiui.goodbye
-async def on_goodbye():
-    """Called when a session ends."""
-    print("Session ended")
+@aiui.button("save_note")
+async def on_save_note():
+    await aiui.notify("Saved reply to workspace notes", type="info", persist=True, category="chat")
 
 
 @aiui.cancel
 async def on_cancel():
-    """Called when user clicks stop."""
-    await aiui.say("Stopped generating response.")
+    await aiui.notify("Generation stopped", type="info")
 
 
-@aiui.profiles
-async def get_profiles():
-    """Return available chat profiles."""
-    return [
-        {
-            "name": "General Assistant",
-            "description": "A helpful general-purpose assistant",
-            "icon": "🤖",
-            "default": True,
-        },
-        {
-            "name": "Code Helper",
-            "description": "Specialized in coding tasks",
-            "icon": "💻",
-        },
-        {
-            "name": "Creative Writer",
-            "description": "Helps with creative writing",
-            "icon": "✍️",
-        },
-    ]
-
-
-@aiui.starters
-async def get_starters():
-    """Return starter messages."""
-    return [
-        {"label": "Say hello", "message": "Hello!", "icon": "👋"},
-        {"label": "Tell me a joke", "message": "Tell me a funny joke", "icon": "😄"},
-        {"label": "Help me code", "message": "Help me write a Python function", "icon": "💻"},
-        {"label": "Explain something", "message": "Explain quantum computing simply", "icon": "🔬"},
-    ]
+@aiui.goodbye
+async def on_goodbye():
+    aiui.user_session.clear()

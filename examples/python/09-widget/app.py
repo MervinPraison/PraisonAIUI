@@ -1,27 +1,27 @@
-"""Copilot Widget — Embeddable AI chat widget with PraisonAIUI.
+"""Copilot Widget — Floating or sidebar AI chat widget.
 
-What's New:
-    • Widget/copilot mode — AI chat as a floating panel or sidebar
-    • Same @reply callback, just rendered in compact widget layout
-    • Streams tokens in the widget via stream_emitter
-
-This is the Streamlit/Gradio equivalent: embed AI chat into any page.
-The frontend's ChatLayout supports multiple modes:
-    - fullscreen: full-page chat (default --style chat)
-    - sidebar:    fixed right-side panel
-    - bottom-right / bottom-left / top-right / top-left: floating widget
-
-Requires: pip install praisonaiagents
-Set OPENAI_API_KEY before running.
+Configures chat in floating mode (switch to ``"sidebar"`` or ``"fullpage"`` as needed)
+and streams replies using the shared StreamBridge helper when ``praisonaiagents`` is
+installed, falling back to a concise echo reply otherwise.
 
 Run:
-    aiui run app.py                           # default fullscreen
-    aiui run app.py --style chat              # same (explicit)
+    aiui run app.py
 """
 
 import asyncio
+import os
+import sys
 
 import praisonaiui as aiui
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "_shared"))
+from stream_bridge import StreamBridge
+
+aiui.configure(
+    branding={"title": "Copilot Widget"},
+    chat={"mode": "floating"},
+)
+aiui.set_chat_mode("floating", position=(20, 20), size=(420, 560), resizable=True)
 
 _agent = None
 
@@ -32,87 +32,44 @@ def _get_agent():
         try:
             from praisonaiagents import Agent
         except ImportError:
-            raise ImportError(
-                "praisonaiagents required. Install with: pip install praisonaiagents"
-            )
+            return None
         _agent = Agent(
             name="Copilot",
-            instructions=(
-                "You are a helpful copilot assistant embedded in a web page. "
-                "Keep answers concise and focused. Use markdown for formatting."
-            ),
+            instructions="You are a concise embedded copilot. Keep answers brief and actionable.",
+            llm=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
         )
     return _agent
 
 
 @aiui.welcome
 async def on_welcome():
-    """Compact welcome for widget mode."""
-    await aiui.say("💡 Hi! I'm your AI copilot. Ask me anything.")
+    await aiui.say("Hi! I am your embedded AI copilot. Ask me anything.")
 
 
 @aiui.starters
-async def get_starters():
+def get_starters():
     return [
-        {"label": "Quick help", "message": "How can you help me?", "icon": "❓"},
-        {"label": "Summarize", "message": "Summarize the key concepts of this page", "icon": "📝"},
-        {"label": "Code", "message": "Write a quick Python script", "icon": "💻"},
+        {"label": "Quick help", "message": "How can you help me?"},
+        {"label": "Summarize", "message": "Summarize the key steps to deploy an AI app."},
+        {"label": "Write code", "message": "Write a 5-line Python HTTP health check."},
     ]
 
 
 @aiui.reply
-async def on_message(message):
-    """Stream response from PraisonAI Agent."""
-    await aiui.think("Thinking...")
-
+async def on_message(message: str):
     agent = _get_agent()
-    token_queue = asyncio.Queue()
-    _has_streaming = False
+    if agent is None:
+        await aiui.say(f"Copilot preview (install `praisonaiagents` for live LLM): **{message}**")
+        return
 
+    bridge = StreamBridge()
+    callback = bridge.emitter_callback()
+    agent.stream_emitter.add_callback(callback)
     try:
-        from praisonaiagents.streaming.events import StreamEventType
-
-        _loop = asyncio.get_running_loop()
-
-        def _on_stream_event(event):
-            if event.type == StreamEventType.DELTA_TEXT and event.content:
-                _loop.call_soon_threadsafe(token_queue.put_nowait, event.content)
-            elif event.type == StreamEventType.STREAM_END:
-                _loop.call_soon_threadsafe(token_queue.put_nowait, None)
-
-        agent.stream_emitter.add_callback(_on_stream_event)
-        _has_streaming = True
-    except (ImportError, AttributeError):
-        pass
-
-    if _has_streaming:
-        full_response = ""
-
-        async def _run_chat():
-            nonlocal full_response
-            try:
-                response = await asyncio.to_thread(agent.chat, str(message), stream=True)
-                full_response = str(response)
-            finally:
-                await token_queue.put(None)
-
-        chat_task = asyncio.create_task(_run_chat())
-
-        while True:
-            try:
-                token = await asyncio.wait_for(token_queue.get(), timeout=120.0)
-            except asyncio.TimeoutError:
-                break
-            if token is None:
-                break
+        task = asyncio.create_task(asyncio.to_thread(lambda: agent.chat(message, stream=True)))
+        async for token in bridge.consume():
             await aiui.stream_token(token)
-
-        await chat_task
-
-        try:
-            agent.stream_emitter.remove_callback(_on_stream_event)
-        except Exception:
-            pass
-    else:
-        response = await asyncio.to_thread(agent.chat, str(message))
-        await aiui.say(str(response))
+        await task
+    finally:
+        agent.stream_emitter.remove_callback(callback)
+        bridge.cancel()

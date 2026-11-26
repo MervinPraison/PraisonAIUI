@@ -1,15 +1,7 @@
-"""Clean Chat — Dashboard chat without the sidebar navigation.
+"""Clean Chat — Distraction-free chat in the React app shell (Workbench layout).
 
-What's New (vs 18-full-chat/):
-    • aiui.set_dashboard(sidebar=False) — hides the left nav panel
-    • Uses the dashboard style for the rich chat UI (session list, agents)
-    • But without the sidebar clutter (Chat, Channels, Agents, Skills, etc.)
-    • Protocol-driven: all config flows through /ui-config.json
-
-This gives you the dashboard chat experience in a cleaner layout.
-
-Requires: pip install openai  (or pip install praisonai)
-Set OPENAI_API_KEY before running.
+Uses ``aiui.configure()`` and ``aiui.only_my_pages("chat")`` so only the chat
+experience appears, with clean branding and optional OpenAI streaming.
 
 Run:
     aiui run app.py
@@ -19,75 +11,45 @@ import os
 
 import praisonaiui as aiui
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    AsyncOpenAI = None
-
-# Reuse client to prevent resource churn
-_client = None
-
-def _get_client():
-    global _client
-    if _client is None and AsyncOpenAI is not None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            _client = AsyncOpenAI(api_key=api_key)
-    return _client
-
-# ── Dashboard style, but no sidebar navigation ─────────────
-aiui.set_style("dashboard")
-aiui.set_dashboard(sidebar=False, page_header=False)
-aiui.set_branding(title="AI Chat", logo="💬")
-aiui.set_theme(preset="blue", dark_mode=True, radius="lg")
-aiui.set_pages(["chat"])  # Only show the chat page
-
-
-@aiui.starters
-async def get_starters():
-    """Suggest conversation starters."""
-    return [
-        {"label": "Explain something", "message": "Explain quantum computing in simple terms", "icon": "🔬"},
-        {"label": "Write code", "message": "Write a Python function to reverse a linked list", "icon": "💻"},
-        {"label": "Creative writing", "message": "Write a haiku about coding at midnight", "icon": "✍️"},
-        {"label": "Brainstorm", "message": "Give me 5 startup ideas using AI agents", "icon": "💡"},
-    ]
+aiui.configure(
+    branding={"title": "AI Chat"},
+    theme={"preset": "blue", "dark": True, "radius": "lg"},
+)
+aiui.set_layout("workbench")
+aiui.only_my_pages("chat")
 
 
 @aiui.welcome
 async def on_welcome():
-    """Greet the user."""
-    await aiui.say("👋 Hi! Ask me anything — I'm ready to help.")
+    await aiui.say("Hi! Ask me anything — I am ready to help.")
+
+
+@aiui.starters
+def get_starters():
+    return [
+        {"label": "Explain simply", "message": "Explain quantum computing in 3 plain sentences."},
+        {"label": "Write code", "message": "Write a Python function to reverse a linked list."},
+        {"label": "Brainstorm", "message": "Give me 5 practical AI agent ideas."},
+    ]
 
 
 @aiui.reply
 async def on_message(message: str):
-    """Stream a response from OpenAI."""
-    await aiui.think("Thinking...")
-
-    client = _get_client()
-    if client is None:
-        if AsyncOpenAI is None:
-            await aiui.say("❌ Please install openai: `pip install openai`")
-        else:
-            await aiui.say("❌ Please set OPENAI_API_KEY environment variable.")
+    if not os.getenv("OPENAI_API_KEY"):
+        await aiui.say(f"Set `OPENAI_API_KEY` for live LLM streaming. Echo: **{message}**")
         return
 
-    stream = await client.chat.completions.create(
+    from openai import AsyncOpenAI
+
+    stream = await AsyncOpenAI().chat.completions.create(
         model=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
         messages=[
-            {"role": "system", "content": "You are a helpful, concise assistant. Use markdown for formatting."},
-            {"role": "user", "content": str(message)},
+            {"role": "system", "content": "You are a helpful, concise assistant."},
+            {"role": "user", "content": message},
         ],
         stream=True,
     )
-
     async for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            await aiui.stream_token(delta.content)
-
-
-@aiui.cancel
-async def on_cancel():
-    await aiui.say("⏹️ Stopped.")
+        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if delta:
+            await aiui.stream_token(delta)
