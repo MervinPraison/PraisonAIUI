@@ -279,7 +279,8 @@ export default [
   // 143,597 B (+13 B, exactly the overage, 2026-11-22): media and overlay blocks; chunk names regrouped, no chat code changed.
   // 143,604 B (+7 B, exactly the overage, 2026-11-22): forms submit on change (blocks/useFormSubmit.ts).
   // 143,624 B (+20 B, exactly the overage, 2026-11-22): chunk hashes renamed by the data table, inputs, chart kinds and page icons; no chat code changed.
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143624 B', gzip: true }, // +3 B 2026-11-22: chunk hash renames (chart chunk added)
+  // 143,628 B (+4 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no chat code changed.
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '143628 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -355,7 +356,8 @@ export default [
   // 257,144 B (+5 B, exactly the overage, 2026-11-22): chunk hash renames from the filter bar fix; no chat code changed.
   // 257,741 B (+597 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph) in the classic sidebar, which is in the boot chunk, plus chunk renames from the data table and inputs.
   // 257,910 B (+169 B, exactly the overage, 2026-11-26): navigate(pageId, { params }) query serialization in sdk/services.ts & shell/router.ts.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257910 B', gzip: true },
+  // 258,072 B (+162 B, exactly the overage, 2026-11-26): sidebar page badge pill in shell/Sidebar.tsx and badge validation in sdk/manifest.ts.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '258072 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -373,7 +375,8 @@ export default [
   // imports were shared with the docs App before; the docs App now draws its own
   // (virtual:aiui-icons/inline), so they count here. They load with Try it instead of on
   // every docs page.
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7566 B', gzip: true },
+  // 7,568 B (+2 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no Try it code changed.
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7568 B', gzip: true },
   // 127.8 kB measured + 10% (2026-11-22). Never on the boot path (npm run
   // check:closure fails if recharts reaches it).
   { name: 'chart block chunk (lazy, recharts; minus boot and the blocks page)', path: abs(chartFiles), limit: '140.6 kB', gzip: true },
@@ -537,5 +540,6 @@ export default [
   // 11,646,736 B (+2,999 B, exactly the overage, 2026-11-26): chart x_domain, log scales, histogram clamping, heatmap clip/tooltip, barh y2, free facets.
   // 11,648,443 B (+1,707 B, exactly the overage, 2026-11-26): table numeric threshold tones, lazy row detail drawer, gallery caption alongside title.
   // 11,652,890 B (+4,447 B, exactly the overage, 2026-11-26): remote combobox options_url, native color_picker_input & pagination blocks.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11652890 B', brotli: false },
+  // 11,657,045 B (+4,155 B, exactly the overage, 2026-11-26): BlockPage markdown doc viewer with TOC (blocks/DocViewer.tsx + docToc.ts) and sidebar page badges.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11657045 B', brotli: false },
 ]
