@@ -1,84 +1,51 @@
-"""Chat with PraisonAI Agents — Agent-powered chat using PraisonAIUI.
+"""Chat with PraisonAI Agent — Non-blocking agent execution with live step trace.
 
-What's New (vs chat-with-ai/):
-    • PraisonAI Agent instead of raw OpenAI client
-    • asyncio.to_thread() for blocking agent.chat() calls
-    • Non-streaming by default (agent returns full response)
-    • Tip: pass stream=False explicitly for guaranteed non-streaming
-
-Requires: pip install praisonai
-Set OPENAI_API_KEY (or your preferred LLM key) before running.
+Requires:
+    pip install "aiui[praisonai]"
+    export OPENAI_API_KEY=sk-...
 
 Run:
     aiui run app.py
-    aiui run app.py --datastore json   # persist conversation history
+    aiui run app.py --datastore json
 """
 
 import asyncio
-import sys
+import os
 
 import praisonaiui as aiui
 
-# Support --datastore json flag as documented
-if "--datastore" in sys.argv:
-    try:
-        idx = sys.argv.index("--datastore")
-        if idx + 1 < len(sys.argv) and sys.argv[idx + 1] == "json":
-            from praisonaiui.datastore import JSONFileDataStore
-            aiui.set_datastore(JSONFileDataStore())
-    except (IndexError, ImportError):
-        pass
-
-# Lazy agent — only created when first message is sent
 _agent = None
 
 
 def _get_agent():
     global _agent
     if _agent is None:
-        try:
-            from praisonaiagents import Agent
-        except ImportError:
-            raise ImportError(
-                "praisonaiagents package required. Install with: pip install praisonai"
-            )
+        from praisonaiagents import Agent
 
         _agent = Agent(
             name="Assistant",
-            instructions="You are a helpful, concise assistant. Answer questions clearly. Use markdown formatting.",
+            instructions="You are a helpful, concise assistant. Use Markdown formatting.",
+            llm=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
         )
     return _agent
 
 
-@aiui.starters
-async def get_starters():
-    """Suggest conversation starters."""
-    return [
-        {"label": "Explain quantum computing", "message": "Explain quantum computing in simple terms", "icon": "🔬"},
-        {"label": "Write a poem", "message": "Write a short poem about the ocean", "icon": "✍️"},
-        {"label": "Python help", "message": "Show me how to read a CSV file in Python", "icon": "🐍"},
-        {"label": "Travel tips", "message": "What are the top 3 things to see in Tokyo?", "icon": "🗼"},
-    ]
-
-
 @aiui.welcome
 async def on_welcome():
-    """Greet the user."""
-    await aiui.say("👋 Hi! I'm powered by PraisonAI Agents. Ask me anything.")
+    await aiui.say("Hi! I am powered by PraisonAI Agents. Ask me anything.")
+
+
+@aiui.starters
+def get_starters():
+    return [
+        {"label": "Explain simply", "message": "Explain vector databases in plain English."},
+        {"label": "Python helper", "message": "Show a clean dataclass example in Python."},
+        {"label": "Summarize plan", "message": "Outline a 5-step launch checklist for a web app."},
+    ]
 
 
 @aiui.reply
 async def on_message(message: str):
-    """Send the message to PraisonAI Agent and return the response."""
-    await aiui.think("Thinking...")
-
-    agent = _get_agent()
-    # Run blocking agent.chat() in thread pool to avoid blocking the event loop
-    response = await asyncio.to_thread(agent.chat, str(message))
-
+    async with aiui.Step("PraisonAI Agent", type="llm"):
+        response = await asyncio.to_thread(_get_agent().chat, message)
     await aiui.say(str(response))
-
-
-@aiui.cancel
-async def on_cancel():
-    await aiui.say("⏹️ Stopped.")

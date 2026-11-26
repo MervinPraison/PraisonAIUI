@@ -1,13 +1,8 @@
-"""Chat with AI — LLM-powered chat using PraisonAIUI.
+"""Chat with AI — Streaming OpenAI replies with per-chat memory and feedback.
 
-What's New (vs chat-app/):
-    • OpenAI integration with AsyncOpenAI client
-    • Streaming responses via aiui.stream_token()
-    • Per-session conversation context
-    • Lazy client initialization pattern
-
-Requires: pip install openai
-Set OPENAI_API_KEY before running.
+Requires:
+    pip install openai
+    export OPENAI_API_KEY=sk-...
 
 Run:
     aiui run app.py
@@ -18,98 +13,68 @@ import os
 
 import praisonaiui as aiui
 
-try:
-    from openai import AsyncOpenAI
-except ImportError:
-    raise ImportError(
-        "openai package required. Install with: pip install openai"
-    )
+aiui.configure(
+    branding={"title": "AI Chat"},
+    chat={"feedback": True},
+)
 
-# Lazy client — only created when first message is sent
 _client = None
 
 
 def _get_client():
     global _client
     if _client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "Set OPENAI_API_KEY environment variable to use this example"
-            )
-        _client = AsyncOpenAI(api_key=api_key)
+        from openai import AsyncOpenAI
+
+        _client = AsyncOpenAI()  # reads OPENAI_API_KEY from env or .env
     return _client
-
-# Use SessionGovernor for bounded session memory management
-from praisonaiui.session_governor import SessionGovernor
-
-_governor = SessionGovernor(max_turns=20, max_sessions=100)
-
-
-@aiui.starters
-async def get_starters():
-    """Suggest conversation starters."""
-    return [
-        {"label": "Explain quantum computing", "message": "Explain quantum computing in simple terms", "icon": "🔬"},
-        {"label": "Write a poem", "message": "Write a short poem about the ocean", "icon": "✍️"},
-        {"label": "Python help", "message": "Show me how to read a CSV file in Python", "icon": "🐍"},
-        {"label": "Travel tips", "message": "What are the top 3 things to see in Tokyo?", "icon": "🗼"},
-    ]
 
 
 @aiui.welcome
 async def on_welcome():
-    """Greet the user."""
-    await aiui.say("👋 Hi! I'm powered by OpenAI. Ask me anything.")
+    await aiui.say("Hi! Ask me anything — replies stream live token by token.")
+
+
+@aiui.starters
+def get_starters():
+    return [
+        {"label": "Explain a concept", "message": "Explain async/await in Python in 3 bullets."},
+        {"label": "Read CSV in Python", "message": "Show a concise Python snippet to parse a CSV file."},
+        {"label": "Brainstorm", "message": "Give me 3 practical AI workflow ideas for a small team."},
+    ]
+
+
+@aiui.on_chat_start
+async def on_start():
+    aiui.user_session["messages"] = [
+        {"role": "system", "content": "You are a helpful, concise assistant. Use Markdown."}
+    ]
 
 
 @aiui.reply
 async def on_message(message: str):
-    """Send the message to OpenAI and stream the response."""
-    session_id = message.session_id if hasattr(message, "session_id") else "default"
+    history = aiui.user_session.setdefault(
+        "messages",
+        [{"role": "system", "content": "You are a helpful, concise assistant. Use Markdown."}],
+    )
+    history.append({"role": "user", "content": message})
 
-    # Add user message to bounded session context
-    _governor.add_message(session_id, {"role": "user", "content": str(message)})
-
-    await aiui.think("Thinking...")
-
-    # Get bounded context for LLM
-    messages = _governor.get_context(session_id)
-
-    # Stream from OpenAI
     stream = await _get_client().chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
+        model=os.getenv("PRAISONAI_MODEL", "gpt-4o-mini"),
+        messages=history[-20:],
         stream=True,
     )
 
-    full_response = ""
+    chunks: list[str] = []
     async for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            full_response += delta.content
-            await aiui.stream_token(delta.content)
+        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if delta:
+            chunks.append(delta)
+            await aiui.stream_token(delta)
 
-    # Save assistant response to bounded context
-    _governor.add_message(session_id, {"role": "assistant", "content": full_response})
-
-    # Feedback buttons
-    await aiui.action_buttons([
-        {"name": "helpful", "label": "👍 Helpful"},
-        {"name": "not_helpful", "label": "👎 Not helpful"},
-    ])
+    history.append({"role": "assistant", "content": "".join(chunks)})
 
 
-@aiui.button("helpful")
-async def on_helpful():
-    await aiui.say("Thank you! 🎉")
-
-
-@aiui.button("not_helpful")
-async def on_not_helpful():
-    await aiui.say("Sorry about that. I'll try to improve! 🙏")
-
-
-@aiui.cancel
-async def on_cancel():
-    await aiui.say("⏹️ Stopped.")
+@aiui.on("feedback")
+async def on_feedback(event: dict):
+    await aiui.notify(f"Feedback recorded ({event.get('value')})", type="info")
