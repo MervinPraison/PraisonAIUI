@@ -105,7 +105,9 @@ What the reply can hold:
 after a successful POST, as `method="get"` does. Use it when the action both
 does something and changes the view; a reply's `_params` wins over it.
 
-A button posts `{**payload, "action": action}`. A form posts its values only.
+A button posts `{**payload, "action": action, "_params": {...}}`. A form posts
+its values alongside `"_params"` (the page URL's current query string, same
+dict shape as `params` in the page handler).
 
 ## 4. Lazy tabs and expanders
 

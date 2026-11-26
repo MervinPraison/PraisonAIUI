@@ -22,7 +22,7 @@ import { BlockList } from './BlockRenderer'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 import { notify } from '@/sdk/notify'
 import { hasBlockTree, isRecord, str, toBlockTree } from './normalize'
-import { nextRefreshDelay, paramsFromSearch, refreshSeconds, withQuery, writeParams } from './pageParams'
+import { actionBodyWithParams, nextRefreshDelay, paramsFromSearch, refreshSeconds, withQuery, writeParams } from './pageParams'
 
 type PageState =
   | { status: 'loading'; key: string }
@@ -107,6 +107,18 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
   /** Consecutive failed auto refreshes (back-off). */
   const failures = useRef(0)
   const lastLoad = useRef(0)
+  const lastSearch = useRef(window.location.search)
+  const suppressLocation = useRef(false)
+
+  const writeUrlGuarded = useCallback((fn: () => void) => {
+    suppressLocation.current = true
+    try {
+      fn()
+      lastSearch.current = window.location.search
+    } finally {
+      suppressLocation.current = false
+    }
+  }, [])
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh' | 'retry' | 'auto') => {
@@ -114,6 +126,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
       const ac = new AbortController()
       inflight.current = ac
       lastLoad.current = Date.now()
+      lastSearch.current = window.location.search
       if (mode !== 'initial' && mode !== 'auto') setRefreshing(true)
       try {
         const res = await fetch(withQuery(endpoint, window.location.search), {
@@ -150,14 +163,20 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
 
   useEffect(() => {
     void load('initial')
-    // Back/forward between query strings of this page re-fetches with them.
+    // Back/forward or in-app page links that change the query string of this
+    // page re-fetch with the new params.
     const path = window.location.pathname
-    const onPop = () => {
-      if (window.location.pathname === path) void load('refresh')
+    const onLocation = () => {
+      if (suppressLocation.current) return
+      if (window.location.pathname === path && window.location.search !== lastSearch.current) {
+        void load('refresh')
+      }
     }
-    window.addEventListener('popstate', onPop)
+    window.addEventListener('popstate', onLocation)
+    window.addEventListener('aiui:locationchange', onLocation)
     return () => {
-      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('popstate', onLocation)
+      window.removeEventListener('aiui:locationchange', onLocation)
       inflight.current?.abort()
       inflight.current = null
     }
@@ -196,7 +215,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
     async (req: BlockActionRequest): Promise<boolean> => {
       const { body, label } = req
       if (req.method === 'get') {
-        writeParams(body)
+        writeUrlGuarded(() => writeParams(body))
         await load('refresh')
         return true
       }
@@ -206,7 +225,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           credentials: 'same-origin',
-          body: JSON.stringify(body),
+          body: JSON.stringify(actionBodyWithParams(body, window.location.search)),
         })
         const data = await readJson(res)
         if (!res.ok || (isRecord(data) && str(data.error))) {
@@ -214,7 +233,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
           return false
         }
         const message = isRecord(data) ? str(data.message ?? data.status) : ''
-        writeUrlFrom(data, req)
+        writeUrlGuarded(() => writeUrlFrom(data, req))
         if (hasBlockTree(data)) {
           setState(readyState(endpoint, data))
           if (message) void notify(message, { type: 'success' })
@@ -227,7 +246,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         return false
       }
     },
-    [postUrl, endpoint, load],
+    [postUrl, endpoint, load, writeUrlGuarded],
   )
 
   const loadSection = useCallback(

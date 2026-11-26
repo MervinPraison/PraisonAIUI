@@ -5,7 +5,7 @@ import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 // The core set (and through it mediaBlocks) registers itself, as the blocks chunk does.
 import { CORE_BLOCK_TYPES, getCoreBlock } from '@/blocks/coreBlocks'
 import { BlockList } from '@/blocks/BlockRenderer'
-import { initials, pageHref } from '@/blocks/mediaModel'
+import { initials, pageHref, resolveAppPageHref } from '@/blocks/mediaModel'
 import { toBlockNodes } from '@/blocks/normalize'
 
 const html = (components: unknown[]) => renderMarkup(<BlockList nodes={toBlockNodes(components)} />).split('<!-- -->').join('')
@@ -21,6 +21,26 @@ test('initials and page paths', () => {
   assert.equal(initials('  grace  brewster hopper '), 'GB')
   assert.equal(initials(''), '?')
   assert.equal(pageHref('my page'), '/my%20page')
+  assert.equal(pageHref('creator', { creator: 'ada', tag: ['a', 'b'], empty: '' }), '/creator?creator=ada&tag=a&tag=b')
+})
+
+test('resolveAppPageHref matches registered same-origin pages and ignores external or unknown paths', () => {
+  const g = globalThis as { window?: unknown }
+  const prev = g.window
+  g.window = { location: { origin: 'http://localhost:8000' } }
+  const pages = [{ id: 'creator' }, { id: 'sync' }]
+  try {
+    assert.deepEqual(resolveAppPageHref('/creator?creator=ada&t=1&t=2', pages), {
+      pageId: 'creator',
+      params: { creator: 'ada', t: ['1', '2'] },
+    })
+    assert.equal(resolveAppPageHref('/unknown?x=1', pages), null)
+    assert.equal(resolveAppPageHref('/creator/sub', pages), null)
+    assert.equal(resolveAppPageHref('/creator#sec', pages), null)
+    assert.equal(resolveAppPageHref('https://example.com/creator', pages), null)
+  } finally {
+    g.window = prev
+  }
 })
 
 test('avatar: an image with the name as its label, initials otherwise', () => {
@@ -52,12 +72,16 @@ test('link: text link, link_button variant, page_link in place', () => {
     { type: 'link', text: 'Docs', href: 'https://example.com', external: true },
     { type: 'link', text: 'Open', href: '/x', variant: 'primary' },
     { type: 'link', text: 'Sync', href: '/sync', page: 'sync' },
+    { type: 'link', text: 'Ada', page: 'creator', params: { creator: 'ada' } },
     { type: 'link', text: 'Bad', href: 'javascript:alert(1)' },
   ])
   assert.match(out, /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer" class="w-fit/)
   assert.match(out, /<a href="\/x" data-slot="button" data-variant="default"[^>]*>Open<\/a>/)
   assert.match(out, /<a href="\/sync" class="w-fit[^"]*">Sync<\/a>/)
+  assert.match(out, /<a href="\/creator\?creator=ada" class="w-fit[^"]*">Ada<\/a>/)
   assert.match(out, /<span class="w-fit text-sm text-foreground">Bad<\/span>/)
+  const btns = html([{ type: 'button_group', buttons: [{ label: 'Inspect', page: 'creator', params: { creator: 'ada' }, variant: 'primary' }] }])
+  assert.match(btns, /<a href="\/creator\?creator=ada"[^>]*>Inspect<\/a>/)
 })
 
 test('breadcrumb: links for earlier items, the last one is the current page', () => {
@@ -104,7 +128,7 @@ test('card_grid: cards with avatar, badges, stats and a stretched link; columns 
           href: 'https://example.com/ada',
           target: '_blank',
         },
-        { title: 'Grace', page: 'creator-grace', image: '/g.png' },
+        { title: 'Grace', page: 'creator-grace', params: { tab: 'videos' }, image: '/g.png' },
         { title: 'Bad', href: 'javascript:alert(1)' },
       ],
     },
@@ -114,7 +138,7 @@ test('card_grid: cards with avatar, badges, stats and a stretched link; columns 
   assert.match(out, /<a href="https:\/\/example.com\/ada" target="_blank" rel="noopener noreferrer" class="[^"]*after:inset-0">Ada Lovelace<\/a>/)
   assert.match(out, /<dt[^>]*>Subs<\/dt><dd[^>]*>1.2M<\/dd>/)
   assert.match(out, />Rising<\/span>/)
-  assert.match(out, /<a href="\/creator-grace"/)
+  assert.match(out, /<a href="\/creator-grace\?tab=videos"/)
   assert.match(out, /<img src="\/g.png" alt=""/)
   assert.doesNotMatch(out, /javascript:/)
 })

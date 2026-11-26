@@ -13,6 +13,7 @@
  * can install a minimal window/history fake.
  */
 import { useSyncExternalStore } from 'react'
+import { queryForParams } from '@/sdk/services'
 
 export const LOCATION_CHANGE_EVENT = 'aiui:locationchange'
 export const PAGE_CHANGE_EVENT = 'aiui:page-change'
@@ -78,19 +79,25 @@ export function getPageId(): string {
 export interface NavigateOptions {
   /** replaceState instead of pushState (redirects). */
   replace?: boolean
+  /** Query parameters for the target page (written as `?k=v`). */
+  params?: Record<string, unknown>
 }
 
 /**
- * Go to a page. A no-op when the path already is `/<id>` (a query string on
- * the current page is kept). Legacy `window.aiui.selectPage` lands here via
- * setLegacyNavigator().
+ * Go to a page. Without `opts.params`, a no-op when the path already is `/<id>`
+ * (keeping any query string on the current page). With `opts.params`, writes
+ * the target query string and pushes/replaces whenever path or query changes.
+ * Legacy `window.aiui.selectPage` lands here via setLegacyNavigator().
  */
 export function navigate(pageId: string, opts: NavigateOptions = {}): void {
   const { location, history } = window
   const path = pathForPage(pageId)
-  if (location.pathname === path) return
-  if (opts.replace) history.replaceState({ pageId }, '', path)
-  else history.pushState({ pageId }, '', path)
+  const hasParams = opts.params !== undefined
+  const search = hasParams ? queryForParams(opts.params) : ''
+  if (location.pathname === path && (!hasParams || location.search === search)) return
+  const url = `${path}${search}`
+  if (opts.replace) history.replaceState({ pageId }, '', url)
+  else history.pushState({ pageId }, '', url)
 }
 
 /** Subscribe to every URL change (back/forward, push/replace by anyone). */

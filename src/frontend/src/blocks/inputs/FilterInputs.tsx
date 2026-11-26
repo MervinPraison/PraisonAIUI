@@ -158,7 +158,10 @@ export function FilterBar({ node, page }: CoreBlockProps): JSX.Element {
     () => filterChips(nodes, isRecord(node.props?.defaults) ? node.props.defaults : {}),
     [nodes, node],
   )
-  const { formRef, busy, submit } = useFormSubmit('Filters', true)
+  const { formRef, busy, submit } = useFormSubmit('Filters', true, {
+    method: str(p.method).toLowerCase() === 'get' ? 'get' : undefined,
+    updateUrl: p.update_url === true,
+  })
   // Fields are uncontrolled: a chip or Reset remounts them (new `gen`) once its
   // post returns, so they show the cleared values. Keying by the server value
   // instead would remount a text field (and drop its focus) on every echo.

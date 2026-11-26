@@ -74,7 +74,8 @@ const LAYOUT_BUDGETS = {
   // 12.373 kB (+1 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 12.377 kB (+4 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 12.428 kB (+51 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-chat-canvas': '12.428 kB',
+  // 12.436 kB (+8 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
+  'layout-chat-canvas': '12.436 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -85,7 +86,8 @@ const LAYOUT_BUDGETS = {
   // its branch; integrated with kit v2 (which every frame's closure holds,
   // split into seven chunks across the five frames) 13.85 kB + 10%.
   // 15.259 kB (+59 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-command': '15.259 kB',
+  // 15.265 kB (+6 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
+  'layout-command': '15.265 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -98,7 +100,8 @@ const LAYOUT_BUDGETS = {
   // 13.207 kB (+7 B, exactly the overage): the docs App's first-screen icons moved into its own chunk (virtual:aiui-icons/inline), so the one-icon chunks it shared with the layouts regrouped; no layout code changed.
   // 13.21 kB (+3 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 13.26 kB (+50 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
-  'layout-mission': '13.26 kB',
+  // 13.271 kB (+11 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
+  'layout-mission': '13.271 kB',
 }
 // Design fixes round 2 (BrandTile with the single-colour glyph, the chat
 // list's search toggle, NavSection's title-row action): 7.51 kB + 10%.
@@ -347,7 +350,8 @@ export default [
   // 257,139 B (+4 B, exactly the overage, 2026-11-22): forms submit on change (chat route, above).
   // 257,144 B (+5 B, exactly the overage, 2026-11-22): chunk hash renames from the filter bar fix; no chat code changed.
   // 257,741 B (+597 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph) in the classic sidebar, which is in the boot chunk, plus chunk renames from the data table and inputs.
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257741 B', gzip: true }, // +1 B 2026-11-22: chunk hash renames
+  // 257,910 B (+169 B, exactly the overage, 2026-11-26): navigate(pageId, { params }) query serialization in sdk/services.ts & shell/router.ts.
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '257910 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
@@ -525,5 +529,6 @@ export default [
   // 11,608,392 B (+9,901 B, exactly the overage, 2026-11-22): the filter inputs' lazy chunks (blocks/inputs).
   // 11,608,459 B (+67 B, exactly the overage, 2026-11-22): filter bar keeps focus (remount only after a chip or Reset).
   // 11,641,429 B (+32,970 B, exactly the overage, 2026-11-22): data table v2 with row details and date/sparkline columns, multi-select/tags/date range/segmented inputs, heatmap/sparkline/small-multiple charts, app page icons.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11641429 B', brotli: false },
+  // 11,643,737 B (+2,308 B, exactly the overage, 2026-11-26): URL _params on action POSTs, filter_bar(method="get"), SPA page_link/params navigation.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11643737 B', brotli: false },
 ]

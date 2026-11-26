@@ -19,6 +19,7 @@ import type { BlockNode } from '@/sdk/registry'
 import { BlockList } from '../BlockRenderer'
 import { useInFrame } from '../context'
 import { Sparkline, sparkValues } from '../chart/spark'
+import { hrefLinkOnClick, pageLinkProps, tryNavigateHref } from '../mediaModel'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from '../normalize'
 import { cellsOf, cellText, filterIndexes, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns, toneClass, typeOf, type Column, type SortDir } from './model'
 
@@ -34,12 +35,28 @@ export function Cell({ value, col }: { value: unknown; col: Column }): ReactNode
   const rec = isRecord(value) ? value : null
   const type = typeOf(col, value)
   if (type === 'link') {
+    const page = rec ? str(rec.page) : ''
+    if (page) {
+      const attrs = pageLinkProps(page, isRecord(rec?.params) ? rec.params : undefined)
+      const text = str(rec?.text ?? rec?.label, attrs.href)
+      return (
+        <a {...attrs} className="font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline">
+          {text}
+        </a>
+      )
+    }
     const href = safeUrl(rec ? rec.href : value)
     const text = rec ? str(rec.text ?? rec.label, href ?? '') : display(value)
     if (!href) return text
     const external = rec?.external === true
     return (
-      <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} className="font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline">
+      <a
+        href={href}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
+        onClick={external ? undefined : hrefLinkOnClick(href)}
+        className="font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline"
+      >
         {text}
       </a>
     )
@@ -157,7 +174,7 @@ export function TableBlock({ node, page }: { node: BlockNode; page?: ShellPage }
     } else if (rowId === undefined && hrefs?.[index]) {
       const href = hrefs[index] as string
       if (e?.metaKey || e?.ctrlKey) window.open(href, '_blank', 'noopener')
-      else window.location.assign(href)
+      else if (!tryNavigateHref(href)) window.location.assign(href)
     }
   }
   const turn = (n: number) => (

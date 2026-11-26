@@ -8,6 +8,7 @@ import '@/blocks/coreBlocks'
 import { getCoreBlock } from '@/blocks/coreBlocks'
 import {
   MAX_BACKOFF_MS,
+  actionBodyWithParams,
   mergeSearch,
   nextRefreshDelay,
   paramsFromSearch,
@@ -21,6 +22,19 @@ import type { BlockNode } from '@/sdk/registry'
 test('paramsFromSearch: repeated keys become lists', () => {
   assert.deepEqual(paramsFromSearch('?channel=foo&fmt=a&fmt=b&fmt=c'), { channel: 'foo', fmt: ['a', 'b', 'c'] })
   assert.deepEqual(paramsFromSearch(''), {})
+})
+
+test('actionBodyWithParams attaches URL _params unless already present', () => {
+  assert.deepEqual(actionBodyWithParams({ action: 'save', note: 'hi' }, '?creator=ada&tag=a&tag=b'), {
+    action: 'save',
+    note: 'hi',
+    _params: { creator: 'ada', tag: ['a', 'b'] },
+  })
+  assert.deepEqual(actionBodyWithParams({ action: 'save' }, ''), { action: 'save', _params: {} })
+  assert.deepEqual(actionBodyWithParams({ action: 'save', _params: { custom: '1' } }, '?creator=ada'), {
+    action: 'save',
+    _params: { custom: '1' },
+  })
 })
 
 test('withQuery appends to an endpoint with or without a query', () => {
