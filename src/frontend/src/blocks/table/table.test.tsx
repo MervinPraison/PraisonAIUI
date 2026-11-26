@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 import { RowDetail, TableBlock } from './DataTable'
-import { cellText, compareValues, filterIndexes, formatDate, formatNumber, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns } from './model'
+import { cellText, compareValues, filterIndexes, formatDate, formatNumber, inferColumns, nextSort, numberTone, pageSizeOf, sortIndexes, sortValue, toColumns } from './model'
 
 const html = (props: Record<string, unknown>) => renderMarkup(<TableBlock node={{ type: 'table', props }} />).split('<!-- -->').join('')
 const [TEXT] = toColumns(['Name'], [])
@@ -126,4 +126,27 @@ test('row detail: rows become focusable; the panel shows fields or the row block
   const blocks = renderMarkup(<RowDetail cells={['Chan']} columns={columns} blocks={[{ type: 'text', props: { content: 'Hello panel' } }]} />)
   assert.match(blocks, /Hello panel/)
   assert.doesNotMatch(blocks, /<dl/)
+  const lazy = renderMarkup(<RowDetail cells={['Chan']} columns={columns} blocks={[]} loadKey="row:1" />)
+  assert.match(lazy, /data-lazy="row:1"/)
+  assert.equal(focusable({ row_detail_loads: ['row:1'] }), 1)
+  assert.equal(focusable({ detail_load: 'row:' }), 1)
+})
+
+test('number threshold tones: tone_above, tone_below, thresholds and explicit cell tone', () => {
+  const [col] = toColumns(
+    [{ key: 'lift', type: 'number', format: 'multiplier', thresholds: [{ gte: 2, tone: 'info' }], tone_above: 1, tone_below: [0.5, 'error'] }],
+    [],
+  )
+  assert.equal(numberTone(2.4, col), 'info')
+  assert.equal(numberTone(1.2, col), 'success')
+  assert.equal(numberTone(0.7, col), undefined)
+  assert.equal(numberTone(0.3, col), 'error')
+  assert.equal(numberTone({ value: 0.8, tone: 'warning' }, col), 'warning')
+  const out = html({
+    columns: [{ key: 'lift', type: 'number', format: 'multiplier', tone_above: 1, tone_below: 0.5 }],
+    rows: [[1.5], [0.3], [0.8]],
+  })
+  assert.match(out, /text-success[^>]*data-tone="success">1\.5x</)
+  assert.match(out, /text-destructive[^>]*data-tone="error">0\.3x</)
+  assert.doesNotMatch(out, /data-tone="[^"]*">0\.8x</)
 })

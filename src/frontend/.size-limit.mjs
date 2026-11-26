@@ -75,7 +75,8 @@ const LAYOUT_BUDGETS = {
   // 12.377 kB (+4 B, exactly the overage): buildLayoutNav reads layout.groups.shown (the app's own groups).
   // 12.428 kB (+51 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 12.436 kB (+8 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
-  'layout-chat-canvas': '12.436 kB',
+  // 12.438 kB (+2 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
+  'layout-chat-canvas': '12.438 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -87,7 +88,8 @@ const LAYOUT_BUDGETS = {
   // split into seven chunks across the five frames) 13.85 kB + 10%.
   // 15.259 kB (+59 B, exactly the overage, 2026-11-22): app page icons (lib/PageGlyph: any lucide name from the lazy icon buckets, image URLs, emoji) at the nav call site.
   // 15.265 kB (+6 B, exactly the overage, 2026-11-26): chunk hash rename from navigate() query params; no layout code changed.
-  'layout-command': '15.265 kB',
+  // 15.266 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
+  'layout-command': '15.266 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -531,5 +533,6 @@ export default [
   // 11,641,429 B (+32,970 B, exactly the overage, 2026-11-22): data table v2 with row details and date/sparkline columns, multi-select/tags/date range/segmented inputs, heatmap/sparkline/small-multiple charts, app page icons.
   // 11,643,737 B (+2,308 B, exactly the overage, 2026-11-26): URL _params on action POSTs, filter_bar(method="get"), SPA page_link/params navigation.
   // 11,646,736 B (+2,999 B, exactly the overage, 2026-11-26): chart x_domain, log scales, histogram clamping, heatmap clip/tooltip, barh y2, free facets.
-  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11646736 B', brotli: false },
+  // 11,648,443 B (+1,707 B, exactly the overage, 2026-11-26): table numeric threshold tones, lazy row detail drawer, gallery caption alongside title.
+  { name: 'wheel: all of dist/assets (uncompressed)', path: allAssets, limit: '11648443 B', brotli: false },
 ]

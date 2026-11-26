@@ -152,7 +152,7 @@ export default defineConfig({
     },
     {
       name: 'app-shell',
-      testMatch: /[\\/](shell-sweep|chat|plugins)\.spec\.ts$/,
+      testMatch: /[\\/](shell-sweep|chat|plugins|blocks)\.spec\.ts$/,
       use: { ...chromium, baseURL: url(PORTS.app) },
     },
     {

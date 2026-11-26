@@ -319,6 +319,8 @@ def table(
     row_href_key: str | None = None,
     row_detail: bool = False,
     detail_key: str | None = None,
+    detail_load_key: str | None = None,
+    detail_load: str | None = None,
     max_height: int | str | None = None,
     caption: str | None = None,
 ) -> dict:
@@ -333,7 +335,8 @@ def table(
         actions: Optional row action labels (requires ``row_ids``). Each row
             gets one button per action, emitting a bubbling
             ``aiui:table-action`` DOM event with ``detail = {action, rowId}``.
-        columns: Labels, or column dicts (``key``, ``label``, ``type``, ``format``, ...;
+        columns: Labels, or column dicts (``key``, ``label``, ``type``, ``format``,
+            ``tones``, ``tone_above``, ``tone_below``, ``thresholds``, ...;
             see docs/api/components.md)
         searchable: Show a search box that filters rows in the browser
         page_size: Rows per page; 0 shows every row. Unset: 50 per page past 100 rows
@@ -342,6 +345,11 @@ def table(
         row_detail: A click (or Enter) on a row opens a side panel with its fields
         detail_key: Key in dict rows holding a list of block dicts the side panel
             shows instead of the fields (implies ``row_detail``)
+        detail_load_key: Key in dict rows holding a lazy section key (loaded via
+            ``POST /api/pages/{id}/action`` with ``{"_lazy": key, "_params": ...}``
+            only when that row's side panel opens; implies ``row_detail``)
+        detail_load: Prefix for lazy row detail keys (``f"{detail_load}{row_id_or_index}"``;
+            implies ``row_detail``)
         max_height: Scroll height (px or CSS length, 0 for none; default 70vh)
         caption: Accessible name of the table (and of its search box)
     """
@@ -403,7 +411,13 @@ def table(
         comp["row_details"] = [
             list(d) if isinstance(d := value(r, detail_key), (list, tuple)) else [] for r in rows
         ]
-    if row_detail or detail_key:
+    if detail_load_key:
+        comp["row_detail_loads"] = [
+            None if (k := value(r, detail_load_key)) in (None, "") else str(k) for r in rows
+        ]
+    if detail_load:
+        comp["detail_load"] = str(detail_load)
+    if row_detail or detail_key or detail_load_key or detail_load:
         comp["row_detail"] = True
     return comp
 

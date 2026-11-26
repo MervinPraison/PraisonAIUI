@@ -21,9 +21,10 @@ import { useInFrame } from '../context'
 import { Sparkline, sparkValues } from '../chart/spark'
 import { hrefLinkOnClick, pageLinkProps, tryNavigateHref } from '../mediaModel'
 import { arr, display, isRecord, num, safeUrl, str, toBlockNodes } from '../normalize'
-import { cellsOf, cellText, filterIndexes, inferColumns, nextSort, pageSizeOf, sortIndexes, sortValue, toColumns, toneClass, typeOf, type Column, type SortDir } from './model'
+import { LazySection } from '../pageBlocks'
+import { cellsOf, cellText, filterIndexes, inferColumns, nextSort, numberTone, numberToneClass, pageSizeOf, sortIndexes, sortValue, toColumns, toneClass, typeOf, type Column, type SortDir } from './model'
 
-const AUTO: Column = { key: '', label: '', type: 'auto', format: '', tones: {}, align: 'left', sortable: false }
+const AUTO: Column = { key: '', label: '', type: 'auto', format: '', tones: {}, thresholds: [], align: 'left', sortable: false }
 const colOf = (cols: readonly Column[], i: number): Column => cols[i] ?? AUTO
 const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const
 const NOWRAP = new Set(['number', 'date', 'badge', 'progress', 'image', 'sparkline'])
@@ -96,6 +97,13 @@ export function Cell({ value, col }: { value: unknown; col: Column }): ReactNode
       </span>
     )
   }
+  if (type === 'number') {
+    const raw = rec && 'value' in rec ? rec.value : value
+    const text = cellText(raw, col)
+    const tone = numberTone(value, col)
+    const cls = tone ? numberToneClass(tone) : undefined
+    return cls ? <span className={cls} data-tone={tone}>{text}</span> : text
+  }
   return cellText(value, col)
 }
 
@@ -104,12 +112,14 @@ function SortIcon({ dir }: { dir?: SortDir }) {
   return <Icon aria-hidden className={cn('size-3 shrink-0', !dir && 'opacity-50')} />
 }
 
-/** The side panel's body: the row's `row_details` blocks, else its fields. */
-export function RowDetail({ cells, columns, blocks, page }: { cells: readonly unknown[]; columns: readonly Column[]; blocks: BlockNode[]; page?: ShellPage }) {
+/** The side panel's body: lazy section (`loadKey`), eager `row_details` blocks, else row fields. */
+export function RowDetail({ cells, columns, blocks, loadKey, page }: { cells: readonly unknown[]; columns: readonly Column[]; blocks: BlockNode[]; loadKey?: string; page?: ShellPage }) {
   return (
     <div className="flex min-w-0 flex-col gap-4 px-4 pb-4">
       {blocks.length > 0 ? (
         <BlockList nodes={blocks} page={page} />
+      ) : loadKey ? (
+        <LazySection loadKey={loadKey} open page={page} />
       ) : (
         <dl className="divide-y divide-border text-sm">
           {cells.map((v, i) => (
@@ -138,7 +148,9 @@ export function TableBlock({ node, page }: { node: BlockNode; page?: ShellPage }
   const actions = rowIds ? arr(p.actions).map((a) => str(a)).filter(Boolean) : []
   const hrefs = sameLength(p.row_hrefs) ? arr(p.row_hrefs).map((h) => safeUrl(h)) : null
   const details = sameLength(p.row_details) ? arr(p.row_details) : null
-  const hasDetail = p.row_detail === true || details !== null
+  const detailLoads = sameLength(p.row_detail_loads) ? arr(p.row_detail_loads).map((k) => str(k)) : null
+  const detailPrefix = str(p.detail_load)
+  const hasDetail = p.row_detail === true || details !== null || detailLoads !== null || detailPrefix !== ''
   const caption = str(p.caption ?? p.title)
   const maxHeight = p.max_height === 0 ? undefined : typeof p.max_height === 'number' ? `${p.max_height}px` : str(p.max_height, '70vh')
 
@@ -187,6 +199,7 @@ export function TableBlock({ node, page }: { node: BlockNode; page?: ShellPage }
   const focusable = (rowId: string | undefined) => rowId !== undefined || hasDetail
   const openCells = open === null ? null : cells[open]
   const openBlocks = open !== null && details ? toBlockNodes(arr(details[open])) : []
+  const openLoadKey = open === null ? undefined : (detailLoads?.[open] || (detailPrefix ? `${detailPrefix}${rowIds?.[open] ?? open}` : undefined))
   return (
     <div data-nested={nested || undefined} className={cn('flex min-w-0 flex-col', !nested && 'rounded-xl border border-border')}>
       {p.searchable === true && (
@@ -311,7 +324,7 @@ export function TableBlock({ node, page }: { node: BlockNode; page?: ShellPage }
               <SheetTitle className="break-words">{(openCells && cellText(openCells[0], colOf(columns, 0))) || 'Details'}</SheetTitle>
               <SheetDescription className="sr-only">{caption ? `Row details, ${caption}` : 'Row details'}</SheetDescription>
             </SheetHeader>
-            <RowDetail cells={openCells ?? []} columns={columns} blocks={openBlocks} page={page} />
+            <RowDetail cells={openCells ?? []} columns={columns} blocks={openBlocks} loadKey={openLoadKey} page={page} />
           </SheetContent>
         </Sheet>
       )}
