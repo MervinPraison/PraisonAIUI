@@ -4,7 +4,7 @@ nav_title: Components
 
 # Component API Reference
 
-Python functions for building app and dashboard UIs. Each function returns a plain dict that the frontend renders as a real UI block — **76 builders** organized by category. Looking for visual examples in both Python and zero-code YAML? Browse the [UI Components gallery](../components/overview.md).
+Python functions for building app and dashboard UIs. Each function returns a plain dict that the frontend renders as a real UI block — **81 builders** organized by category (usable on `@aiui.page`, in zero-code YAML, and inline inside chat via `await aiui.send_block(...)`). Looking for visual examples in both Python and zero-code YAML? Browse the [UI Components gallery](../components/overview.md).
 
 ```python
 import praisonaiui as aiui
@@ -1469,6 +1469,33 @@ aiui.definition_list(
     [{"label": "Runtime", "value": "Python 3.12"}, {"label": "Shell", "value": "React App"}],
     title="Environment",
 )
+```
+
+### `aiui.plotly_chart(fig, title="", *, height=None, caption=None)`
+
+Convert a standard Plotly figure (or figure dict) into a native Recharts `chart` block (`bar`, `barh`, `line`, `area`, `scatter`, `pie`, `donut`, `histogram`, `heatmap`) without bundling `plotly.js`. Unsupported trace types degrade cleanly to an alert + `json_view`.
+
+```python
+aiui.plotly_chart(fig, title="Revenue by Quarter")
+```
+
+### `aiui.file_upload(label="Upload file", *, name="files", accept=None, multiple=False, max_size_mb=10, help_text=None, auto_submit=False)`
+
+Drag-and-drop file uploader that posts files to the authenticated `POST /api/chat/attachments` endpoint and submits safe handles (`{id, filename, content_type, size}`). Resolve handles server-side with `aiui.get_uploaded_file()`.
+
+```python
+aiui.file_upload("Drop a CSV or PDF", name="doc", accept=".csv,.pdf", max_size_mb=10)
+```
+
+### `aiui.chat_panel(*, title="Agent Chat", agent=None, height=520, session_id=None, welcome=None)`
+
+Embed a compact, streaming Agent Chat panel inside any `@aiui.page` layout (for example, beside a table, chart, or document viewer inside `aiui.columns([...])`).
+
+```python
+aiui.columns([
+    aiui.doc_viewer(content=spec_md, title="Spec"),
+    aiui.chat_panel(title="Ask about this spec", height=540),
+])
 ```
 
 ### `aiui.form_action(action, *, children, submit_label="Submit")`

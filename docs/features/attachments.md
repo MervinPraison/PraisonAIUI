@@ -48,25 +48,45 @@ graph LR
 | `image/*` | File path passed to the agent's `attachments` | The image, for vision-capable models |
 | Anything else allowed | File read as text | `--- Attached File: name ---` block before the message |
 
-## Allowed Types
+## Allowed Types & Upload Encodings
 
-The check is on the MIME type the client sends with the upload, not the file
-extension. Browsers set it; with `curl`, add `;type=...` to the `-F` value, or
-the file arrives as `application/octet-stream` and is rejected:
+`POST /api/chat/attachments` accepts **three encodings** so uploads work out of the box even without `python-multipart`:
+
+1. **Raw binary body** with `X-Filename` header and file `Content-Type` (what `aiui.file_upload()` sends).
+2. **JSON body** (`{"filename", "content_type", "data_base64", "session_id?"}`).
+3. **`multipart/form-data`** with a `file` field (when `python-multipart` is installed; returns HTTP `415` otherwise).
 
 | Category | MIME types |
 |----------|------------|
-| Text | `text/plain`, `text/csv`, `text/markdown` |
-| Data | `application/json` |
-| Documents | `application/pdf` |
+| Text & Markup | `text/plain`, `text/csv`, `text/tab-separated-values`, `text/markdown` (`text/x-markdown` normalized), `application/xml`, `text/xml` |
+| Data & Office | `application/json`, `application/pdf`, `.xlsx` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`), `.docx` (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`) |
 | Images | `image/png`, `image/jpeg`, `image/gif`, `image/webp` |
+| Audio | `audio/mpeg`, `audio/wav`, `audio/webm`, `audio/ogg`, `audio/mp4` |
 
-Any other type is rejected with `400 {"error": "Type not allowed: ..."}`, and a
-file over the size limit with `400 {"error": "File too large: ..."}`.
+Common OS MIME quirks (such as Windows sending `application/vnd.ms-excel` for `.csv`, or `application/octet-stream` for known safe data/media extensions) are normalized safely. Active web types (`text/html`, `image/svg+xml`, `application/javascript`) are always rejected with `400 {"error": "Type not allowed: ..."}`. Files over the size limit return `413` / `400`.
 
-Files are stored under the system temp directory
-(`<tmp>/praisonai_attachments/`), and the id registry is kept in memory: after a
-restart, earlier ids no longer resolve.
+Files are stored under `<tmp>/praisonai_attachments/` with sanitized UUID filenames, automatic TTL eviction (default `3600` seconds) and capacity eviction (default `500` entries). Internal filesystem `path` values are **never** returned in HTTP responses — resolve them server-side with `aiui.get_uploaded_file()`.
+
+## Page File Uploads (`aiui.file_upload` & `aiui.get_uploaded_file`)
+
+On `@aiui.page` and `aiui.interface()` forms, use `aiui.file_upload()` to render a drag-and-drop uploader and resolve the uploaded handle safely in Python:
+
+```python
+def inspect_csv(doc):
+    # aiui.interface() resolves file_upload inputs automatically via aiui.get_uploaded_file()
+    if not doc:
+        return "Upload a CSV file first."
+    with open(doc["path"], "r", encoding="utf-8", errors="replace") as f:
+        return aiui.code_block(f.read(1200))
+
+aiui.interface(
+    inspect_csv,
+    inputs=[aiui.file_upload("Drop a CSV", name="doc", accept=".csv,.txt")],
+    title="CSV Inspector",
+)
+```
+
+Inside a manual `@aiui.register_page_action` handler, always resolve client handles via `meta = aiui.get_uploaded_file(data.get("doc"))` — it validates UUID syntax and looks up the file in the server's registry, blocking path traversal and expired/forged handles.
 
 ## Indexing into Knowledge
 
@@ -106,7 +126,6 @@ Response:
   "filename": "data.csv",
   "content_type": "text/csv",
   "size": 34800,
-  "path": "/tmp/praisonai_attachments/0b6c1f0e-5f7e-4c0a-9d0b-2f1d9e1a7c11.csv",
   "session_id": "abc-123"
 }
 ```

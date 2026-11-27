@@ -101,3 +101,29 @@ aiui.sheet(
 | `tabs` | `list[dict]` | Multi-tab workbook: `[{"name": str, "grid": list[list], "values"?: list[list]}]`. |
 | `headers`, `rows` | `list` | Shorthand for a single-tab spreadsheet when `tabs` is omitted. |
 | `id` | `str` | Optional stable artifact ID for versioned updates in the Artifacts Canvas. |
+| `action` | `str` | Optional page action name; displays a Save button that posts `{action, id, title, tab, grid, values, tabs}` to `@aiui.register_page_action`. |
+| `save_label` | `str` | Custom label for the Save button when `action` is set (default `"Save"`). |
+
+## Saving edits back to Python
+
+Pass `action="save_sheet"` to turn `aiui.sheet()` into an editable data editor (like `st.data_editor`) that persists changes to your `@aiui.register_page_action` handler:
+
+```python
+@aiui.page("budget", title="Budget", group="App")
+async def budget_page():
+    return aiui.layout([
+        aiui.sheet(
+            "Q4 Budget",
+            headers=["Item", "Cost"],
+            rows=[["Compute", 4200], ["Storage", 1100], ["Total", "=SUM(B2:B3)"]],
+            action="save_budget",
+            save_label="Save changes",
+        )
+    ])
+
+
+@aiui.register_page_action("budget")
+async def on_budget_action(data):
+    # data["grid"] holds raw formulas/edits; data["values"] holds evaluated cells
+    return {"status": f"Saved {len(data.get('grid', []))} rows"}
+```

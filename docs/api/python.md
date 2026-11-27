@@ -39,7 +39,10 @@ machine would otherwise share. Pages the app registers itself
 entry-point plugins always appear. Without `set_pages` every page shows.
 
 ```python
-aiui.set_pages(["chat"])          # Chat plus the app's own pages
+aiui.set_pages("minimal")         # preset: Chat + your own pages (default for aiui run app.py)
+aiui.set_pages("agent")           # preset: Chat, Sessions, Approvals, Usage, Memory + your pages
+aiui.set_pages("ops")             # preset: all built-in ops pages (alias of "all")
+aiui.set_pages(["chat"])          # explicit list: Chat plus the app's own pages
 aiui.set_pages([])                # only the app's own pages
 aiui.set_pages([
     "chat", "agents", "memory", "knowledge",
@@ -50,7 +53,7 @@ aiui.set_pages([
 An id that names no page is reported with a warning at startup. Use
 `aiui pages ids` to see all available page IDs.
 
-`aiui.set_pages("all")` (or `aiui run app.py --pages all`) shows every page
+`aiui.set_pages("all")` / `aiui.set_pages("ops")` (or `aiui run app.py --preset ops` / `--pages all`) shows every page
 and makes every layout's sidebar list them all, grouped (Agent, Work,
 Control, ...), as the legacy dashboard did: each page in its React version
 where there is one, otherwise the legacy view inside the app shell. The
@@ -672,14 +675,16 @@ async def on_profiles():
 
 ---
 
-### `@aiui.page(id, *, title, icon="📄", group="Custom", description="", order=100)`
+### `@aiui.page(id, *, title, icon="📄", group="Custom", description="", order=100, refresh_every=None, badge=None)`
 
-Register a custom dashboard page. The callback's return value is the page
-data (`GET /api/pages/<id>/data`); return UI components to render them. An app
-with pages opens in the `dashboard` style.
+Register a custom page. The callback's return value is the page data
+(`GET /api/pages/<id>/data`); return `aiui.layout([...])` to render UI blocks
+inside the React app shell (the default). Use `@aiui.register_page_action(id)`
+to handle form submissions, editable `aiui.sheet(..., action=...)` saves, or
+streaming `yield` generators (`application/x-ndjson`).
 
 ```python
-@aiui.page("analytics", title="Analytics", icon="📊", group="Control", order=60)
+@aiui.page("analytics", title="Analytics", icon="bar-chart-2", group="App", order=10)
 async def analytics_page():
     return aiui.layout([
         aiui.card("Revenue", value="$12,345"),
@@ -688,6 +693,40 @@ async def analytics_page():
 ```
 
 `aiui.register_page(id, *, title, ...)` registers a page without a decorator.
+
+---
+
+### `aiui.interface(fn, *, inputs=("text",), outputs="auto", title="App", id=None, description="", icon="sparkles", group="Apps", submit_label="Run", order=10)`
+
+Register a 5-line Gradio-style interactive page backed by a single Python
+function (sync, `async def`, sync generator, or async generator `yield`).
+Accepts shorthand input names (`"text"`, `"textarea"`, `"number"`, `"checkbox"`,
+`"file"`) or full `aiui.*` input blocks (including `aiui.file_upload()`).
+Uploaded files are resolved automatically via `aiui.get_uploaded_file()` and
+unverified/forged handles resolve to `None`.
+
+```python
+async def summarize(text: str, tone: str = "Brief"):
+    acc = ""
+    for word in f"**{tone}:** {text[:120]}".split():
+        acc = f"{acc} {word}".strip()
+        yield acc
+
+aiui.interface(
+    summarize,
+    inputs=["textarea", aiui.select_input("Tone", name="tone", options=["Brief", "Detailed"], value="Brief")],
+    title="Summarizer",
+)
+```
+
+---
+
+### `aiui.get_uploaded_file(attachment_or_id)`
+
+Resolve an attachment UUID (or handle dict submitted by `aiui.file_upload()`)
+to verified server file metadata (`{id, filename, content_type, size, path, session_id}`),
+or `None` if unknown, malformed, or expired. Always use this instead of trusting
+client-supplied paths.
 
 ---
 
@@ -732,6 +771,7 @@ Async functions for sending messages to the user. Call inside callback handlers.
 | Function | Purpose |
 |----------|---------|
 | `await aiui.say(content)` | Send a complete message |
+| `await aiui.send_block(block, *, name=None, id=None)` | Render any of the 81 UI blocks, `aiui.layout([...])`, pandas/Polars DataFrame, or Plotly figure inline inside chat |
 | `await aiui.stream_token(token)` | Append a token to the streaming reply |
 | `await aiui.stream(token)` | Same as `stream_token` |
 | `await aiui.think(step)` | Show a reasoning step |
@@ -767,8 +807,12 @@ async def my_dashboard():
 | `aiui.layout(children)` | Root container for a page |
 | `aiui.card(title, *, value=None, footer=None)` | Metric card |
 | `aiui.columns(children)` | Horizontal column layout |
-| `aiui.chart(title, *, data=None, chart_type="bar")` | Chart; `data` is a list of dicts |
-| `aiui.table(*, headers, rows, row_ids=None, actions=None)` | Data table |
+| `aiui.chat_panel(*, title="Agent Chat", agent=None, height=520, session_id=None, welcome=None)` | Embedded Agent Chat panel for split-pane workspaces |
+| `aiui.chart(title, *, data=None, chart_type="bar")` | Chart; `data` accepts a list of dicts or pandas/Polars DataFrame |
+| `aiui.plotly_chart(fig, title="", *, height=None, caption=None)` | Convert a Plotly figure to a native Recharts `chart` block |
+| `aiui.table(data=None, *, headers=None, rows=None, row_ids=None, actions=None)` | Data table; accepts pandas/Polars DataFrames, dict lists, or headers + rows |
+| `aiui.file_upload(label="Upload file", *, name="files", accept=None, multiple=False, max_size_mb=10)` | Drag-and-drop file uploader backed by `/api/chat/attachments` |
+| `aiui.sheet(title, *, headers=None, rows=None, tabs=None, action=None, save_label="Save")` | Editable multi-tab spreadsheet with optional Save action callback |
 | `aiui.text(content)` | Text block |
 
 See the [Component API Reference](components.md) for the other builders

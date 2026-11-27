@@ -8,7 +8,7 @@ description: Expand your chat app into a multi-page workspace with metric cards,
 
 So far, everything has lived inside the chat thread. In Step 5, you will turn your chat app into a complete **workspace** with a custom data page in the sidebar, live header notifications, and a side-by-side canvas layout.
 
-**What's new in Step 5:** `@aiui.page()`, `aiui.push_notification()`, `aiui.set_layout()`, and zero-code YAML pages.
+**What's new in Step 5:** `await aiui.send_block()`, `@aiui.page()`, `aiui.chat_panel()`, `aiui.interface()`, `aiui.push_notification()`, `aiui.set_layout()`, and zero-code YAML pages.
 
 ## Add a live page and notifications
 
@@ -70,7 +70,8 @@ Want to build pages purely in YAML without Python? Put `pages:` in `app.yaml` an
 
 ## What you learned
 
-- `@aiui.page()` adds URL-filterable dashboards beside your chat with live sidebar badges.
+- `await aiui.send_block(...)` renders any of the 81 UI blocks (including DataFrames and Plotly charts) inline inside chat replies.
+- `@aiui.page()` adds URL-filterable dashboards and split-pane workspaces (`aiui.chat_panel()`) beside your chat with live sidebar badges — or wrap any Python function in 5 lines with `aiui.interface()`.
 - `aiui.push_notification()` streams real-time alerts into the built-in header Notification Center.
 
 ## Next step

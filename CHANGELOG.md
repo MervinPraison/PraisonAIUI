@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.186 (2026-11-27)
+
+### Added
+- **Unified UI blocks in chat (`await aiui.send_block(...)`)**: render any of the 81 UI blocks, `aiui.layout([...])`, pandas/Polars DataFrames, or Plotly figures inline inside Agent Chat via lazy `BlockElement`.
+- **DataFrame & Plotly parity**: duck-typed pandas/Polars DataFrame support in `aiui.table(df)` and `aiui.chart(data=df)`, plus `aiui.plotly_chart(fig)` converting standard Plotly traces into native Recharts charts without bundling `plotly.js`.
+- **Drag-and-drop file uploads (`aiui.file_upload()` & `aiui.get_uploaded_file()`)**: zero-dependency raw binary (`X-Filename`) and JSON base64 uploads on `POST /api/chat/attachments`, cross-OS MIME normalization, TTL (`3600s`) and capacity (`500`) eviction, strict UUID lookup, and zero server `path` leakage.
+- **Streaming `yield` page actions & editable `aiui.sheet()`**: `@aiui.register_page_action` now streams sync/async generator `yield`s incrementally as `application/x-ndjson` with a live Stop button; `aiui.sheet(..., action="...")` adds a Save button posting edited grids & evaluated values back to Python.
+- **Composable `aiui.chat_panel()` block**: embed compact streaming Agent Chat panels inside any `@aiui.page` split-pane layout (`aiui.columns([doc_viewer, chat_panel])`).
+- **Focused mode presets & 5-line `aiui.interface()`**: `aiui.set_pages("minimal" | "agent" | "ops")` and `aiui run app.py --preset <minimal|agent|ops>` (defaulting to clean focused mode for Python apps), plus Gradio-style `aiui.interface()` supporting shorthand inputs, file uploads, and `yield` streaming.
+- **Framework-agnostic `aiui init --template` & migration guides**: 8 runnable app templates (`agent`, `openai`, `anthropic`, `langgraph`, `crewai`, `pydantic-ai`, `praisonai`, `dashboard`) and side-by-side migration guides (`From Streamlit`, `From Gradio`, `From Decorator Chat Apps`).
+
 ## Unreleased
 
 ### Breaking changes

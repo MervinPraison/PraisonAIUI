@@ -6,7 +6,7 @@ description: Arrange pages with grids, cards, tabs, accordions, split list-detai
 
 # Layout & Navigation Components
 
-Organize any page cleanly across desktop and mobile (`390px` responsive stack) with 18 structure and navigation builders.
+Organize any page cleanly across desktop and mobile (`390px` responsive stack) with 21 structure, workspace, and navigation builders.
 
 ## Quick catalog
 
@@ -14,6 +14,7 @@ Organize any page cleanly across desktop and mobile (`390px` responsive stack) w
 |---|---|---|
 | `aiui.layout(children, *, refresh_every, params, badges, notifications)` | Page root | Top-level page payload (`_components`), optional polling, URL params, live badges & notifications |
 | `aiui.columns(children)` | `columns` | Responsive horizontal grid (stacks cleanly on mobile) |
+| `aiui.chat_panel(*, title="Agent Chat", agent, height=520, session_id, welcome)` | `chat_panel` | Embedded compact Agent Chat panel for split-pane workspaces (e.g. `aiui.columns([doc_viewer, chat_panel])`) |
 | `aiui.container(children, *, title)` | `container` | Bordered section wrapper with optional heading |
 | `aiui.card(title, *, value, footer)` | `card` | Clean summary or KPI card |
 | `aiui.card_grid(items, *, columns=3)` | `card_grid` | Responsive grid of entity cards (image, title, subtitle, badges, link) |

@@ -78,11 +78,22 @@ aiui.chart(
 </Tab>
 </Tabs>
 
+## DataFrame input & Plotly compatibility
+
+`aiui.chart(..., data=df)` accepts pandas and Polars DataFrames directly (duck-typed without importing them). If you already build Plotly figures, `aiui.plotly_chart(fig)` converts standard Plotly traces (`bar`, `barh`, `scatter`/`scattergl` line/area/scatter, `pie`/`donut`, `histogram`, `heatmap`) into native Recharts `chart` blocks without bundling `plotly.js`:
+
+```python
+aiui.chart("Weekly Runs", data=df, chart_type="bar", x="day", y="runs")
+aiui.plotly_chart(fig, title="Revenue Breakdown")
+```
+
+Both work on `@aiui.page` and inline in chat via `await aiui.send_block(...)`.
+
 ## Props
 
 | Parameter | Type | Description |
 |---|---|---|
-| `title`, `data` | `str`, `list[dict]` | Chart heading and row-oriented data records. |
-| `chart_type` | `str` | `bar`, `barh`, `line`, `area`, `pie`, `scatter`, `histogram`, `heatmap`, or `sparkline`. |
+| `title`, `data` | `str`, `list[dict]` / DataFrame | Chart heading and row-oriented data records (or pandas/Polars DataFrame). |
+| `chart_type` | `str` | `bar`, `barh`, `line`, `area`, `pie`, `donut`, `scatter`, `histogram`, `heatmap`, or `sparkline`. |
 | `x`, `y`, `y2`, `stacked` | `str` / `list` / `bool` | Axis keys, secondary axis, and stacked bar/area mode. |
 | `x_domain`, `y_domain`, `x_scale`, `y_scale`, `facet` | options | Custom domains, `log` scales, reference lines, and faceted small multiples. |

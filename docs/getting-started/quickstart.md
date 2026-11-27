@@ -12,7 +12,14 @@ pip install aiui
 
 ## 1. A chat app
 
-Create `app.py`:
+Scaffold a starter app for any framework (`agent`, `openai`, `anthropic`, `langgraph`, `crewai`, `pydantic-ai`, `praisonai`, or `dashboard`):
+
+```bash
+aiui init --template agent
+aiui run app.py
+```
+
+Or create `app.py` directly:
 
 ```python title="app.py"
 import praisonaiui as aiui
@@ -21,6 +28,8 @@ import praisonaiui as aiui
 @aiui.reply
 async def on_message(message: str):
     await aiui.say(f"You said: {message}")
+    # Render any of the 81 UI blocks (or DataFrames / Plotly figures) inline in chat:
+    await aiui.send_block(aiui.metric("Status", value="Ready", delta="Live"))
 ```
 
 Run it:
@@ -36,9 +45,9 @@ If port 8000 is taken, `aiui run` picks the next free port and prints the URL
 it used.
 </Tip>
 
-An app that only has a `@aiui.reply` callback opens in the React app shell
-(`style: app`) in its `chat` layout: the chat, with your conversations and the
-other pages in the sidebar. The same app is
+`aiui run app.py` opens in the React app shell (`style: app`) in **focused mode**
+(Chat + your own pages). Pass `--preset agent` to add Sessions, Approvals, Usage
+and Memory, or `--preset ops` for the full control plane. The minimal example is
 [`examples/python/01-chat`](https://github.com/MervinPraison/PraisonAIUI/blob/main/examples/python/01-chat/app.py).
 
 ## 2. Reply with a model
@@ -99,10 +108,13 @@ aiui run app.py --style chat              # the classic chat style instead of th
 See [React app shell](../features/react-shell.md) and
 [Layouts](../features/layouts.md) for every layout.
 
-## 4. Add a dashboard page
+## 4. Add a custom page or 5-line function interface
 
-Register a page with `@aiui.page`. An app with pages opens in the `dashboard`
-style, with your page in the sidebar next to the built-in ones:
+Register a custom page with `@aiui.page` — or wrap any Python function (including
+`yield` generators) with `aiui.interface()`. An app with pages opens in the
+React app shell (`style: app`) in focused mode (Chat + your own pages); pass
+`--preset ops` for all built-in ops views, or `--style dashboard` for the legacy
+vanilla dashboard:
 
 ```python title="app.py"
 import praisonaiui as aiui
@@ -113,22 +125,24 @@ async def on_message(message: str):
     await aiui.say(f"You said: {message}")
 
 
-@aiui.page("metrics", title="Metrics", icon="📊")
+@aiui.page("metrics", title="Metrics", icon="bar-chart-2", group="App")
 async def metrics():
     return aiui.layout([
         aiui.columns([
-            aiui.card("Users", value=1234),
-            aiui.card("Uptime", value="99.9%", footer="last 30 days"),
+            aiui.container([
+                aiui.card("Users", value=1234),
+                aiui.table([{"Name": "Alpha", "Value": 100}, {"Name": "Beta", "Value": 200}], searchable=True),
+            ]),
+            aiui.chat_panel(title="Ask about metrics", height=460),
         ]),
-        aiui.table(headers=["Name", "Value"], rows=[["Alpha", 100], ["Beta", 200]]),
     ])
 ```
 
 How the style is chosen: `--style` on the command line wins, then
-`aiui.set_style()` in the app. Without either, `aiui run` looks at the
-callbacks: `@aiui.page` gives `dashboard`, `@aiui.profiles` plus registered
-agents gives `agents`, and anything else the app shell. See
-[UI Styles](../features/styles.md).
+`aiui.set_style()` in the app. Without either, `aiui run` opens the React app
+shell (`app`), or `agents` when `@aiui.profiles` is paired with registered
+agents. See [UI Styles](../features/styles.md) and
+[Build a focused app](../guides/focused-app.md).
 
 ## 5. A chat agent from YAML
 

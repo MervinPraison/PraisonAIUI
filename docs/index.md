@@ -24,7 +24,7 @@ features:
     linkText: React app shell
   - title: Layouts
     icon: panels-top-left
-    details: One app, five frames, from Chat and Canvas to Mission Control. Choose one in YAML, Python or an environment variable; viewers can switch.
+    details: One app, six layouts, from focused Chat and Chat + Canvas to Mission Control. Choose one in YAML, Python or an environment variable; viewers can switch.
     link: features/layouts.md
     linkText: Layouts
   - title: Plugins
@@ -59,7 +59,13 @@ Python 3.10 or higher.
 pip install aiui
 ```
 </Step>
-<Step title="Write app.py">
+<Step title="Scaffold or write app.py">
+Scaffold a starter for any agent framework (`agent`, `openai`, `anthropic`, `langgraph`, `crewai`, `pydantic-ai`, `praisonai`, or `dashboard`), or write `app.py` directly:
+
+```bash
+aiui init --template agent
+```
+
 ```python title="app.py"
 import praisonaiui as aiui
 
@@ -67,6 +73,7 @@ import praisonaiui as aiui
 @aiui.reply
 async def on_message(message: str):
     await aiui.say(f"You said: {message}")
+    await aiui.send_block(aiui.metric("Status", value="Online", delta="Live"))
 ```
 </Step>
 <Step title="Run it">
@@ -74,10 +81,10 @@ async def on_message(message: str):
 aiui run app.py
 ```
 
-Open <http://127.0.0.1:8000>. The app opens in the React app shell, in its
-`chat` layout. Connect a model with `aiui.stream_token()` in the
-[quick start](getting-started/quickstart.md), or open the canvas with
-`AIUI_LAYOUT=chat-canvas aiui run app.py`.
+Open <http://127.0.0.1:8000>. `aiui run app.py` opens cleanly in **focused mode**
+(Chat + your own pages) in the React app shell. Pass `--preset agent` for
+Sessions, Approvals, Usage and Memory, `--preset ops` for the full control plane,
+or `AIUI_LAYOUT=chat-canvas aiui run app.py` to open the side canvas.
 </Step>
 </Steps>
 
@@ -97,7 +104,7 @@ Let agents push live interactive surfaces, forms and controls over JSONL and Web
 
 <CardGroup cols={3}>
 <Card title="UI Components" icon="component" href="components/overview.md">
-Explore all 78 Python and YAML UI builders — interactive spreadsheets, whiteboards, cards, tables, charts, steppers, diffs and forms.
+Explore all 81 Python and YAML UI builders — inline chat blocks, split-pane chat panels, file uploads, spreadsheets, whiteboards, DataFrames, Plotly charts and forms.
 </Card>
 <Card title="Docs UI" icon="book-open" href="docs-ui/overview.md">
 Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentation site with SEO, OpenAPI and `llms.txt`.
