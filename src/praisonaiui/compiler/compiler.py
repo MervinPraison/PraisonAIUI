@@ -446,6 +446,11 @@ class Compiler:
                             else {}
                         ),
                         **({"strict": True} if self.config.site.theme.strict else {}),
+                        **(
+                            {"toggle": self.config.site.theme.toggle}
+                            if self.config.site.theme.toggle != "switch"
+                            else {}
+                        ),
                         **self._code().config,
                     }
                     if self.config.site.theme

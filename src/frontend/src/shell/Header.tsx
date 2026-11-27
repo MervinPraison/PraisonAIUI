@@ -1,4 +1,4 @@
-import { Menu, Monitor, Moon, Search, SlidersHorizontal, Sun } from 'lucide-react'
+import { Menu, Moon, Search, SlidersHorizontal, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { isMacPlatform, openCommandPalette, paletteShortcutLabel, preloadCommandPalette } from './palette'
@@ -8,20 +8,20 @@ import { SHELL_SLOTS, Slot } from './Slot'
 import { useSettingsSections } from '@/sdk/contributions'
 import { openSettingsDialog, preloadSettingsDialog } from './settingsForm'
 
-const MODES = ['system', 'light', 'dark'] as const
-type Mode = (typeof MODES)[number]
+type Mode = 'system' | 'light' | 'dark'
 const MODE_LABEL: Record<Mode, string> = { system: 'System', light: 'Light', dark: 'Dark' }
 
 function asMode(v: string | undefined): Mode {
   return v === 'light' || v === 'dark' ? v : 'system'
 }
 
-/** One button that cycles System → Light → Dark. The palette offers all three directly. */
+/** One-click toggle to the opposite colour mode (starts on OS system default; Command Palette offers Light / Dark / System directly). */
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   const mode = asMode(theme)
-  const next = MODES[(MODES.indexOf(mode) + 1) % MODES.length]
-  const Icon = mode === 'light' ? Sun : mode === 'dark' ? Moon : Monitor
+  const isDark = resolvedTheme === 'dark'
+  const next: Mode = isDark ? 'light' : 'dark'
+  const Icon = isDark ? Sun : Moon
   return (
     <Button
       variant="ghost"

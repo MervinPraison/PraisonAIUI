@@ -171,6 +171,13 @@ class ThemeConfig(BaseModel):
         default=False,
         description="Docs site: keep the configured mode and hide the light/dark toggle.",
     )
+    toggle: Literal["switch", "menu"] = Field(
+        default="switch",
+        description=(
+            "Theme toggle style in the header: 'switch' (default, 1-click flip to opposite mode) "
+            "or 'menu' (3-option Light / Dark / System dropdown)."
+        ),
+    )
     background: Optional[Union[str, ModeImages]] = Field(
         default=None,
         description=(
