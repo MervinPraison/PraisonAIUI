@@ -144,28 +144,37 @@ function AgentPicker({ agents, value, onChange }: { agents: ChatAgent[]; value: 
   )
 }
 
+export interface ChatPageEmbedded {
+  agent?: string
+  sessionId?: string | null
+  welcome?: string
+}
+
 export interface ChatPageProps {
   page: ShellPage
   /** Override the transport (dev harness, tests). Defaults to WS with SSE fallback. */
   transport?: AiuiTransport
+  /** Compact embedded mode for `aiui.chat_panel()` blocks (no rail, local session, no URL mutation). */
+  embedded?: ChatPageEmbedded
 }
 
-export default function ChatPage({ page, transport: transportProp }: ChatPageProps): JSX.Element {
+export default function ChatPage({ page, transport: transportProp, embedded }: ChatPageProps): JSX.Element {
   const [transport] = useState(() => transportProp ?? chatTransport())
   // `at`: the store's selection counter when the page mounted.
-  const [initial] = useState(() => ({ ...readUrlState(), at: sessionsStore.get().selection }))
+  const [initial] = useState(() => (embedded ? { session: null, agent: embedded.agent ?? null, at: 0 } : { ...readUrlState(), at: sessionsStore.get().selection }))
   const sessions = useSyncExternalStore(sessionsStore.subscribe, sessionsStore.get, sessionsStore.get)
+  const [localSession, setLocalSession] = useState<string | null>(embedded?.sessionId ?? null)
   // ?session= wins over the session kept from the last visit. It is applied
   // to the store before paint, and read from `initial` until the store's
   // selection has moved on from `at`.
-  const sessionId = initial.session && sessions.selection === initial.at ? initial.session : sessions.activeId
+  const sessionId = embedded ? localSession : initial.session && sessions.selection === initial.at ? initial.session : sessions.activeId
   useLayoutEffect(() => {
-    if (initial.session) sessionsStore.select(initial.session)
-  }, [initial])
+    if (!embedded && initial.session) sessionsStore.select(initial.session)
+  }, [embedded, initial])
   const [agents, setAgents] = useState<ChatAgent[]>([])
-  const [agent, setAgent] = useState('')
+  const [agent, setAgent] = useState(embedded?.agent ?? '')
   const [starters, setStarters] = useState<AiuiStarter[] | undefined>(undefined)
-  const [welcome, setWelcome] = useState('')
+  const [welcome, setWelcome] = useState(embedded?.welcome ?? '')
   const [query, setQuery] = useState('')
   const [railOpen, setRailOpen] = useState(false)
   // The sheet chunk is mounted after the first open only (as the shell does with MobileNav).
@@ -186,8 +195,9 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'
 
   // A layout's presentation of the chat (null: the classic frame, the page as before).
-  const chat = useLayout()?.meta.chat
-  const ownRail = !chat?.sessions || chat.sessions === 'page'
+  const layoutChat = useLayout()?.meta.chat
+  const chat = embedded ? undefined : layoutChat
+  const ownRail = !embedded && (!chat?.sessions || chat.sessions === 'page')
   // The aside's open/close toggle is drawn into the header from its own chunk.
   const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null)
   const host = chat ? use(loadPresentationHost()) : null
@@ -221,6 +231,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
 
   // Mirror the selection into ?session= (and drop a consumed ?agent=).
   useEffect(() => {
+    if (embedded) return
     try {
       const url = new URL(window.location.href)
       if (sessionId) url.searchParams.set('session', sessionId)
@@ -230,22 +241,34 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
     } catch {
       /* non-browser URL: nothing to mirror */
     }
-  }, [sessionId])
+  }, [embedded, sessionId])
 
-  const select = useCallback((id: string | null) => {
-    sessionsStore.select(id)
-    setRailOpen(false)
-    setNotice(null)
-  }, [])
+  const select = useCallback(
+    (id: string | null) => {
+      if (embedded) setLocalSession(id)
+      else sessionsStore.select(id)
+      setRailOpen(false)
+      setNotice(null)
+    },
+    [embedded],
+  )
 
   const clearNotice = useCallback(() => setNotice(null), [])
+
+  const onCreated = useCallback(
+    (sid: string) => {
+      if (embedded) setLocalSession(sid)
+      sessionsStore.noteCreated(sid)
+    },
+    [embedded],
+  )
 
   const { runtime, thread, setComposerText, sessionId: threadSessionId } = useAiuiRuntime({
     sessionId,
     transport,
     agentName: agent || undefined,
     starters,
-    onSessionCreated: sessionsStore.noteCreated,
+    onSessionCreated: onCreated,
     onError: setNotice,
     onSend: clearNotice,
     // Servers that report it (site.feedbackEnabled); older ones are found out on the first 403.
@@ -318,7 +341,7 @@ export default function ChatPage({ page, transport: transportProp }: ChatPagePro
   const icons = useMemo(() => starterIcons(starters), [starters])
 
   const current = sessionId ? sessions.sessions.find((s) => s.id === sessionId) : undefined
-  const heading = current?.title ?? (sessionId ? 'Chat' : 'New chat')
+  const heading = embedded ? page.title || 'Agent Chat' : current?.title ?? (sessionId ? 'Chat' : 'New chat')
 
   const toggleRail = () => {
     setRailHidden((h) => {
