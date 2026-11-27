@@ -272,6 +272,7 @@ def __getattr__(name: str):
         "get_notification_store",
         "set_notification_store",
     }
+    _attachment_attrs = {"get_uploaded_file"}
     _task_attrs = {"Task", "TaskList", "TaskStatus"}
     _ui_attrs = {
         "layout",
@@ -323,6 +324,7 @@ def __getattr__(name: str):
         "audio_player",
         "video_player",
         "file_download",
+        "file_upload",
         # Tier B — high-value dashboard
         "toast",
         "dialog",
@@ -490,6 +492,10 @@ def __getattr__(name: str):
         from praisonaiui.features import notifications as _notifications
 
         return getattr(_notifications, name)
+    if name in _attachment_attrs:
+        from praisonaiui.features import attachments as _attachments
+
+        return getattr(_attachments, name)
     if name == "push_surface":
         from praisonaiui.features.surfaces import push_surface
 
@@ -820,6 +826,8 @@ __all__ = [
     "audio_player",
     "video_player",
     "file_download",
+    "file_upload",
+    "get_uploaded_file",
     # Tier B — high-value dashboard
     "toast",
     "dialog",

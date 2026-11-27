@@ -21,7 +21,7 @@ export function collectFormValues(form: HTMLFormElement): Record<string, unknown
   const data: Record<string, unknown> = {}
   form.querySelectorAll<HTMLInputElement>('input, select, textarea').forEach((el) => {
     const key = fieldKey(el)
-    if (!key) return
+    if (!key || el.type === 'file') return
     if (el.dataset.aiuiJson !== undefined) {
       try {
         data[key] = JSON.parse(el.value)
