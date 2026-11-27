@@ -56,7 +56,7 @@ Want to publish user documentation alongside your app? Check out [Docs UI Overvi
 ## You made it! Where to go next
 
 <CardGroup cols={3}>
-<Card title="Chat UI Reference" icon="message-square" href="../chat-ui/overview.md">
+<Card title="Agent UI Reference" icon="message-square" href="../chat-ui/overview.md">
 Dive deeper into attachments, voice, MCP tools and multi-agent trees.
 </Card>
 <Card title="App & Dashboard" icon="panels-top-left" href="../app-ui/overview.md">

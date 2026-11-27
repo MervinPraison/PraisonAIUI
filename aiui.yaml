@@ -34,7 +34,7 @@ navigation:
             - getting-started/quickstart
             - features/styles
             - getting-started/cli
-        - group: "Step-by-Step: Agent & Chat UI"
+        - group: "Step-by-Step: Agent UI"
           icon: graduation-cap
           pages:
             - tutorials/01-first-chat
@@ -56,7 +56,7 @@ navigation:
             - docs-ui/overview
             - features/writing-docs
             - getting-started/github-pages
-    - tab: "Chat UI"
+    - tab: "Agent UI"
       groups:
         - group: "Core Concepts"
           icon: message-square

@@ -12,7 +12,7 @@ Every example below lives in [`examples/`](https://github.com/MervinPraison/Prai
 New to PraisonAIUI? Follow the [6-step progressive learning path](../tutorials/01-first-chat.md) to build an app one feature at a time, or browse [Apps, Components & A2UI](app-and-components.md) and [Zero-Code YAML & Plugins](yaml-and-plugins.md).
 </Tip>
 
-## Chat UI & Streaming
+## Agent UI & Streaming
 
 | Example | What it demonstrates | Run |
 |---|---|---|

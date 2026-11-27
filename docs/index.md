@@ -84,8 +84,8 @@ Open <http://127.0.0.1:8000>. The app opens in the React app shell, in its
 ## Pick a starting point
 
 <CardGroup cols={3}>
-<Card title="Chat UI" icon="message-square" href="chat-ui/overview.md">
-Build streaming AI chat apps with starters, profiles, reasoning steps, tool calls, HITL approvals and an artifacts canvas.
+<Card title="Agent UI" icon="message-square" href="chat-ui/overview.md">
+Build streaming AI agent interfaces with starters, profiles, reasoning steps, tool calls, HITL approvals and an artifacts canvas.
 </Card>
 <Card title="App & Dashboard" icon="panels-top-left" href="app-ui/overview.md">
 Combine chat with 5 selectable layouts, Python or YAML data pages, notifications, themes and built-in ops views.

@@ -1,14 +1,14 @@
 ---
-title: Chat UI Overview
+title: Agent UI Overview
 nav_title: Overview
-description: Build streaming AI chat interfaces in minutes with Python decorators or zero-code YAML.
+description: Build streaming AI agent interfaces in minutes with Python decorators or zero-code YAML.
 ---
 
-# Chat UI Overview
+# Agent UI Overview
 
-PraisonAIUI gives any AI model or agent a polished, responsive chat interface without writing frontend code. Every chat app ships with streaming Markdown, code blocks, conversation history, light and dark themes, and mobile support out of the box.
+PraisonAIUI gives any AI model or agent a polished, responsive agent interface without writing frontend code. Every app ships with streaming Markdown, tool calls, reasoning steps, approvals, code blocks, conversation history, light and dark themes, and mobile support out of the box.
 
-## Two ways to build a chat app
+## Two ways to build an agent app
 
 Pick whichever matches how you work — you can switch or combine them at any time.
 
@@ -46,7 +46,7 @@ Run it with `aiui run chat.yaml`.
 </Tab>
 </Tabs>
 
-## What Chat UI includes out of the box
+## What Agent UI includes out of the box
 
 | Capability | What your users see | Learn more |
 |------------|---------------------|------------|
