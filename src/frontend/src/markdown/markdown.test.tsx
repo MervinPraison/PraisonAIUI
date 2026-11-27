@@ -696,6 +696,14 @@ test('code copy in both variants reports a failure (no clipboard on plain-http o
     assert.match(COPY_FAILED, /HTTPS or localhost/)
 })
 
+test('mermaid diagrams enable panZoom and fullscreen in both chat and docs', () => {
+    for (const controls of [CHAT_CONTROLS, DOCS_CONTROLS]) {
+        assert.ok(typeof controls === 'object' && typeof controls.mermaid === 'object')
+        assert.equal(controls.mermaid.panZoom, true)
+        assert.equal(controls.mermaid.fullscreen, true)
+    }
+})
+
 // ── bidi: direction per block (LIBMD-5) ──
 test('an Arabic paragraph renders right to left; English stays left to right', () => {
     const arabic = 'مرحبا بالعالم.'
