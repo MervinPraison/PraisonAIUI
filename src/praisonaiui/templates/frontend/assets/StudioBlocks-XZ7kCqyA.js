@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-react-DwjJGdpV.js";import i from"./SheetGrid-CQYj1PM6.js";import n from"./Whiteboard-BCP-rVTz.js";function m({node:r}){const e=r.props??{},o=typeof e.content=="string"?e.content:JSON.stringify(e);return r.type==="sheet"?t.jsx(i,{content:o}):r.type==="whiteboard"?t.jsx(n,{content:o}):t.jsx(t.Fragment,{})}export{m as default};

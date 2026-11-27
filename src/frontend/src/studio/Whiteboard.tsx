@@ -230,9 +230,10 @@ function WhiteboardInner({ parsed }: { parsed: WhiteboardDoc }): JSX.Element {
   const board = (
     <div
       data-aiui-whiteboard="ready"
+      style={fullscreen ? { inset: '1rem' } : undefined}
       className={
         fullscreen
-          ? 'fixed inset-0 z-50 m-4 flex flex-col overflow-hidden rounded-xl border border-hairline bg-card shadow-xl'
+          ? 'fixed z-50 flex flex-col overflow-hidden rounded-xl border border-hairline bg-card shadow-xl'
           : 'not-prose my-3 overflow-hidden rounded-xl border border-hairline bg-card'
       }
     >
@@ -346,10 +347,10 @@ function WhiteboardInner({ parsed }: { parsed: WhiteboardDoc }): JSX.Element {
                 onPointerDown={(e) => onPointerDown(e, n.id, n.x, n.y)}
                 className={
                   isGroup
-                    ? 'absolute rounded-xl border border-dashed border-hairline bg-fill-4 p-2.5 text-xs font-medium text-tier-2 active:cursor-grabbing'
+                    ? 'absolute rounded-xl border border-dashed border-hairline bg-fill-4 p-2.5 text-xs font-medium text-tier-2'
                     : isText
-                      ? 'absolute text-sm font-semibold text-foreground active:cursor-grabbing'
-                      : 'absolute overflow-hidden rounded-lg border border-hairline p-2.5 text-xs leading-snug font-medium shadow-xs select-none active:cursor-grabbing'
+                      ? 'absolute text-sm font-semibold text-foreground'
+                      : 'absolute overflow-hidden rounded-lg border border-hairline p-2.5 text-xs leading-snug font-medium shadow-xs select-none'
                 }
                 style={{
                   left: n.x,

@@ -13,6 +13,10 @@ import { createElement, lazy, type ComponentType, type LazyExoticComponent } fro
 
 const failed = new Set<() => void>()
 
+function isCssPreloadError(err: unknown): boolean {
+  return err instanceof Error && err.message.startsWith('Unable to preload CSS')
+}
+
 /** Let every lazy whose import failed import again on its next render. */
 export function retryFailedLazies(): void {
   const resets = [...failed]
@@ -31,6 +35,15 @@ export function retryableLazy<P extends Record<string, any>>(
   const fresh = () =>
     lazy(() =>
       load().catch((err: unknown) => {
+        // Vite's preload-helper records the failed CSS href in its seen map
+        // before rejecting; one immediate retry skips the broken stylesheet
+        // link and lets the JS chunk load instead of failing the whole block.
+        if (isCssPreloadError(err)) {
+          return load().catch((retryErr: unknown) => {
+            failed.add(reset)
+            throw retryErr
+          })
+        }
         failed.add(reset)
         throw err
       }),
