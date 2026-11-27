@@ -1962,11 +1962,14 @@ def _load_user_module(app_file: Path):
 
 
 def _apply_pages_flag(pages: str) -> None:
-    """``aiui run --pages all|id,id``: the same as ``aiui.set_pages()``."""
-    from praisonaiui.server import set_pages
+    """``aiui run --pages minimal|agent|ops|all|id,id``: same as ``aiui.set_pages()``."""
+    from praisonaiui.server import PAGE_PRESETS, set_pages
 
     value = pages.strip()
-    set_pages("all" if value == "all" else [p.strip() for p in value.split(",") if p.strip()])
+    if value in PAGE_PRESETS:
+        set_pages(value)
+    else:
+        set_pages([p.strip() for p in value.split(",") if p.strip()])
 
 
 def app_sessions_dir(app_file: Path) -> Path:
@@ -2313,7 +2316,12 @@ def run(
     pages: Optional[str] = typer.Option(
         None,
         "--pages",
-        help="Pages to show besides the app's own: 'all' (every page, every group in the sidebar) or comma-separated ids such as 'chat,sessions'. Same as aiui.set_pages(); wins over it",
+        help="Pages to show besides the app's own: a preset ('minimal', 'agent', 'ops', 'all') or comma-separated ids such as 'chat,sessions'. Same as aiui.set_pages(); wins over it",
+    ),
+    preset: Optional[str] = typer.Option(
+        None,
+        "--preset",
+        help="Page preset: 'minimal' (Chat + your pages), 'agent' (Chat, Sessions, Approvals, Usage, Memory), or 'ops' (full control plane)",
     ),
     style: Optional[str] = typer.Option(
         None,
@@ -2423,6 +2431,24 @@ def run(
 
     if pages is not None:
         _apply_pages_flag(pages)
+    elif preset is not None:
+        from praisonaiui.server import PAGE_PRESETS
+
+        if preset not in PAGE_PRESETS:
+            valid = ", ".join(k for k in PAGE_PRESETS if k != "all")
+            console.print(f"[red]Error:[/red] Unknown --preset {preset!r}. Choose one of: {valid}")
+            raise typer.Exit(code=2)
+        _apply_pages_flag(preset)
+    elif os.environ.get("AIUI_PAGES"):
+        _apply_pages_flag(os.environ["AIUI_PAGES"])
+    elif not is_yaml:
+        from praisonaiui import server as _srv
+
+        if not _srv._pages_configured and (is_chat_mode or bool(_srv._custom_page_ids)):
+            _srv.set_pages("minimal")
+            console.print(
+                "[dim]Focused mode (Chat + your pages). Pass --preset agent or --preset ops for built-in ops pages.[/dim]"
+            )
 
     # ── Resolve final style ──────────────────────────────────────
     # Priority: CLI --style > YAML style > aiui.set_style() > auto-detect >

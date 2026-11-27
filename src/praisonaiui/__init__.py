@@ -203,6 +203,7 @@ def __getattr__(name: str):
         "set_style",
         "set_pages",
         "only_my_pages",
+        "PAGE_PRESETS",
         "remove_page",
         "set_branding",
         "set_theme",
@@ -273,6 +274,7 @@ def __getattr__(name: str):
         "set_notification_store",
     }
     _attachment_attrs = {"get_uploaded_file"}
+    _interface_attrs = {"interface"}
     _task_attrs = {"Task", "TaskList", "TaskStatus"}
     _ui_attrs = {
         "layout",
@@ -497,6 +499,10 @@ def __getattr__(name: str):
         from praisonaiui.features import attachments as _attachments
 
         return getattr(_attachments, name)
+    if name in _interface_attrs:
+        from praisonaiui import _interface
+
+        return getattr(_interface, name)
     if name == "push_surface":
         from praisonaiui.features.surfaces import push_surface
 
@@ -829,6 +835,8 @@ __all__ = [
     "file_download",
     "file_upload",
     "get_uploaded_file",
+    "interface",
+    "PAGE_PRESETS",
     # Tier B — high-value dashboard
     "toast",
     "dialog",
