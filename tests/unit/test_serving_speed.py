@@ -205,6 +205,9 @@ def test_page_html_and_json_are_compressed(style):
 
 
 def test_dashboard_plugin_files_are_compressed_and_revalidated():
+    from praisonaiui.plugin_registry import set_extensions
+
+    set_extensions(enabled=["builtin.video"])
     client = TestClient(srv.create_app())
     resp = client.get("/dashboard-plugins/video-studio/index.js", headers=GZ)
     assert resp.status_code == 200

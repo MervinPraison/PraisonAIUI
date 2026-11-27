@@ -111,9 +111,16 @@ def test_records_are_trusted_first_party_and_separate_from_third_party():
     assert [r.name for r in recs] == [f"builtin.{p.name}" for p in BUILTIN_PLUGINS]
     assert {r.origin for r in recs} == {"builtin"}
     # A record that only serves layouts (``for_layouts``) is off until one of
-    # them is on offer; outside style app none is. Every other record is on.
+    # them is on offer; opt-in records (``default_enabled=False``) stay off
+    # until explicitly enabled. Every other record is on.
     assert {r.name: (r.status, r.reason) for r in recs} == {
-        f"builtin.{p.name}": ("disabled", "no layout needs it") if p.for_layouts else ("ok", None)
+        f"builtin.{p.name}": (
+            ("disabled", "opt-in (enable via extensions.enabled)")
+            if not p.default_enabled
+            else ("disabled", "no layout needs it")
+            if p.for_layouts
+            else ("ok", None)
+        )
         for p in BUILTIN_PLUGINS
     }
     assert any(p.for_layouts for p in BUILTIN_PLUGINS)
@@ -248,8 +255,16 @@ def test_api_plugins_can_list_builtins_on_request():
     assert [p["name"] for p in listed] == [f"builtin.{p.name}" for p in BUILTIN_PLUGINS]
     assert {p["origin"] for p in listed} == {"builtin"}
     gated = {f"builtin.{p.name}" for p in BUILTIN_PLUGINS if p.for_layouts}
+    opt_in = {f"builtin.{p.name}" for p in BUILTIN_PLUGINS if not p.default_enabled}
     assert {p["name"]: (p["status"], p.get("reason")) for p in listed} == {
-        p["name"]: ("disabled", "no layout needs it") if p["name"] in gated else ("ok", None) for p in listed
+        p["name"]: (
+            ("disabled", "opt-in (enable via extensions.enabled)")
+            if p["name"] in opt_in
+            else ("disabled", "no layout needs it")
+            if p["name"] in gated
+            else ("ok", None)
+        )
+        for p in listed
     }
     assert client.get("/api/plugins?origin=all").json()["plugins"] == listed
 
@@ -528,7 +543,7 @@ DEFAULT_FEATURES = [
     "knowledge", "logs", "marketplace", "media_analysis", "memory", "model_fallback",
     "nodes", "notifications", "openai_api", "openapi", "protocol", "pwa", "realtime", "replay", "schedules",
     "security", "sessions_ext", "skills", "subagents", "surfaces", "telemetry", "theme",
-    "tracing", "training", "tts", "usage", "video", "workflows",
+    "tracing", "training", "tts", "usage", "workflows",
 ]  # fmt: skip
 REQUIRED_FEATURES = {"auth", "theme", "chat", "usage", "config_runtime", "sessions_ext"}
 # Feature classes that exist but were never registered by default.
@@ -537,6 +552,9 @@ NOT_DEFAULT = {"AudioFeature", "LifecycleFeature", "WindowMessageFeature"}
 # off unless a layout that needs them is available, so not in the default
 # set (their records: tests/unit/test_run_ledger.py).
 LAYOUT_GATED = {"ArtifactsFeature", "RunLedgerFeature"}
+# Experimental opt-in built-ins (``default_enabled=False``): off unless named
+# explicitly in ``extensions.enabled``.
+OPT_IN_FEATURES = {"VideoFeature"}
 FEATURES_DIR = Path(srv.__file__).parent / "features"
 
 
@@ -555,7 +573,10 @@ def test_every_feature_class_belongs_to_exactly_one_builtin():
     import re
 
     declared = [
-        (r.module, r.cls) for p in BUILTIN_PLUGINS for r in p.feature_refs if r.cls not in LAYOUT_GATED
+        (r.module, r.cls)
+        for p in BUILTIN_PLUGINS
+        for r in p.feature_refs
+        if r.cls not in LAYOUT_GATED and r.cls not in OPT_IN_FEATURES
     ]
     assert len(declared) == len(set(declared)) == len(DEFAULT_FEATURES)
     # Each layout-gated class belongs to exactly one record, and it gates.
@@ -567,7 +588,9 @@ def test_every_feature_class_belongs_to_exactly_one_builtin():
         for cls in re.findall(r"^class (\w+)\(BaseFeatureProtocol\)", path.read_text("utf-8"), re.M):
             in_package.add((f".{path.stem}", cls))
     # A new feature module must be given to a built-in record (or listed here).
-    assert set(declared) == {(m, c) for m, c in in_package if c not in NOT_DEFAULT | LAYOUT_GATED}
+    assert set(declared) == {
+        (m, c) for m, c in in_package if c not in NOT_DEFAULT | LAYOUT_GATED | OPT_IN_FEATURES
+    }
 
 
 def test_required_features_are_the_ones_the_host_needs():
@@ -604,20 +627,29 @@ def test_feature_only_builtin_can_be_disabled():
     def _paths(app) -> set[str]:
         return {getattr(r, "path", "") for r in app.routes}
 
-    app = srv.create_app()
-    assert "/api/video/projects" in _paths(app)
-    assert "video-studio" in {p["id"] for p in _manifest_pages(TestClient(app))}
-    srv.reset_state()
-    set_extensions(disabled=["builtin.video"])
+    # builtin.video is opt-in (default_enabled=False): off by default.
     app = srv.create_app()
     client = TestClient(app)
     assert "video" not in _feature_names()
     assert not any(p.startswith("/api/video") for p in _paths(app))
     assert client.get("/api/video/projects").status_code == 404
-    # The bundled Video Studio folder only talks to /api/video: it goes too.
     assert "video-studio" not in {p["id"] for p in _manifest_pages(client)}
     assert client.get("/dashboard-plugins/video-studio/index.js").status_code == 404
     _assert_gone(client)  # no built-in page belongs to builtin.video
+
+    # Opting in mounts /api/video/* and the bundled video-studio folder.
+    srv.reset_state()
+    set_extensions(enabled=["builtin.video"])
+    app = srv.create_app()
+    assert "/api/video/projects" in _paths(app)
+    assert "video-studio" in {p["id"] for p in _manifest_pages(TestClient(app))}
+
+    # Explicit disable still beats enabled.
+    srv.reset_state()
+    set_extensions(enabled=["builtin.video"], disabled=["builtin.video"])
+    app = srv.create_app()
+    assert "video" not in _feature_names()
+    assert not any(p.startswith("/api/video") for p in _paths(app))
 
 
 def test_required_feature_stays_on_with_a_warning(caplog):

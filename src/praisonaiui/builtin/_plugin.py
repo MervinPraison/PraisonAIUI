@@ -77,6 +77,8 @@ class BuiltinPlugin:
                  is available (and ``extensions.enabled`` does not name the
                  record), the record is ``disabled`` and its feature modules
                  are never imported.
+    default_enabled: when ``False``, the plugin is opt-in — it starts
+                 ``disabled`` unless explicitly named in ``extensions.enabled``.
     """
 
     name: str
@@ -87,6 +89,7 @@ class BuiltinPlugin:
     host_routes: Optional[Callable[[], list[Any]]] = None
     layout_specs: tuple[LayoutSpec, ...] = ()
     for_layouts: tuple[str, ...] = ()
+    default_enabled: bool = True
 
     @property
     def required(self) -> bool:

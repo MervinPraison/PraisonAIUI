@@ -496,8 +496,6 @@ def _without_disabled_builtin_folders(allowed: list[str] | None) -> list[str] | 
         from praisonaiui.plugin_registry import get_plugin_registry
 
         reg = get_plugin_registry()
-        if not reg.policy.disabled:  # default: nothing to do, nothing scanned
-            return allowed
         owned = {
             str(name)
             for rec in reg.builtin_records()

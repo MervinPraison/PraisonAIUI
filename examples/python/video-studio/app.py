@@ -7,6 +7,7 @@ from praisonaiui.server import create_app
 from praisonaiui.video_config import set_video_engine
 
 aiui.set_style("dashboard")
+aiui.set_extensions(enabled=["builtin.video"])
 aiui.set_branding(title="Video Studio", logo="🎬")
 aiui.set_pages(["chat", "video-studio", "jobs", "config"])
 aiui.set_dashboard(modules=["jobs", "video"], sidebar=True, page_header=True)

@@ -110,7 +110,6 @@ navigation:
             - features/observability-and-guardrails
             - features/agent-ui-host
             - features/replay
-            - features/video-studio
             - features/browser-automation
             - features/channel-chat-bridge
             - features/device-pairing

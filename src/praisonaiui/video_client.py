@@ -65,7 +65,8 @@ def _request_urllib(
     except URLError as exc:
         raise VideoEngineError(
             "Video engine not running. Start with: praisonai-video serve "
-            "(or set VIDEO_ENGINE_URL)."
+            "(or set VIDEO_ENGINE_URL).",
+            status_code=503,
         ) from exc
     if not raw:
         return {}
@@ -91,8 +92,15 @@ async def _request(
         )
 
     url = f"{get_engine_url()}{path}"
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.request(method, url, json=json_body, headers=_headers())
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.request(method, url, json=json_body, headers=_headers())
+    except httpx.HTTPError as exc:
+        raise VideoEngineError(
+            "Video engine not running. Start with: praisonai-video serve "
+            "(or set VIDEO_ENGINE_URL).",
+            status_code=503,
+        ) from exc
     if resp.status_code >= 400:
         payload: dict[str, Any] | None = None
         try:
