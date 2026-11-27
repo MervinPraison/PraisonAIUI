@@ -1,0 +1,38 @@
+# Zero-code companion for Example 34: Approvals + Notification Center on one dashboard.
+# Run: aiui run app.yaml
+style: app
+branding:
+  title: "HITL Ops Dashboard"
+notifications:
+  - title: "Approval required: deploy_release"
+    description: "Agent paused before rolling out v0.4.0 to production"
+    type: warning
+    category: approvals
+    action:
+      label: "Open Approvals"
+      page: "approvals"
+pages:
+  - chat
+  - approvals
+  - id: ops
+    title: "Ops Queue"
+    icon: "shield-check"
+    group: "Workspace"
+    components:
+      - type: header
+        text: "Human-in-the-Loop Approvals & Notifications"
+        level: 2
+      - type: callout
+        variant: warning
+        title: "Approval Gate Active"
+        content: "High-risk tools pause for review in **Approvals** and alert operators via the header **Notification Bell**."
+      - type: diff_viewer
+        title: "Proposed Production Change"
+        before_label: "Current"
+        after_label: "Proposed"
+        before: |
+          release: v0.3.183
+          replicas: 2
+        after: |
+          release: v0.4.0
+          replicas: 4
