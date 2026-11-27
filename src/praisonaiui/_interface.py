@@ -63,6 +63,21 @@ def _normalize_input(spec: str | Mapping[str, Any], index: int, param_name: str 
     raise TypeError(f"Each input must be a shorthand string or an aiui.* input block dict, got {type(spec).__name__}")
 
 
+def _safe_file_handle(raw_val: Any) -> dict[str, Any] | None:
+    """Resolve an uploaded file handle to safe public metadata (never server ``path``)."""
+    from praisonaiui.features.attachments import get_uploaded_file
+
+    meta = get_uploaded_file(raw_val)
+    if not meta:
+        return None
+    return {
+        "id": meta["id"],
+        "filename": meta["filename"],
+        "content_type": meta["content_type"],
+        "size": meta["size"],
+    }
+
+
 def _hydrate_inputs(inputs: Sequence[dict[str, Any]], values: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Copy input blocks with submitted values preserved so users can tweak and re-run."""
     hydrated: list[dict[str, Any]] = []
@@ -74,21 +89,33 @@ def _hydrate_inputs(inputs: Sequence[dict[str, Any]], values: Mapping[str, Any])
             kind = copy.get("type")
             if kind in ("checkbox_input", "switch_input"):
                 copy["checked"] = bool(val)
-            elif kind != "file_upload":
+            elif kind == "file_upload":
+                if isinstance(val, list):
+                    handles = [h for item in val if (h := _safe_file_handle(item)) is not None]
+                    if handles:
+                        copy["value"] = handles
+                else:
+                    handle = _safe_file_handle(val)
+                    if handle is not None:
+                        copy["value"] = handle
+            else:
                 copy["value"] = val
         hydrated.append(copy)
     return hydrated
 
 
 def _resolve_input_value(inp: Mapping[str, Any], raw_val: Any) -> Any:
-    """Resolve uploaded file handles to verified server file metadata when applicable."""
+    """Resolve uploaded file handles to verified server file metadata when applicable.
+
+    Never falls back to unverified client dicts (prevents arbitrary ``path`` injection).
+    """
     if inp.get("type") != "file_upload" or raw_val is None:
         return raw_val
     from praisonaiui.features.attachments import get_uploaded_file
 
     if isinstance(raw_val, list):
-        return [get_uploaded_file(item) or item for item in raw_val]
-    return get_uploaded_file(raw_val) or raw_val
+        return [meta for item in raw_val if (meta := get_uploaded_file(item)) is not None]
+    return get_uploaded_file(raw_val)
 
 
 def _format_output(result: Any, outputs: str) -> list[dict[str, Any]]:

@@ -179,7 +179,10 @@ def summarize_file(doc):
         return "Upload a text or CSV file to inspect it."
     with open(doc["path"], "r", encoding="utf-8", errors="replace") as f:
         preview = f.read(1200)
-    return f"### `{doc['filename']}` ({doc['size']} bytes)\\n\\n```\\n{preview}\\n```"
+    return [
+        aiui.caption(f"{doc['filename']} · {doc['size']} bytes"),
+        aiui.code_block(preview),
+    ]
 
 
 aiui.interface(

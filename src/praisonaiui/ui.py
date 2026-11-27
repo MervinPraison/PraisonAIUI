@@ -219,8 +219,8 @@ def plotly_chart(
             if s_name in series_keys:
                 s_name = f"{s_name}_{idx + 1}"
             series_keys.append(s_name)
-            cats = list(tr.get("y") if is_barh else tr.get("x") or [])
-            vals = list(tr.get("x") if is_barh else tr.get("y") or [])
+            cats = list((tr.get("y") if is_barh else tr.get("x")) or [])
+            vals = list((tr.get("x") if is_barh else tr.get("y")) or [])
             if not cats:
                 cats = list(range(len(vals)))
             for cat, val in zip(cats, vals):

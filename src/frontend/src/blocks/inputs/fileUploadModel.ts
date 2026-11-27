@@ -47,26 +47,38 @@ const EXT_MIME: Record<string, string> = {
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
-/** Infer MIME type from file.type or filename extension (browsers often omit type for .md/.csv). */
+/** Infer MIME type from file.type or filename extension (normalizes OS quirks like Windows .csv -> Excel MIME). */
 export function inferUploadMimeType(file: { name: string; type?: string }): string {
-  if (file.type) return file.type
   const dot = file.name.lastIndexOf('.')
-  if (dot >= 0) {
-    const ext = file.name.slice(dot).toLowerCase()
-    if (EXT_MIME[ext]) return EXT_MIME[ext]
-  }
-  return 'application/octet-stream'
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : ''
+  const raw = (file.type || '').split(';')[0]?.trim().toLowerCase() || ''
+  if (raw === 'text/x-markdown') return 'text/markdown'
+  if (raw === 'application/vnd.ms-excel' && ext === '.csv') return 'text/csv'
+  if (raw && raw !== 'application/octet-stream') return raw
+  if (ext && EXT_MIME[ext]) return EXT_MIME[ext]
+  return raw || 'application/octet-stream'
 }
 
 /** Extract safe attachment handle fields from `/api/chat/attachments` response JSON. */
-export function parseUploadResponse(data: unknown, fallbackName: string): UploadedFileHandle | null {
+export function parseUploadResponse(data: unknown, fallbackName = ''): UploadedFileHandle | null {
   if (!isRecord(data)) return null
   const id = str(data.id)
   if (!id) return null
   return {
     id,
-    filename: str(data.filename) || fallbackName,
+    filename: str(data.filename) || fallbackName || 'file',
     content_type: str(data.content_type) || 'application/octet-stream',
     size: typeof data.size === 'number' && Number.isFinite(data.size) ? data.size : 0,
   }
+}
+
+/** Parse hydrated initial file handle(s) from `node.props.value`. */
+export function parseInitialFiles(value: unknown, multiple: boolean): UploadedFileHandle[] {
+  const items = Array.isArray(value) ? value : value != null ? [value] : []
+  const parsed: UploadedFileHandle[] = []
+  for (const item of items) {
+    const handle = parseUploadResponse(item)
+    if (handle) parsed.push(handle)
+  }
+  return multiple ? parsed : parsed.slice(0, 1)
 }
