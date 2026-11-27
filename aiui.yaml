@@ -50,6 +50,12 @@ navigation:
             - guides/focused-app
             - a2ui/quickstart
             - features/plugins
+        - group: "Migrating to PraisonAIUI"
+          icon: arrow-right-left
+          pages:
+            - guides/from-streamlit
+            - guides/from-gradio
+            - guides/from-chat-apps
         - group: "Step-by-Step: Docs UI"
           icon: book-open
           pages:
