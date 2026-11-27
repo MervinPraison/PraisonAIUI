@@ -126,6 +126,21 @@ def _memory_contains(server: str, text: str, timeout: int = 10) -> bool | None:
         time.sleep(1)
 
 
+def _uses_reply_callback(server: str) -> bool:
+    """Return True when the running server handles chat via a custom ``@aiui.reply`` callback.
+
+    Callback-driven apps (such as ``examples/python/03-chat-with-ai``) own their
+    own LLM call and do not automatically write turns into ``/api/memory`` unless
+    the handler explicitly stores them.
+    """
+    try:
+        data = _get(server, "/api/debug")
+        callbacks = data.get("callbacks_registered", [])
+        return isinstance(callbacks, list) and "reply" in callbacks
+    except Exception:
+        return False
+
+
 def _check_server(server: str) -> bool:
     """Quick connectivity check."""
     try:
@@ -265,9 +280,15 @@ def test_memory(server: str = _SERVER_OPT) -> None:
 
     # Deterministic check: the provider writes each turn to the memory store
     # after the reply, so poll the store instead of trusting LLM wording.
-    stored = _memory_contains(server, "Haskell")
+    reply_callback = _uses_reply_callback(server)
+    stored = _memory_contains(server, "Haskell", timeout=2 if reply_callback else 10)
     if stored is None:
         r.skip("Memory store: fact persisted", "/api/memory/search unavailable")
+    elif not stored and reply_callback:
+        r.skip(
+            "Memory store: fact persisted",
+            "custom @aiui.reply handler does not persist turns to platform memory",
+        )
     else:
         r.check("Memory store: fact persisted", stored, "'Haskell' not in /api/memory/search")
 
@@ -295,6 +316,11 @@ def test_memory(server: str = _SERVER_OPT) -> None:
         r.skip(
             "Session B: recalls 'Haskell' from memory",
             "fact is stored but the model did not use it (model-dependent)",
+        )
+    elif reply_callback:
+        r.skip(
+            "Session B: recalls 'Haskell' from memory",
+            "custom @aiui.reply handler does not persist turns to platform memory",
         )
     else:
         r.check(

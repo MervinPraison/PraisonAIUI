@@ -168,3 +168,44 @@ class TestDoctorInstall:
 
         monkeypatch.setattr(md, "version", missing)
         assert cli_mod._dist_version() is None
+
+
+class TestDoctorFeatures:
+    """``aiui doctor`` reports the live feature count dynamically, never a hardcoded /37 (#635)."""
+
+    def _features_check(self, monkeypatch, payload):
+        def fake_api_get(server, path):
+            if path == "/api/features":
+                return payload
+            return {"status": "ok"}
+
+        monkeypatch.setattr(cli_mod, "_api_get", fake_api_get)
+        result = runner.invoke(app, ["doctor", "--server", "http://127.0.0.1:8000", "--json"])
+        checks = json.loads(result.output)["checks"]
+        return next(c for c in checks if c["name"] == "Features Loaded")
+
+    def test_reports_dynamic_registered_count_without_hardcoded_denominator(self, monkeypatch):
+        features = [{"name": f"feat_{i}", "status": "ok"} for i in range(49)]
+        check = self._features_check(monkeypatch, {"features": features, "count": 49})
+        assert check["status"] == "pass"
+        assert check["detail"] == "49 features registered"
+        assert "/37" not in check["detail"]
+
+    def test_reports_plugin_extended_count(self, monkeypatch):
+        features = [{"name": f"feat_{i}", "status": "ok"} for i in range(55)]
+        check = self._features_check(monkeypatch, {"features": features, "count": 55})
+        assert check["status"] == "pass"
+        assert check["detail"] == "55 features registered"
+
+    def test_warns_when_any_feature_is_degraded(self, monkeypatch):
+        features = [{"name": f"feat_{i}", "status": "ok"} for i in range(48)] + [
+            {"name": "slow_plugin", "status": "timeout"}
+        ]
+        check = self._features_check(monkeypatch, {"features": features, "count": 49})
+        assert check["status"] == "warn"
+        assert check["detail"] == "48/49 features healthy (1 degraded)"
+
+    def test_warns_when_zero_features_registered(self, monkeypatch):
+        check = self._features_check(monkeypatch, {"features": [], "count": 0})
+        assert check["status"] == "warn"
+        assert check["detail"] == "0 features registered"
