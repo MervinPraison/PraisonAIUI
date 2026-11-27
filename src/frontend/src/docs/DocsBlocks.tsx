@@ -5,7 +5,7 @@
 // the docs <Markdown>, so the markdown chunk the chat shares is unchanged.
 // A new component: an entry in DOCS_TAGS plus its renderer here.
 /* eslint-disable react-refresh/only-export-components -- the element → component map is this module's contract */
-import { createContext, useContext, type CSSProperties, type ReactNode } from 'react'
+import { createContext, lazy, Suspense, useContext, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import { Admonition, MkdocsTab } from '../markdown/MkdocsBlocks'
 import { ApiField, Endpoint, Expandable, Panel } from './ApiFields'
 import { slugify } from '../markdown/slug'
@@ -136,8 +136,37 @@ function Frame({ className, children }: BlockProps) {
 // <Visibility for="agents"> content is for the agent-ready .md only, never the page.
 const Visibility = ({ audience, children }: BlockProps & { audience?: string }) => (audience === 'agents' ? null : <>{children}</>)
 
+// Lazy-loaded live UI block preview: loads the built BlockPage chunk at runtime
+// (filled by vite.config.ts blockPagePreviewUrl) so Rollup keeps shell/mount's
+// static graph unchanged (+0 B on boot/chat/layouts, R4/R10).
+type PreviewProps = { title?: string; spec?: string }
+const BLOCK_PAGE_CHUNK = '__AIUI_BLOCK_PAGE_CHUNK__'
+const LazyPreview = lazy(async (): Promise<{ default: ComponentType<PreviewProps> }> => {
+    if (import.meta.env.DEV) {
+        const m = await import('../blocks/BlockPage')
+        return { default: m.ComponentPreview }
+    }
+    const url = new URL(BLOCK_PAGE_CHUNK, import.meta.url).href
+    const m = (await import(/* @vite-ignore */ url)) as {
+        default?: { Preview?: ComponentType<PreviewProps> }
+        ComponentPreview?: ComponentType<PreviewProps>
+    }
+    const Preview = m.default?.Preview ?? m.ComponentPreview
+    if (!Preview) throw new Error('ComponentPreview export not found in BlockPage chunk')
+    return { default: Preview }
+})
+
+function DocsComponentPreview({ title, spec }: PreviewProps) {
+    return (
+        <Suspense fallback={<div className="my-4 h-24 rounded-xl border border-hairline bg-fill-4" />}>
+            <LazyPreview title={title} spec={spec} />
+        </Suspense>
+    )
+}
+
 /** Element → renderer, for the elements named in DOCS_TAGS (markdown/docsTags.ts). */
 export const DOCS_TAG_COMPONENTS = {
+    'aiui-preview': DocsComponentPreview,
     'aiui-steps': Steps,
     'aiui-step': Step,
     'aiui-cards': Cards,
