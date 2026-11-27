@@ -34,3 +34,13 @@ test('site.theme.strict hides the theme toggle', () => {
     assert.match(render({}), /aria-label="Toggle theme"/)
     assert.doesNotMatch(render({ site: { title: 'Acme', theme: { strict: true } } }), /aria-label="Toggle theme"/)
 })
+
+test('site.theme.toggle defaults to 1-click switch and supports 3-option menu', () => {
+    const def = render({})
+    assert.match(def, /data-aiui-theme-toggle="switch"/)
+    assert.doesNotMatch(def, /aria-haspopup="menu"/)
+
+    const menu = render({ site: { title: 'Acme', theme: { toggle: 'menu' } } })
+    assert.match(menu, /data-aiui-theme-toggle="menu"/)
+    assert.match(menu, /aria-haspopup="menu"/)
+})

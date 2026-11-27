@@ -4,13 +4,21 @@ Enable and customize dark mode for your site.
 
 ## Configuration
 
-Enable dark mode in your configuration:
+Enable dark mode and choose the header toggle style in `aiui.yaml`:
 
 ```yaml
 site:
   theme:
-    darkMode: true
+    mode: system          # follows the OS by default ("system" | "light" | "dark")
+    toggle: switch        # default: 1-click flip to opposite mode; use "menu" for Light / Dark / System dropdown
 ```
+
+### Header Toggle Styles
+
+| `site.theme.toggle` | Behavior |
+|---|---|
+| `switch` *(default)* | Starts on your configured `mode` (`system` follows the OS). One click immediately flips to the opposite mode (`light` ↔ `dark`) and saves the choice in `localStorage` (`aiui-theme-preference`) for future visits. |
+| `menu` | Opens a 3-option dropdown (**Light**, **Dark**, **System**) — also available directly in React via `<ThemeToggle variant="menu" />` and in the App Shell Command Palette (`⌘K`). |
 
 ## How It Works
 

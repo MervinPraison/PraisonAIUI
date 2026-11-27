@@ -56,6 +56,8 @@ export interface ThemeConfig {
     mode?: 'light' | 'dark' | 'system'
     /** `site.theme.strict`: the configured mode only (no toggle, a stored choice is ignored). */
     strict?: boolean
+    /** `site.theme.toggle`: `'switch'` (default, 1-click flip) or `'menu'` (Light / Dark / System dropdown). */
+    toggle?: 'switch' | 'menu'
     /** `site.theme.code`: the Shiki theme per colour mode (docs build). */
     code?: { light?: string; dark?: string }
     /** `site.theme.codeLanguages`: grammars the build published (docs build). */

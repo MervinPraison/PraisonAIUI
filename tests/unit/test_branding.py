@@ -95,6 +95,16 @@ def test_strict_locks_the_mode(tmp_path):
     assert "var t=null;var d=true;" in page
 
 
+def test_theme_toggle_defaults_to_switch_and_allows_menu(tmp_path):
+    default_out = _build(tmp_path, site={"theme": {"mode": "dark"}})
+    default_theme = json.loads((default_out / "ui-config.json").read_text())["site"]["theme"]
+    assert "toggle" not in default_theme
+
+    menu_out = _build(tmp_path, site={"theme": {"toggle": "menu"}})
+    menu_theme = json.loads((menu_out / "ui-config.json").read_text())["site"]["theme"]
+    assert menu_theme["toggle"] == "menu"
+
+
 def test_background_decoration_and_image(tmp_path):
     out = _build(tmp_path, site={"theme": {"background": "grid"}})
     assert '<html data-aiui-bg="grid"' in (out / "index.html").read_text()

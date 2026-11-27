@@ -127,7 +127,7 @@ export function Header({
                         </Button>
                     )}
 
-                    {!config.site?.theme?.strict && <ThemeToggle />}
+                    {!config.site?.theme?.strict && <ThemeToggle variant={config.site?.theme?.toggle} />}
                     {divisions?.languages?.length ? <LanguageSwitcher divisions={divisions} /> : <LocaleSwitcher />}
                 </div>
             </div>
