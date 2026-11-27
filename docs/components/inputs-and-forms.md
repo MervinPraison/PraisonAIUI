@@ -31,6 +31,7 @@ Collect user input, filter tables via URL query strings (`method="get"`), or sub
 | `aiui.color_picker_input(label, *, value, name)` | `color_picker_input` | Hex color picker |
 | `aiui.tags_input(label, *, value, name, placeholder)` | `tags_input` | Free-text tag chips |
 | `aiui.rating_input(label, *, value=0, max_stars=5, name, readonly, auto_submit)` | `rating_input` | Accessible star rating widget (read-only display or interactive form/RLHF input) |
+| `aiui.file_upload(label, *, name="files", accept, multiple, max_size_mb, help_text, auto_submit)` | `file_upload` | Drag-and-drop file uploader (uploads via authenticated `/api/chat/attachments` and resolves safely on the server with `aiui.get_uploaded_file(...)`) |
 | `aiui.file_download(label, *, href, filename, variant)` | `file_download` | Download trigger button |
 
 ## Instant URL-synced filter bar example

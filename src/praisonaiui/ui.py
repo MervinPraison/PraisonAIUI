@@ -1537,6 +1537,49 @@ def file_download(
     return comp
 
 
+def file_upload(
+    label: str = "Upload file",
+    *,
+    name: str = "files",
+    accept: str | Sequence[str] | None = None,
+    multiple: bool = False,
+    max_size_mb: int = 10,
+    help_text: str | None = None,
+    auto_submit: bool = False,
+) -> dict:
+    """A drag-and-drop file upload input for ``@aiui.page`` forms.
+
+    Selected files upload to the authenticated ``POST /api/chat/attachments``
+    endpoint and submit safe attachment handles (``{id, filename, content_type,
+    size}``) in the form JSON payload. Resolve the verified file path on the
+    server with :func:`praisonaiui.get_uploaded_file`.
+
+    Args:
+        label: Field label shown above the dropzone
+        name: Form field key (default ``"files"``)
+        accept: Optional MIME types or extensions (e.g. ``".pdf,.csv"`` or ``[".pdf", ".csv"]``)
+        multiple: Allow selecting multiple files (submits a list of handles when True,
+            or a single handle dict / ``None`` when False)
+        max_size_mb: Client-side file size limit in MiB (default 10; must be positive)
+        help_text: Optional helper text displayed inside the dropzone
+        auto_submit: Submit the enclosing form immediately after upload completes
+    """
+    if isinstance(max_size_mb, bool) or not isinstance(max_size_mb, (int, float)) or max_size_mb <= 0:
+        raise ValueError("max_size_mb must be a positive number")
+    comp: dict[str, Any] = {
+        "type": "file_upload",
+        "label": label,
+        "name": name,
+        "multiple": bool(multiple),
+        "max_size_mb": int(max_size_mb) if float(max_size_mb).is_integer() else float(max_size_mb),
+    }
+    if accept is not None:
+        comp["accept"] = accept if isinstance(accept, str) else ",".join(str(a) for a in accept)
+    if help_text:
+        comp["help_text"] = str(help_text)
+    return _auto(comp, auto_submit)
+
+
 # ── Tier B: High-Value Dashboard Components ──────────────────────────
 
 

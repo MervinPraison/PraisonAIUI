@@ -971,6 +971,7 @@ const loadCodeEditor = () => import('@/components/page/blocks/CodeEditorBlock').
 const loadChart = () => import('./chart/ChartBlock').then((m) => ({ default: m.ChartBlock }))
 const loadCombobox = () => import('./inputs/Combobox')
 const loadFilterInputs = () => import('./inputs/FilterInputs')
+const loadFileUpload = () => import('./inputs/FileUploadInput')
 const loadRichBlocks = () => import('./RichBlocks')
 const loadStudioBlocks = () => import('@/studio/StudioBlocks')
 
@@ -989,6 +990,7 @@ const TagsInput = templateBlock(() => loadFilterInputs().then((m) => ({ default:
 const DateRangeInput = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.DateRangeInput })))
 const SegmentedInput = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.SegmentedInput })))
 const FilterBar = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.FilterBar })))
+const FileUploadBlock = templateBlock(loadFileUpload)
 // Rich compound blocks: one lazy dispatcher so coreBlocks / chat-route stays tiny.
 const RichBlock = templateBlock(loadRichBlocks)
 // Interactive studio blocks (sheet, whiteboard): one lazy dispatcher shared with chat & artifacts.
@@ -1006,6 +1008,7 @@ const LAZY_PRELOADERS: Record<string, () => Promise<unknown>> = {
   date_range_input: loadFilterInputs,
   segmented_input: loadFilterInputs,
   filter_bar: loadFilterInputs,
+  file_upload: loadFileUpload,
   stepper: loadRichBlocks,
   timeline: loadRichBlocks,
   diff_viewer: loadRichBlocks,
@@ -1091,6 +1094,7 @@ const CORE: Record<string, CoreBlock> = {
   date_range_input: DateRangeInput,
   segmented_input: SegmentedInput,
   filter_bar: FilterBar,
+  file_upload: FileUploadBlock,
   board: BoardTemplate,
   gallery: GalleryTemplate,
   list_detail: ListDetailTemplate,
