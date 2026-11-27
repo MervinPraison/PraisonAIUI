@@ -8,7 +8,7 @@ nav_title: Chat and Canvas
 The chat is on the left; the tables, code and files the agent makes sit on a
 canvas beside it, where you can sort, copy, download and compare versions.
 See [Layouts](../layouts.md) for how layouts are chosen, and
-[ADR 0003](../../adr/0003-selectable-layouts.md) for the design.
+[ADR 0003](https://github.com/MervinPraison/PraisonAIUI/blob/main/docs/adr/0003-selectable-layouts.md) for the design.
 
 ![The Chat and Canvas layout in dark mode, in its Paper look: the conversation on the left with a pending approval, and on the right the canvas split between the comparison table and the sort_demo.py script the agent wrote](../../images/app-shell-chat-canvas-dark.webp)
 

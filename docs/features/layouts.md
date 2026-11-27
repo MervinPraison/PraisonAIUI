@@ -8,9 +8,9 @@ A layout is the frame of the React app shell (`style: app`): the navigation,
 the session list, the top bar, side panels and the phone chrome. The page
 stays the page. Every page (chat, logs, config, a plugin page, a blocks page)
 renders inside every layout, in the outlet the shell hands the frame. The
-design is [ADR 0003](../adr/0003-selectable-layouts.md).
+design is [ADR 0003](https://github.com/MervinPraison/PraisonAIUI/blob/main/docs/adr/0003-selectable-layouts.md).
 
-Layouts exist only in the app shell. The default `dashboard` style is not
+Layouts exist only in the app shell. The legacy `dashboard` style is not
 affected and renders exactly as before.
 
 ## The layouts

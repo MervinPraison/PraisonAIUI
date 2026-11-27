@@ -34,8 +34,7 @@ async def reports_page():
     return {"title": "Reports", "content": "Monthly numbers"}
 ```
 
-**Run**: `aiui run app.py` (an `@aiui.page` callback selects the `dashboard`
-style; see [UI Styles](../features/styles.md)). A module that builds its own app
+**Run**: `aiui run app.py` (opens the default `app` shell; pass `--style dashboard` for the legacy vanilla-JS dashboard — see [UI Styles](../features/styles.md)). A module that builds its own app
 with `create_app()` and starts Uvicorn under `if __name__ == "__main__":` is not
 special-cased: `aiui run` ignores that app and serves its own. Run such a file
 with `python app.py` instead.

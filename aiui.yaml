@@ -43,11 +43,6 @@ navigation:
             - tutorials/04-steps-and-tools
             - tutorials/05-rich-ui-and-pages
             - tutorials/06-theme-auth-deploy
-        - group: "Examples"
-          icon: code
-          pages:
-            - examples/basic
-            - examples/advanced
     - tab: "Chat UI"
       groups:
         - group: "Core Concepts"
@@ -196,9 +191,21 @@ navigation:
             - features/analytics
             - features/docs-auth
             - features/content-security-policy
+    - tab: "Examples"
+      groups:
+        - group: "Python & Agent Apps"
+          icon: code
+          pages:
+            - examples/basic
+            - examples/app-and-components
+        - group: "YAML, Plugins & Docs Sites"
+          icon: file-code
+          pages:
+            - examples/yaml-and-plugins
+            - examples/advanced
     - tab: "Reference"
       groups:
-        - group: "Reference"
+        - group: "API & CLI"
           icon: terminal
           pages:
             - api/index
@@ -210,6 +217,7 @@ navigation:
             - features/api-reference
             - api/sessions
             - api/health
+            - api/testing
         - group: "TypeScript"
           icon: code
           pages:
@@ -232,20 +240,12 @@ navigation:
                 - protocols/adp/aiui-mapping
                 - protocols/adp/implementation-status
                 - protocols/application-design-protocol-report
-    - tab: "Project"
-      groups:
-        - group: "Project"
+        - group: "Architecture & Internals"
+          icon: cpu
           pages:
             - concepts/architecture
             - concepts/bootstrap
             - testing
-            - api/testing
-        - group: "Decisions"
-          pages:
-            - adr/index
-            - adr/0001-replay-view-clean-room
-            - adr/0002-react-app-shell-and-plugin-sdk
-            - adr/0003-selectable-layouts
 
 
 # Navbar actions
@@ -317,6 +317,7 @@ content:
       - "features/beautifului-integration.md"
       - "frontend/*"
       - "reports/*"
+      - "adr/*"
     nav:
       mode: manual
 

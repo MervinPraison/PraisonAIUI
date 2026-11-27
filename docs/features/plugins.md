@@ -456,7 +456,7 @@ registerSlot('header:actions', HelloAction, { id: 'hello', order: 50 })
 A layout owns the frame of the app shell: the navigation, the session list,
 the top bar, side panels and the phone chrome. The page stays the page: every
 page renders inside every layout, in the outlet the shell hands the frame
-([ADR 0003](../adr/0003-selectable-layouts.md)). aiui ships six layouts
+([ADR 0003](https://github.com/MervinPraison/PraisonAIUI/blob/main/docs/adr/0003-selectable-layouts.md)). aiui ships six layouts
 (`chat`, what `aiui run` opens; `chat-canvas`, the app shell's default; plus
 `workbench`, `command`, `guided` and `mission`); the core's own frame is called `classic`. A plugin adds a
 layout with the same call the built-ins use.
