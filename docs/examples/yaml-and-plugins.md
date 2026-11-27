@@ -25,7 +25,7 @@ Run any folder in [`examples/yaml/`](https://github.com/MervinPraison/PraisonAIU
 
 Save as `app.yaml` and run `aiui run app.yaml`—editing the file updates blocks, badges, and surfaces live without restarting:
 
-```yaml title="app.yaml"
+```yaml
 style: app
 chat:
   preview:
