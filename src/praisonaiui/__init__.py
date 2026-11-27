@@ -485,6 +485,25 @@ def __getattr__(name: str):
         from praisonaiui.features import notifications as _notifications
 
         return getattr(_notifications, name)
+    if name == "push_surface":
+        from praisonaiui.features.surfaces import push_surface
+
+        return push_surface
+    if name in {
+        "a2ui_create_surface",
+        "a2ui_update_components",
+        "a2ui_update_data_model",
+        "a2ui_delete_surface",
+        "a2ui_surface",
+        "a2ui_client_capabilities",
+        "v08_to_v09",
+        "parse_a2ui_jsonl",
+        "A2UI_BASIC_COMPONENTS",
+        "A2UI_BASIC_FUNCTIONS",
+    }:
+        from praisonaiui import a2ui_utils as _a2ui_utils
+
+        return getattr(_a2ui_utils, name)
     if name in _task_attrs:
         from praisonaiui import tasks
 
@@ -839,4 +858,16 @@ __all__ = [
     "clear_notifications",
     "get_notification_store",
     "set_notification_store",
+    # A2UI (Agent-to-User Interface)
+    "a2ui_create_surface",
+    "a2ui_update_components",
+    "a2ui_update_data_model",
+    "a2ui_delete_surface",
+    "a2ui_surface",
+    "a2ui_client_capabilities",
+    "push_surface",
+    "v08_to_v09",
+    "parse_a2ui_jsonl",
+    "A2UI_BASIC_COMPONENTS",
+    "A2UI_BASIC_FUNCTIONS",
 ]

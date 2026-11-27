@@ -130,3 +130,183 @@ class TestHookAndCallbackA2ui:
         assert len(events) == 1
         assert events[0].extra_data is not None
         assert events[0].extra_data.get("surface_id") == "hook-main"
+
+
+class TestV08CompatibilityAndBuilders:
+    def test_v08_messages_detected_and_upgraded_to_v09(self):
+        from praisonaiui.a2ui_utils import v08_to_v09
+
+        v08 = [
+            {
+                "surfaceUpdate": {
+                    "surfaceId": "booking",
+                    "components": [
+                        {
+                            "id": "main-col",
+                            "component": {
+                                "Column": {
+                                    "children": {"explicitList": ["title", "btn"]},
+                                    "distribution": "start",
+                                    "alignment": "stretch",
+                                }
+                            },
+                        },
+                        {
+                            "id": "title",
+                            "component": {
+                                "Text": {"text": {"path": "/headline"}, "usageHint": "h1"}
+                            },
+                        },
+                        {
+                            "id": "btn",
+                            "component": {
+                                "Button": {
+                                    "child": "btn-txt",
+                                    "primary": True,
+                                    "action": {"name": "book", "context": [{"key": "id", "value": {"literalString": "42"}}]},
+                                }
+                            },
+                        },
+                    ],
+                }
+            },
+            {
+                "dataModelUpdate": {
+                    "surfaceId": "booking",
+                    "path": "/",
+                    "contents": [
+                        {"key": "headline", "valueString": "Reserve Table"},
+                        {"key": "guests", "valueNumber": 4},
+                    ],
+                }
+            },
+            {
+                "beginRendering": {
+                    "surfaceId": "booking",
+                    "root": "main-col",
+                    "styles": {"primaryColor": "#0f766e"},
+                }
+            },
+        ]
+
+        assert is_a2ui_tool_result(v08)
+        v09 = v08_to_v09(v08)
+        assert v09[0]["createSurface"]["surfaceId"] == "booking"
+        assert v09[0]["createSurface"]["theme"] == {"primaryColor": "#0f766e"}
+        comps = v09[1]["updateComponents"]["components"]
+        assert comps[0]["id"] == "root"
+        assert comps[0]["component"] == "Column"
+        assert comps[0]["children"] == ["title", "btn"]
+        assert comps[0]["justify"] == "start"
+        assert comps[1]["text"] == {"path": "/headline"}
+        assert comps[1]["variant"] == "h1"
+        assert comps[2]["variant"] == "primary"
+        assert comps[2]["action"] == {"event": {"name": "book", "context": {"id": "42"}}}
+        assert v09[2]["updateDataModel"]["value"] == {"headline": "Reserve Table", "guests": 4}
+
+    def test_jsonl_parsing_and_coercion(self):
+        from praisonaiui.a2ui_utils import coerce_a2ui_tool_messages, parse_a2ui_jsonl
+
+        jsonl = "\n".join(
+            [
+                '{"version":"v0.9","createSurface":{"surfaceId":"s1","catalogId":"basic"}}',
+                '{"version":"v0.9","updateComponents":{"surfaceId":"s1","components":[{"id":"root","component":"Text","text":{"path":"/msg"}}]}}',
+                '{"version":"v0.9","updateDataModel":{"surfaceId":"s1","path":"/","value":{"msg":"Hi"}}}',
+            ]
+        )
+        parsed = parse_a2ui_jsonl(jsonl)
+        assert len(parsed) == 3
+        coerced = coerce_a2ui_tool_messages(jsonl)
+        assert coerced[0]["createSurface"]["surfaceId"] == "s1"
+        assert coerced[2]["updateDataModel"]["value"]["msg"] == "Hi"
+
+    def test_builders_and_capabilities(self):
+        import praisonaiui as aiui
+
+        msgs = aiui.a2ui_surface(
+            [{"id": "root", "component": "Text", "text": {"path": "/hello"}}],
+            data={"hello": "World"},
+            surface_id="demo",
+            theme={"primaryColor": "#2563eb"},
+            send_data_model=True,
+        )
+        assert len(msgs) == 3
+        assert msgs[0]["createSurface"]["theme"] == {"primaryColor": "#2563eb"}
+        assert msgs[0]["createSurface"]["sendDataModel"] is True
+        assert msgs[2]["updateDataModel"]["value"] == {"hello": "World"}
+
+        caps = aiui.a2ui_client_capabilities()
+        assert len(caps["components"]) == 18
+        assert len(caps["functions"]) == 14
+        assert "v0.8" in caps["supportedVersions"]
+        assert "v0.9" in caps["supportedVersions"]
+        assert "v0.10" in caps["supportedVersions"]
+
+
+class TestSurfacesEndpointsComplete:
+    def test_capabilities_actions_envelopes_and_delete_surface(self):
+        from starlette.testclient import TestClient
+
+        import praisonaiui as aiui
+        from praisonaiui.server import create_app, reset_state
+
+        reset_state()
+        received = []
+
+        @aiui.surface_action("demo")
+        async def handle(act):
+            received.append(act)
+            return {"ok": True}
+
+        client = TestClient(create_app())
+
+        caps = client.get("/api/surfaces/capabilities")
+        assert caps.status_code == 200
+        assert len(caps.json()["components"]) == 18
+
+        # Push surface with theme + data model
+        msgs = aiui.a2ui_surface(
+            [{"id": "root", "component": "Text", "text": {"path": "/k"}}],
+            data={"k": "v"},
+            surface_id="demo",
+            theme={"primaryColor": "#111827"},
+        )
+        post = client.post("/api/surfaces/demo/messages", json={"messages": msgs})
+        assert post.status_code == 200
+
+        state = client.get("/api/surfaces/demo").json()
+        assert state["metadata"]["theme"] == {"primaryColor": "#111827"}
+
+        # Official v0.9 client-to-server action envelope on /actions alias
+        r1 = client.post(
+            "/api/surfaces/demo/actions",
+            json={
+                "version": "v0.9",
+                "action": {
+                    "name": "save",
+                    "surfaceId": "demo",
+                    "sourceComponentId": "save-btn",
+                    "context": {"k": "v"},
+                },
+            },
+        )
+        assert r1.status_code == 200
+        assert received[-1]["action"] == "save"
+        assert received[-1]["component_id"] == "save-btn"
+        assert received[-1]["data"] == {"k": "v"}
+
+        # Official v0.8 userAction envelope on /action
+        r2 = client.post(
+            "/api/surfaces/demo/action",
+            json={"userAction": {"name": "legacy_click", "sourceComponentId": "b1", "context": {"x": 1}}},
+        )
+        assert r2.status_code == 200
+        assert received[-1]["action"] == "legacy_click"
+
+        # deleteSurface message clears stored messages
+        r3 = client.post(
+            "/api/surfaces/demo/messages",
+            json={"messages": [aiui.a2ui_delete_surface("demo")]},
+        )
+        assert r3.status_code == 200
+        assert client.get("/api/surfaces/demo").json()["messages"] == []

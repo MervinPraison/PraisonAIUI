@@ -1,35 +1,153 @@
-"""Example 30 — A2UI canvas and send_a2ui_messages integration.
+"""Example 30 — Complete A2UI v0.9 Canvas, Multi-Surface & Interactive Playground.
+
+Demonstrates:
+  - Split Chat + Canvas preview (``chat-canvas``)
+  - Full-page multi-surface workspace (``canvas``)
+  - Single-page multi-surface & all-in-one gallery (``agent-canvas``)
+  - Separate settings & capabilities page (``a2ui-settings``)
+  - Reactive data binding (``updateDataModel`` + ``{path}``) & ``@aiui.surface_action``
+  - Live PraisonAI agent integration with ``send_a2ui_messages``
 
 Run:
     python app.py
-    # Optional full Google A2UI renderer in React shell:
-    cd ../../../frontend && npm install @a2ui/react @a2ui/web_core && npm run build
 """
 
 from __future__ import annotations
 
 import praisonaiui as aiui
 
-aiui.set_style("dashboard")
-aiui.set_branding(title="A2UI Canvas Demo", logo="🖼️")
-aiui.set_chat_preview(enabled=True, surface_id="main", width="38%")
-aiui.set_pages(["chat-canvas", "chat", "canvas", "agent-canvas"])
+aiui.set_branding(title="A2UI Studio")
+aiui.set_chat_preview(enabled=True, surface_id="main", width="40%")
+aiui.set_pages(["chat-canvas", "chat", "canvas", "agent-canvas", "a2ui-settings"])
+
+
+def _demo_surface(counter: int = 1, status: str = "Ready") -> list[dict]:
+    """Build an interactive A2UI v0.9 surface using the Basic Catalog + data binding."""
+    return aiui.a2ui_surface(
+        surface_id="main",
+        theme={"primaryColor": "#2563eb"},
+        send_data_model=True,
+        components=[
+            {
+                "id": "root",
+                "component": "Column",
+                "children": ["header", "summary-card", "form-card", "actions-row"],
+            },
+            {"id": "header", "component": "Text", "text": {"path": "/title"}, "variant": "h2"},
+            {"id": "summary-card", "component": "Card", "child": "summary-col"},
+            {
+                "id": "summary-col",
+                "component": "Column",
+                "children": ["status-line", "divider-1", "counter-line"],
+            },
+            {"id": "status-line", "component": "Text", "text": {"path": "/status"}},
+            {"id": "divider-1", "component": "Divider"},
+            {"id": "counter-line", "component": "Text", "text": {"path": "/counterLabel"}, "variant": "caption"},
+            {"id": "form-card", "component": "Card", "child": "form-col"},
+            {
+                "id": "form-col",
+                "component": "Column",
+                "children": ["name-field", "notify-check", "priority-slider"],
+            },
+            {
+                "id": "name-field",
+                "component": "TextField",
+                "label": "Project Name",
+                "value": {"path": "/form/name"},
+            },
+            {
+                "id": "notify-check",
+                "component": "CheckBox",
+                "label": "Send email updates",
+                "value": {"path": "/form/notify"},
+            },
+            {
+                "id": "priority-slider",
+                "component": "Slider",
+                "label": "Priority (1-10)",
+                "min": 1,
+                "max": 10,
+                "value": {"path": "/form/priority"},
+            },
+            {
+                "id": "actions-row",
+                "component": "Row",
+                "children": ["btn-inc", "btn-reset"],
+            },
+            {"id": "btn-inc-label", "component": "Text", "text": "Run Step"},
+            {
+                "id": "btn-inc",
+                "component": "Button",
+                "child": "btn-inc-label",
+                "variant": "primary",
+                "action": {"event": {"name": "increment", "context": {"step": {"path": "/counter"}}}},
+            },
+            {"id": "btn-reset-label", "component": "Text", "text": "Reset"},
+            {
+                "id": "btn-reset",
+                "component": "Button",
+                "child": "btn-reset-label",
+                "action": {"event": {"name": "reset", "context": {}}},
+            },
+        ],
+        data={
+            "title": "A2UI Interactive Workspace",
+            "status": f"Status: {status}",
+            "counter": counter,
+            "counterLabel": f"Completed steps: {counter}",
+            "form": {"name": "Launch Plan", "notify": True, "priority": 7},
+        },
+    )
+
+
+_demo_state = {"counter": 1}
 
 
 @aiui.page("agent-canvas", title="Agent Canvas", icon="🖼️", group="A2UI")
 async def agent_canvas_page():
-    return {"_surface": {"id": "main", "messages": []}}
+    """Single-page A2UI surface seeded with the interactive Basic Catalog demo."""
+    return {"_surface": {"id": "main", "messages": _demo_surface(_demo_state["counter"])}}
+
+
+@aiui.page("a2ui-settings", title="A2UI Settings & Catalog", icon="⚙️", group="A2UI")
+async def a2ui_settings_page():
+    """Inspect A2UI client capabilities, supported versions, and Basic Catalog inventory."""
+    caps = aiui.a2ui_client_capabilities()
+    return aiui.layout(
+        [
+            aiui.header("A2UI Capabilities & Settings", subtitle="Supported protocol versions, catalogs, and functions"),
+            aiui.columns(
+                [
+                    aiui.metric("Default Version", caps["version"]),
+                    aiui.metric("Supported Specs", ", ".join(caps["supportedVersions"])),
+                    aiui.metric("Basic Components", str(len(caps["components"]))),
+                    aiui.metric("Client Functions", str(len(caps["functions"]))),
+                ]
+            ),
+            aiui.card("Supported Basic Catalog Components (18)", children=[aiui.text(", ".join(caps["components"]))]),
+            aiui.card("Client-Side Functions (14)", children=[aiui.text(", ".join(caps["functions"]))]),
+            aiui.json_view(caps, title="GET /api/surfaces/capabilities"),
+        ]
+    )
 
 
 @aiui.surface_action("main")
 async def on_surface_action(action: dict):
-    return {"received": action}
+    """Handle clicks from the A2UI surface and push a live data-model update."""
+    name = action.get("action")
+    if name == "increment":
+        _demo_state["counter"] += 1
+        await aiui.push_surface("main", _demo_surface(_demo_state["counter"], status="Updated via action"), replace=True)
+    elif name == "reset":
+        _demo_state["counter"] = 1
+        await aiui.push_surface("main", _demo_surface(1, status="Reset"), replace=True)
+    return {"received": action, "counter": _demo_state["counter"]}
 
 
 def _build_assistant_agent():
     from praisonaiagents import Agent
-    from praisonaiagents.tools.decorator import tool
     from praisonaiagents.tools.a2ui_tools import send_a2ui_messages as sdk_send_a2ui
+    from praisonaiagents.tools.decorator import tool
 
     from praisonaiui.a2ui_utils import coerce_a2ui_tool_messages
 
@@ -42,9 +160,9 @@ def _build_assistant_agent():
             send_a2ui_messages(messages=[
               {"createSurface": {"surfaceId": "main", "catalogId": "basic"}},
               {"updateComponents": {"components": [
-                {"component": "Text", "text": {"literal": "Mobile App Header"}},
-                {"component": "Button", "text": {"literal": "Submit"},
-                 "action": {"name": "handleSubmit"}},
+                {"id": "root", "component": "Column", "children": ["t1", "b1"]},
+                {"id": "t1", "component": "Text", "text": "Mobile App Header", "variant": "h2"},
+                {"id": "b1", "component": "Button", "text": "Submit", "action": {"event": {"name": "handleSubmit"}}},
               ]}},
             ])
         """

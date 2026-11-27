@@ -19,9 +19,14 @@ function markdownImage(url: string, alt: string): string {
     return `![${safeAlt}](<${safeUrl}>)`
 }
 
+function hasBinding(val: unknown): boolean {
+    return typeof val === 'object' && val !== null && ('path' in val || 'call' in val)
+}
+
 function mapComponent(comp: Record<string, unknown>): ComponentDict | null {
     const type = comp.component as string | undefined
     if (!type) return null
+    if (hasBinding(comp.text) || hasBinding(comp.url) || hasBinding(comp.label)) return null
 
     switch (type) {
         case 'Text':
@@ -50,7 +55,10 @@ export function a2uiToComponents(messages: Record<string, unknown>[]): Component
     let sawUnmapped = false
 
     for (const msg of messages) {
-        const update = msg.updateComponents as Record<string, unknown> | undefined
+        if (msg.updateDataModel || msg.dataModelUpdate || msg.deleteSurface) {
+            return null
+        }
+        const update = (msg.updateComponents ?? msg.surfaceUpdate) as Record<string, unknown> | undefined
         const components = (update?.components ?? update?.componentList) as Record<string, unknown>[] | undefined
         if (!Array.isArray(components)) continue
 
