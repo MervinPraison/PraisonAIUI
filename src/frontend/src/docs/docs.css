@@ -639,47 +639,57 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   font-size: inherit;
   line-height: inherit;
 }
-.aiui-docs article.aiui-doc :is(h1, h2, h3, h4, h5, h6) {
+/* Component previews render live app blocks inside a docs article; isolate
+   them from docs markdown typography (headings, lists, tables, links, paper serif). */
+.aiui-docs article.aiui-doc [data-aiui-component-preview] {
+  font-family: var(--aiui-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.aiui-docs article.aiui-doc [data-aiui-component-preview] .aiui-tpl-col {
+  flex: 1 0 185px;
+}
+.aiui-docs article.aiui-doc :is(h1, h2, h3, h4, h5, h6):not([data-aiui-component-preview] *) {
   color: var(--foreground) !important;
   font-weight: 600;
   scroll-margin-top: calc(var(--docs-header-h) + 1.5rem);
 }
-.aiui-docs article.aiui-doc h1 {
+.aiui-docs article.aiui-doc h1:not([data-aiui-component-preview] *) {
   margin: 0 0 1rem;
   font-size: 1.875rem;
   line-height: 1.2;
   letter-spacing: -0.022em;
 }
-.aiui-docs article.aiui-doc h2 {
+.aiui-docs article.aiui-doc h2:not([data-aiui-component-preview] *) {
   margin: 3rem 0 0.75rem;
   font-size: 1.375rem;
   line-height: 1.3;
   letter-spacing: -0.015em;
 }
-.aiui-docs article.aiui-doc h3 {
+.aiui-docs article.aiui-doc h3:not([data-aiui-component-preview] *) {
   margin: 2rem 0 0.5rem;
   font-size: 1.0625rem;
   line-height: 1.4;
   letter-spacing: -0.01em;
 }
-.aiui-docs article.aiui-doc :is(h4, h5, h6) {
+.aiui-docs article.aiui-doc :is(h4, h5, h6):not([data-aiui-component-preview] *) {
   margin: 1.5rem 0 0.5rem;
   font-size: 0.9375rem;
   line-height: 1.5;
 }
-.aiui-docs article.aiui-doc h1:first-child,
+.aiui-docs article.aiui-doc h1:first-child:not([data-aiui-component-preview] *),
 .aiui-docs article.aiui-doc .aiui-markdown > :first-child { margin-top: 0; }
 /* The paragraph under the title reads as the page's lede. */
-.aiui-docs article.aiui-doc h1 + p {
+.aiui-docs article.aiui-doc h1:not([data-aiui-component-preview] *) + p {
   color: var(--muted-foreground) !important;
   font-size: 1.0625rem;
   line-height: 1.65;
 }
-.aiui-docs article.aiui-doc p { margin: 0; }
-.aiui-docs article.aiui-doc :is(strong, b) { font-weight: 600; }
+.aiui-docs article.aiui-doc p:not([data-aiui-component-preview] *) { margin: 0; }
+.aiui-docs article.aiui-doc :is(strong, b):not([data-aiui-component-preview] *) { font-weight: 600; }
 
 /* Links: accent text with a soft underline that firms up on hover. */
-.aiui-docs article.aiui-doc a {
+.aiui-docs article.aiui-doc a:not([data-aiui-component-preview] *) {
   color: var(--ui-link);
   font-weight: 500;
   text-decoration-line: underline;
@@ -687,39 +697,39 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   text-decoration-color: color-mix(in oklab, var(--ui-link) 35%, transparent);
   text-underline-offset: 3px;
 }
-.aiui-docs article.aiui-doc a:hover { text-decoration-color: currentColor; }
+.aiui-docs article.aiui-doc a:not([data-aiui-component-preview] *):hover { text-decoration-color: currentColor; }
 
 /* Lists */
-.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid) {
+.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid):not([data-aiui-component-preview] *) {
   padding-left: 1.375rem;
 }
-.aiui-docs article.aiui-doc ul:not(.aiui-feature-grid) { list-style-type: disc; }
-.aiui-docs article.aiui-doc ul ul:not(.aiui-feature-grid) { list-style-type: circle; }
-.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid) > li {
+.aiui-docs article.aiui-doc ul:not(.aiui-feature-grid):not([data-aiui-component-preview] *) { list-style-type: disc; }
+.aiui-docs article.aiui-doc ul ul:not(.aiui-feature-grid):not([data-aiui-component-preview] *) { list-style-type: circle; }
+.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid):not([data-aiui-component-preview] *) > li {
   padding-block: 0;
   padding-left: 0.25rem;
 }
-.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid) > li + li,
-.aiui-docs article.aiui-doc li > :is(ul, ol) { margin-top: 0.25rem; }
-.aiui-docs article.aiui-doc li::marker { color: var(--ui-text-3); }
+.aiui-docs article.aiui-doc :is(ul, ol):not(.aiui-feature-grid):not([data-aiui-component-preview] *) > li + li,
+.aiui-docs article.aiui-doc li:not([data-aiui-component-preview] *) > :is(ul, ol) { margin-top: 0.25rem; }
+.aiui-docs article.aiui-doc li:not([data-aiui-component-preview] *)::marker { color: var(--ui-text-3); }
 
 /* Blockquote: a hairline rule and secondary text, never italic. */
-.aiui-docs article.aiui-doc blockquote {
+.aiui-docs article.aiui-doc blockquote:not([data-aiui-component-preview] *) {
   margin: 0;
   padding: 0.125rem 0 0.125rem 1rem;
   border-left: 2px solid var(--input);
   font-style: normal;
 }
-.aiui-docs article.aiui-doc blockquote :is(p, li) { color: var(--muted-foreground) !important; }
+.aiui-docs article.aiui-doc blockquote:not([data-aiui-component-preview] *) :is(p, li) { color: var(--muted-foreground) !important; }
 
-.aiui-docs article.aiui-doc hr {
+.aiui-docs article.aiui-doc hr:not([data-aiui-component-preview] *) {
   margin: 2.5rem 0;
   border: 0;
   border-top: 1px solid var(--border);
 }
 
 /* Inline code and keys */
-.aiui-docs article.aiui-doc :not(pre) > code,
+.aiui-docs article.aiui-doc :not(pre) > code:not([data-aiui-component-preview] *),
 .aiui-docs article.aiui-doc [data-streamdown='inline-code'] {
   padding: 0.125em 0.375em;
   border: 1px solid var(--border);
@@ -731,8 +741,8 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
   font-weight: 450;
   overflow-wrap: anywhere;
 }
-.aiui-docs article.aiui-doc a > code { color: inherit; }
-.aiui-docs article.aiui-doc kbd {
+.aiui-docs article.aiui-doc a:not([data-aiui-component-preview] *) > code { color: inherit; }
+.aiui-docs article.aiui-doc kbd:not([data-aiui-component-preview] *) {
   padding: 0.0625rem 0.3125rem;
   border: 1px solid var(--border);
   border-bottom-color: var(--input);
@@ -743,7 +753,7 @@ html:not(.dark) .aiui-docs-mark[data-mode='dark'] {
 }
 
 /* Images: a 12px radius on a hairline. */
-.aiui-docs article.aiui-doc img:not(.katex img) {
+.aiui-docs article.aiui-doc img:not(.katex img):not([data-aiui-component-preview] *) {
   display: block;
   max-width: 100%;
   height: auto;
@@ -956,19 +966,19 @@ html[data-aiui-code-theme] .aiui-docs article.aiui-doc :is([data-streamdown='cod
 .aiui-docs article.aiui-doc [data-streamdown='table-header'] {
   background: color-mix(in oklab, var(--muted) 60%, var(--background));
 }
-.aiui-docs article.aiui-doc :is(th, td) {
+.aiui-docs article.aiui-doc :is(th, td):not([data-aiui-component-preview] *) {
   padding: 0.5rem 1rem;
   text-align: left;
   vertical-align: top;
   font-size: 0.875rem;
   line-height: 1.55;
 }
-.aiui-docs article.aiui-doc th {
+.aiui-docs article.aiui-doc th:not([data-aiui-component-preview] *) {
   color: var(--muted-foreground) !important;
   font-size: 0.8125rem;
   font-weight: 500;
 }
-.aiui-docs article.aiui-doc :is(thead, tbody, tr) { border-color: var(--border); }
+.aiui-docs article.aiui-doc :is(thead, tbody, tr):not([data-aiui-component-preview] *) { border-color: var(--border); }
 
 /* Callouts (MkDocs admonitions): a soft tone fill, a tone hairline and a
    line icon. Tone by type; the icon is a CSS mask, so it takes the tone. */
@@ -2264,35 +2274,35 @@ html[data-aiui-look='paper'] .aiui-docs article.aiui-doc {
   font-size: 1.0625rem;
   line-height: 1.7;
 }
-html[data-aiui-look='paper'] .aiui-docs :is(article.aiui-doc :is(h1, h2), .aiui-docs-hero-text, .aiui-docs-empty h1, .aiui-docs-feature-title) {
+html[data-aiui-look='paper'] .aiui-docs :is(article.aiui-doc :is(h1, h2):not([data-aiui-component-preview] *), .aiui-docs-hero-text, .aiui-docs-empty h1, .aiui-docs-feature-title) {
   font-family: var(--aiui-font-display);
   font-weight: 500;
   font-optical-sizing: auto;
 }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 {
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1:not([data-aiui-component-preview] *) {
   font-size: clamp(2rem, 1.6rem + 1.4vw, 2.5rem);
   line-height: 1.12;
   letter-spacing: -0.012em;
 }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2 {
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2:not([data-aiui-component-preview] *) {
   margin-top: 3.25rem;
   font-size: 1.75rem;
   line-height: 1.22;
   letter-spacing: -0.008em;
 }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h3 {
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h3:not([data-aiui-component-preview] *) {
   margin-top: 2.25rem;
   font-size: 1.1875rem;
   letter-spacing: -0.003em;
 }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(h4, h5, h6) { font-size: 1.0625rem; }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 + p {
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(h4, h5, h6):not([data-aiui-component-preview] *) { font-size: 1.0625rem; }
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1:not([data-aiui-component-preview] *) + p {
   font-size: 1.25rem;
   line-height: 1.55;
 }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(th, td) { font-size: 0.9375rem; }
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :is(th, td):not([data-aiui-component-preview] *) { font-size: 0.9375rem; }
 html[data-aiui-look='paper'] .aiui-docs article.aiui-doc .aiui-admonition { font-size: 0.96875rem; }
-html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :not(pre) > code,
+html[data-aiui-look='paper'] .aiui-docs article.aiui-doc :not(pre) > code:not([data-aiui-component-preview] *),
 html[data-aiui-look='paper'] .aiui-docs article.aiui-doc [data-streamdown='inline-code'] {
   background: var(--ui-code-bg);
   font-size: 0.82em;
@@ -2331,8 +2341,8 @@ html[data-aiui-look='paper'] .aiui-docs-empty h1 {
 /* Phones: 16px text and an 18px lede (a 390px column holds about 45 characters). */
 @media (max-width: 639px) {
   html[data-aiui-look='paper'] .aiui-docs article.aiui-doc { font-size: 1rem; }
-  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1 + p { font-size: 1.125rem; }
-  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2 { font-size: 1.5rem; margin-top: 2.5rem; }
+  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h1:not([data-aiui-component-preview] *) + p { font-size: 1.125rem; }
+  html[data-aiui-look='paper'] .aiui-docs article.aiui-doc h2:not([data-aiui-component-preview] *) { font-size: 1.5rem; margin-top: 2.5rem; }
   html[data-aiui-look='paper'] .aiui-docs-hero-tagline { font-size: 1.0625rem; }
 }
 
