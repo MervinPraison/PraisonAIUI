@@ -149,6 +149,24 @@ navigation:
             - components/inputs-and-forms
             - components/feedback-and-notifications
             - components/media-and-content
+    - tab: "A2UI"
+      groups:
+        - group: "Start with A2UI"
+          icon: sparkles
+          pages:
+            - a2ui/overview
+            - a2ui/quickstart
+        - group: "Building Surfaces"
+          icon: layout-grid
+          pages:
+            - a2ui/components
+            - a2ui/data-binding-and-actions
+            - a2ui/settings-and-pages
+        - group: "Try Everything"
+          icon: play
+          pages:
+            - a2ui/all-in-one-playground
+            - features/a2ui-canvas
     - tab: "Docs UI"
       groups:
         - group: "Start Building Docs"
