@@ -109,24 +109,31 @@ async def agent_canvas_page():
     return {"_surface": {"id": "main", "messages": _demo_surface(_demo_state["counter"])}}
 
 
-@aiui.page("a2ui-settings", title="A2UI Settings & Catalog", icon="⚙️", group="A2UI")
+@aiui.page("a2ui-settings", title="A2UI Settings & Catalog", icon="settings", group="A2UI")
 async def a2ui_settings_page():
     """Inspect A2UI client capabilities, supported versions, and Basic Catalog inventory."""
     caps = aiui.a2ui_client_capabilities()
     return aiui.layout(
         [
-            aiui.header("A2UI Capabilities & Settings", subtitle="Supported protocol versions, catalogs, and functions"),
+            aiui.header("A2UI Capabilities & Settings", level=2),
+            aiui.caption("Supported protocol versions, catalogs, and client-side functions."),
             aiui.columns(
                 [
-                    aiui.metric("Default Version", caps["version"]),
-                    aiui.metric("Supported Specs", ", ".join(caps["supportedVersions"])),
-                    aiui.metric("Basic Components", str(len(caps["components"]))),
-                    aiui.metric("Client Functions", str(len(caps["functions"]))),
+                    aiui.metric("Default Version", value=caps["version"]),
+                    aiui.metric("Supported Specs", value=", ".join(caps["supportedVersions"])),
+                    aiui.metric("Basic Components", value=str(len(caps["components"]))),
+                    aiui.metric("Client Functions", value=str(len(caps["functions"]))),
                 ]
             ),
-            aiui.card("Supported Basic Catalog Components (18)", children=[aiui.text(", ".join(caps["components"]))]),
-            aiui.card("Client-Side Functions (14)", children=[aiui.text(", ".join(caps["functions"]))]),
-            aiui.json_view(caps, title="GET /api/surfaces/capabilities"),
+            aiui.container(
+                [aiui.text(", ".join(caps["components"]))],
+                title="Supported Basic Catalog Components (18)",
+            ),
+            aiui.container(
+                [aiui.text(", ".join(caps["functions"]))],
+                title="Client-Side Functions (14)",
+            ),
+            aiui.container([aiui.json_view(caps)], title="GET /api/surfaces/capabilities"),
         ]
     )
 

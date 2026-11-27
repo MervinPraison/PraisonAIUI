@@ -219,6 +219,7 @@ navigation:
         - group: "Try Everything"
           icon: play
           pages:
+            - a2ui/response-examples
             - a2ui/all-in-one-playground
             - features/a2ui-canvas
     - tab: "Docs UI"
