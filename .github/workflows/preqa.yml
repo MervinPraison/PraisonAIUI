@@ -41,12 +41,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            tools/preqa/requirements.txt
 
       - name: Install aiui and the tracker
+        id: pw-ver
         run: |
           pip install -e .
           pip install -r tools/preqa/requirements.txt
-          python -m playwright install --with-deps chromium
+          echo "version=$(python -c 'import importlib.metadata as m; print(m.version(\"playwright\"))')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: preqa-pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: preqa-playwright-${{ runner.os }}-${{ steps.pw-ver.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.preqa-pw-cache.outputs.cache-hit != 'true'
+        run: python -m playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.preqa-pw-cache.outputs.cache-hit == 'true'
+        run: python -m playwright install-deps chromium
 
       - name: Build the docs site
         run: aiui build --output site --minify
