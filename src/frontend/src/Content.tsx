@@ -14,7 +14,7 @@ import { docNeighbours, docTrail } from './docs/docNav'
 import { DocsPager } from './docs/DocsPager'
 import { DocsHome } from './docs/DocsHome'
 import { DocsNotFound } from './docs/DocsNotFound'
-import { DOCS_TAG_COMPONENTS } from './docs/DocsBlocks'
+import { DOCS_TAG_COMPONENTS, preloadComponentPreview } from './docs/DocsBlocks'
 import { DocsImage, DocsSource } from './docs/DocsMedia'
 import { splitPanels } from './docs/panels'
 import { DOCS_PAGE_ELEMENTS, rehypeDocsClasses } from './docs/docsClasses'
@@ -157,7 +157,7 @@ export function Content({ config, routes, selectedItem, currentPath, nav, onNavi
             // that the text shows and upgrades when they arrive.
             const content = prepare(result.text)
             await Promise.race([
-                Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)]),
+                Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content), preloadComponentPreview(content)]),
                 new Promise((resolve) => setTimeout(resolve, PAINT_WAIT_MS)),
             ])
             if (!controller.signal.aborted) show(result, content)

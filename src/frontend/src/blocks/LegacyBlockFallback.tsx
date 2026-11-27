@@ -9,7 +9,6 @@
  * available, the component's JSON is shown instead.
  */
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { ensureLegacyRuntime } from '@/legacy/runtime'
 import type { BlockNode } from '@/sdk/registry'
 import { toLegacyComponent } from './normalize'
 
@@ -72,7 +71,8 @@ export function LegacyBlockFallback({ node }: { node: BlockNode }): JSX.Element 
     if (ready) {
       paint(ready)
     } else {
-      ensureLegacyRuntime()
+      import('@/legacy/runtime')
+        .then((m) => m.ensureLegacyRuntime())
         .then(() => {
           if (cancelled) return
           const render = legacyRenderer()

@@ -963,31 +963,70 @@ function templateBlock(load: () => Promise<{ default: CoreBlock }>): CoreBlock {
   return retryableLazy<CoreBlockProps>(load)
 }
 
-const BoardTemplate = templateBlock(() => import('@/components/page/blocks/BoardBlock').then((m) => ({ default: m.BoardBlock })))
-const GalleryTemplate = templateBlock(() => import('@/components/page/blocks/GalleryBlock').then((m) => ({ default: m.GalleryBlock })))
-const ListDetailTemplate = templateBlock(() =>
-  import('@/components/page/blocks/ListDetailBlock').then((m) => ({ default: m.ListDetailBlock })),
-)
-const LogViewerTemplate = templateBlock(() =>
-  import('@/components/page/blocks/LogViewerBlock').then((m) => ({ default: m.LogViewerBlock })),
-)
-const CodeEditorTemplate = templateBlock(() =>
-  import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock })),
-)
+const loadBoard = () => import('@/components/page/blocks/BoardBlock').then((m) => ({ default: m.BoardBlock }))
+const loadGallery = () => import('@/components/page/blocks/GalleryBlock').then((m) => ({ default: m.GalleryBlock }))
+const loadListDetail = () => import('@/components/page/blocks/ListDetailBlock').then((m) => ({ default: m.ListDetailBlock }))
+const loadLogViewer = () => import('@/components/page/blocks/LogViewerBlock').then((m) => ({ default: m.LogViewerBlock }))
+const loadCodeEditor = () => import('@/components/page/blocks/CodeEditorBlock').then((m) => ({ default: m.CodeEditorBlock }))
+const loadChart = () => import('./chart/ChartBlock').then((m) => ({ default: m.ChartBlock }))
+const loadCombobox = () => import('./inputs/Combobox')
+const loadFilterInputs = () => import('./inputs/FilterInputs')
+const loadRichBlocks = () => import('./RichBlocks')
+const loadStudioBlocks = () => import('@/studio/StudioBlocks')
+
+const BoardTemplate = templateBlock(loadBoard)
+const GalleryTemplate = templateBlock(loadGallery)
+const ListDetailTemplate = templateBlock(loadListDetail)
+const LogViewerTemplate = templateBlock(loadLogViewer)
+const CodeEditorTemplate = templateBlock(loadCodeEditor)
 // The chart library loads with this chunk only, never with the blocks chunk.
-const ChartBlockLazy = templateBlock(() => import('./chart/ChartBlock').then((m) => ({ default: m.ChartBlock })))
+const ChartBlockLazy = templateBlock(loadChart)
 
 // Filter inputs (blocks/inputs): the combobox chunk carries cmdk + popover.
-const SearchableSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.SearchableSelect })))
-const MultiSelect = templateBlock(() => import('./inputs/Combobox').then((m) => ({ default: m.MultiSelect })))
-const TagsInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.TagsInput })))
-const DateRangeInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.DateRangeInput })))
-const SegmentedInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.SegmentedInput })))
-const FilterBar = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.FilterBar })))
+const SearchableSelect = templateBlock(() => loadCombobox().then((m) => ({ default: m.SearchableSelect })))
+const MultiSelect = templateBlock(() => loadCombobox().then((m) => ({ default: m.MultiSelect })))
+const TagsInput = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.TagsInput })))
+const DateRangeInput = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.DateRangeInput })))
+const SegmentedInput = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.SegmentedInput })))
+const FilterBar = templateBlock(() => loadFilterInputs().then((m) => ({ default: m.FilterBar })))
 // Rich compound blocks: one lazy dispatcher so coreBlocks / chat-route stays tiny.
-const RichBlock = templateBlock(() => import('./RichBlocks'))
+const RichBlock = templateBlock(loadRichBlocks)
 // Interactive studio blocks (sheet, whiteboard): one lazy dispatcher shared with chat & artifacts.
-const StudioBlock = templateBlock(() => import('@/studio/StudioBlocks'))
+const StudioBlock = templateBlock(loadStudioBlocks)
+
+const LAZY_PRELOADERS: Record<string, () => Promise<unknown>> = {
+  board: loadBoard,
+  gallery: loadGallery,
+  list_detail: loadListDetail,
+  log_viewer: loadLogViewer,
+  code_editor: loadCodeEditor,
+  chart: loadChart,
+  multiselect_input: loadCombobox,
+  tags_input: loadFilterInputs,
+  date_range_input: loadFilterInputs,
+  segmented_input: loadFilterInputs,
+  filter_bar: loadFilterInputs,
+  stepper: loadRichBlocks,
+  timeline: loadRichBlocks,
+  diff_viewer: loadRichBlocks,
+  tree_view: loadRichBlocks,
+  copy_field: loadRichBlocks,
+  rating_input: loadRichBlocks,
+  sheet: loadStudioBlocks,
+  whiteboard: loadStudioBlocks,
+}
+
+/** Pre-warm lazy block chunks referenced by a docs `<ComponentPreview>` spec. */
+// eslint-disable-next-line react-refresh/only-export-components -- preload helper
+export function preloadCoreBlockTypes(types: Iterable<string>): Promise<void> {
+  const jobs = new Set<() => Promise<unknown>>()
+  for (const t of types) {
+    const fn = LAZY_PRELOADERS[t]
+    if (fn) jobs.add(fn)
+  }
+  if (jobs.size === 0) return Promise.resolve()
+  return Promise.all([...jobs].map((fn) => fn().catch(() => undefined))).then(() => undefined)
+}
 
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {

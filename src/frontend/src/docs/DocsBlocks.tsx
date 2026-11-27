@@ -158,17 +158,46 @@ function findPreviewExport(mod: Record<string, unknown>): PreviewComponent | und
     return typeof g === 'function' ? (g as PreviewComponent) : undefined
 }
 
-const LazyPreview = lazy(async (): Promise<{ default: PreviewComponent }> => {
-    if (import.meta.env.DEV) {
-        const m = await import('../blocks/BlockPage')
-        return { default: m.ComponentPreview }
+let previewPromise: Promise<{ default: PreviewComponent }> | null = null
+
+function loadPreview(): Promise<{ default: PreviewComponent }> {
+    previewPromise ??= (async (): Promise<{ default: PreviewComponent }> => {
+        if (import.meta.env.DEV) {
+            const m = await import('../blocks/BlockPage')
+            return { default: m.ComponentPreview }
+        }
+        const url = new URL(BLOCK_PAGE_CHUNK, import.meta.url).href
+        const m = (await import(/* @vite-ignore */ url)) as Record<string, unknown>
+        const Preview = findPreviewExport(m)
+        if (!Preview) throw new Error('ComponentPreview export not found in BlockPage chunk')
+        return { default: Preview }
+    })().catch((err) => {
+        previewPromise = null
+        throw err
+    })
+    return previewPromise
+}
+
+const LazyPreview = lazy(loadPreview)
+
+/** Preload the BlockPage preview chunk (and any lazy block chunks referenced in specs)
+ *  in parallel with markdown plugins when a docs page contains `<aiui-preview>`. */
+// eslint-disable-next-line react-refresh/only-export-components -- preload helper for Content.tsx
+export async function preloadComponentPreview(markdown: string): Promise<void> {
+    if (!markdown.includes('<aiui-preview')) return
+    try {
+        await loadPreview()
+        const preloadBlocks = (globalThis as { __aiuiPreloadPreviewBlocks?: (types: Iterable<string>) => Promise<void> }).__aiuiPreloadPreviewBlocks
+        if (!preloadBlocks) return
+        const types = new Set<string>()
+        for (const m of markdown.matchAll(/(?:&quot;|")type(?:&quot;|")\s*:\s*(?:&quot;|")([a-z0-9_]+)(?:&quot;|")/g)) {
+            if (m[1]) types.add(m[1])
+        }
+        if (types.size > 0) await preloadBlocks(types)
+    } catch {
+        // Non-fatal: the lazy boundary handles and retries if needed.
     }
-    const url = new URL(BLOCK_PAGE_CHUNK, import.meta.url).href
-    const m = (await import(/* @vite-ignore */ url)) as Record<string, unknown>
-    const Preview = findPreviewExport(m)
-    if (!Preview) throw new Error('ComponentPreview export not found in BlockPage chunk')
-    return { default: Preview }
-})
+}
 
 class PreviewBoundary extends ReactComponent<{ title?: string; children: ReactNode }, { failed: boolean }> {
     state = { failed: false }

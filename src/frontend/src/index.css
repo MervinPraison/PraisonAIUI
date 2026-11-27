@@ -160,7 +160,7 @@ article.prose .aiui-feature-grid > li {
   color: var(--foreground) !important;
 }
 
-.dark article.prose.dark\:prose-invert :where(p, li, td, th, blockquote, strong, h1, h2, h3, h4):not([data-aiui-component-preview] *) {
+.dark article.prose.dark\:prose-invert :where(h2):not([data-aiui-component-preview] *) {
   color: var(--foreground) !important;
   -webkit-text-fill-color: unset !important;
 }
