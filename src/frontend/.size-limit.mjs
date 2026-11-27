@@ -179,7 +179,8 @@ const defaultLayoutFirstScreen = [
     // 270,273 B (+273 B, exactly the overage, 2026-11-26): live sidebar badge/manifest updates in ShellApp + NavList badge fallback.
     // 274,091 B (+3,818 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
     // 274,261 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
-    limit: '274261 B',
+    // 274,301 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
+    limit: '274301 B',
     gzip: true,
   },
 ]
@@ -371,7 +372,8 @@ export default [
   // 258,339 B (+429 B, exactly the overage, 2026-11-26): sidebar page badge pill, layoutNav propagation, live badge/manifest refresh in ShellApp.
   // 262,141 B (+3,802 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
   // 262,321 B (+180 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262321 B', gzip: true },
+  // 262,361 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262361 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives

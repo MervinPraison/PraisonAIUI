@@ -144,13 +144,13 @@
 }
 
 /* Prose readability — must beat @tailwindcss/typography defaults (unlayered) */
-article.prose :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6) {
+article.prose :where(p, li, td, th, blockquote, strong, em, h1, h3, h4, h5, h6):not([data-aiui-component-preview] *) {
   color: var(--foreground) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
 }
 
-article.prose :where(h2) {
+article.prose :where(h2):not([data-aiui-component-preview] *) {
   color: var(--ui-link) !important;
   -webkit-text-fill-color: unset !important;
   opacity: 1 !important;
@@ -160,7 +160,7 @@ article.prose .aiui-feature-grid > li {
   color: var(--foreground) !important;
 }
 
-.dark article.prose.dark\:prose-invert :where(p, li, td, th, blockquote, strong, h1, h2, h3, h4) {
+.dark article.prose.dark\:prose-invert :where(p, li, td, th, blockquote, strong, h1, h2, h3, h4):not([data-aiui-component-preview] *) {
   color: var(--foreground) !important;
   -webkit-text-fill-color: unset !important;
 }

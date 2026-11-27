@@ -399,7 +399,7 @@ export function ComponentPreview({ title, spec }: { title?: string; spec?: strin
         <span className="font-medium text-tier-1">{title || 'Live Preview'}</span>
         <span className="text-tier-3">Interactive</span>
       </div>
-      <div className="flex min-w-0 flex-col gap-3 p-4">
+      <div className="flex min-w-0 flex-col gap-3 overflow-x-auto p-4">
         {parseError ? (
           <p className="text-xs text-destructive">Preview error: {parseError}</p>
         ) : nodes.length === 0 ? (
