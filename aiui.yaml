@@ -34,7 +34,7 @@ navigation:
             - getting-started/quickstart
             - features/styles
             - getting-started/cli
-        - group: "Step-by-Step Learning Path"
+        - group: "Step-by-Step: Agent & Chat UI"
           icon: graduation-cap
           pages:
             - tutorials/01-first-chat
@@ -43,6 +43,19 @@ navigation:
             - tutorials/04-steps-and-tools
             - tutorials/05-rich-ui-and-pages
             - tutorials/06-theme-auth-deploy
+        - group: "Step-by-Step: Dashboards, A2UI & Plugins"
+          icon: sparkles
+          pages:
+            - guides/server-pages
+            - guides/focused-app
+            - a2ui/quickstart
+            - features/plugins
+        - group: "Step-by-Step: Docs UI"
+          icon: book-open
+          pages:
+            - docs-ui/overview
+            - features/writing-docs
+            - getting-started/github-pages
     - tab: "Chat UI"
       groups:
         - group: "Core Concepts"

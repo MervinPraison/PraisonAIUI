@@ -85,25 +85,25 @@ Open <http://127.0.0.1:8000>. The app opens in the React app shell, in its
 
 <CardGroup cols={3}>
 <Card title="Chat UI" icon="message-square" href="chat-ui/overview.md">
-Build streaming AI chat apps with starters, profiles, reasoning steps, tool calls and an artifacts canvas.
+Build streaming AI chat apps with starters, profiles, reasoning steps, tool calls, HITL approvals and an artifacts canvas.
 </Card>
 <Card title="App & Dashboard" icon="panels-top-left" href="app-ui/overview.md">
-Combine chat with selectable layouts, Python or YAML data pages, notifications, themes and plugins.
+Combine chat with 5 selectable layouts, Python or YAML data pages, notifications, themes and built-in ops views.
 </Card>
-<Card title="Docs UI" icon="book-open" href="docs-ui/overview.md">
-Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentation site like this one.
+<Card title="A2UI (Generative UI)" icon="sparkles" href="a2ui/quickstart.md">
+Let agents push live interactive surfaces, forms and controls over JSONL and WebSocket into a split Chat + Canvas workspace.
 </Card>
 </CardGroup>
 
 <CardGroup cols={3}>
 <Card title="UI Components" icon="component" href="components/overview.md">
-Explore all 76 Python and YAML UI builders — cards, tables, charts, steppers, timelines, diffs, trees, forms and live notifications.
+Explore all 78 Python and YAML UI builders — interactive spreadsheets, whiteboards, cards, tables, charts, steppers, diffs and forms.
 </Card>
-<Card title="Build a plugin" icon="plug" href="features/plugins.md">
-Extend the app with custom pages, settings sections, nav groups and themes from a Python package.
+<Card title="Docs UI" icon="book-open" href="docs-ui/overview.md">
+Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentation site with SEO, OpenAPI and `llms.txt`.
 </Card>
-<Card title="Deploy with sign-in" icon="shield-check" href="features/deployment.md">
-Run behind a reverse proxy with deny-by-default auth on every HTTP route and WebSocket.
+<Card title="Plugins & Security" icon="plug" href="features/plugins.md">
+Extend the app with pip-installable `@aiui/sdk` React pages and themes, behind deny-by-default auth and reverse proxies.
 </Card>
 </CardGroup>
 
