@@ -1,0 +1,43 @@
+---
+title: Select Input
+nav_title: Select Input
+description: Dropdown selector with optional client search and remote async option loading.
+---
+
+# Select Input
+
+`select_input()` renders a single-choice dropdown—and upgrades automatically to a searchable combobox when `searchable=True` or `options_url` is set.
+
+<ComponentPreview title="Select & Searchable Select">
+[
+  {"type": "select_input", "label": "Primary Model", "options": ["gpt-4o", "gpt-4o-mini", "claude-3.7-sonnet", "gemini-2.5-flash"], "value": "gpt-4o", "name": "model"},
+  {"type": "select_input", "label": "Searchable Region", "options": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], "value": "us-east-1", "searchable": true, "name": "region"}
+]
+</ComponentPreview>
+
+<Tabs>
+<Tab title="Python">
+```python
+import praisonaiui as aiui
+
+aiui.select_input("Primary Model", options=["gpt-4o", "gpt-4o-mini", "claude-3.7-sonnet"], value="gpt-4o", name="model")
+aiui.select_input("Searchable Region", options=["us-east-1", "eu-west-1"], searchable=True, name="region")
+```
+</Tab>
+<Tab title="YAML">
+```yaml
+- type: select_input
+  label: "Primary Model"
+  options: ["gpt-4o", "gpt-4o-mini", "claude-3.7-sonnet"]
+  value: "gpt-4o"
+  name: "model"
+```
+</Tab>
+</Tabs>
+
+## Props
+
+| Parameter | Type | Description |
+|---|---|---|
+| `label`, `options`, `value`, `name` | options | Dropdown label, list of strings or `{label, value}` pairs, selected value, and form key. |
+| `searchable`, `options_url`, `placeholder` | options | Enable combobox filtering or fetch remote options via `GET options_url?q=...`. |
