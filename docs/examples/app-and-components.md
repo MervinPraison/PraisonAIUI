@@ -1,7 +1,7 @@
 ---
 title: Apps, Components & A2UI Examples
 nav_title: Apps, Components & A2UI
-description: Runnable Python examples for dashboards, all 76 UI components, A2UI surfaces, gateways, channels, voice, and video.
+description: Runnable Python examples for dashboards, all 76 UI components, A2UI surfaces, gateways, channels, and voice.
 ---
 
 # Apps, Components & A2UI Examples
@@ -29,7 +29,7 @@ Build full multi-page AI applications, interactive dashboards, and live agent-dr
 
 See the dedicated **[A2UI Overview](../a2ui/overview.md)** and **[All-in-One Playground](../a2ui/all-in-one-playground.md)** for JSONL, v0.8 → v0.9 upgrade, and multi-surface walkthroughs.
 
-## Gateways, Channels, Voice & Video
+## Gateways, Channels & Voice
 
 | Example | What it demonstrates | Run |
 |---|---|---|
@@ -37,6 +37,5 @@ See the dedicated **[A2UI Overview](../a2ui/overview.md)** and **[All-in-One Pla
 | [18-full-chat](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/18-full-chat) | Curated chat workspace with `aiui.set_pages()` | `python app.py` |
 | [20-email-bot](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/20-email-bot) / [21-email-channel](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/21-email-channel) | IMAP/SMTP email bot and dashboard channel integration | `aiui run app.py` |
 | [22-agentmail-bot](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/22-agentmail-bot) / [23-agentmail-channel](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/23-agentmail-channel) | API-first programmatic AgentMail inbox bot & channel | `aiui run app.py` |
-| [video-studio](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/video-studio) | YAML scene-based Video Studio sidecar | `aiui run app.py` |
 | [voice-agent](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/voice-agent) / [meeting-agent](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/meeting-agent) | Real-time voice input and meeting agent flows | `aiui run app.py` |
 | [11-ui-integration](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/11-ui-integration) | Running PraisonAIUI alongside Gradio and Streamlit | `python app.py` |

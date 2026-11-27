@@ -553,13 +553,25 @@ class PluginRegistry:
         out: list[PluginRecord] = []
         for obj in builtins:
             name = _builtin_name(obj)
+            default_on = bool(getattr(obj, "default_enabled", True))
+            allowed = policy.allows_builtin(name)
+            if not allowed:
+                status: PluginStatus = "disabled"
+                reason: Optional[str] = None
+            elif not default_on and not policy.explicitly_enabled(name):
+                status = "disabled"
+                reason = "opt-in (enable via extensions.enabled)"
+            else:
+                status = "ok"
+                reason = None
             out.append(
                 PluginRecord(
                     name=name,
                     entry_point=f"praisonaiui.builtin:{name[len(BUILTIN_PREFIX):]}",
                     dist="praisonaiui",
                     version=getattr(obj, "version", None) or _host_version(),
-                    status="ok" if policy.allows_builtin(name) else "disabled",
+                    status=status,
+                    reason=reason,
                     plugin=obj,
                     autoloaded=False,
                     origin="builtin",

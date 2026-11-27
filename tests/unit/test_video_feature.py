@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from starlette.testclient import TestClient
 
-from praisonaiui.features import _features, register_feature
+from praisonaiui.features import register_feature
 from praisonaiui.features.video import VideoFeature
 from praisonaiui.server import create_app
 from praisonaiui.video_config import set_video_engine
@@ -21,8 +21,8 @@ def projects_tmp(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def client(projects_tmp):
-    _features.clear()
+def client(projects_tmp, monkeypatch):
+    monkeypatch.setattr("praisonaiui.features._features", {})
     register_feature(VideoFeature())
     return TestClient(create_app())
 
@@ -89,3 +89,23 @@ class TestVideoProxy:
             r = client.get("/api/video/registry")
         assert r.status_code == 200
         assert "text" in r.json()["nodeTypes"]
+
+    def test_health_and_lint_never_500_when_engine_unreachable(self, client, monkeypatch):
+        """Regression: httpx.ConnectError used to bubble out as HTTP 500."""
+        # Point at an unused local port and ensure no CLI fallback exists.
+        set_video_engine(url="http://127.0.0.1:1")
+        monkeypatch.setattr("shutil.which", lambda _name: None)
+        try:
+            r_health = client.get("/api/video/health")
+            assert r_health.status_code == 200
+            assert r_health.json()["engine"]["status"] == "unavailable"
+
+            r_lint = client.post("/api/video/lint", json={"yaml": "schemaVersion: 1\n"})
+            assert r_lint.status_code == 200
+            issues = r_lint.json().get("issues", [])
+            assert issues and issues[0]["severity"] == "error"
+
+            r_compile = client.post("/api/video/compile", json={"yaml": "schemaVersion: 1\n"})
+            assert r_compile.status_code == 503
+        finally:
+            set_video_engine(url="http://127.0.0.1:3921")

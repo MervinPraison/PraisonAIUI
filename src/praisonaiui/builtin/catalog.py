@@ -752,10 +752,11 @@ BUILTIN_PLUGINS: tuple[BuiltinPlugin, ...] = (
     ),
     BuiltinPlugin(
         "video",
-        "Video Studio render jobs",
+        "Video Studio render jobs (experimental opt-in; requires external praisonai-video engine)",
         feature_refs=(feature(".video", "VideoFeature"),),
         # The bundled folder is the Video Studio page; it only calls /api/video.
         dashboard_plugins=("video-studio",),
+        default_enabled=False,
     ),
     BuiltinPlugin(
         "examples",

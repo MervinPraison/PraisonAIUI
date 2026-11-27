@@ -1,6 +1,9 @@
-# Video Studio
+# Video Studio (Internal / Experimental)
 
-The Video Studio integrates [PraisonAI Video](https://github.com/MervinPraison/praisonai-video) as an external Node render engine. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and HTTP proxying. The video engine handles parse, compile, lint, and MP4 export. **Agents live in PraisonAI (Chat + tools), not inside the renderer.**
+> [!WARNING]
+> **Internal / opt-in prototype:** Video Studio requires the private `praisonai-video` Node render sidecar (not published on npm or PyPI). `builtin.video` is **disabled by default** — opt in explicitly with `extensions.enabled: [builtin.video]` (or `aiui.set_extensions(enabled=["builtin.video"])`) only when running alongside a local `praisonai-video` checkout.
+
+The Video Studio integrates the internal PraisonAI Video Node render engine as an external sidecar. PraisonAIUI provides the dashboard shell, project files, YAML editor, job UX, and HTTP proxying. The video engine handles parse, compile, lint, and MP4 export. **Agents live in PraisonAI (Chat + tools), not inside the renderer.**
 
 ## Prerequisites
 

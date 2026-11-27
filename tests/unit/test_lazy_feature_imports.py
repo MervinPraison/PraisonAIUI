@@ -75,7 +75,7 @@ def test_video_on_and_jobs_off_does_not_import_jobs(tmp_path):
     result = _run(
         tmp_path,
         "from praisonaiui.plugin_registry import set_extensions\n"
-        "set_extensions(disabled=['builtin.jobs'])\n"
+        "set_extensions(enabled=['builtin.video'], disabled=['builtin.jobs'])\n"
         "srv.create_app()\n"
         "print(json.dumps({'video': 'praisonaiui.features.video' in sys.modules,\n"
         "  'jobs': 'praisonaiui.features.jobs' in sys.modules}))\n",
