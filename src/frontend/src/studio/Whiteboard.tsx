@@ -42,11 +42,14 @@ const NAMED_COLORS: Record<string, string> = {
   pink: '#fbcfe8',
   purple: '#e9d5ff',
   orange: '#fed7aa',
+  amber: '#fde68a',
+  cyan: '#a5f3fc',
   slate: '#e2e8f0',
 }
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 
 /** Allow-list safe solid colors only — strictly blocks CSS url(...) exfiltration (R9/S1). */
+// eslint-disable-next-line react-refresh/only-export-components -- shared with tests
 export function safeBoardColor(raw: unknown, fallbackIndex: number): string {
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
@@ -121,29 +124,7 @@ function downloadFile(filename: string, text: string, mime: string) {
 }
 
 export default function WhiteboardViewer({ content, streaming }: { content: string; streaming?: boolean }): JSX.Element {
-  const markerId = `wb-arrow-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const parsed = useMemo(() => parseBoard(content), [content])
-
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const [addedNodes, setAddedNodes] = useState<WhiteboardItem[]>([])
-  const [zoom, setZoom] = useState(1)
-  const [fullscreen, setFullscreen] = useState(false)
-  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null)
-
-  useEffect(() => {
-    setPositions({})
-    setAddedNodes([])
-    setZoom(1)
-  }, [content])
-
-  useEffect(() => {
-    if (!fullscreen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFullscreen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [fullscreen])
 
   if (!parsed) {
     if (streaming) {
@@ -155,6 +136,27 @@ export default function WhiteboardViewer({ content, streaming }: { content: stri
     }
     return <p className="p-4 text-sm text-tier-3">This whiteboard is not valid JSON.</p>
   }
+
+  return <WhiteboardInner key={content} parsed={parsed} />
+}
+
+function WhiteboardInner({ parsed }: { parsed: WhiteboardDoc }): JSX.Element {
+  const markerId = `wb-arrow-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [addedNodes, setAddedNodes] = useState<WhiteboardItem[]>([])
+  const [zoom, setZoom] = useState(1)
+  const [fullscreen, setFullscreen] = useState(false)
+  const dragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null)
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullscreen])
 
   const rawItems = Array.isArray(parsed.items) ? parsed.items : []
   const allItems = [...rawItems, ...addedNodes]

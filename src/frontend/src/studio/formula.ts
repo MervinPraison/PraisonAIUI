@@ -246,7 +246,7 @@ export function evaluateSheet(grid: CellMatrix): unknown[][] {
     }
 
     function parseComparison(): unknown {
-      let left = parseAddSub()
+      const left = parseAddSub()
       const tk = peek()
       if (tk && tk.t === 'op' && ['=', '<>', '!=', '<', '<=', '>', '>='].includes(tk.v)) {
         pos++

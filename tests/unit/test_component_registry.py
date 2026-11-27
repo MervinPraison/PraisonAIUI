@@ -93,6 +93,8 @@ class TestPythonJSComponentParity:
             "tree_view",
             "copy_field",
             "rating_input",
+            "sheet",
+            "whiteboard",
         }
         missing = py_types - js_cases - app_shell_only
         assert not missing, (

@@ -8,7 +8,7 @@
  * - One-click CSV and JSON export
  * - Streaming-safe placeholder while JSON is incomplete; malformed-JSON resilient
  */
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useMemo, useState, type JSX } from 'react'
 import { colLabel, evaluateSheet, sheetToCsv } from './formula'
 
 export interface SheetTab {
@@ -80,21 +80,6 @@ function triggerDownload(filename: string, text: string, mime: string) {
 
 export default function SheetViewer({ content, streaming }: { content: string; streaming?: boolean }): JSX.Element {
   const book = useMemo(() => parseBook(content), [content])
-  const initialTabs = useMemo(() => (book ? normalizeTabs(book) : []), [book])
-
-  const [tabIdx, setTabIdx] = useState(0)
-  const [edits, setEdits] = useState<Record<string, unknown>>({})
-  const [selected, setSelected] = useState<{ r: number; c: number } | null>(null)
-  const [editing, setEditing] = useState<{ r: number; c: number; draft: string } | null>(null)
-  const [query, setQuery] = useState('')
-
-  // Reset local edits when a brand-new sheet document arrives.
-  useEffect(() => {
-    setEdits({})
-    setSelected(null)
-    setEditing(null)
-    setTabIdx(0)
-  }, [content])
 
   if (!book) {
     if (streaming) {
@@ -106,6 +91,18 @@ export default function SheetViewer({ content, streaming }: { content: string; s
     }
     return <p className="p-4 text-sm text-tier-3">This sheet is not valid JSON.</p>
   }
+
+  return <SheetGridInner key={content} book={book} />
+}
+
+function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
+  const initialTabs = useMemo(() => normalizeTabs(book), [book])
+
+  const [tabIdx, setTabIdx] = useState(0)
+  const [edits, setEdits] = useState<Record<string, unknown>>({})
+  const [selected, setSelected] = useState<{ r: number; c: number } | null>(null)
+  const [editing, setEditing] = useState<{ r: number; c: number; draft: string; source: 'cell' | 'bar' } | null>(null)
+  const [query, setQuery] = useState('')
 
   const safeTab = Math.min(tabIdx, Math.max(0, initialTabs.length - 1))
   const activeTab = initialTabs[safeTab]
@@ -213,7 +210,7 @@ export default function SheetViewer({ content, streaming }: { content: string; s
         <span className="w-10 shrink-0 rounded bg-fill-4 px-1.5 py-0.5 text-center text-tier-2">
           {selected ? `${colLabel(selected.c)}${selected.r + 1}` : 'fx'}
         </span>
-        {editing ? (
+        {editing?.source === 'bar' ? (
           <input
             autoFocus
             value={editing.draft}
@@ -226,11 +223,13 @@ export default function SheetViewer({ content, streaming }: { content: string; s
             aria-label="Formula bar input"
             className="min-w-0 flex-1 bg-transparent text-foreground focus:outline-none"
           />
+        ) : editing?.source === 'cell' ? (
+          <span className="min-w-0 flex-1 truncate text-left text-foreground">{editing.draft}</span>
         ) : (
           <button
             type="button"
             disabled={!selected}
-            onClick={() => selected && setEditing({ r: selected.r, c: selected.c, draft: selRaw == null ? '' : String(selRaw) })}
+            onClick={() => selected && setEditing({ r: selected.r, c: selected.c, draft: selRaw == null ? '' : String(selRaw), source: 'bar' })}
             className="min-w-0 flex-1 truncate text-left text-tier-2 disabled:text-tier-3"
           >
             {selected
@@ -271,7 +270,7 @@ export default function SheetViewer({ content, streaming }: { content: string; s
                     const isFormula = typeof raw === 'string' && raw.trim().startsWith('=')
                     const isNum = typeof cell === 'number'
                     const isSel = selected?.r === r && selected?.c === c
-                    const isEdit = editing?.r === r && editing?.c === c
+                    const isEdit = editing?.source === 'cell' && editing.r === r && editing.c === c
                     return (
                       <td
                         key={c}
@@ -279,7 +278,7 @@ export default function SheetViewer({ content, streaming }: { content: string; s
                         onClick={() => setSelected({ r, c })}
                         onDoubleClick={() => {
                           setSelected({ r, c })
-                          setEditing({ r, c, draft: raw == null ? '' : String(raw) })
+                          setEditing({ r, c, draft: raw == null ? '' : String(raw), source: 'cell' })
                         }}
                         style={{ cursor: 'cell' }}
                         className={`relative border-b border-r border-hairline px-2.5 py-1.5 whitespace-nowrap ${
