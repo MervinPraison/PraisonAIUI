@@ -8,8 +8,12 @@ See ``docs/guides/server-pages.md``.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
-from typing import Any, Callable, Optional, Union
+import json
+from typing import Any, AsyncIterator, Callable, Optional, Union
+
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 Params = dict[str, Union[str, list[str]]]
 
@@ -69,3 +73,69 @@ def with_refresh(page_id: str, result: dict) -> dict:
 def reset() -> None:
     """Forget registered refresh periods (``server.reset_state``)."""
     _refresh_every.clear()
+
+
+def _frame_to_ndjson(frame: Any) -> str:
+    payload = frame if isinstance(frame, dict) else {"result": frame}
+    return json.dumps(payload, default=str) + "\n"
+
+
+async def dispatch_page_action(handler: Callable[..., Any], data: Any) -> Response:
+    """Invoke a ``@aiui.register_page_action`` handler and return JSON or NDJSON stream.
+
+    Sync and async functions returning a dict keep returning ``JSONResponse``.
+    Sync or async generators (``yield aiui.layout([...])``) stream each yielded
+    frame incrementally as ``application/x-ndjson`` so ``BlockPage`` can render
+    live progress or streamed LLM tokens without polling.
+    """
+    result = handler(data)
+    if inspect.isasyncgen(result):
+
+        async def _async_stream() -> AsyncIterator[str]:
+            try:
+                async for frame in result:
+                    yield _frame_to_ndjson(frame)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                yield _frame_to_ndjson({"error": str(exc)})
+            finally:
+                try:
+                    await result.aclose()
+                except Exception:
+                    pass
+
+        return StreamingResponse(
+            _async_stream(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    if inspect.isgenerator(result):
+
+        async def _sync_stream() -> AsyncIterator[str]:
+            try:
+                for frame in result:
+                    yield _frame_to_ndjson(frame)
+                    await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                yield _frame_to_ndjson({"error": str(exc)})
+            finally:
+                try:
+                    result.close()
+                except Exception:
+                    pass
+
+        return StreamingResponse(
+            _sync_stream(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    if inspect.isawaitable(result):
+        result = await result
+    if not isinstance(result, dict):
+        result = {"result": result}
+    return JSONResponse(result)

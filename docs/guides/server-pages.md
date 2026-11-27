@@ -109,6 +109,25 @@ A button posts `{**payload, "action": action, "_params": {...}}`. A form posts
 its values alongside `"_params"` (the page URL's current query string, same
 dict shape as `params` in the page handler).
 
+### Streaming replies (`yield`)
+
+To stream LLM tokens or step-by-step progress live without polling, make your
+`@aiui.register_page_action` handler an `async def` (or sync) generator that
+`yield`s `aiui.layout([...])` frames:
+
+```python
+@aiui.register_page_action("writer")
+async def writer_action(data):
+    text = ""
+    async for token in run_llm(data["prompt"]):
+        text += token
+        yield aiui.layout([aiui.markdown_text(text)])
+    yield {"message": "Done"}
+```
+
+The server streams each yielded frame as `application/x-ndjson`; the app shell
+updates the page live and displays a **Stop** button to cancel the stream.
+
 ## 4. Lazy tabs and expanders
 
 Heavy sections can load when they are first opened instead of with the page:
