@@ -246,12 +246,6 @@ navigation:
             - concepts/architecture
             - concepts/bootstrap
             - testing
-            - group: "Architecture Decisions"
-              pages:
-                - adr/index
-                - adr/0001-replay-view-clean-room
-                - adr/0002-react-app-shell-and-plugin-sdk
-                - adr/0003-selectable-layouts
 
 
 # Navbar actions
@@ -323,6 +317,7 @@ content:
       - "features/beautifului-integration.md"
       - "frontend/*"
       - "reports/*"
+      - "adr/*"
     nav:
       mode: manual
 

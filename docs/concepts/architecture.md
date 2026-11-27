@@ -19,9 +19,10 @@ Starlette + Uvicorn server and two frontends:
 | Plugins | First-party pages and features are catalog records; third-party packages use the `praisonaiui.plugins` entry point (see [Plugins](../features/plugins.md)) |
 
 The data flow of a docs site is `YAML config → Pydantic models → compiler →
-JSON manifests → React`. The layer map, the numbered rules and the review
-checklist are in
-[ARCHITECTURE.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/ARCHITECTURE.md).
+JSON manifests → React`. The layer map, the numbered rules, and the architecture
+decision records live in the repository at
+[ARCHITECTURE.md](https://github.com/MervinPraison/PraisonAIUI/blob/main/ARCHITECTURE.md)
+and [`docs/adr/`](https://github.com/MervinPraison/PraisonAIUI/tree/main/docs/adr).
 
 ## AG-UI Protocol vs Gateway Integration
 
