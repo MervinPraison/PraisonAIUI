@@ -356,6 +356,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
 }
 
 ;(BlockPage as typeof BlockPage & { Preview: typeof ComponentPreview }).Preview = ComponentPreview
+;(globalThis as { __aiuiComponentPreview?: typeof ComponentPreview }).__aiuiComponentPreview = ComponentPreview
 
 /**
  * Live interactive UI component preview for documentation pages (`<ComponentPreview>`).
