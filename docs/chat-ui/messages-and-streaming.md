@@ -67,10 +67,31 @@ async def handle_shorter():
     await aiui.say("Here is a tighter one-sentence version.")
 ```
 
+## Send interactive UI blocks inline
+
+Render any of PraisonAIUI's **81 UI blocks** — metrics, searchable tables, pandas/Polars DataFrames, Plotly figures, charts, spreadsheets, whiteboards, cards, or `aiui.layout([...])` — directly inside a chat reply with `await aiui.send_block(...)`:
+
+```python title="app.py"
+import praisonaiui as aiui
+
+
+@aiui.reply
+async def on_message(message: str):
+    await aiui.say(f"Live breakdown for **{message}**:")
+    await aiui.send_block(
+        aiui.columns([
+            aiui.metric("Latency", value="42 ms", delta="-8%"),
+            aiui.metric("Success Rate", value="99.4%", delta="+0.3%"),
+        ])
+    )
+    await aiui.send_block(aiui.table([{"Region": "US", "Runs": 412}, {"Region": "EU", "Runs": 289}], searchable=True))
+```
+
 ## Send media and notifications
 
 | Helper | Purpose | Example |
 |--------|---------|---------|
+| `await aiui.send_block(block)` | Render any UI block, DataFrame, or Plotly figure inline | `await aiui.send_block(aiui.table(df, searchable=True))` |
 | `await aiui.image(url, alt="")` | Display an inline image | `await aiui.image("/static/chart.png", "Sales chart")` |
 | `await aiui.audio(url)` | Embed an audio player | `await aiui.audio("/static/briefing.mp3")` |
 | `await aiui.video(url)` | Embed a video player | `await aiui.video("/static/demo.mp4")` |

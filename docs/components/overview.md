@@ -1,7 +1,7 @@
 ---
 title: UI Components Overview
 nav_title: Overview
-description: Browse all 78 Python and zero-code YAML UI components plus the built-in Notification Center.
+description: Browse all 81 Python and zero-code YAML UI components plus the built-in Notification Center.
 ---
 
 # UI Components Overview

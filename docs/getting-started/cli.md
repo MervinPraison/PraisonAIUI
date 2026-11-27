@@ -8,10 +8,13 @@ The commands you will use most. Every command and option is in the
 [CLI Reference](../api/cli.md); `aiui <command> --help` prints the same from
 the installed version.
 
-## Run an app
+## Scaffold and run an app
 
 ```bash
-aiui run app.py                      # a Python app with @aiui.reply / @aiui.page
+aiui init --template agent           # starter app.py (also: openai, anthropic, langgraph, crewai, pydantic-ai, praisonai, dashboard)
+aiui run app.py                      # opens in focused mode (Chat + your own pages)
+aiui run app.py --preset agent       # adds Sessions, Approvals, Usage, and Memory
+aiui run app.py --preset ops         # enables the full built-in control plane
 aiui run chat.yaml                   # a YAML-defined agent (needs praisonaiagents)
 aiui run app.py --style chat         # the classic chat instead of the app shell
 aiui run app.py --port 3000 --reload # another port, restart on file changes
@@ -19,8 +22,9 @@ aiui run app.py --datastore json     # keep sessions as JSON under ~/.praisonaiu
 ```
 
 Without `--style`, the style comes from `aiui.set_style()` or is detected from
-the callbacks; a plain chat app opens the React app shell in its `chat`
-layout. See [UI Styles](../features/styles.md).
+the callbacks; Python apps with `@aiui.reply` or `@aiui.page` open the React app
+shell (`style: app`) in focused mode. See [UI Styles](../features/styles.md) and
+[Build a focused app](../guides/focused-app.md).
 
 ## Build a docs site
 

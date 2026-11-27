@@ -27,7 +27,9 @@ aiui run APP_FILE [OPTIONS]
 | `--port, -p` | `8000` | Port. If it is taken, the next free port (up to 10 further) is used. The port is bound before the URL is printed and the server serves that socket, so two apps started together never get the same port |
 | `--host` | `127.0.0.1` | Address to bind to |
 | `--reload, -r` | off | Restart when files change |
-| `--style, -s` | detected | `app` (the React app shell), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` or `custom` |
+| `--style, -s` | detected | `app` (the React app shell, default), `chat` (the classic chat), `docs`, `agents`, `playground`, `dashboard` (legacy) or `custom` |
+| `--preset` | `minimal` for `app.py` | Page preset: `minimal` (Chat + your pages), `agent` (Chat, Sessions, Approvals, Usage, Memory), or `ops` (all built-in ops pages) |
+| `--pages` | none | Explicit comma-separated page IDs (e.g. `chat,sessions`), `all`, or a preset name (`minimal`, `agent`, `ops`) |
 | `--backend, -b` | `standalone` | `standalone`, or `praisonai` to use the PraisonAI WebSocket gateway |
 | `--datastore, -d` | `sdk` | Session storage: `sdk` (shared with PraisonAI Agents), `sdk:/path`, `json`, `json:/path` or `memory`. Without the flag, a chat YAML's `datastore:` key is used |
 | `--config, -c` | none | A docs-site YAML to build before serving (optional) |
@@ -35,12 +37,15 @@ aiui run APP_FILE [OPTIONS]
 
 Style: for a Python app `--style` wins, then `aiui.set_style()`; for a YAML
 app its `style:` key wins over `--style`. Without any of them `aiui run`
-detects one: `@aiui.profiles` plus
-registered agents gives `agents`, `@aiui.page` gives `dashboard`, anything else
-`app`. In `app`, `aiui run` opens the `chat` layout (the chat without a
-canvas) unless `AIUI_LAYOUT`, `aiui.set_layout()` or YAML `layout:` picks
-another. See [UI Styles](../features/styles.md) and
-[Layouts](../features/layouts.md).
+detects one: `@aiui.profiles` plus registered agents gives `agents`, and
+anything else (including `@aiui.reply` and `@aiui.page`) opens `app` (the React
+app shell). For Python `app.py` files that do not call `aiui.set_pages()`,
+`aiui run` defaults to the `minimal` preset (Chat + your own pages) unless
+`--preset`, `--pages`, or `AIUI_PAGES` is set. In `app`, `aiui run` opens the
+`chat` layout (the chat without a canvas) unless `AIUI_LAYOUT`,
+`aiui.set_layout()` or YAML `layout:` picks another. See
+[UI Styles](../features/styles.md), [Layouts](../features/layouts.md), and
+[Build a focused app](../guides/focused-app.md).
 
 A chat YAML's top-level keys: `name`, `instructions`, `model`, `welcome`,
 `goodbye`, `starters`, `profiles`, `tools`, `features`, `datastore`, `style`,
@@ -65,19 +70,28 @@ aiui run app.py --backend praisonai
 
 ### `aiui init`
 
-Write a starter `aiui.yaml` in the current folder. It refuses to overwrite an
-existing `aiui.yaml` or `aiui.template.yaml` unless `--force` is given.
+Scaffold a starter Python Agent UI (`app.py`) or a Docs UI config (`aiui.yaml`)
+in the current folder. Refuses to overwrite existing files unless `--force` is
+given.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--template, -t` | `minimal` | `minimal`, `docs` or `marketing` |
+| `--template, -t` | `minimal` | App templates (writes `app.py`): `agent`, `openai`, `anthropic`, `langgraph`, `crewai`, `pydantic-ai`, `praisonai`, `dashboard`. Docs templates (writes `aiui.yaml`): `minimal`, `docs`, `marketing` |
 | `--force, -f` | off | Overwrite existing files |
 | `--frontend` | off | Also scaffold a Vite + React + shadcn frontend project |
 
-The file's first line, `# yaml-language-server: $schema=https://ui.praison.ai/aiui.schema.json`,
+```bash
+aiui init --template agent        # runnable starter app.py with starters + send_block
+aiui init --template openai       # OpenAI streaming chat app.py
+aiui init --template langgraph    # LangGraph agent app.py
+aiui init --template dashboard    # split-pane workspace (chat_panel) + File Inspector (aiui.interface)
+aiui init --template docs         # docs-site aiui.yaml
+```
+
+For docs templates, the file's first line (`# yaml-language-server: $schema=https://ui.praison.ai/aiui.schema.json`)
 gives autocomplete and hover docs in editors ([Editor setup](../concepts/configuration.md#editor-setup)).
-`init` writes only the YAML file. Create the folder it points to (for the
-`docs` template, `./docs` with at least one `.md` file) before `aiui build`.
+Create the folder it points to (for the `docs` template, `./docs` with at least
+one `.md` file) before `aiui build`.
 
 ### `aiui validate`
 

@@ -54,10 +54,20 @@ aiui.table(
 </Tab>
 </Tabs>
 
+## DataFrame & list-of-dicts shorthand
+
+Pass a **pandas** or **Polars** DataFrame (duck-typed with zero extra imports), or a list of dicts, straight to `aiui.table(df)` — works both on `@aiui.page` and inline in chat via `await aiui.send_block(aiui.table(df))`:
+
+```python
+aiui.table(df, searchable=True)
+aiui.table([{"Region": "US", "Revenue": 42000}, {"Region": "EU", "Revenue": 31000}], searchable=True)
+```
+
 ## Props
 
 | Parameter | Type | Description |
 |---|---|---|
+| `data` | DataFrame / `list[dict]` | Optional positional pandas/Polars DataFrame or list of dict rows (infers headers automatically). |
 | `headers`, `rows` | `list` | Column headers and row values (arrays or dicts when `columns` is supplied). |
 | `columns` | `list[dict]` | Typed column specs (`key`, `label`, `type`: `badge`, `number`, `date`, `sparkline`, `thresholds`). |
 | `searchable`, `sortable`, `page_size` | `bool` / `int` | Client-side search box, header sorting, and page size. |

@@ -190,6 +190,20 @@ msg.add_code(
 - `language` (optional): Programming language for syntax highlighting
 - `name` (optional): Display name
 
+### 7. Interactive UI Blocks, DataFrames & Plotly Figures
+
+Render any of the 81 built-in `aiui.*` UI blocks inline inside a chat message with `await aiui.send_block(...)`. It also accepts pandas/Polars DataFrames (converted to searchable `table` blocks), Plotly figures (converted to native Recharts `chart` blocks without bundling `plotly.js`), and `aiui.layout([...])`:
+
+```python
+@aiui.reply
+async def on_message(message):
+    await aiui.send_block(aiui.metric("Active Runs", value=12, delta="+3"))
+    await aiui.send_block(df)                   # pandas or Polars DataFrame -> searchable table
+    await aiui.send_block(aiui.plotly_chart(fig))  # Plotly figure -> native Recharts chart
+```
+
+Legacy `DataframeElement` (`{"type": "dataframe", ...}`) and `PlotlyElement` (`{"type": "plotly", ...}`) elements sent on `Message.elements` render through the same lazy `BlockElement` renderer automatically.
+
 ## Display Modes
 
 All elements support three display modes:
