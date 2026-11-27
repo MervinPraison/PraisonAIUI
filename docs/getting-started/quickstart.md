@@ -179,14 +179,17 @@ aiui health --detailed         # per-feature health
 
 ## Next steps
 
-<CardGroup cols={3}>
-<Card title="Step-by-step learning path" icon="graduation-cap" href="../tutorials/01-first-chat.md">
+<CardGroup cols={2}>
+<Card title="Step-by-step: Agent & Chat UI" icon="graduation-cap" href="../tutorials/01-first-chat.md">
 Build a full AI app one feature at a time, from first message to production deploy.
 </Card>
-<Card title="Python API" icon="code" href="../api/python.md">
-Decorators, message functions and the `set_*` setters.
+<Card title="Step-by-step: A2UI Generative UI" icon="sparkles" href="../a2ui/quickstart.md">
+Push live agent-driven surfaces and interactive canvases over WebSocket and JSONL.
 </Card>
-<Card title="Configuration" icon="book-open" href="../concepts/configuration.md">
-Everything the YAML file can say.
+<Card title="Step-by-step: Dashboards & Plugins" icon="panels-top-left" href="../guides/server-pages.md">
+Build interactive data pages, spreadsheets, whiteboards and `@aiui/sdk` plugins.
+</Card>
+<Card title="Step-by-step: Docs UI" icon="book-open" href="../docs-ui/overview.md">
+Publish a searchable Markdown documentation site with SEO, OpenAPI and `llms.txt`.
 </Card>
 </CardGroup>
