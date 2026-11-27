@@ -568,6 +568,50 @@ class PraisonAIProvider(BaseProvider):
         # Per-session agent cache: each session gets its own Agent
         # so chat_history is isolated between sessions
         self._session_agents: Dict[str, Any] = {}
+        # Shared memory backend across sessions so cross-session recall works
+        # without clobbering SDKMemoryManager on every new session.
+        self._shared_memory: Any = None
+
+    def _get_shared_memory(self) -> Any:
+        """Return a single persistent memory instance shared across sessions.
+
+        Passing ``memory=True`` to ``Agent()`` causes ``praisonaiagents`` to
+        generate a random per-agent ``user_id`` so every session gets its own
+        empty directory and cannot recall facts from prior sessions. Reusing
+        the active ``SDKMemoryManager`` backend (or a single ``FileMemory``
+        scoped to ``configured_data_dir()``) keeps per-session ``chat_history``
+        isolated while sharing long/short-term memory across sessions and the
+        UI ``/api/memory`` routes.
+        """
+        try:
+            from praisonaiui.features.memory import get_memory_manager
+
+            mgr = get_memory_manager()
+            get_sdk = getattr(mgr, "_get_sdk_memory", None)
+            if callable(get_sdk):
+                sdk_mem = get_sdk()
+                if sdk_mem is not None:
+                    self._shared_memory = sdk_mem
+                    return sdk_mem
+        except Exception as exc:
+            logger.debug("Shared memory lookup skipped: %s", exc)
+
+        if self._shared_memory is not None:
+            return self._shared_memory
+
+        try:
+            from praisonaiagents.memory.file_memory import FileMemory
+
+            from praisonaiui.features._paths import configured_data_dir
+
+            base = configured_data_dir()
+            base_path = str(base / "memory") if base is not None else None
+            user_id = os.environ.get("PRAISONAI_MEMORY_USER_ID", "").strip() or "default"
+            self._shared_memory = FileMemory(user_id=user_id, base_path=base_path)
+            return self._shared_memory
+        except Exception as exc:
+            logger.debug("Shared FileMemory init skipped: %s", exc)
+            return True
 
     def _get_or_create_agent(
         self,
@@ -687,7 +731,9 @@ class PraisonAIProvider(BaseProvider):
                 "command execution, and web search. Use markdown formatting. "
                 "For multi-step tasks, use the appropriate tools to complete each step."
             ),
-            "memory": True,
+            "memory": self._get_shared_memory()
+            if "memory" not in self._agent_kwargs
+            else self._agent_kwargs["memory"],
             "reflection": False,
             "approval": True,  # Auto-approve tool calls (no TTY in server context; container is sandboxed)
         }
@@ -732,18 +778,16 @@ class PraisonAIProvider(BaseProvider):
         agent = Agent(**kwargs)
 
         # ── Memory bridge: share agent's memory with UI memory page ──
-        # Agent(memory=True) creates its own FileMemory instance that
-        # store_memory/search_memory tools write to.  The UI Memory page
-        # reads from SDKMemoryManager (a separate singleton).  Injecting
-        # the agent's memory instance into SDKMemoryManager makes both
-        # sides read/write the same data — the single source of truth.
+        # When an agent was created with a custom memory instance and
+        # SDKMemoryManager does not yet hold one, bridge them so both sides
+        # share a single source of truth without clobbering an existing store.
         try:
             agent_mem = getattr(agent, "_memory_instance", None)
             if agent_mem is not None:
                 from praisonaiui.features.memory import get_memory_manager
 
                 mgr = get_memory_manager()
-                if hasattr(mgr, "_sdk_memory"):
+                if hasattr(mgr, "_sdk_memory") and mgr._sdk_memory is None:
                     mgr._sdk_memory = agent_mem
                     logger.debug(
                         "Memory bridge: injected agent's %s into SDKMemoryManager",

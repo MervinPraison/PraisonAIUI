@@ -3468,18 +3468,12 @@ async def run_agent(request: Request, body: dict = None) -> StreamingResponse:
         try:
             from praisonaiui.features import memory as _memory
 
-            def _remember_turn() -> None:
-                mgr = _memory.get_memory_manager()
-                for text, role in ((message, "user"), (full_response, "assistant")):
-                    mgr.store(
-                        text,
-                        memory_type="short",
-                        session_id=session_id,
-                        agent_id=agent_name,
-                        metadata={"role": role},
-                    )
-
-            await _memory._off_loop(_remember_turn)
+            await _memory.remember_turn(
+                message,
+                full_response,
+                session_id=session_id,
+                agent_id=agent_name,
+            )
         except Exception:
             pass  # Memory failures must never break chat
 
