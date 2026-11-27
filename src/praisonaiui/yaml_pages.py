@@ -39,7 +39,7 @@ def _safe_relative_file(base_dir: Path, rel_path: str) -> Optional[Path]:
         return None
 
 
-def _normalize_component(item: dict[str, Any]) -> dict[str, Any]:
+def _normalize_component(item: dict[str, Any], base_dir: Optional[Path] = None) -> dict[str, Any]:
     """Normalize YAML component ergonomics while leaving custom/plugin types untouched."""
     comp = dict(item)
     ctype = comp.get("type")
@@ -47,7 +47,8 @@ def _normalize_component(item: dict[str, Any]) -> dict[str, Any]:
     # Recurse into nested children / tabs / accordion items first.
     if isinstance(comp.get("children"), list):
         comp["children"] = [
-            _normalize_component(c) if isinstance(c, dict) else c for c in comp["children"]
+            _normalize_component(c, base_dir=base_dir) if isinstance(c, dict) else c
+            for c in comp["children"]
         ]
     if ctype in ("tabs", "accordion") and isinstance(comp.get("items"), list):
         items = []
@@ -56,7 +57,7 @@ def _normalize_component(item: dict[str, Any]) -> dict[str, Any]:
                 entry = {
                     **entry,
                     "children": [
-                        _normalize_component(c) if isinstance(c, dict) else c
+                        _normalize_component(c, base_dir=base_dir) if isinstance(c, dict) else c
                         for c in entry["children"]
                     ],
                 }
@@ -64,6 +65,18 @@ def _normalize_component(item: dict[str, Any]) -> dict[str, Any]:
         comp["items"] = items
 
     # Ergonomic YAML shorthands that match Python ui.* helpers.
+    if ctype == "diff_viewer" and base_dir is not None:
+        for file_key, text_key in (("before_file", "before"), ("after_file", "after")):
+            rel = comp.pop(file_key, None)
+            if isinstance(rel, str) and rel.strip() and text_key not in comp:
+                resolved = _safe_relative_file(base_dir, rel.strip())
+                if resolved is not None and resolved.is_file():
+                    try:
+                        comp[text_key] = resolved.read_text(encoding="utf-8")
+                    except OSError:
+                        comp[text_key] = ""
+                else:
+                    comp[text_key] = ""
     if ctype == "doc_viewer":
         from praisonaiui import ui
 
@@ -94,13 +107,85 @@ def _normalize_component(item: dict[str, Any]) -> dict[str, Any]:
     return comp
 
 
+def _build_yaml_surface(
+    spec: Any,
+    base_dir: Optional[Path],
+    *,
+    default_id: str = "main",
+) -> Optional[dict[str, Any]]:
+    """Build a ``{"id": ..., "messages": [...]}`` A2UI surface dict from a YAML block."""
+    if not isinstance(spec, dict):
+        return None
+    from praisonaiui.a2ui_utils import (
+        A2UI_BASIC_CATALOG_V09_ID,
+        a2ui_surface,
+        normalise_a2ui_messages,
+        parse_a2ui_jsonl,
+    )
+
+    sid = str(spec.get("id") or spec.get("surface_id") or spec.get("surfaceId") or default_id).strip() or default_id
+    messages: list[dict[str, Any]] = []
+
+    rel_file = spec.get("file") or spec.get("messages_file") or spec.get("messagesFile")
+    if isinstance(rel_file, str) and rel_file.strip() and base_dir is not None:
+        resolved = _safe_relative_file(base_dir, rel_file.strip())
+        if resolved is not None and resolved.is_file():
+            try:
+                messages = normalise_a2ui_messages(parse_a2ui_jsonl(resolved.read_text(encoding="utf-8")))
+            except Exception as exc:
+                _log.warning("Failed to parse YAML A2UI surface file %r: %s", rel_file, exc)
+    elif isinstance(spec.get("messages"), list):
+        messages = normalise_a2ui_messages({"messages": spec["messages"]})
+    elif isinstance(spec.get("components"), list):
+        messages = a2ui_surface(
+            spec["components"],
+            data=spec.get("data") if isinstance(spec.get("data"), dict) else None,
+            surface_id=sid,
+            catalog_id=str(spec.get("catalog_id") or spec.get("catalogId") or A2UI_BASIC_CATALOG_V09_ID),
+            theme=spec.get("theme") if isinstance(spec.get("theme"), dict) else None,
+            send_data_model=spec.get("send_data_model", spec.get("sendDataModel")),
+        )
+
+    return {"id": sid, "messages": messages}
+
+
+def apply_yaml_surfaces(
+    surfaces_cfg: Any,
+    *,
+    source_file: Optional[Path] = None,
+) -> list[str]:
+    """Pre-seed A2UI surfaces declared at top-level ``surfaces:`` or ``a2ui.surfaces:`` in YAML."""
+    from praisonaiui.features.surfaces import get_surface_store
+
+    base_dir = source_file.resolve().parent if source_file is not None else None
+    store = get_surface_store()
+    seeded: list[str] = []
+
+    entries: list[tuple[str, Any]] = []
+    if isinstance(surfaces_cfg, dict):
+        for sid, spec in surfaces_cfg.items():
+            entries.append((str(sid), spec))
+    elif isinstance(surfaces_cfg, list):
+        for spec in surfaces_cfg:
+            if isinstance(spec, dict):
+                sid = str(spec.get("id") or spec.get("surface_id") or spec.get("surfaceId") or "main")
+                entries.append((sid, spec))
+
+    for sid, spec in entries:
+        built = _build_yaml_surface(spec, base_dir, default_id=sid)
+        if built and built["messages"]:
+            store.seed_sync(built["id"], built["messages"])
+            seeded.append(built["id"])
+    return seeded
+
+
 def _page_components(spec: dict[str, Any], base_dir: Optional[Path]) -> list[dict[str, Any]]:
     """Build the ``_components`` list for one declarative YAML page dict."""
     raw = spec.get("components")
     if raw is None:
         raw = spec.get("blocks")
     components: list[dict[str, Any]] = [
-        _normalize_component(item) for item in raw if isinstance(item, dict)
+        _normalize_component(item, base_dir=base_dir) for item in raw if isinstance(item, dict)
     ] if isinstance(raw, list) else []
 
     md_inline = spec.get("markdown")
@@ -277,6 +362,11 @@ def apply_yaml_pages(
             def _make_handler(pid: str) -> Callable[..., dict[str, Any]]:
                 def _handler() -> dict[str, Any]:
                     cur = store.get(pid) or {}
+                    surf_spec = cur.get("surface") or cur.get("a2ui")
+                    if isinstance(surf_spec, dict):
+                        built = _build_yaml_surface(surf_spec, store.base_dir, default_id=pid)
+                        if built is not None:
+                            return {"_surface": built}
                     out: dict[str, Any] = {"_components": _page_components(cur, store.base_dir)}
                     ref = cur.get("refresh_every", cur.get("refreshEvery"))
                     if ref:
@@ -303,4 +393,4 @@ def apply_yaml_pages(
     return registered
 
 
-__all__ = ["apply_yaml_pages"]
+__all__ = ["apply_yaml_pages", "apply_yaml_surfaces"]

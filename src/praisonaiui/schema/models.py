@@ -1310,6 +1310,16 @@ class ChatInputConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ChatPreviewConfig(BaseModel):
+    """A2UI live canvas preview panel settings for chat."""
+
+    enabled: bool = False
+    surface_id: str = Field(default="main", alias="surfaceId")
+    width: str = "38%"
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class ChatConfig(BaseModel):
     """Chat configuration for AI chat interfaces."""
 
@@ -1319,6 +1329,7 @@ class ChatConfig(BaseModel):
     profiles: list[ChatProfileConfig] = Field(default_factory=list)
     features: Optional[ChatFeaturesConfig] = None
     input: Optional[ChatInputConfig] = None
+    preview: Optional[ChatPreviewConfig] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -40,13 +41,23 @@ class SurfaceState:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class SurfaceStore:
-    """Thread-safe in-memory surface store."""
+DEFAULT_MAX_ACTION_QUEUE = 500
+DEFAULT_MAX_SURFACE_MESSAGES = 500
 
-    def __init__(self) -> None:
+
+class SurfaceStore:
+    """Thread-safe bounded in-memory surface store."""
+
+    def __init__(
+        self,
+        *,
+        max_action_queue: int = DEFAULT_MAX_ACTION_QUEUE,
+        max_surface_messages: int = DEFAULT_MAX_SURFACE_MESSAGES,
+    ) -> None:
         self._surfaces: Dict[str, SurfaceState] = {}
         self._lock = asyncio.Lock()
-        self._action_queue: List[Dict[str, Any]] = []
+        self._max_surface_messages = max(10, int(max_surface_messages))
+        self._action_queue: Deque[Dict[str, Any]] = deque(maxlen=max(1, int(max_action_queue)))
 
     async def list_surfaces(self) -> List[Dict[str, Any]]:
         async with self._lock:
@@ -86,6 +97,23 @@ class SurfaceStore:
                 meta["version"] = msg["version"]
         return meta
 
+    def _trim_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if len(messages) <= self._max_surface_messages:
+            return messages
+        # Preserve leading createSurface so reconnecting clients can still mount.
+        head = [m for m in messages[:1] if m.get("createSurface")]
+        tail_count = self._max_surface_messages - len(head)
+        return head + messages[-tail_count:]
+
+    def seed_sync(self, surface_id: str, messages: List[Dict[str, Any]]) -> SurfaceState:
+        """Synchronously seed a surface (used by YAML startup before the event loop runs)."""
+        normalised = self._trim_messages(normalise_a2ui_messages({"messages": messages}))
+        state = self._surfaces.setdefault(surface_id, SurfaceState(id=surface_id))
+        state.messages = normalised
+        state.metadata = self._extract_metadata(normalised)
+        state.updated_at = time.time()
+        return state
+
     async def apply_messages(
         self, surface_id: str, messages: List[Dict[str, Any]]
     ) -> SurfaceState:
@@ -96,10 +124,11 @@ class SurfaceStore:
                 state.messages = []
                 state.metadata = {**state.metadata, "deleted": True}
             elif any(m.get("createSurface") for m in normalised):
-                state.messages = list(normalised)
+                state.messages = self._trim_messages(list(normalised))
                 state.metadata = self._extract_metadata(normalised)
             else:
                 state.messages.extend(normalised)
+                state.messages = self._trim_messages(state.messages)
                 state.metadata.update(self._extract_metadata(normalised))
                 state.metadata.pop("deleted", None)
             state.updated_at = time.time()
@@ -115,7 +144,7 @@ class SurfaceStore:
                 state.messages = []
                 state.metadata = {**state.metadata, "deleted": True}
             else:
-                state.messages = normalised
+                state.messages = self._trim_messages(normalised)
                 state.metadata = self._extract_metadata(normalised)
             state.updated_at = time.time()
             return state
@@ -130,9 +159,8 @@ class SurfaceStore:
 
     async def pop_actions(self, limit: int = 50) -> List[Dict[str, Any]]:
         async with self._lock:
-            items = self._action_queue[:limit]
-            self._action_queue = self._action_queue[limit:]
-            return items
+            count = min(max(0, limit), len(self._action_queue))
+            return [self._action_queue.popleft() for _ in range(count)]
 
 
 _store: Optional[SurfaceStore] = None
