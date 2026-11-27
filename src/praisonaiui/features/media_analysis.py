@@ -96,7 +96,7 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
                     name="VisionAnalyst",
                     role="Image Analyst",
                     llm="gpt-4o-mini",
-                    self_reflect=False,
+                    reflection=False,
                 )
             # If URL provided, format message with image
             if url:
@@ -150,7 +150,7 @@ class VisionAnalysisManager(MediaAnalysisProtocol):
                 from praisonaiagents import Agent
 
                 agent = Agent(
-                    name="OCRAgent", role="OCR Specialist", llm="gpt-4o-mini", self_reflect=False
+                    name="OCRAgent", role="OCR Specialist", llm="gpt-4o-mini", reflection=False
                 )
             source = url or "[base64 data]"
             result = agent.chat(f"Extract all text from this image: {source}")
