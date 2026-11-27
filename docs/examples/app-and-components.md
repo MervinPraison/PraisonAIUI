@@ -17,6 +17,7 @@ Build full multi-page AI applications, interactive dashboards, and live agent-dr
 | [32-filter-page](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/32-filter-page) | URL-synced `filter_bar`, `date_range_input`, `tags_input`, and `multiselect_input` | `aiui run app.py` |
 | [33-data-table](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/33-data-table) | Typed sortable/searchable `aiui.table` with sparklines and row detail drawer | `aiui run app.py` |
 | [34-hitl-approvals-and-notifications](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/34-hitl-approvals-and-notifications) | Human-in-the-loop approvals, live Notification Center bell, diff review, sidebar badges, and YAML companion on one dashboard | `aiui run app.py` |
+| [35-sheets-whiteboard-dashboard](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/35-sheets-whiteboard-dashboard) | Interactive formula **Spreadsheets** (`aiui.sheet`), draggable **Whiteboards** (`aiui.whiteboard`), KPI charts, and Chat + Artifacts Canvas fences in one workspace | `aiui run app.py` |
 | [28-multica-style](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/28-multica-style) | Branded multi-page workspace with floating chat and Kanban board | `aiui run app.py` |
 | [29-full-extensibility](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/29-full-extensibility) | Every extension point in one app: pages, forms, `set_custom_js`, plugins | `python app.py` |
 

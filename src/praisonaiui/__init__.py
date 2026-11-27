@@ -356,6 +356,9 @@ def __getattr__(name: str):
         "date_range_input",
         "segmented_input",
         "filter_bar",
+        # Studio (interactive spreadsheets & whiteboards)
+        "sheet",
+        "whiteboard",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -848,6 +851,9 @@ __all__ = [
     "date_range_input",
     "segmented_input",
     "filter_bar",
+    # Studio (interactive spreadsheets & whiteboards)
+    "sheet",
+    "whiteboard",
     # Notifications
     "NotificationStoreProtocol",
     "push_notification",

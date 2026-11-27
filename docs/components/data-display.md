@@ -15,6 +15,8 @@ Turn Python or YAML data into sortable tables, interactive theme-aware charts, K
 | `aiui.metric(label, *, value, delta, delta_color, caption, sparkline, benchmark, benchmark_label)` | `metric` | KPI tile with colored delta, inline trend sparkline, and benchmark comparison |
 | `aiui.stat_group(stats)` | `stat_group` | Compact multi-metric strip |
 | `aiui.table(*, headers, rows, columns, searchable, sortable, page_size, row_detail, ...)` | `table` | Full data table: typed columns (`number`, `badge`, `tag`, `link`, `date`, `progress`, `image`, `sparkline`), search, sort, paging, and row detail drawer |
+| `aiui.sheet(title, *, headers, rows, tabs, id)` | `sheet` | Interactive multi-tab spreadsheet with live cell editing, zero-eval formulas (`=SUM`, `=AVERAGE`, `=IF`), row filter, and CSV/JSON export |
+| `aiui.whiteboard(items, *, title, id)` | `whiteboard` | Interactive whiteboard canvas with draggable stickies/shapes, live arrow tracking, `+ Sticky`, zoom, fullscreen, and SVG/JSON export |
 | `aiui.chart(title, *, data, chart_type, x, y, y2, stacked, reference, facet, ...)` | `chart` | Lazy-loaded Recharts chart: `bar`, `barh`, `line`, `area`, `scatter`, `pie`, `donut`, `histogram`, `heatmap`, `sparkline`, plus `facet` small multiples |
 | `aiui.badge(text, *, variant)` | `badge` | Status pill (`default`, `secondary`, `destructive`, `outline`) |
 | `aiui.caption(text)` | `caption` | Muted helper or footnote line |

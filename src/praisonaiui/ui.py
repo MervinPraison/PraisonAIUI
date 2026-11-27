@@ -2010,3 +2010,74 @@ def rating_input(
     if auto_submit:
         comp["auto_submit"] = True
     return comp
+
+
+def sheet(
+    title: str = "Spreadsheet",
+    *,
+    headers: Sequence[Any] | None = None,
+    rows: Sequence[Sequence[Any]] | None = None,
+    tabs: Sequence[Mapping[str, Any]] | None = None,
+    id: str | None = None,
+) -> dict:
+    """An interactive multi-tab spreadsheet with live formula evaluation.
+
+    Supports live cell editing, formula bar (``=SUM``, ``=AVERAGE``/``=AVG``,
+    ``=MIN``, ``=MAX``, ``=COUNT``, ``=COUNTA``, ``=ROUND``, ``=ABS``, ``=IF``),
+    row filtering, and CSV/JSON export. The returned dict works both as a page
+    block (``@aiui.page`` / YAML) and serialized inside a ```` ```sheet ````
+    chat markdown fence.
+
+    Args:
+        title: Spreadsheet title shown in the toolbar.
+        headers: Optional shorthand column headers (first row of the default tab).
+        rows: Optional shorthand data rows (paired with ``headers``).
+        tabs: Optional list of tab dicts (``{"name": str, "grid": list[list], "values"?: list[list]}``).
+        id: Optional stable identifier used to version updates in the Artifacts Canvas.
+    """
+    if tabs is None and headers is None and rows is None:
+        raise ValueError("sheet() requires either tabs or headers/rows")
+    comp: dict[str, Any] = {"type": "sheet", "title": str(title)}
+    if id is not None:
+        comp["id"] = str(id)
+    if tabs is not None:
+        comp["tabs"] = [dict(t) for t in tabs]
+    else:
+        if headers is not None:
+            comp["headers"] = list(headers)
+        if rows is not None:
+            comp["rows"] = [list(r) for r in rows]
+    return comp
+
+
+def whiteboard(
+    items: Sequence[Mapping[str, Any]],
+    *,
+    title: str = "Whiteboard",
+    id: str | None = None,
+) -> dict:
+    """An interactive whiteboard canvas with draggable stickies, shapes, groups, and arrows.
+
+    Supports drag-and-drop repositioning (connected arrows follow live), inline
+    sticky creation, zoom controls, fullscreen modal, strict color allowlisting,
+    and one-click SVG/JSON export. The returned dict works both as a page block
+    (``@aiui.page`` / YAML) and serialized inside a ```` ```whiteboard ````
+    chat markdown fence.
+
+    Args:
+        items: Sequence of node/arrow dicts. Nodes support ``id``, ``type``
+            (``"sticky"`` | ``"shape"`` | ``"text"`` | ``"group"``), ``text``,
+            ``x``, ``y``, ``w``, ``h``, ``color`` (hex or palette name), and
+            ``shape`` (``"rect"`` | ``"ellipse"``). Arrows use ``type="arrow"``,
+            ``from``, ``to``, and optional ``label``.
+        title: Whiteboard title shown in the toolbar.
+        id: Optional stable identifier used to version updates in the Artifacts Canvas.
+    """
+    comp: dict[str, Any] = {
+        "type": "whiteboard",
+        "title": str(title),
+        "items": [dict(item) for item in items],
+    }
+    if id is not None:
+        comp["id"] = str(id)
+    return comp
