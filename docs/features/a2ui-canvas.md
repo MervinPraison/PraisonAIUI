@@ -4,7 +4,9 @@ nav_title: A2UI canvas
 
 # A2UI canvas — agent-driven UI
 
-PraisonAIUI hosts **A2UI v0.9** surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.
+PraisonAIUI hosts **A2UI (v0.8, v0.9, and v0.10)** surfaces: agents push structured UI messages to a live canvas while users chat in the same window or on a full-page workspace.
+
+> Looking for the full step-by-step guide? Start in the **[A2UI Overview](../a2ui/overview.md)**, **[Quickstart](../a2ui/quickstart.md)**, **[All 18 Components](../a2ui/components.md)**, and **[All-in-One Playground](../a2ui/all-in-one-playground.md)**.
 
 For dashboard extension patterns (views, plugins, layout JSON), see [Agent UI host](agent-ui-host.md).
 
@@ -79,9 +81,10 @@ Tool results are detected by [`a2ui_utils`](https://github.com/MervinPraison/Pra
 | Method | Path | Behaviour |
 |--------|------|-----------|
 | `GET` | `/api/surfaces` | List surfaces and message counts |
+| `GET` | `/api/surfaces/capabilities` | Return A2UI supported versions, catalog IDs, 18 components, and 14 functions |
 | `GET` | `/api/surfaces/{id}` | Surface state; **200 with `{ messages: [] }`** if not created yet (empty canvas is normal) |
-| `POST` | `/api/surfaces/{id}/messages` | Append or replace messages (`replace: true` in body) |
-| `POST` | `/api/surfaces/{id}/actions` | User action from a button/component |
+| `POST` | `/api/surfaces/{id}/messages` | Append or replace messages (`replace: true` in body; accepts v0.8/v0.9/v0.10) |
+| `POST` | `/api/surfaces/{id}/action` | User action from a button/component (`/actions` alias also supported) |
 | `DELETE` | `/api/surfaces/{id}` | Clear surface |
 
 Realtime updates use the existing dashboard WebSocket (`a2ui_surface` payload).
