@@ -33,7 +33,7 @@ async def on_message(message: str):
 
 Open <http://localhost:8000>. `aiui run app.py` opens cleanly in **focused mode** (Chat + your own pages). Pass `--preset agent` for Sessions/Approvals/Usage/Memory, or `--preset ops` for the full control plane.
 
-Coming from another tool? Read the side-by-side migration guides: [From Streamlit](docs/guides/from-streamlit.md) · [From Gradio](docs/guides/from-gradio.md) · [From Chainlit](docs/guides/from-chainlit.md).
+Coming from another tool? Read the side-by-side migration guides: [From Streamlit](docs/guides/from-streamlit.md) · [From Gradio](docs/guides/from-gradio.md) · [From Decorator Chat Apps](docs/guides/from-chat-apps.md).
 
 ## What you get
 

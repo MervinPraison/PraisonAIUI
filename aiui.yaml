@@ -55,7 +55,7 @@ navigation:
           pages:
             - guides/from-streamlit
             - guides/from-gradio
-            - guides/from-chainlit
+            - guides/from-chat-apps
         - group: "Step-by-Step: Docs UI"
           icon: book-open
           pages:

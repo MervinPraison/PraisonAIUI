@@ -24,7 +24,8 @@ PraisonAIUI gives Python developers zero-JS UI components like Streamlit, **buil
 
 ## Example: DataFrame + Split-Pane Agent
 
-```python title="app.py"
+```python
+# app.py
 import praisonaiui as aiui
 
 DATA = [{"Region": "US", "Revenue": 42000}, {"Region": "EU", "Revenue": 31000}]
