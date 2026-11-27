@@ -141,6 +141,7 @@ def test_upload_endpoint_requires_auth_when_token_auth_enabled(tmp_path, monkeyp
         assert authed.status_code == 200, authed.text
         body = authed.json()
         assert body["filename"] == "hello.txt"
+        assert "path" not in body  # Server temp path must never leak over HTTP
         assert aiui.get_uploaded_file(body)["filename"] == "hello.txt"
 
         # Also verify JSON base64 upload works without python-multipart.
@@ -156,4 +157,23 @@ def test_upload_endpoint_requires_auth_when_token_auth_enabled(tmp_path, monkeyp
             },
         )
         assert json_up.status_code == 200, json_up.text
+        assert "path" not in json_up.json()
         assert aiui.get_uploaded_file(json_up.json())["filename"] == "notes.md"
+
+
+def test_attachment_manager_sanitizes_extensions_and_normalizes_os_mimes(tmp_path):
+    mgr = att_mod.AttachmentManager(storage_dir=str(tmp_path))
+    # Windows Chrome sends application/vnd.ms-excel for .csv; Linux sends text/x-markdown for .md
+    csv_meta = mgr.upload(b"a,b\n1,2\n", "data.csv", "application/vnd.ms-excel")
+    assert csv_meta["content_type"] == "text/csv"
+    md_meta = mgr.upload(b"# Hi\n", "readme.md", "text/x-markdown")
+    assert md_meta["content_type"] == "text/markdown"
+    # Generic octet-stream with safe extension infers MIME; unsafe .html still blocked
+    oct_meta = mgr.upload(b"a,b\n", "export.csv", "application/octet-stream")
+    assert oct_meta["content_type"] == "text/csv"
+    with pytest.raises(ValueError, match="Type not allowed"):
+        mgr.upload(b"<script>", "evil.html", "application/octet-stream")
+    # Weird or traversal-like filename/extension stays safely inside storage_dir
+    weird = mgr.upload(b"ok", "../../etc/bad.txt\x00.evil ext", "text/plain")
+    assert os.path.dirname(weird["path"]) == str(tmp_path)
+    assert weird["path"].endswith(".bin")

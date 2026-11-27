@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextvars
 import logging
 import os
+import re
 import tempfile
 import time
 import uuid
@@ -48,6 +49,44 @@ DEFAULT_ALLOWED_TYPES = [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]
+
+# Safe extension → MIME map used only when clients send generic octet-stream
+# or OS-specific aliases (e.g. Windows Excel MIME for .csv, text/x-markdown).
+# Never includes active web types (HTML, SVG, JS).
+_SAFE_EXT_MIME: Dict[str, str] = {
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".tsv": "text/tab-separated-values",
+    ".md": "text/markdown",
+    ".json": "application/json",
+    ".pdf": "application/pdf",
+    ".xml": "application/xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".webm": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+_SAFE_EXT_RE = re.compile(r"^\.[A-Za-z0-9]{1,12}$")
+
+
+def _normalize_content_type(content_type: str, filename: str) -> str:
+    ct = (content_type or "").split(";")[0].strip().lower()
+    ext = os.path.splitext(filename)[1].lower()
+    if ct == "text/x-markdown":
+        return "text/markdown"
+    if ct == "application/vnd.ms-excel" and ext == ".csv":
+        return "text/csv"
+    if ct in ("", "application/octet-stream") and ext in _SAFE_EXT_MIME:
+        return _SAFE_EXT_MIME[ext]
+    return ct or "application/octet-stream"
 
 
 # ── Protocol ─────────────────────────────────────────────────────
@@ -120,11 +159,14 @@ class AttachmentManager(AttachmentProtocol):
         if len(data) > self._max_size:
             raise ValueError(f"File too large: {len(data)} > {self._max_size}")
 
-        if content_type not in self._allowed_types:
-            raise ValueError(f"Type not allowed: {content_type}")
+        safe_filename = os.path.basename(filename or "upload").replace("\x00", "") or "upload"
+        normalized_ct = _normalize_content_type(content_type, safe_filename)
+        if normalized_ct not in self._allowed_types:
+            raise ValueError(f"Type not allowed: {normalized_ct}")
 
         attachment_id = str(uuid.uuid4())
-        ext = os.path.splitext(filename)[1] or ".bin"
+        raw_ext = os.path.splitext(safe_filename)[1]
+        ext = raw_ext if _SAFE_EXT_RE.match(raw_ext) else ".bin"
         safe_name = attachment_id + ext
         path = os.path.join(self._storage_dir, safe_name)
 
@@ -133,8 +175,8 @@ class AttachmentManager(AttachmentProtocol):
 
         meta = {
             "id": attachment_id,
-            "filename": filename,
-            "content_type": content_type,
+            "filename": safe_filename,
+            "content_type": normalized_ct,
             "size": len(data),
             "path": path,
             "session_id": session_id,
@@ -328,7 +370,20 @@ async def _upload_attachment(request: Request) -> JSONResponse:
             except Exception:
                 return JSONResponse({"error": "Invalid base64 payload"}, status_code=400)
         else:
-            form = await request.form()
+            try:
+                form = await request.form()
+            except (AssertionError, RuntimeError) as exc:
+                if "python-multipart" in str(exc):
+                    return JSONResponse(
+                        {
+                            "error": (
+                                "multipart/form-data requires python-multipart; "
+                                "send raw binary with X-Filename header or application/json with data_base64"
+                            )
+                        },
+                        status_code=415,
+                    )
+                raise
             file = form.get("file")
             session_id = form.get("session_id", "")
             index_to_knowledge = str(form.get("index_to_knowledge", "")).lower() in (
@@ -425,7 +480,9 @@ async def _upload_attachment(request: Request) -> JSONResponse:
                 meta["knowledge_indexed"] = False
                 meta["knowledge_error"] = str(e)
 
-        return JSONResponse(meta)
+        # Never leak internal server temp filesystem paths in HTTP responses.
+        public_meta = {k: v for k, v in meta.items() if k != "path"}
+        return JSONResponse(public_meta)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:

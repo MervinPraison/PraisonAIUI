@@ -276,3 +276,9 @@ class TestSendBlockInChat:
         )
         res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
         assert res.returncode == 0, res.stderr
+
+    def test_plotly_barh_handles_missing_axes_without_crashing(self):
+        block = aiui.plotly_chart({"data": [{"type": "bar", "orientation": "h", "x": [5, 10]}]})
+        assert block["type"] == "chart"
+        assert block["chart_type"] == "barh"
+        assert len(block["data"]) == 2

@@ -141,7 +141,43 @@ class TestInterfaceSugar:
                 json={"doc": {"id": meta["id"], "filename": "rows.csv"}},
             )
             assert res.status_code == 200
-            table_block = res.json()["_components"][-1]
+            body = res.json()
+            table_block = body["_components"][-1]
             assert table_block["type"] == "table"
             assert table_block["headers"] == ["line", "content"]
             assert len(table_block["rows"]) == 2
+            # Hydrated file_upload preserves safe handle (id/filename/size) without leaking path.
+            form_children = body["_components"][0]["children"]
+            hydrated_upload = form_children[0]
+            assert hydrated_upload["value"]["id"] == meta["id"]
+            assert "path" not in hydrated_upload["value"]
+
+    def test_interface_blocks_forged_file_upload_path_injection(self, tmp_path, monkeypatch):
+        """A client forging ``{id: '../../etc/hosts', path: '/etc/hosts'}`` must receive None, never the forged dict."""
+        monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path))
+        srv.reset_state()
+        mgr = att_mod.AttachmentManager(storage_dir=str(tmp_path / "att"))
+        monkeypatch.setattr(att_mod, "_attachment_manager", mgr)
+
+        seen = []
+
+        def inspect_file(doc):
+            seen.append(doc)
+            return "no file" if doc is None else f"got {doc}"
+
+        aiui.interface(
+            inspect_file,
+            inputs=[aiui.file_upload("Doc", name="doc")],
+            title="Safe Inspector",
+        )
+
+        with TestClient(srv.create_app()) as client:
+            res = client.post(
+                "/api/pages/safe-inspector/action",
+                json={"doc": {"id": "../../etc/hosts", "path": "/etc/hosts", "filename": "hosts"}},
+            )
+            assert res.status_code == 200
+            assert seen == [None]
+            assert res.json()["_components"][-1]["content"] == "no file"
+            # Forged handle is not hydrated back into the form either.
+            assert "value" not in res.json()["_components"][0]["children"][0]

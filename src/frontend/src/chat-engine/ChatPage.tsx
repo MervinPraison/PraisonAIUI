@@ -192,7 +192,7 @@ export default function ChatPage({ page, transport: transportProp, embedded }: C
   const running = useSyncExternalStore(threadStore.subscribeRunning, threadStore.runningSessions, threadStore.runningSessions)
   // The shell header owns the page <h1>; with it hidden (layout.pageHeader: false) the chat title is the h1.
   const manifest = useManifest()
-  const Heading = manifest?.layout.pageHeader === false ? 'h1' : 'h2'
+  const Heading = !embedded && manifest?.layout.pageHeader === false ? 'h1' : 'h2'
 
   // A layout's presentation of the chat (null: the classic frame, the page as before).
   const layoutChat = useLayout()?.meta.chat
@@ -220,14 +220,16 @@ export default function ChatPage({ page, transport: transportProp, embedded }: C
       .then((list) => alive && setStarters(list.length ? list : DEFAULT_STARTERS))
       .catch(() => alive && setStarters(DEFAULT_STARTERS))
     // Its own small chunk: the greeting never delays the chat's first screen.
-    void import('./welcome')
-      .then(({ fetchWelcome }) => fetchWelcome())
-      .then((text) => alive && setWelcome(text))
-      .catch(() => undefined)
+    if (!embedded?.welcome) {
+      void import('./welcome')
+        .then(({ fetchWelcome }) => fetchWelcome())
+        .then((text) => alive && setWelcome(text))
+        .catch(() => undefined)
+    }
     return () => {
       alive = false
     }
-  }, [initial.agent])
+  }, [embedded?.welcome, initial.agent])
 
   // Mirror the selection into ?session= (and drop a consumed ?agent=).
   useEffect(() => {
@@ -299,6 +301,16 @@ export default function ChatPage({ page, transport: transportProp, embedded }: C
 
   // Window events from the shell and other pages.
   useEffect(() => {
+    // Approval records from the legacy approval stream (approvalUi 'event-only'):
+    // fill in a gate the chat stream could not describe (older WS servers).
+    const onApproval = (e: Event) => {
+      const detail = (e as CustomEvent<unknown>).detail
+      if (detail && typeof detail === 'object') threadStore.injectApproval(detail as Record<string, unknown>)
+    }
+    window.addEventListener('aiui:approval-required', onApproval)
+    if (embedded) {
+      return () => window.removeEventListener('aiui:approval-required', onApproval)
+    }
     // Events dispatched while the chat chunk was still loading (see ./register).
     const bufferedSession = takePendingSessionSelect()
     if (bufferedSession) sessionsStore.select(bufferedSession)
@@ -321,21 +333,14 @@ export default function ChatPage({ page, transport: transportProp, embedded }: C
       takePendingSessionSelect() // handled here; do not replay it on the next mount
       select(id)
     }
-    // Approval records from the legacy approval stream (approvalUi 'event-only'):
-    // fill in a gate the chat stream could not describe (older WS servers).
-    const onApproval = (e: Event) => {
-      const detail = (e as CustomEvent<unknown>).detail
-      if (detail && typeof detail === 'object') threadStore.injectApproval(detail as Record<string, unknown>)
-    }
     window.addEventListener('aiui:prefill-composer', onPrefill)
     window.addEventListener('aiui:session-select', onSelect)
-    window.addEventListener('aiui:approval-required', onApproval)
     return () => {
       window.removeEventListener('aiui:prefill-composer', onPrefill)
       window.removeEventListener('aiui:session-select', onSelect)
       window.removeEventListener('aiui:approval-required', onApproval)
     }
-  }, [setComposerText, select])
+  }, [embedded, setComposerText, select])
 
   const fill = useMemo(() => fillPrompts(starters), [starters])
   const icons = useMemo(() => starterIcons(starters), [starters])

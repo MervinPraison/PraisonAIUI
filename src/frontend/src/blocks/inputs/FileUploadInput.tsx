@@ -13,6 +13,7 @@ import { Chip, HiddenValue } from './shared'
 import {
   formatFileSize,
   inferUploadMimeType,
+  parseInitialFiles,
   parseUploadResponse,
   validateUploadCandidate,
   type UploadedFileHandle,
@@ -30,7 +31,7 @@ export function FileUploadInput({ node }: { node: BlockNode }): JSX.Element {
 
   const inputId = useId()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [files, setFiles] = useState<UploadedFileHandle[]>([])
+  const [files, setFiles] = useState<UploadedFileHandle[]>(() => parseInitialFiles(p.value, multiple))
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
