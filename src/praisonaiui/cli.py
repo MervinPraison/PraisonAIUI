@@ -4431,8 +4431,21 @@ def doctor(
     # Check 4: Features Loaded
     def _features_extractor(data):
         features = data.get("features", [])
+        if not isinstance(features, list):
+            count = int(data.get("count", 0) or 0)
+            return ("pass" if count else "warn"), f"{count} features registered"
         count = len(features)
-        return "pass", f"{count}/37 features registered"
+        if count == 0:
+            return "warn", "0 features registered"
+        degraded = [
+            f
+            for f in features
+            if isinstance(f, dict) and f.get("status") in ("error", "timeout")
+        ]
+        if degraded:
+            healthy = count - len(degraded)
+            return "warn", f"{healthy}/{count} features healthy ({len(degraded)} degraded)"
+        return "pass", f"{count} features registered"
 
     checks.append(_check("Features Loaded", "/api/features", _features_extractor))
 
