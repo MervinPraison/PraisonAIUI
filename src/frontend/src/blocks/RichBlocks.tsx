@@ -57,7 +57,7 @@ export function StepperBlock({ node }: CoreBlockProps): JSX.Element {
             key={str(step.id) || idx}
             aria-current={state === 'active' ? 'step' : undefined}
             data-step-state={state}
-            className={cn('flex min-w-0 gap-2.5', !vertical && 'sm:flex-1 sm:items-start')}
+            className={cn('flex min-w-0 gap-2.5', !vertical && 'flex-1 sm:items-start')}
           >
             <span
               aria-hidden="true"
@@ -494,7 +494,7 @@ export function RatingInputBlock({ node }: CoreBlockProps): JSX.Element {
                 aria-hidden="true"
                 className={cn(
                   'size-4 transition-colors',
-                  filled ? 'fill-current text-warning' : 'text-tier-4 hover:text-tier-2',
+                  filled ? 'fill-current text-warning' : 'text-tier-4 hover:text-warning',
                 )}
               />
             </button>
