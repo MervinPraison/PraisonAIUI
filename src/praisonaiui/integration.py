@@ -358,7 +358,7 @@ def create_gateway_from_yaml(
             llm=agent_def.get("model"),
             memory=agent_def.get("memory", False),
             tools=agent_tools if agent_tools else None,
-            self_reflect=agent_def.get("reflection", False),
+            reflection=agent_def.get("reflection", False),
         )
         gateway.register_agent(agent, agent_id=agent_id)
         logger.info(

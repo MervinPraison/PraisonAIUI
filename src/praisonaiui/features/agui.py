@@ -9,13 +9,22 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from ._base import BaseFeatureProtocol
+from ._base import BaseFeatureProtocol, sdk_installed
+from ._gateway_helpers import gateway_health
 
 logger = logging.getLogger(__name__)
 
 
-def _resolve_agent(agent_name: Optional[str] = None):
-    """Resolve a registered PraisonAI agent instance."""
+def _resolve_agent(agent_name: Optional[str] = None, *, create: bool = True):
+    """Resolve a PraisonAI agent instance for AG-UI runs.
+
+    Lookup order:
+      1. Explicitly registered agents (``praisonaiui.register_agent``)
+      2. Active gateway agents (``AIUIGateway``)
+      3. Existing provider agents (``provider._find_existing_agent`` / ``_agent`` / ``agents``)
+      4. When *create* is True and ``praisonaiagents`` is installed, lazily
+         build the default/CRUD agent via ``provider._get_or_create_agent``.
+    """
     from praisonaiui.server import _agents
 
     if agent_name and agent_name in _agents:
@@ -28,16 +37,71 @@ def _resolve_agent(agent_name: Optional[str] = None):
         first = next(iter(_agents.keys()))
         return _agents[first]["agent"]
 
+    # 2. Gateway-registered agents
+    try:
+        from ._gateway_ref import get_gateway
+
+        gw = get_gateway()
+        if gw is not None:
+            if agent_name:
+                direct = gw.get_agent(agent_name)
+                if direct is not None:
+                    return direct
+                for aid in gw.list_agents():
+                    gw_agent = gw.get_agent(aid)
+                    if gw_agent is not None and getattr(gw_agent, "name", None) == agent_name:
+                        return gw_agent
+            for aid in gw.list_agents():
+                gw_agent = gw.get_agent(aid)
+                if gw_agent is not None:
+                    return gw_agent
+    except Exception:
+        pass
+
+    # 3. Provider-held or lazily creatable agent
     try:
         from praisonaiui.server import get_provider
 
         provider = get_provider()
-        if hasattr(provider, "agents") and provider.agents:
-            return provider.agents[0]
+        finder = getattr(provider, "_find_existing_agent", None)
+        if callable(finder):
+            found = finder(agent_name=agent_name)
+            if found is not None:
+                return found
+        single = getattr(provider, "_agent", None)
+        if single is not None:
+            return single
+        for attr in ("agents", "_agents"):
+            bag = getattr(provider, attr, None)
+            if bag:
+                if agent_name:
+                    for item in bag:
+                        if getattr(item, "name", None) == agent_name:
+                            return item
+                return bag[0]
+        if create and sdk_installed():
+            creator = getattr(provider, "_get_or_create_agent", None)
+            if callable(creator):
+                return creator(agent_name=agent_name)
     except Exception:
         pass
 
     return None
+
+
+def _agent_available() -> bool:
+    """Fast, side-effect-free check for whether AG-UI can serve an agent."""
+    if _resolve_agent(create=False) is not None:
+        return True
+    if not sdk_installed():
+        return False
+    try:
+        from praisonaiui.server import get_provider
+
+        provider = get_provider()
+        return callable(getattr(provider, "_get_or_create_agent", None))
+    except Exception:
+        return False
 
 
 async def _post_agui(request: Request) -> Union[StreamingResponse, JSONResponse]:
@@ -83,11 +147,11 @@ async def _post_agui(request: Request) -> Union[StreamingResponse, JSONResponse]
 
 
 async def _agui_status(_request: Request) -> JSONResponse:
-    agent = _resolve_agent()
+    available = _agent_available()
     return JSONResponse(
         {
-            "status": "available" if agent else "unavailable",
-            "agent_registered": agent is not None,
+            "status": "available" if available else "unavailable",
+            "agent_registered": available,
         }
     )
 
@@ -118,9 +182,11 @@ class AguiFeature(BaseFeatureProtocol):
         ]
 
     async def health(self) -> Dict[str, Any]:
-        agent = _resolve_agent()
-        return {
-            "status": "ok" if agent else "degraded",
+        available = _agent_available()
+        h: Dict[str, Any] = {
+            "status": "ok" if available else "degraded",
             "feature": self.name,
-            "agent_available": agent is not None,
+            "agent_available": available,
         }
+        h.update(gateway_health())
+        return h

@@ -174,7 +174,7 @@ async def main():
                 name=agent_def["name"],
                 instructions=agent_def["instructions"],
                 llm=agent_def["model"],
-                self_reflect=False,
+                reflection=False,
             )
             gateway.register_agent(agent, agent_id=agent_def["agent_id"])
             safe_print(f"   {icon('✓', '[OK]')} Gateway:   {agent_def['name']} ({agent_def['model']})")
