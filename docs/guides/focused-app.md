@@ -51,9 +51,30 @@ picker still works.
 |---|---|
 | The new app shell | Nothing: `style: app` is the default. `aiui.set_style("app")` makes it explicit |
 | Only your pages | `aiui.only_my_pages()` or `aiui.set_pages([])` |
-| Your pages and Chat | `aiui.only_my_pages("chat")` or `aiui.set_pages(["chat"])` |
-| A few built-in pages too | `aiui.set_pages(["chat", "sessions", "usage"])` (ids: `aiui pages ids`) |
-| Every page (the full product) | `aiui.set_pages("all")` or `aiui run app.py --pages all` |
+| Your pages and Chat (minimal preset) | `aiui.set_pages("minimal")` or `aiui.only_my_pages("chat")` (automatic default when running `aiui run app.py` with `@aiui.page`/`@aiui.reply`) |
+| Core Agent preset (Chat, Sessions, Approvals, Usage, Memory) | `aiui.set_pages("agent")` or `aiui run app.py --preset agent` |
+| A few specific built-in pages | `aiui.set_pages(["chat", "sessions", "usage"])` (ids: `aiui pages ids`) |
+| Every page (full Ops console) | `aiui.set_pages("ops")` / `aiui.set_pages("all")` or `aiui run app.py --preset ops` |
+
+## 5-line function apps (`aiui.interface`)
+
+Wrap any Python function (sync, `async def`, or streaming `yield` generator) into an interactive page without writing separate `@aiui.page` and `@aiui.register_page_action` handlers:
+
+```python
+import praisonaiui as aiui
+
+async def summarize(text: str, tone: str = "Brief"):
+    yield f"**{tone} summary:** {text[:120]}"
+
+aiui.interface(
+    summarize,
+    inputs=[
+        aiui.textarea_input("Text", name="text", placeholder="Paste text..."),
+        aiui.select_input("Tone", name="tone", options=["Brief", "Detailed"], value="Brief"),
+    ],
+    title="Summarizer",
+)
+```
 
 `set_pages` is the one switch for what shows. It covers built-in pages, the
 app shell's layout pages (`start`, `artifacts`, `templates`, `connect`,

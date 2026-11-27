@@ -57,7 +57,16 @@ _page_actions: dict[str, Callable] = {}
 _page_badges: dict[str, Any] = {}
 # User-defined page whitelist — None means "show all built-in pages"
 _enabled_pages: Optional[set[str]] = None
-_all_pages_listed = False  # set_pages("all"): every layout lists every group
+_all_pages_listed = False  # set_pages("all") / set_pages("ops"): every layout lists every group
+_pages_configured = False  # True once set_pages() / only_my_pages() was explicitly called
+
+# Named page presets for set_pages() and `aiui run --preset`.
+PAGE_PRESETS: dict[str, Optional[tuple[str, ...]]] = {
+    "minimal": ("chat",),
+    "agent": ("chat", "sessions", "approvals", "usage", "memory"),
+    "ops": None,
+    "all": None,
+}
 # Track which page IDs were added by @aiui.page() (always shown)
 _custom_page_ids: set[str] = set()
 # Built-in page ids the last create_app() put into _pages (from plugin records)
@@ -138,6 +147,7 @@ def reset_state() -> None:
     _enabled_pages_ref = globals()
     _enabled_pages_ref["_enabled_pages"] = None
     _enabled_pages_ref["_all_pages_listed"] = False
+    _enabled_pages_ref["_pages_configured"] = False
     _custom_page_ids.clear()
     _builtin_page_ids.clear()
     _active_tasks.clear()
@@ -748,19 +758,30 @@ def set_pages(page_ids: "list[str] | str") -> None:
     Pass an empty list (or call :func:`only_my_pages`) to show only the
     app's own pages. If never called, every page is shown.
 
-    ``set_pages("all")`` shows every page and makes every layout's sidebar
-    list them all, grouped (Agent, Work, Control, ...), as the legacy
-    dashboard did: each page in its React version where there is one, else
-    the legacy view inside the app shell.
+    ``set_pages("minimal")`` shows only Chat plus the app's own pages.
+    ``set_pages("agent")`` adds core agent ops pages (Chat, Sessions,
+    Approvals, Usage, Memory). ``set_pages("ops")`` / ``set_pages("all")``
+    shows every page and makes every layout's sidebar list them all, grouped
+    (Agent, Work, Control, ...), as the legacy dashboard did: each page in its
+    React version where there is one, else the legacy view inside the app shell.
     """
-    global _enabled_pages, _all_pages_listed
+    global _enabled_pages, _all_pages_listed, _pages_configured
     if isinstance(page_ids, str):
-        if page_ids != "all":
-            raise ValueError(f'set_pages() takes a list of page ids or "all", not {page_ids!r}')
-        _enabled_pages, _all_pages_listed = None, True
+        if page_ids not in PAGE_PRESETS:
+            valid = ", ".join(repr(k) for k in PAGE_PRESETS)
+            raise ValueError(
+                f"set_pages() takes a list of page ids or a preset ({valid}), not {page_ids!r}"
+            )
+        preset = PAGE_PRESETS[page_ids]
+        if preset is None:
+            _enabled_pages, _all_pages_listed = None, True
+        else:
+            _enabled_pages, _all_pages_listed = set(preset), False
+        _pages_configured = True
         return
     _enabled_pages = set(page_ids)
     _all_pages_listed = False
+    _pages_configured = True
 
 
 def only_my_pages(*keep: str) -> None:
