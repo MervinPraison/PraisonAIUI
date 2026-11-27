@@ -60,3 +60,17 @@ test('plain React.lazy keeps the rejection forever (why the helper exists)', asy
   retryFailedLazies()
   assert.doesNotMatch(await render(C), /<b>ok<\/b>/)
 })
+
+test('a transient Vite CSS preload error retries once automatically and renders', async () => {
+  let calls = 0
+  const Page = ({ label }: { label: string }) => <b>{label}</b>
+  const C = retryableLazy<{ label: string }>(() => {
+    calls += 1
+    if (calls === 1) {
+      return Promise.reject(new Error('Unable to preload CSS for https://ui.praison.ai/assets/mount-Cnto-XVR.css'))
+    }
+    return Promise.resolve({ default: Page })
+  })
+  assert.match(await render(C), /<b>ok<\/b>/, 'single CSS preload blip recovers without showing an error')
+  assert.equal(calls, 2)
+})

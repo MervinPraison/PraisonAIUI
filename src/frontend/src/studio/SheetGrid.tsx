@@ -186,7 +186,7 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter rows…"
             aria-label="Filter spreadsheet rows"
-            className="h-7 w-32 rounded-md border border-hairline bg-background px-2 text-xs text-foreground placeholder:text-tier-3 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 w-32 rounded-md border border-hairline bg-background px-2 text-xs text-foreground placeholder:text-tier-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <button
             type="button"
@@ -230,7 +230,7 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
             type="button"
             disabled={!selected}
             onClick={() => selected && setEditing({ r: selected.r, c: selected.c, draft: selRaw == null ? '' : String(selRaw), source: 'bar' })}
-            className="min-w-0 flex-1 truncate text-left text-tier-2 disabled:text-tier-3"
+            className="min-w-0 flex-1 truncate text-left text-tier-2 disabled:opacity-60"
           >
             {selected
               ? typeof selRaw === 'string' && selRaw.startsWith('=')
@@ -260,7 +260,7 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
               const rawRow = mergedGrid[r] ?? []
               const isHeaderRow = r === 0
               return (
-                <tr key={r} className={isHeaderRow ? 'bg-fill-4 font-medium' : 'hover:bg-fill-4'}>
+                <tr key={r} className={isHeaderRow ? 'bg-fill-4 font-medium' : 'hover:bg-muted/40'}>
                   <td className="border-b border-r border-hairline bg-fill-4 px-2 py-1 text-center font-mono text-tier-3">
                     {r + 1}
                   </td>
@@ -303,7 +303,7 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
                           <span>{formatCell(cell)}</span>
                         )}
                         {isFormula && !isEdit && (
-                          <span aria-hidden className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary opacity-70" />
+                          <span aria-hidden style={{ top: 2, right: 2 }} className="absolute size-1.5 rounded-full bg-primary opacity-70" />
                         )}
                       </td>
                     )
