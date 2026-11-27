@@ -1043,6 +1043,20 @@ class PraisonAIProvider(BaseProvider):
                             type=RunEventType.MESSAGE_ELEMENT,
                             extra_data={"element": element},
                         )
+                elif evt_type == "block":
+                    block_data = event.get("block")
+                    if isinstance(block_data, dict) and block_data:
+                        element = {
+                            "type": "block",
+                            "id": event.get("id") or f"blk_{uuid.uuid4().hex[:12]}",
+                            "block": block_data,
+                        }
+                        if event.get("name"):
+                            element["name"] = str(event["name"])
+                        yield RunEvent(
+                            type=RunEventType.MESSAGE_ELEMENT,
+                            extra_data={"element": element},
+                        )
                 elif evt_type == "thinking":
                     yield RunEvent(type=RunEventType.REASONING_STEP, step=event.get("step", ""))
                 elif evt_type in ("step_start", "step_update", "step_end"):  # aiui.Step

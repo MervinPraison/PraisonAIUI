@@ -644,6 +644,71 @@ async def action_buttons(buttons: list[dict]) -> None:
         await ctx._stream_queue.put({"type": "actions", "buttons": buttons})
 
 
+async def send_block(
+    block: Any,
+    *,
+    name: Optional[str] = None,
+    id: Optional[str] = None,
+) -> bool:
+    """Render any ``aiui.*`` UI block (or DataFrame / Plotly figure) inline in chat.
+
+    Accepts a single block dict (e.g. ``aiui.table(...)``, ``aiui.chart(...)``,
+    ``aiui.metric(...)``, ``aiui.columns(...)``), an ``aiui.layout([...])``
+    payload, a sequence of block dicts, a pandas/Polars DataFrame, or a Plotly
+    figure. Returns ``False`` outside an active chat reply context.
+
+    Example::
+
+        @aiui.reply
+        async def on_message(message: str):
+            await aiui.say("Here is the latest breakdown:")
+            await aiui.send_block(aiui.columns([
+                aiui.metric("Revenue", value="$42k", delta="+12%"),
+                aiui.metric("Orders", value=318, delta="+8%"),
+            ]))
+    """
+    import uuid as _uuid
+
+    from praisonaiui import ui as _ui
+
+    ctx = _get_context()
+    if not (ctx and ctx._stream_queue):
+        return False
+
+    payload: Optional[dict[str, Any]] = None
+    if isinstance(block, dict):
+        if isinstance(block.get("_components"), list):
+            payload = {"type": "container", "children": list(block["_components"])}
+        elif isinstance(block.get("type"), str) and block["type"]:
+            payload = dict(block)
+        elif "data" in block and isinstance(block.get("data"), list):
+            payload = _ui.plotly_chart(block)
+    elif isinstance(block, (list, tuple)):
+        items = [b for b in block if isinstance(b, dict) and b.get("type")]
+        if items:
+            payload = items[0] if len(items) == 1 else {"type": "container", "children": items}
+    elif _ui._coerce_dataframe(block) is not None:
+        payload = _ui.table(block, searchable=True)
+    elif callable(getattr(block, "to_dict", None)) or callable(getattr(block, "to_json", None)):
+        payload = _ui.plotly_chart(block)
+
+    if not payload:
+        raise ValueError(
+            "send_block() expects an aiui.* block dict, aiui.layout([...]), "
+            "a sequence of blocks, a DataFrame, or a Plotly figure"
+        )
+
+    event: dict[str, Any] = {
+        "type": "block",
+        "id": id or f"blk_{_uuid.uuid4().hex[:12]}",
+        "block": payload,
+    }
+    if name:
+        event["name"] = str(name)
+    await ctx._stream_queue.put(event)
+    return True
+
+
 TOAST_TYPES = ("info", "success", "warning", "error")
 
 
