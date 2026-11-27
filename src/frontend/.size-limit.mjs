@@ -183,7 +183,8 @@ const defaultLayoutFirstScreen = [
     // 274,301 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
     // 274,400 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
     // 274,650 B (+250 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
-    limit: '274650 B',
+    // 274,800 B (+150 B, 2026-11-27): ReactShell lazy viewportGuard bottom bar hook (+Linux zlib headroom).
+    limit: '274800 B',
     gzip: true,
   },
 ]
@@ -379,7 +380,8 @@ export default [
   // 262,361 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
   // 262,460 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
   // 262,700 B (+240 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262700 B', gzip: true },
+  // 262,850 B (+150 B, 2026-11-27): ReactShell lazy viewportGuard bottom bar hook (+Linux zlib headroom).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262850 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   // 26.05 kB (+50 B, 2026-11-27): :not([data-aiui-component-preview] *) isolation on article.prose (Linux CI zlib).
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26.05 kB', gzip: true },

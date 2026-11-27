@@ -6,7 +6,7 @@
  * The shell never touches the legacy runtime's DOM; legacy views live inside
  * LegacyViewHost's own mount node.
  */
-import { lazy, Suspense, useEffect, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
 import { getPage, useRegistryVersion } from '@/sdk/registry'
 import type { ShellManifest, ShellPage } from '@/sdk/manifest'
 import { useShell } from './context'
@@ -55,6 +55,21 @@ export default function ReactShell() {
   const paletteRequested = useCommandPaletteRequested()
   const settings = useSettingsDialog()
   useApplyThemePresets()
+  const shellRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let stop: (() => void) | undefined
+    let dead = false
+    void import('@/lib/viewportGuard')
+      .then((m) => {
+        if (!dead) stop = m.bindSurfaceChrome(shellRef.current)
+      })
+      .catch(() => undefined)
+    return () => {
+      dead = true
+      stop?.()
+    }
+  }, [])
 
   const page: ShellPage | undefined = resolveRoutePage(pages, pageId, layoutId)
   const pageTitle = page?.title ?? (pageId ? (getPage(pageId) ? pageId : 'Not found') : title)
@@ -106,7 +121,8 @@ export default function ReactShell() {
 
   return (
     <div
-      className="aiui-app flex h-dvh w-full overflow-hidden bg-background text-foreground"
+      ref={shellRef}
+      className="aiui-app flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground"
       data-aiui-shell-root=""
       data-aiui-page-header={header ? 'shown' : 'hidden'}
       data-aiui-layout={layoutId || undefined}
@@ -117,33 +133,35 @@ export default function ReactShell() {
       >
         Skip to content
       </a>
-      <LayoutHost
-        active={active}
-        manifest={manifest}
-        groups={groups}
-        routeId={pageId}
-        page={page}
-        fullBleed={fullBleed}
-        firstPage={firstPage}
-        pluginsSettled={pluginsSettled}
-        classic={classic}
-      />
-      {settings.requested && (
-        <Suspense fallback={null}>
-          <SettingsDialog open={settings.open} onOpenChange={setSettingsDialogOpen} initialSectionId={settings.sectionId} />
-        </Suspense>
-      )}
-      {paletteRequested && (
-        <Suspense fallback={null}>
-          <CommandPalette
-            open={paletteOpen}
-            onOpenChange={setCommandPaletteOpen}
-            pages={listedPages}
-            groups={groups}
-            activeId={pageId}
-          />
-        </Suspense>
-      )}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <LayoutHost
+          active={active}
+          manifest={manifest}
+          groups={groups}
+          routeId={pageId}
+          page={page}
+          fullBleed={fullBleed}
+          firstPage={firstPage}
+          pluginsSettled={pluginsSettled}
+          classic={classic}
+        />
+        {settings.requested && (
+          <Suspense fallback={null}>
+            <SettingsDialog open={settings.open} onOpenChange={setSettingsDialogOpen} initialSectionId={settings.sectionId} />
+          </Suspense>
+        )}
+        {paletteRequested && (
+          <Suspense fallback={null}>
+            <CommandPalette
+              open={paletteOpen}
+              onOpenChange={setCommandPaletteOpen}
+              pages={listedPages}
+              groups={groups}
+              activeId={pageId}
+            />
+          </Suspense>
+        )}
+      </div>
     </div>
   )
 }

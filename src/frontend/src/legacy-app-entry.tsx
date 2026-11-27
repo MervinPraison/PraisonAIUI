@@ -20,4 +20,7 @@ export function mountApp(el: HTMLElement) {
       </AuthGate>
     </StrictMode>,
   )
+  void import('@/lib/viewportGuard')
+    .then((m) => m.bindSurfaceChrome(document.body))
+    .catch(() => undefined)
 }
