@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { WrapText } from 'lucide-react'
 import { defaultComponents, type ExtraProps } from 'streamdown'
+import { getFenceViewer } from './fenceRegistry'
 
 type Props = JSX.IntrinsicElements['code'] & ExtraProps
 
@@ -45,7 +46,19 @@ function phoneWidth(): boolean {
     }
 }
 
+function fenceLanguage(props: Props): string {
+    const dataLang = (props as { 'data-language'?: string })['data-language']
+    if (typeof dataLang === 'string' && dataLang.trim()) return dataLang.trim().toLowerCase()
+    const m = /\blanguage-([a-z0-9_-]+)\b/i.exec(props.className ?? '')
+    return m ? m[1].toLowerCase() : ''
+}
+
 export function ChatCode(props: Props) {
+    if ('data-block' in props) {
+        const lang = fenceLanguage(props)
+        const Viewer = lang ? getFenceViewer(lang) : undefined
+        if (Viewer) return <Viewer content={codeText(props.children)} language={lang} />
+    }
     const block = 'data-block' in props && !/\blanguage-mermaid\b/.test(props.className ?? '')
     return block ? <CollapsibleCode {...props} /> : <DefaultCode {...props} />
 }

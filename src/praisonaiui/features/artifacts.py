@@ -45,7 +45,7 @@ from ._base import BaseFeatureProtocol
 
 logger = logging.getLogger(__name__)
 
-KINDS = ("code", "table", "markdown", "file", "image", "pdf", "video", "a2ui")
+KINDS = ("code", "table", "markdown", "file", "image", "pdf", "video", "a2ui", "whiteboard", "sheet")
 #: Text content per version.
 MAX_CONTENT = 512 * 1024
 MAX_VERSIONS_PER_KEY = 50

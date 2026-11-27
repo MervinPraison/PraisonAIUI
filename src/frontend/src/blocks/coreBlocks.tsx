@@ -986,6 +986,8 @@ const SegmentedInput = templateBlock(() => import('./inputs/FilterInputs').then(
 const FilterBar = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.FilterBar })))
 // Rich compound blocks: one lazy dispatcher so coreBlocks / chat-route stays tiny.
 const RichBlock = templateBlock(() => import('./RichBlocks'))
+// Interactive studio blocks (sheet, whiteboard): one lazy dispatcher shared with chat & artifacts.
+const StudioBlock = templateBlock(() => import('@/studio/StudioBlocks'))
 
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
@@ -1063,6 +1065,8 @@ const CORE: Record<string, CoreBlock> = {
   tree_view: RichBlock,
   copy_field: RichBlock,
   rating_input: RichBlock,
+  sheet: StudioBlock,
+  whiteboard: StudioBlock,
   ...mediaBlocks(),
 }
 

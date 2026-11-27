@@ -25,7 +25,7 @@ export const CODE_RECORD = 'builtin.code-studio'
 export const ARTIFACTS_PAGE = 'artifacts'
 export const CODE_PAGE = 'code-studio'
 /** The server's `KINDS`. */
-export const ARTIFACT_KINDS: readonly ArtifactKind[] = ['code', 'table', 'markdown', 'file', 'image', 'pdf', 'video', 'a2ui']
+export const ARTIFACT_KINDS: readonly ArtifactKind[] = ['code', 'table', 'markdown', 'file', 'image', 'pdf', 'video', 'a2ui', 'whiteboard', 'sheet']
 /** The server's limits (`MAX_CONTENT`, `_TEXT_LIMITS`): larger values are left out of a PUT. */
 export const MAX_CONTENT_BYTES = 512 * 1024
 const LIMITS = { title: 300, messageId: 200, language: 64, mimeType: 128, url: 4096 } as const
