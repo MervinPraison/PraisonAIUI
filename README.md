@@ -6,37 +6,34 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
 [![Docs](https://img.shields.io/badge/docs-ui.praison.ai-4f46e5.svg)](https://ui.praison.ai)
 
-**A web UI for your AI agents from one Python file:** streaming chat, selectable
-layouts, an artifacts canvas, admin pages, plugins and documentation sites.
+**The Python-first UI for AI Agents — streaming chat, interactive pages, file uploads, inline blocks, approvals, and opt-in ops. Zero JS.**
+
+Works with **any Python agent framework** — OpenAI, Anthropic, PraisonAI, LangGraph, CrewAI, or PydanticAI.
 
 ![PraisonAIUI app shell in its Paper look: an agent answers, shows the tool it ran and asks before installing a package](docs/images/aiui-app-chat.webp)
 
-## Quick start
+## Quick start (30 seconds)
 
 ```bash
 pip install aiui
+aiui init --template agent    # or: openai, anthropic, langgraph, crewai, pydantic-ai, praisonai, dashboard
+aiui run app.py
 ```
 
-Create `app.py`:
+Or write `app.py` directly:
 
 ```python
 import praisonaiui as aiui
 
 @aiui.reply
 async def on_message(message: str):
-    await aiui.say(f"You said: {message}")
+    await aiui.say(f"You said: **{message}**")
+    await aiui.send_block(aiui.metric("Status", value="Ready", delta="Live"))
 ```
 
-Run it:
+Open <http://localhost:8000>. `aiui run app.py` opens cleanly in **focused mode** (Chat + your own pages). Pass `--preset agent` for Sessions/Approvals/Usage/Memory, or `--preset ops` for the full control plane.
 
-```bash
-aiui run app.py
-```
-
-Open <http://localhost:8000>. A chat app opens in the React app shell (`style: app`)
-in the **Chat** layout. For a real model, see
-[`examples/python/03-chat-with-ai`](examples/python/03-chat-with-ai/app.py)
-(OpenAI, token streaming with `aiui.stream_token()`).
+Coming from another tool? Read the side-by-side migration guides: [From Streamlit](docs/guides/from-streamlit.md) · [From Gradio](docs/guides/from-gradio.md) · [From Chainlit](docs/guides/from-chainlit.md).
 
 ## What you get
 

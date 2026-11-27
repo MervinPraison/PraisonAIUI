@@ -342,7 +342,7 @@ def init(
         "minimal",
         "--template",
         "-t",
-        help="Template to use: minimal, docs, marketing",
+        help="Template: agent, openai, anthropic, langgraph, crewai, pydantic-ai, praisonai, dashboard, or docs/minimal/marketing",
     ),
     force: bool = typer.Option(
         False,
@@ -356,15 +356,39 @@ def init(
         help="Scaffold a Vite + React + shadcn frontend project for customization",
     ),
 ) -> None:
-    """Initialize a new PraisonAIUI project."""
+    """Initialize a new PraisonAIUI project (Agent UI app.py or Docs aiui.yaml)."""
+    from praisonaiui._init_templates import APP_TEMPLATES, DOCS_TEMPLATES
     from praisonaiui.schema.loader import SCHEMA_URL
-
-    config_path = Path.cwd() / CONFIG_NAME
 
     # If --frontend flag, scaffold a frontend project
     if frontend:
         _scaffold_frontend(force)
         return
+
+    tpl = template.strip().lower()
+    if tpl in APP_TEMPLATES:
+        app_path = Path.cwd() / "app.py"
+        if app_path.exists() and not force:
+            console.print(
+                f"[red]Error:[/red] {app_path.name} already exists. Use --force to overwrite."
+            )
+            raise typer.Exit(code=1)
+        app_path.write_text(APP_TEMPLATES[tpl], encoding="utf-8")
+        console.print(
+            Panel(
+                f"[green]✓[/green] Created {app_path} ([bold]{tpl}[/bold] template)\n\n"
+                "Run it with:\n  [cyan]aiui run app.py[/cyan]",
+                title="Success",
+            )
+        )
+        return
+
+    if tpl not in DOCS_TEMPLATES:
+        valid = ", ".join([*APP_TEMPLATES.keys(), *DOCS_TEMPLATES])
+        console.print(f"[red]Error:[/red] Unknown template {template!r}. Choose one of: {valid}")
+        raise typer.Exit(code=2)
+
+    config_path = Path.cwd() / CONFIG_NAME
 
     existing = _find_config(Path.cwd())
     if existing is not None and not force:
