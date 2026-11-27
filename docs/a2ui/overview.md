@@ -36,4 +36,5 @@ flowchart LR
 2. **[Components & Functions](components.md)** — Copy-paste examples for all 18 Basic Catalog components and 14 client functions.
 3. **[Data Binding & Actions](data-binding-and-actions.md)** — Connect live data models, two-way forms, validation checks, and action handlers.
 4. **[Settings, Themes & Pages](settings-and-pages.md)** — Configure previews, themes, catalogs, custom renderers, same-page vs multi-page layouts, and v0.8 migration.
-5. **[All-in-One Playground](all-in-one-playground.md)** — Run and test every A2UI step, setting, and component on one page or across pages.
+5. **[Interactive Response Examples](response-examples.md)** — Live interactive simulations of every response type an agent can render from a chat prompt (KPIs, forms, approvals, charts, tables, pipelines, copyable snippets).
+6. **[All-in-One Playground](all-in-one-playground.md)** — Run and test every A2UI step, setting, and component on one page or across pages.
