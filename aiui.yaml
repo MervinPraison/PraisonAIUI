@@ -135,7 +135,7 @@ navigation:
             - health-endpoints
     - tab: "UI Components"
       groups:
-        - group: "Component Gallery"
+        - group: "Overview"
           icon: component
           pages:
             - components/overview
@@ -144,6 +144,18 @@ navigation:
             - components/inputs-and-forms
             - components/feedback-and-notifications
             - components/media-and-content
+        - group: "Layout & Navigation"
+          icon: panels-top-left
+          pages:
+            - components/card
+            - components/columns
+            - components/tabs
+            - components/accordion
+            - components/stepper
+            - components/header-and-divider
+            - components/breadcrumb
+            - components/pagination
+            - components/links
     - tab: "A2UI"
       groups:
         - group: "Start with A2UI"
