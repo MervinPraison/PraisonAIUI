@@ -18,6 +18,10 @@ import { fenced } from '@/markdown/fence'
 import { hostOf, isTrustedImageUrl, safeUrl } from '../util'
 import { LazyBoundary } from './LazyBoundary'
 
+const BlockElementLazy = lazy(() => import('./BlockElement'))
+
+const MEDIA_ELEMENT_TYPES = new Set(['image', 'video', 'audio', 'pdf', 'file', 'code'])
+
 const Multimedia = lazy(() =>
   import('./media/MultimediaElements').then((m) => ({
     default: function MultimediaElement({ el }: { el: Record<string, unknown> }) {
@@ -86,6 +90,18 @@ const MEDIA_LABEL: Record<string, string> = { image: 'Image', video: 'Video', au
 
 const ElementPart: FC<{ data: Record<string, unknown> }> = ({ data }) => {
   const type = typeof data.type === 'string' ? data.type : 'file'
+  if (
+    type === 'block' ||
+    type === 'dataframe' ||
+    type === 'plotly' ||
+    (type && !MEDIA_ELEMENT_TYPES.has(type) && typeof data.url !== 'string')
+  ) {
+    return (
+      <LazyBoundary fallback={<div className="my-2 h-24 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" />}>
+        <BlockElementLazy data={data} />
+      </LazyBoundary>
+    )
+  }
   const raw = typeof data.url === 'string' ? data.url : ''
   const url = safeUrl(raw) ?? ''
   const name = typeof data.name === 'string' ? data.name : ''

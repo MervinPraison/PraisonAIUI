@@ -22,7 +22,234 @@ Usage in page handlers::
 
 from __future__ import annotations
 
+import math
 from typing import Any, Mapping, Sequence
+
+
+def _json_safe_cell(val: Any) -> Any:
+    """Convert numpy/pandas scalars and NaN/Inf values to JSON-safe Python primitives."""
+    if val is None or isinstance(val, (str, bool, int)):
+        return val
+    if isinstance(val, float):
+        return None if (math.isnan(val) or math.isinf(val)) else val
+    # Duck-type numpy / pandas scalar (`.item()`) without importing numpy/pandas.
+    item = getattr(val, "item", None)
+    if callable(item) and not isinstance(val, (dict, list, tuple, set)):
+        try:
+            return _json_safe_cell(item())
+        except Exception:
+            pass
+    # Handle pandas NaT / NA / datetime-like `.isoformat()`.
+    if type(val).__name__ in ("NaTType", "NAType"):
+        return None
+    iso = getattr(val, "isoformat", None)
+    if callable(iso):
+        try:
+            return iso()
+        except Exception:
+            pass
+    return val
+
+
+def _coerce_dataframe(obj: Any) -> tuple[list[str], list[dict[str, Any]]] | None:
+    """Duck-type a pandas or Polars DataFrame into ``(columns, row_dicts)`` without importing them."""
+    if obj is None or isinstance(obj, (dict, list, tuple, str, bytes)):
+        return None
+    cols_attr = getattr(obj, "columns", None)
+    if cols_attr is None:
+        return None
+    to_dicts = getattr(obj, "to_dicts", None)  # Polars DataFrame
+    to_dict = getattr(obj, "to_dict", None)  # pandas DataFrame
+    raw_rows: Any = None
+    if callable(to_dicts):
+        raw_rows = to_dicts()
+    elif callable(to_dict):
+        try:
+            raw_rows = to_dict("records")
+        except TypeError:
+            return None
+    else:
+        return None
+    if not isinstance(raw_rows, list):
+        return None
+    cols = [str(c) for c in list(cols_attr)]
+    safe_rows = [
+        {str(k): _json_safe_cell(v) for k, v in row.items()} if isinstance(row, Mapping) else {}
+        for row in raw_rows
+    ]
+    return cols, safe_rows
+
+
+def _plotly_to_dict(fig: Any) -> dict[str, Any]:
+    """Extract a Plotly figure dict from a Figure object or plain mapping (no plotly import)."""
+    if isinstance(fig, Mapping):
+        return dict(fig)
+    to_dict = getattr(fig, "to_dict", None)
+    if callable(to_dict):
+        res = to_dict()
+        if isinstance(res, Mapping):
+            return dict(res)
+    to_json = getattr(fig, "to_json", None)
+    if callable(to_json):
+        import json
+
+        res = json.loads(to_json())
+        if isinstance(res, Mapping):
+            return dict(res)
+    raise ValueError(f"Expected a Plotly figure or dict, got {type(fig).__name__}")
+
+
+def _plotly_title(layout_dict: Mapping[str, Any]) -> str:
+    raw = layout_dict.get("title")
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, Mapping):
+        text_val = raw.get("text")
+        if isinstance(text_val, str):
+            return text_val
+    return ""
+
+
+def plotly_chart(
+    fig: Any,
+    title: str = "",
+    *,
+    height: int | None = None,
+    caption: str | None = None,
+) -> dict[str, Any]:
+    """Convert a Plotly figure (or figure dict) into a native ``chart`` block.
+
+    Supports standard Plotly traces (``bar``, ``scatter`` / ``scattergl`` as line,
+    area or scatter, ``pie`` / donut, ``histogram`` and ``heatmap``) without
+    requiring ``plotly.js`` in the browser bundle. Unsupported trace types
+    (such as 3D or geo maps) degrade safely to a structured ``json_view`` block.
+    """
+    fig_dict = _plotly_to_dict(fig)
+    traces = [t for t in (fig_dict.get("data") or []) if isinstance(t, Mapping)]
+    layout_dict = fig_dict.get("layout") if isinstance(fig_dict.get("layout"), Mapping) else {}
+    resolved_title = title or _plotly_title(layout_dict)
+
+    if not traces:
+        return empty(f"{resolved_title}: empty Plotly figure" if resolved_title else "Empty Plotly figure")
+
+    first = traces[0]
+    trace_type = str(first.get("type") or "scatter").lower()
+
+    if trace_type == "pie":
+        labels_seq = list(first.get("labels") or [])
+        values_seq = list(first.get("values") or [])
+        rows = [
+            {"label": str(lbl), "value": _json_safe_cell(val)}
+            for lbl, val in zip(labels_seq, values_seq)
+        ]
+        hole = first.get("hole") or 0
+        kind = "donut" if isinstance(hole, (int, float)) and hole > 0 else "pie"
+        return chart(resolved_title, data=rows, chart_type=kind, x="label", y="value", height=height, caption=caption)
+
+    if trace_type == "histogram":
+        vals = [_json_safe_cell(v) for v in (first.get("x") or first.get("y") or [])]
+        return chart(resolved_title, data=vals, chart_type="histogram", height=height, caption=caption)
+
+    if trace_type == "heatmap":
+        z = first.get("z") or []
+        xs = list(first.get("x") or [])
+        ys = list(first.get("y") or [])
+        rows = []
+        for yi, z_row in enumerate(z):
+            if not isinstance(z_row, (list, tuple)):
+                continue
+            y_label = str(ys[yi]) if yi < len(ys) else str(yi)
+            for xi, cell in enumerate(z_row):
+                x_label = str(xs[xi]) if xi < len(xs) else str(xi)
+                rows.append({"x": x_label, "y": y_label, "value": _json_safe_cell(cell)})
+        return chart(
+            resolved_title,
+            data=rows,
+            chart_type="heatmap",
+            x="x",
+            y="y",
+            value="value",
+            height=height,
+            caption=caption,
+        )
+
+    if trace_type in ("bar", "scatter", "scattergl"):
+        is_barh = trace_type == "bar" and str(first.get("orientation") or "v").lower() == "h"
+        barmode = str(layout_dict.get("barmode") or "").lower()
+        stacked = barmode in ("stack", "relative")
+
+        if trace_type == "bar":
+            kind = "barh" if is_barh else "bar"
+        else:
+            mode = str(first.get("mode") or "lines").lower()
+            fill = str(first.get("fill") or "").lower()
+            if fill in ("tozeroy", "tonexty", "toself"):
+                kind = "area"
+            elif "lines" in mode:
+                kind = "line"
+            else:
+                kind = "scatter"
+
+        if kind == "scatter" and len(traces) == 1:
+            xs = list(first.get("x") or [])
+            ys = list(first.get("y") or [])
+            texts = list(first.get("text") or [])
+            rows = []
+            for idx, (xv, yv) in enumerate(zip(xs, ys)):
+                row: dict[str, Any] = {"x": _json_safe_cell(xv), "y": _json_safe_cell(yv)}
+                if idx < len(texts) and texts[idx] is not None:
+                    row["label"] = str(texts[idx])
+                rows.append(row)
+            return chart(
+                resolved_title,
+                data=rows,
+                chart_type="scatter",
+                x="x",
+                y="y",
+                label="label" if texts else None,
+                height=height,
+                caption=caption,
+            )
+
+        # Merge multi-trace bar/line/area traces on category key.
+        by_cat: dict[str, dict[str, Any]] = {}
+        series_keys: list[str] = []
+        for idx, tr in enumerate(traces):
+            s_name = str(tr.get("name") or f"series_{idx + 1}")
+            if s_name in series_keys:
+                s_name = f"{s_name}_{idx + 1}"
+            series_keys.append(s_name)
+            cats = list(tr.get("y") if is_barh else tr.get("x") or [])
+            vals = list(tr.get("x") if is_barh else tr.get("y") or [])
+            if not cats:
+                cats = list(range(len(vals)))
+            for cat, val in zip(cats, vals):
+                ck = str(_json_safe_cell(cat))
+                entry = by_cat.setdefault(ck, {"category": _json_safe_cell(cat)})
+                entry[s_name] = _json_safe_cell(val)
+        rows = list(by_cat.values())
+        return chart(
+            resolved_title,
+            data=rows,
+            chart_type=kind,
+            x="category",
+            y=series_keys,
+            stacked=stacked,
+            height=height,
+            caption=caption,
+        )
+
+    # Unsupported trace type (e.g. scatter3d, choropleth): degrade cleanly.
+    return container(
+        [
+            alert(
+                f"Plotly trace type '{trace_type}' is not supported by the built-in chart renderer; showing figure data.",
+                variant="info",
+                title=resolved_title or "Plotly Figure",
+            ),
+            json_view(fig_dict),
+        ]
+    )
 
 
 def _auto(comp: dict[str, Any], auto_submit: bool) -> dict[str, Any]:
@@ -265,7 +492,8 @@ def chart(
             raise ValueError(f"{name} must be one of {', '.join(CHART_SCALES)}")
     if facet_scales is not None and facet_scales not in CHART_FACET_SCALES:
         raise ValueError(f"facet_scales must be one of {', '.join(CHART_FACET_SCALES)}")
-    rows = list(data or [])
+    df_coerced = _coerce_dataframe(data)
+    rows = df_coerced[1] if df_coerced is not None else list(data or [])
     if chart_type in ("histogram", "sparkline") and rows and not isinstance(rows[0], dict):
         rows = [{"value": v} for v in rows]
         x = x or "value"
@@ -322,9 +550,10 @@ def _table_column(col: Any) -> dict:
 
 
 def table(
+    data: Any = None,
     *,
     headers: Sequence[str] | None = None,
-    rows: Sequence[Sequence[Any] | Mapping[str, Any]],
+    rows: Sequence[Sequence[Any] | Mapping[str, Any]] | Any = None,
     row_ids: Sequence[str] | None = None,
     actions: Sequence[str] | None = None,
     columns: Sequence[str | Mapping[str, Any]] | None = None,
@@ -341,9 +570,13 @@ def table(
 ) -> dict:
     """A data table: typed cells, header sorting, search, paging, row links and a row panel.
 
+    Accepts either ``headers``/``columns`` + ``rows``, or a positional pandas/Polars
+    DataFrame or list of dicts as ``data`` (or ``rows=df``).
+
     Args:
+        data: Optional pandas/Polars DataFrame or sequence of dict rows
         headers: Column header labels (or give ``columns``)
-        rows: Row arrays in column order, or dicts keyed by column ``key``
+        rows: Row arrays in column order, or dicts keyed by column ``key`` (or a DataFrame)
         row_ids: Optional stable ID per row. When given, rows are selectable
             (click, Enter or Space) and emit a bubbling ``aiui:table-select``
             DOM event with ``detail = {rowId, index}``.
@@ -368,7 +601,18 @@ def table(
         max_height: Scroll height (px or CSS length, 0 for none; default 70vh)
         caption: Accessible name of the table (and of its search box)
     """
-    rows = list(rows)
+    source = data if rows is None else rows
+    df_coerced = _coerce_dataframe(source)
+    if df_coerced is not None:
+        df_cols, rows = df_coerced
+        if headers is None and columns is None:
+            headers = df_cols
+    elif source is None:
+        rows = []
+    else:
+        rows = list(source)
+        if headers is None and columns is None and rows and isinstance(rows[0], Mapping):
+            headers = [str(k) for k in rows[0].keys()]
     cols = [_table_column(c) for c in columns] if columns is not None else None
     if headers is None:
         if cols is None:

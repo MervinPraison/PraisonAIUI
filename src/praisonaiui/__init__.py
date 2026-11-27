@@ -44,6 +44,7 @@ def __getattr__(name: str):
         "video",
         "file",
         "action_buttons",
+        "send_block",
         "notify",
         # Lifecycle names (aliases share their handler slot)
         "on_message",
@@ -277,6 +278,7 @@ def __getattr__(name: str):
         "card",
         "columns",
         "chart",
+        "plotly_chart",
         "table",
         "text",
         # Tier 1
@@ -572,6 +574,7 @@ __all__ = [
     "video",
     "file",
     "action_buttons",
+    "send_block",
     # Server functions
     "register_agent",
     "register_page",
@@ -772,6 +775,7 @@ __all__ = [
     "card",
     "columns",
     "chart",
+    "plotly_chart",
     "table",
     "text",
     # Tier 1
