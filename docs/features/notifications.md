@@ -3,6 +3,36 @@
 PraisonAIUI includes a modular, extendable Notification Center built into `@aiui/sdk`
 and shipped as a first-party plugin (`builtin.notifications`).
 
+## Combined HITL Approvals + Notifications Example
+
+See live notifications, header bell alerts, deep-link actions, and Human-in-the-Loop approvals working together on one dashboard in [34-hitl-approvals-and-notifications](https://github.com/MervinPraison/PraisonAIUI/tree/main/examples/python/34-hitl-approvals-and-notifications) (`aiui run app.py` or `aiui run app.yaml` — no API key required).
+
+<ComponentPreview title="Dashboard Notifications & Approval Feed">
+[
+  {"type": "alert", "variant": "warning", "title": "Approval required: deploy_release", "message": "Agent paused before deploying v0.4.0 to production — click Review now in the header Notification Bell."},
+  {"type": "timeline", "title": "Recent Notification Events", "items": [
+    {"title": "Deployment v0.4.0 approved", "time": "just now", "status": "success", "description": "Agent resumed and completed rollout."},
+    {"title": "Approval required: deploy_release", "time": "2m ago", "status": "warning", "description": "High-risk tool gate triggered from Chat."}
+  ]}
+]
+</ComponentPreview>
+
+## Zero-Code YAML Notifications
+
+Declare startup or static notifications directly in `app.yaml`:
+
+```yaml
+style: app
+notifications:
+  - title: "Approval required: deploy_release"
+    description: "Agent paused before rolling out v0.4.0"
+    type: warning
+    category: approvals
+    action:
+      label: "Open Approvals"
+      page: "approvals"
+```
+
 ## Architecture (DRY & Modular)
 
 1. **Headless SDK store (`@aiui/sdk`: `notifications`, `useNotifications`)**
