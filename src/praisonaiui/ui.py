@@ -2378,3 +2378,40 @@ def whiteboard(
     if id is not None:
         comp["id"] = str(id)
     return comp
+
+
+def chat_panel(
+    *,
+    title: str = "Agent Chat",
+    agent: str | None = None,
+    height: int | str = 520,
+    session_id: str | None = None,
+    welcome: str | None = None,
+) -> dict:
+    """Embed an interactive Agent Chat panel inside any ``@aiui.page`` layout.
+
+    Enables split-pane workspaces (for example, ``aiui.columns([aiui.doc_viewer(...),
+    aiui.chat_panel(title="Ask about this doc")])``) using the same streaming
+    WebSocket/SSE runtime, tool calls, reasoning, and inline blocks as ``/chat``.
+
+    Args:
+        title: Header title displayed at the top of the panel.
+        agent: Optional agent name to route messages to (defaults to app's default agent).
+        height: Panel height in pixels (int, >= 200) or CSS length (e.g. ``"70vh"``).
+        session_id: Optional initial chat session ID to resume.
+        welcome: Optional welcome message shown when the thread is empty.
+    """
+    if isinstance(height, bool) or (isinstance(height, (int, float)) and height < 200):
+        raise ValueError("height must be a CSS length string or a number >= 200")
+    comp: dict[str, Any] = {
+        "type": "chat_panel",
+        "title": str(title),
+        "height": int(height) if isinstance(height, (int, float)) else str(height),
+    }
+    if agent:
+        comp["agent"] = str(agent)
+    if session_id:
+        comp["session_id"] = str(session_id)
+    if welcome:
+        comp["welcome"] = str(welcome)
+    return comp

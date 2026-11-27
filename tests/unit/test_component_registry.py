@@ -96,6 +96,7 @@ class TestPythonJSComponentParity:
             "sheet",
             "whiteboard",
             "file_upload",
+            "chat_panel",
         }
         missing = py_types - js_cases - app_shell_only
         assert not missing, (

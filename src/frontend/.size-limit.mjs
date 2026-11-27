@@ -182,7 +182,8 @@ const defaultLayoutFirstScreen = [
     // 274,261 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
     // 274,301 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
     // 274,400 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
-    limit: '274400 B',
+    // 274,650 B (+250 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
+    limit: '274650 B',
     gzip: true,
   },
 ]
@@ -295,7 +296,8 @@ export default [
   // 143,628 B (+4 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no chat code changed.
   // 144,081 B (+453 B, exactly the overage, 2026-11-26): chat-engine emits background reply notifications & forwards toast metadata to @aiui/sdk notifications.
   // 144,251 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
-  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '144251 B', gzip: true },
+  // 144,500 B (+249 B, 2026-11-27): ChatPage embedded mode for composable aiui.chat_panel() blocks (keeps chat runtime in one chunk instead of splitting useAiuiRuntime, +Linux zlib headroom).
+  { name: 'chat route (added by /chat)', path: abs(chatRouteJs), limit: '144500 B', gzip: true },
   // 252.5 kB, three raises. +1 kB (251.48 kB measured, #373): builtin.artifacts
   // joins the boot list (its record and the lazy ArtifactsPage loader in
   // pluginLoaders/mount), and the new-chat hero draws the PraisonAI glyph
@@ -376,7 +378,8 @@ export default [
   // 262,321 B (+180 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
   // 262,361 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
   // 262,460 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262460 B', gzip: true },
+  // 262,700 B (+240 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262700 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   // 26.05 kB (+50 B, 2026-11-27): :not([data-aiui-component-preview] *) isolation on article.prose (Linux CI zlib).
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26.05 kB', gzip: true },

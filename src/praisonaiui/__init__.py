@@ -363,6 +363,7 @@ def __getattr__(name: str):
         # Studio (interactive spreadsheets & whiteboards)
         "sheet",
         "whiteboard",
+        "chat_panel",
     }
     if name in _callback_attrs:
         from praisonaiui import callbacks
@@ -866,6 +867,7 @@ __all__ = [
     # Studio (interactive spreadsheets & whiteboards)
     "sheet",
     "whiteboard",
+    "chat_panel",
     # Notifications
     "NotificationStoreProtocol",
     "push_notification",

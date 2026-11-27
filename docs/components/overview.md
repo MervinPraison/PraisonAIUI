@@ -6,7 +6,7 @@ description: Browse all 78 Python and zero-code YAML UI components plus the buil
 
 # UI Components Overview
 
-PraisonAIUI ships **80 composable UI component builders** plus a built-in **Notification Center**. Every component returns a plain JSON/YAML dictionary, so you can build rich pages in **Python** (`@aiui.page`) or **zero-code YAML** (`pages:` in `app.yaml`), render any block **inline inside Agent Chat** (`await aiui.send_block(...)`), and register custom React blocks through `@aiui/sdk`.
+PraisonAIUI ships **81 composable UI component builders** plus a built-in **Notification Center**. Every component returns a plain JSON/YAML dictionary, so you can build rich pages in **Python** (`@aiui.page`) or **zero-code YAML** (`pages:` in `app.yaml`), render any block **inline inside Agent Chat** (`await aiui.send_block(...)`), embed **`aiui.chat_panel()`** beside tables/docs on any page, and register custom React blocks through `@aiui/sdk`.
 
 Every dedicated component page in the sidebar renders the **real interactive React component live** right above its Python and YAML snippets.
 

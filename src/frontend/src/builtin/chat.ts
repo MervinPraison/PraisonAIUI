@@ -10,10 +10,13 @@
  * provided as loaders of `@/chat-engine/feeds` (no assistant-ui), which runs
  * only when a layout frame first reads one.
  */
+import { lazy } from 'react'
 import { Plus } from 'lucide-react'
 import { registerChatPage } from '@/chat-engine/register'
 import { whenPageShown } from './page'
 import type { BuiltinPlugin, BuiltinSdk } from './types'
+
+const ChatPanelBlockLazy = lazy(() => import('@/chat-engine/ChatPanelBlock'))
 
 const CHAT_PAGE = 'chat'
 /**
@@ -54,6 +57,7 @@ export const chatBuiltin: BuiltinPlugin = {
   pages: [CHAT_PAGE, CHAT_CANVAS_PAGE],
   activate(sdk, { pageIds }) {
     for (const id of pageIds) registerChatPage(id)
+    sdk.registerBlock('chat_panel', ChatPanelBlockLazy, { fallback: true })
     if (pageIds.includes(CHAT_PAGE)) {
       sdk.registerCommand({
         id: 'chat.new',
