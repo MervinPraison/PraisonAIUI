@@ -5,7 +5,7 @@
 // the docs <Markdown>, so the markdown chunk the chat shares is unchanged.
 // A new component: an entry in DOCS_TAGS plus its renderer here.
 /* eslint-disable react-refresh/only-export-components -- the element → component map is this module's contract */
-import { createContext, lazy, Suspense, useContext, type ComponentType, type CSSProperties, type ReactNode } from 'react'
+import { Component as ReactComponent, createContext, lazy, Suspense, useContext, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import { Admonition, MkdocsTab } from '../markdown/MkdocsBlocks'
 import { ApiField, Endpoint, Expandable, Panel } from './ApiFields'
 import { slugify } from '../markdown/slug'
@@ -140,27 +140,63 @@ const Visibility = ({ audience, children }: BlockProps & { audience?: string }) 
 // (filled by vite.config.ts blockPagePreviewUrl) so Rollup keeps shell/mount's
 // static graph unchanged (+0 B on boot/chat/layouts, R4/R10).
 type PreviewProps = { title?: string; spec?: string }
+type PreviewComponent = ComponentType<PreviewProps>
 const BLOCK_PAGE_CHUNK = '__AIUI_BLOCK_PAGE_CHUNK__'
-const LazyPreview = lazy(async (): Promise<{ default: ComponentType<PreviewProps> }> => {
+
+function findPreviewExport(mod: Record<string, unknown>): PreviewComponent | undefined {
+    const def = mod.default as { Preview?: PreviewComponent } | undefined
+    if (typeof def?.Preview === 'function') return def.Preview
+    if (typeof mod.ComponentPreview === 'function') return mod.ComponentPreview as PreviewComponent
+    for (const value of Object.values(mod)) {
+        if (value && typeof value === 'object') {
+            const ns = value as { ComponentPreview?: unknown; default?: { Preview?: unknown } }
+            if (typeof ns.ComponentPreview === 'function') return ns.ComponentPreview as PreviewComponent
+            if (typeof ns.default?.Preview === 'function') return ns.default.Preview as PreviewComponent
+        }
+    }
+    const g = (globalThis as { __aiuiComponentPreview?: unknown }).__aiuiComponentPreview
+    return typeof g === 'function' ? (g as PreviewComponent) : undefined
+}
+
+const LazyPreview = lazy(async (): Promise<{ default: PreviewComponent }> => {
     if (import.meta.env.DEV) {
         const m = await import('../blocks/BlockPage')
         return { default: m.ComponentPreview }
     }
     const url = new URL(BLOCK_PAGE_CHUNK, import.meta.url).href
-    const m = (await import(/* @vite-ignore */ url)) as {
-        default?: { Preview?: ComponentType<PreviewProps> }
-        ComponentPreview?: ComponentType<PreviewProps>
-    }
-    const Preview = m.default?.Preview ?? m.ComponentPreview
+    const m = (await import(/* @vite-ignore */ url)) as Record<string, unknown>
+    const Preview = findPreviewExport(m)
     if (!Preview) throw new Error('ComponentPreview export not found in BlockPage chunk')
     return { default: Preview }
 })
 
+class PreviewBoundary extends ReactComponent<{ title?: string; children: ReactNode }, { failed: boolean }> {
+    state = { failed: false }
+    static getDerivedStateFromError() {
+        return { failed: true }
+    }
+    componentDidCatch(error: unknown) {
+        console.warn('[aiui docs] <ComponentPreview> failed to render', error)
+    }
+    render() {
+        if (this.state.failed) {
+            return (
+                <div className="my-4 rounded-xl border border-hairline bg-fill-4 px-3 py-2 text-xs text-tier-3">
+                    {this.props.title ? `${this.props.title}: preview unavailable.` : 'Preview unavailable.'}
+                </div>
+            )
+        }
+        return this.props.children
+    }
+}
+
 function DocsComponentPreview({ title, spec }: PreviewProps) {
     return (
-        <Suspense fallback={<div className="my-4 h-24 rounded-xl border border-hairline bg-fill-4" />}>
-            <LazyPreview title={title} spec={spec} />
-        </Suspense>
+        <PreviewBoundary title={title}>
+            <Suspense fallback={<div className="my-4 h-24 rounded-xl border border-hairline bg-fill-4" />}>
+                <LazyPreview title={title} spec={spec} />
+            </Suspense>
+        </PreviewBoundary>
     )
 }
 
