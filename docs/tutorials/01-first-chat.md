@@ -78,7 +78,7 @@ If port 8000 is already in use, `aiui run` automatically picks the next open por
 <Card title="Step 2: Connect an AI Model & Stream" icon="sparkles" href="02-connect-ai.md">
 Replace the echo reply with a real AI model that streams tokens live and remembers conversation history.
 </Card>
-<Card title="Chat UI Overview" icon="message-square" href="../chat-ui/overview.md">
-See the full map of Chat UI capabilities.
+<Card title="Agent UI Overview" icon="message-square" href="../chat-ui/overview.md">
+See the full map of Agent UI capabilities.
 </Card>
 </CardGroup>

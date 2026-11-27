@@ -180,7 +180,7 @@ aiui health --detailed         # per-feature health
 ## Next steps
 
 <CardGroup cols={2}>
-<Card title="Step-by-step: Agent & Chat UI" icon="graduation-cap" href="../tutorials/01-first-chat.md">
+<Card title="Step-by-step: Agent UI" icon="graduation-cap" href="../tutorials/01-first-chat.md">
 Build a full AI app one feature at a time, from first message to production deploy.
 </Card>
 <Card title="Step-by-step: A2UI Generative UI" icon="sparkles" href="../a2ui/quickstart.md">
