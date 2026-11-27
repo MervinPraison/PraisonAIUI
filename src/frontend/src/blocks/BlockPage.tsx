@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import type { ShellPage } from '../sdk/manifest'
 import type { BlockNode } from '../sdk/registry'
 import { BlockList } from './BlockRenderer'
+import { preloadCoreBlockTypes } from './coreBlocks'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 import { notify } from '@/sdk/notify'
 import { hasBlockTree, isRecord, str, toBlockNodes, toBlockTree } from './normalize'
@@ -355,8 +356,10 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
   )
 }
 
-;(BlockPage as typeof BlockPage & { Preview: typeof ComponentPreview }).Preview = ComponentPreview
-;(globalThis as { __aiuiComponentPreview?: typeof ComponentPreview }).__aiuiComponentPreview = ComponentPreview
+;(BlockPage as typeof BlockPage & { Preview: typeof ComponentPreview; preloadBlocks: typeof preloadCoreBlockTypes }).Preview = ComponentPreview
+;(BlockPage as typeof BlockPage & { preloadBlocks: typeof preloadCoreBlockTypes }).preloadBlocks = preloadCoreBlockTypes
+;(globalThis as { __aiuiComponentPreview?: typeof ComponentPreview; __aiuiPreloadPreviewBlocks?: typeof preloadCoreBlockTypes }).__aiuiComponentPreview = ComponentPreview
+;(globalThis as { __aiuiPreloadPreviewBlocks?: typeof preloadCoreBlockTypes }).__aiuiPreloadPreviewBlocks = preloadCoreBlockTypes
 
 /**
  * Live interactive UI component preview for documentation pages (`<ComponentPreview>`).
