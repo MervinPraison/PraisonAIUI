@@ -8,6 +8,21 @@ description: Browse all 76 Python and zero-code YAML UI components plus the buil
 
 PraisonAIUI ships **76 composable UI component builders** plus a built-in **Notification Center**. Every component returns a plain JSON/YAML dictionary, so you can build rich pages in **Python** (`@aiui.page`) or **zero-code YAML** (`pages:` in `app.yaml`) — and register custom React blocks through `@aiui/sdk`.
 
+Every dedicated component page in the sidebar renders the **real interactive React component live** right above its Python and YAML snippets.
+
+<ComponentPreview title="Live Dashboard Preview">
+[
+  {
+    "type": "columns",
+    "children": [
+      {"type": "metric", "label": "Active Users", "value": "1,420", "delta": "+12%", "sparkline": [980, 1120, 1290, 1420]},
+      {"type": "card", "title": "API Status", "value": "Healthy", "footer": "99.98% uptime"}
+    ]
+  },
+  {"type": "alert", "variant": "success", "message": "All background workers are online."}
+]
+</ComponentPreview>
+
 ## Same components in Python or YAML
 
 <Tabs>
