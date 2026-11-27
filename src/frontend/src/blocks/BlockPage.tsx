@@ -12,7 +12,7 @@
  * `loadSection` (docs/guides/server-pages.md).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
-import { CircleX, RefreshCw, Square } from 'lucide-react'
+import { CircleX, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -366,7 +366,7 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
               aria-label="Stop streaming"
               onClick={() => actionAbort.current?.abort()}
             >
-              <Square aria-hidden className="size-3" />
+              <span aria-hidden className="size-2.5 rounded-[2px] bg-current" />
               Stop
             </Button>
           )}
