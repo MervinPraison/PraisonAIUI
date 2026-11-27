@@ -156,6 +156,53 @@ navigation:
             - components/breadcrumb
             - components/pagination
             - components/links
+        - group: "Data Display"
+          icon: bar-chart-2
+          pages:
+            - components/metric
+            - components/table
+            - components/chart
+            - components/board
+            - components/timeline
+            - components/diff-viewer
+            - components/tree-view
+            - components/list-detail
+            - components/definition-list
+            - components/badge
+            - components/avatar
+            - components/gallery
+        - group: "Inputs & Forms"
+          icon: sliders-horizontal
+          pages:
+            - components/form
+            - components/filter-bar
+            - components/text-input
+            - components/number-input
+            - components/select-input
+            - components/multiselect-and-tags
+            - components/slider-input
+            - components/checkbox-and-switch
+            - components/radio-and-segmented
+            - components/date-and-time
+            - components/color-and-rating
+            - components/button-group
+        - group: "Feedback & Overlays"
+          icon: bell
+          pages:
+            - components/alert-and-callout
+            - components/progress-bar
+            - components/spinner-and-skeleton
+            - components/empty-state
+            - components/dialog
+            - components/popover-and-tooltip
+        - group: "Media & Content"
+          icon: image
+          pages:
+            - components/text-and-markdown
+            - components/doc-viewer
+            - components/code-and-json
+            - components/copy-field
+            - components/media-players
     - tab: "A2UI"
       groups:
         - group: "Start with A2UI"
