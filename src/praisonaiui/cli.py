@@ -1861,11 +1861,16 @@ def _apply_chat_yaml(chat_yaml: dict, *, source_file: Optional[Path] = None) -> 
         _aiui.set_style(chat_yaml["style"])
         style = chat_yaml["style"]
     if "dashboard" in chat_yaml and isinstance(chat_yaml["dashboard"], dict):
+        _dash_key_map = {
+            "pageHeader": "page_header",
+            "pluginDirs": "plugin_dirs",
+        }
+        _dash_allowed = {"sidebar", "page_header", "modules", "plugin_dirs", "plugins", "groups"}
         _aiui.set_dashboard(
             **{
-                k.replace("pageHeader", "page_header"): v
+                _dash_key_map.get(k, k): v
                 for k, v in chat_yaml["dashboard"].items()
-                if k.replace("pageHeader", "page_header") in ("sidebar", "page_header")
+                if _dash_key_map.get(k, k) in _dash_allowed
             }
         )
     if "theme" in chat_yaml and isinstance(chat_yaml["theme"], dict):
@@ -1874,10 +1879,54 @@ def _apply_chat_yaml(chat_yaml: dict, *, source_file: Optional[Path] = None) -> 
         )
     if "branding" in chat_yaml and isinstance(chat_yaml["branding"], dict):
         _aiui.set_branding(**chat_yaml["branding"])
+    # A2UI chat preview parity (chat.preview or a2ui.preview)
+    _chat_cfg = chat_yaml.get("chat") if isinstance(chat_yaml.get("chat"), dict) else {}
+    _a2ui_cfg = chat_yaml.get("a2ui") if isinstance(chat_yaml.get("a2ui"), dict) else {}
+    _preview = _chat_cfg.get("preview") or _a2ui_cfg.get("preview")
+    if isinstance(_preview, dict):
+        _aiui.set_chat_preview(
+            enabled=bool(_preview.get("enabled", True)),
+            surface_id=str(_preview.get("surface_id") or _preview.get("surfaceId") or "main"),
+            width=str(_preview.get("width") or "38%"),
+        )
     if "pages" in chat_yaml and isinstance(chat_yaml["pages"], list):
         from praisonaiui.yaml_pages import apply_yaml_pages
 
         apply_yaml_pages(chat_yaml["pages"], source_file=source_file)
+    _surfaces_cfg = chat_yaml.get("surfaces") or _a2ui_cfg.get("surfaces")
+    if _surfaces_cfg:
+        from praisonaiui.yaml_pages import apply_yaml_surfaces
+
+        apply_yaml_surfaces(_surfaces_cfg, source_file=source_file)
+    if "notifications" in chat_yaml:
+        _notif_cfg = chat_yaml["notifications"]
+        from praisonaiui.features.notifications import (
+            InMemoryNotificationStore,
+            push_notification,
+            set_notification_store,
+        )
+
+        _items = None
+        if isinstance(_notif_cfg, dict):
+            if "max_items" in _notif_cfg or "maxItems" in _notif_cfg:
+                max_n = int(_notif_cfg.get("max_items", _notif_cfg.get("maxItems", 200)))
+                set_notification_store(InMemoryNotificationStore(max_items=max_n))
+            _items = _notif_cfg.get("items")
+        elif isinstance(_notif_cfg, list):
+            _items = _notif_cfg
+        if isinstance(_items, list):
+            for _item in _items:
+                if isinstance(_item, dict) and (_item.get("title") or _item.get("message")):
+                    push_notification(
+                        str(_item.get("title") or _item.get("message")),
+                        type=str(_item.get("type", "info")),
+                        description=_item.get("description"),
+                        category=_item.get("category"),
+                        source=str(_item.get("source", "yaml")),
+                        pinned=bool(_item.get("pinned", False)),
+                        dedupe_key=_item.get("dedupe_key") or _item.get("dedupeKey"),
+                        action=_item.get("action") if isinstance(_item.get("action"), dict) else None,
+                    )
     if "layout" in chat_yaml:
         # The same block as aiui.yaml's layout: (or just the default's id).
         try:
@@ -3957,6 +4006,36 @@ def surface_clear(
         raise typer.Exit(code=1)
 
 
+@surface_app.command("action")
+def surface_action_cmd(
+    surface_id: str = typer.Argument("main", help="Surface id"),
+    action: str = typer.Argument(..., help="Action name to trigger"),
+    component: str = typer.Option("", "--component", "-c", help="Source component id"),
+    data: str = typer.Option("{}", "--data", "-d", help="JSON object payload"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Trigger an A2UI surface action (POST /api/surfaces/{id}/action)."""
+    import json as _json
+
+    try:
+        parsed = _json.loads(data) if data.strip() else {}
+        if not isinstance(parsed, dict):
+            raise typer.BadParameter("--data must be a JSON object")
+        body = {
+            "version": "v0.9",
+            "component_id": component or None,
+            "action": action,
+            "data": parsed,
+        }
+        res = _api_post(server, f"/api/surfaces/{surface_id}/action", body)
+        console.print(f"[green]✓[/green] Action '{action}' on '{surface_id}': {res.get('status', 'ok')}")
+    except typer.BadParameter:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @surface_app.command("status")
 def surface_status(server: str = _SERVER_OPT) -> None:
     """Show surface feature status."""
@@ -3966,6 +4045,201 @@ def surface_status(server: str = _SERVER_OPT) -> None:
         total_msgs = sum(s.get("message_count", 0) for s in surfaces)
         console.print(f"Surfaces: {len(surfaces)}")
         console.print(f"Total messages: {total_msgs}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Notifications ────────────────────────────────────────────────────
+notifications_app = typer.Typer(
+    name="notifications", help="Manage in-app notifications (list, push, read, clear)", add_completion=False
+)
+app.add_typer(notifications_app, name="notifications")
+
+
+@notifications_app.command("list")
+def notifications_list(
+    unread: bool = typer.Option(False, "--unread", help="Show unread only"),
+    category: str = typer.Option("", "--category", help="Filter by category"),
+    as_json: bool = typer.Option(False, "--json", help="Print raw JSON"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """List in-app notifications."""
+    import json as _json
+    from urllib.parse import urlencode
+
+    try:
+        params: dict = {}
+        if unread:
+            params["unread"] = "true"
+        if category:
+            params["category"] = category
+        qs = f"?{urlencode(params)}" if params else ""
+        data = _api_get(server, f"/api/notifications{qs}")
+        if as_json:
+            console.print(_json.dumps(data, indent=2))
+            return
+        items = data.get("notifications", [])
+        console.print(f"Notifications: {len(items)} (unread: {data.get('unread_count', 0)})")
+        for n in items:
+            mark = " " if n.get("read") else "*"
+            console.print(f"  [{mark}] {n.get('id', '?')} [{n.get('type', 'info')}] {n.get('title', '')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@notifications_app.command("push")
+def notifications_push(
+    title: str = typer.Argument(..., help="Notification title"),
+    type_: str = typer.Option("info", "--type", "-t", help="default|info|success|warning|error"),
+    description: str = typer.Option("", "--description", "-d", help="Optional body text"),
+    category: str = typer.Option("", "--category", help="Optional category"),
+    pinned: bool = typer.Option(False, "--pinned", help="Pin notification"),
+    dedupe_key: str = typer.Option("", "--dedupe-key", help="Upsert key for deduplication"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Push a notification (POST /api/notifications)."""
+    try:
+        body: dict = {"title": title, "type": type_, "pinned": pinned}
+        if description:
+            body["description"] = description
+        if category:
+            body["category"] = category
+        if dedupe_key:
+            body["dedupe_key"] = dedupe_key
+        res = _api_post(server, "/api/notifications", body)
+        nid = (res.get("notification") or {}).get("id", res.get("id", "?"))
+        console.print(f"[green]✓[/green] Pushed notification: {nid}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@notifications_app.command("read")
+def notifications_read(
+    notification_id: str = typer.Argument(..., help="Notification id"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Mark one notification as read."""
+    try:
+        _api_post(server, f"/api/notifications/{notification_id}/read", {})
+        console.print(f"[green]✓[/green] Marked read: {notification_id}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@notifications_app.command("read-all")
+def notifications_read_all(server: str = _SERVER_OPT) -> None:
+    """Mark all notifications as read."""
+    try:
+        res = _api_post(server, "/api/notifications/read-all", {})
+        console.print(f"[green]✓[/green] Marked read: {res.get('marked', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@notifications_app.command("remove")
+def notifications_remove(
+    notification_id: str = typer.Argument(..., help="Notification id"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Remove one notification."""
+    try:
+        _api_delete(server, f"/api/notifications/{notification_id}")
+        console.print(f"[green]✓[/green] Removed notification: {notification_id}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@notifications_app.command("clear")
+def notifications_clear(
+    include_pinned: bool = typer.Option(False, "--include-pinned", help="Also remove pinned items"),
+    read_only: bool = typer.Option(False, "--read-only", help="Only remove read items"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Clear notifications."""
+    from urllib.parse import urlencode
+
+    try:
+        params: dict = {}
+        if include_pinned:
+            params["include_pinned"] = "true"
+        if read_only:
+            params["read_only"] = "true"
+        qs = f"?{urlencode(params)}" if params else ""
+        res = _api_delete(server, f"/api/notifications{qs}")
+        console.print(f"[green]✓[/green] Cleared notifications: {res.get('cleared', 0)}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+# ── Telemetry & Performance ──────────────────────────────────────────
+telemetry_app = typer.Typer(
+    name="telemetry", help="Inspect server telemetry and performance metrics", add_completion=False
+)
+app.add_typer(telemetry_app, name="telemetry")
+
+
+@telemetry_app.command("perf")
+def telemetry_perf(
+    as_json: bool = typer.Option(False, "--json", help="Print raw JSON"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """Show live HTTP latency, throughput, and memory performance metrics."""
+    import json as _json
+
+    try:
+        data = _api_get(server, "/api/telemetry/performance")
+        if as_json:
+            console.print(_json.dumps(data, indent=2))
+            return
+        summary = data.get("summary") or data
+        console.print(f"Requests: {summary.get('total_requests', data.get('total_requests', 0))}")
+        if "latency_ms" in data and isinstance(data["latency_ms"], dict):
+            lat = data["latency_ms"]
+            console.print(
+                f"Latency:  p50={lat.get('p50', 0)}ms  p95={lat.get('p95', 0)}ms  p99={lat.get('p99', 0)}ms"
+            )
+        if "rss_mb" in data:
+            console.print(f"Memory:   {data['rss_mb']} MB RSS")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@telemetry_app.command("status")
+def telemetry_status(server: str = _SERVER_OPT) -> None:
+    """Show telemetry feature status."""
+    try:
+        data = _api_get(server, "/api/telemetry/status")
+        console.print(f"Status: {data.get('status', 'ok')}")
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@telemetry_app.command("metrics")
+def telemetry_metrics(
+    as_json: bool = typer.Option(False, "--json", help="Print raw JSON"),
+    server: str = _SERVER_OPT,
+) -> None:
+    """List recorded telemetry metrics."""
+    import json as _json
+
+    try:
+        data = _api_get(server, "/api/telemetry/metrics")
+        if as_json:
+            console.print(_json.dumps(data, indent=2))
+            return
+        metrics = data.get("metrics", [])
+        console.print(f"Metrics: {len(metrics)}")
+        for m in metrics[:20]:
+            console.print(f"  {m.get('name', '?')}: {m.get('value', '')}")
     except Exception as e:
         console.print(f"[red]✗[/red] {e}")
         raise typer.Exit(code=1)

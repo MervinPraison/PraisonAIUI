@@ -193,9 +193,13 @@ class InMemoryNotificationStore:
             item = _normalize_notification(data, existing=existing)
             if idx != -1:
                 self._items[idx] = item
+                self._items.sort(key=lambda x: x.get("createdAt", 0), reverse=True)
             else:
+                # Fast path: newest notification arrives in timestamp order (O(1) vs O(N log N) sort).
+                in_order = not self._items or item.get("createdAt", 0) >= self._items[0].get("createdAt", 0)
                 self._items.insert(0, item)
-            self._items.sort(key=lambda x: x.get("createdAt", 0), reverse=True)
+                if not in_order:
+                    self._items.sort(key=lambda x: x.get("createdAt", 0), reverse=True)
             self._trim()
             return dict(item)
 

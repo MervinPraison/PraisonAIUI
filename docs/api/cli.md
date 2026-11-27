@@ -360,13 +360,38 @@ aiui traces get TRACE_ID
 
 ### `surface`
 
-A2UI surfaces for the agent canvas; see [A2UI canvas](../features/a2ui-canvas.md).
+A2UI surfaces for the agent canvas; see [A2UI Overview](../a2ui/overview.md).
 
 ```bash
 aiui surface list | status
+aiui surface capabilities [--json]
 aiui surface get [SURFACE_ID] [--json]               # SURFACE_ID defaults to main
-aiui surface push [SURFACE_ID] --file messages.json [--replace]
+aiui surface push [SURFACE_ID] --file surface.jsonl [--replace]
+aiui surface action [SURFACE_ID] ACTION [--component ID] [--data '{}']
 aiui surface clear [SURFACE_ID]
+```
+
+### `notifications`
+
+Manage in-app notifications (`NotificationStoreProtocol`, REST + SSE); see [Notifications](../features/notifications.md).
+
+```bash
+aiui notifications list [--unread] [--category NAME] [--json]
+aiui notifications push TITLE [--type info|success|warning|error] [--description TEXT] [--category NAME] [--pinned] [--dedupe-key KEY]
+aiui notifications read ID
+aiui notifications read-all
+aiui notifications remove ID
+aiui notifications clear [--include-pinned] [--read-only]
+```
+
+### `telemetry`
+
+Inspect live HTTP latency, throughput, memory, and recorded metrics.
+
+```bash
+aiui telemetry perf [--json]
+aiui telemetry status
+aiui telemetry metrics [--json]
 ```
 
 ### `auth`
