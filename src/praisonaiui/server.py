@@ -3055,8 +3055,8 @@ async def api_page_data(request: Request) -> JSONResponse:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-async def api_page_action(request: Request) -> JSONResponse:
-    """Handle form action submissions for a page."""
+async def api_page_action(request: Request) -> Response:
+    """Handle form action submissions for a page (JSON or streaming NDJSON)."""
     page_id = request.path_params["page_id"]
     handler = _page_actions.get(page_id)
     if not handler:
@@ -3066,14 +3066,7 @@ async def api_page_action(request: Request) -> JSONResponse:
         )
     try:
         data = await request.json()
-        import asyncio as _aio
-
-        result = handler(data)
-        if _aio.iscoroutine(result):
-            result = await result
-        if not isinstance(result, dict):
-            result = {"result": result}
-        return JSONResponse(result)
+        return await page_params.dispatch_page_action(handler, data)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

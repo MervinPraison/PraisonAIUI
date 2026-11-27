@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { ShellPage } from '../sdk/manifest'
 import type { BlockNode } from '../sdk/registry'
+import { isNdjsonContentType, readNdjsonStream } from './actionStream'
 import { BlockList } from './BlockRenderer'
 import { preloadCoreBlockTypes } from './coreBlocks'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
@@ -122,7 +123,9 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
   const postUrl = actionEndpoint(page)
   const [state, setState] = useState<PageState>({ status: 'loading', key: endpoint })
   const [refreshing, setRefreshing] = useState(false)
+  const [streaming, setStreaming] = useState(false)
   const inflight = useRef<AbortController | null>(null)
+  const actionAbort = useRef<AbortController | null>(null)
   /** Consecutive failed auto refreshes (back-off). */
   const failures = useRef(0)
   const lastLoad = useRef(0)
@@ -198,6 +201,8 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
       window.removeEventListener('aiui:locationchange', onLocation)
       inflight.current?.abort()
       inflight.current = null
+      actionAbort.current?.abort()
+      actionAbort.current = null
     }
   }, [load])
 
@@ -239,13 +244,59 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         return true
       }
       const failTitle = label ? `${label} failed` : 'Action failed'
+      actionAbort.current?.abort()
+      const ac = new AbortController()
+      actionAbort.current = ac
       try {
         const res = await fetch(postUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/x-ndjson, application/json',
+          },
           credentials: 'same-origin',
           body: JSON.stringify(actionBodyWithParams(body, window.location.search)),
+          signal: ac.signal,
         })
+        if (res.ok && isNdjsonContentType(res.headers.get('content-type')) && res.body) {
+          setStreaming(true)
+          let ok = true
+          let sawTree = false
+          let lastMessage = ''
+          try {
+            await readNdjsonStream(
+              res.body,
+              (frame) => {
+                if (ac.signal.aborted) return
+                if (isRecord(frame) && str(frame.error)) {
+                  ok = false
+                  void notify(failTitle, { type: 'error', description: errorText(frame) })
+                  return
+                }
+                const message = isRecord(frame) ? str(frame.message ?? frame.status) : ''
+                writeUrlGuarded(() => writeUrlFrom(frame, req))
+                if (hasBlockTree(frame)) {
+                  sawTree = true
+                  setState(readyState(endpoint, frame))
+                } else {
+                  applyDynamicManifest(frame)
+                }
+                if (message) lastMessage = message
+              },
+              ac.signal,
+            )
+          } finally {
+            if (actionAbort.current === ac) {
+              actionAbort.current = null
+              setStreaming(false)
+            }
+          }
+          if (ac.signal.aborted) return false
+          if (ok && (lastMessage || !sawTree)) {
+            void notify(lastMessage || (label ? `${label}: done` : 'Done'), { type: 'success' })
+          }
+          return ok
+        }
         const data = await readJson(res)
         if (!res.ok || (isRecord(data) && str(data.error))) {
           void notify(failTitle, { type: 'error', description: errorText(data, res) })
@@ -262,8 +313,11 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         }
         return true
       } catch (err) {
+        if (ac.signal.aborted) return false
         void notify(failTitle, { type: 'error', description: describe(err) })
         return false
+      } finally {
+        if (actionAbort.current === ac) actionAbort.current = null
       }
     },
     [postUrl, endpoint, load, writeUrlGuarded],
@@ -304,6 +358,18 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
         aria-busy={view.status === 'loading' || refreshing || undefined}
       >
         <div className="-mb-2 flex min-h-8 items-center justify-end gap-2 text-xs text-muted-foreground">
+          {streaming && (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              aria-label="Stop streaming"
+              onClick={() => actionAbort.current?.abort()}
+            >
+              <span aria-hidden className="size-2.5 rounded-[2px] bg-current" />
+              Stop
+            </Button>
+          )}
           {view.status === 'ready' && (
             <span className="tabular-nums" title={new Date(view.updatedAt).toISOString()}>
               Updated {formatTime(view.updatedAt)}

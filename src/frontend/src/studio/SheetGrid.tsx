@@ -78,7 +78,26 @@ function triggerDownload(filename: string, text: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 500)
 }
 
-export default function SheetViewer({ content, streaming }: { content: string; streaming?: boolean }): JSX.Element {
+export interface SheetSavePayload {
+  id?: string
+  title?: string
+  tab: string
+  grid: unknown[][]
+  values: unknown[][]
+  tabs: { name: string; grid: unknown[][]; values: unknown[][] }[]
+}
+
+export default function SheetViewer({
+  content,
+  streaming,
+  onSave,
+  saveLabel,
+}: {
+  content: string
+  streaming?: boolean
+  onSave?: (payload: SheetSavePayload) => Promise<boolean | void>
+  saveLabel?: string
+}): JSX.Element {
   const book = useMemo(() => parseBook(content), [content])
 
   if (!book) {
@@ -92,10 +111,18 @@ export default function SheetViewer({ content, streaming }: { content: string; s
     return <p className="p-4 text-sm text-tier-3">This sheet is not valid JSON.</p>
   }
 
-  return <SheetGridInner key={content} book={book} />
+  return <SheetGridInner key={content} book={book} onSave={onSave} saveLabel={saveLabel} />
 }
 
-function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
+function SheetGridInner({
+  book,
+  onSave,
+  saveLabel,
+}: {
+  book: SheetBook
+  onSave?: (payload: SheetSavePayload) => Promise<boolean | void>
+  saveLabel?: string
+}): JSX.Element {
   const initialTabs = useMemo(() => normalizeTabs(book), [book])
 
   const [tabIdx, setTabIdx] = useState(0)
@@ -103,6 +130,7 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
   const [selected, setSelected] = useState<{ r: number; c: number } | null>(null)
   const [editing, setEditing] = useState<{ r: number; c: number; draft: string; source: 'cell' | 'bar' } | null>(null)
   const [query, setQuery] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const safeTab = Math.min(tabIdx, Math.max(0, initialTabs.length - 1))
   const activeTab = initialTabs[safeTab]
@@ -169,6 +197,34 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
   const selVal = selected ? computed[selected.r]?.[selected.c] : undefined
   const slug = (book.title || activeTab?.name || 'sheet').toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
+  async function handleSave() {
+    if (!onSave || saving) return
+    setSaving(true)
+    try {
+      const hasEdits = Object.keys(edits).length > 0
+      const allTabs = initialTabs.map((t, idx) => {
+        const grid = t.grid.map((row, r) =>
+          row.map((cell, c) => {
+            const k = `${idx}:${r}:${c}`
+            return hasEdits && k in edits ? edits[k] : cell
+          }),
+        )
+        return { name: t.name, grid, values: evaluateSheet(grid) }
+      })
+      const cur = allTabs[safeTab] ?? { name: activeTab?.name || 'Sheet 1', grid: mergedGrid, values: computed }
+      await onSave({
+        ...(book.id ? { id: book.id } : {}),
+        ...(book.title ? { title: book.title } : {}),
+        tab: cur.name,
+        grid: cur.grid,
+        values: cur.values,
+        tabs: allTabs,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div data-aiui-sheet="ready" className="not-prose my-3 overflow-hidden rounded-xl border border-hairline bg-card text-foreground">
       {/* Header & actions */}
@@ -202,6 +258,16 @@ function SheetGridInner({ book }: { book: SheetBook }): JSX.Element {
           >
             JSON
           </button>
+          {onSave && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSave()}
+              className="h-7 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : saveLabel || 'Save'}
+            </button>
+          )}
         </div>
       </div>
 

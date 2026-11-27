@@ -2306,14 +2306,17 @@ def sheet(
     rows: Sequence[Sequence[Any]] | None = None,
     tabs: Sequence[Mapping[str, Any]] | None = None,
     id: str | None = None,
+    action: str | None = None,
+    save_label: str = "Save",
 ) -> dict:
     """An interactive multi-tab spreadsheet with live formula evaluation.
 
     Supports live cell editing, formula bar (``=SUM``, ``=AVERAGE``/``=AVG``,
     ``=MIN``, ``=MAX``, ``=COUNT``, ``=COUNTA``, ``=ROUND``, ``=ABS``, ``=IF``),
-    row filtering, and CSV/JSON export. The returned dict works both as a page
-    block (``@aiui.page`` / YAML) and serialized inside a ```` ```sheet ````
-    chat markdown fence.
+    row filtering, CSV/JSON export, and optional server write-back via
+    ``action`` (posts edited grids & evaluated values to ``@aiui.register_page_action``).
+    The returned dict works both as a page block (``@aiui.page`` / YAML) and
+    serialized inside a ```` ```sheet ```` chat markdown fence.
 
     Args:
         title: Spreadsheet title shown in the toolbar.
@@ -2321,12 +2324,19 @@ def sheet(
         rows: Optional shorthand data rows (paired with ``headers``).
         tabs: Optional list of tab dicts (``{"name": str, "grid": list[list], "values"?: list[list]}``).
         id: Optional stable identifier used to version updates in the Artifacts Canvas.
+        action: Optional page action name; when set, shows a Save button that posts
+            ``{action, id, title, tab, grid, values, tabs}`` to the page action handler.
+        save_label: Label for the Save button when ``action`` is set (default ``"Save"``).
     """
     if tabs is None and headers is None and rows is None:
         raise ValueError("sheet() requires either tabs or headers/rows")
     comp: dict[str, Any] = {"type": "sheet", "title": str(title)}
     if id is not None:
         comp["id"] = str(id)
+    if action is not None:
+        comp["action"] = str(action)
+        if save_label != "Save":
+            comp["save_label"] = str(save_label)
     if tabs is not None:
         comp["tabs"] = [dict(t) for t in tabs]
     else:

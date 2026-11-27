@@ -1,1 +1,0 @@
-import{c}from"./TokenGate-BG9dIXvy.js";const o=[["path",{d:"m9 18 6-6-6-6",key:"mthhwq"}]],n=c("chevron-right",o);const e=[["path",{d:"M12 6v6l4 2",key:"mmk7yg"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],r=c("clock",e);export{n as C,r as a};
