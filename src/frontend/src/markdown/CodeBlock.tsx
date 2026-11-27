@@ -11,7 +11,7 @@
  * Inline code, diagrams (mermaid) and anything else Streamdown renders from
  * `code` go to its own component unchanged. Styles: markdown.css.
  */
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
+import { createElement, useEffect, useRef, useState, type JSX, type ReactNode } from 'react'
 import { WrapText } from 'lucide-react'
 import { defaultComponents, type ExtraProps } from 'streamdown'
 import { getFenceViewer } from './fenceRegistry'
@@ -57,7 +57,7 @@ export function ChatCode(props: Props) {
     if ('data-block' in props) {
         const lang = fenceLanguage(props)
         const Viewer = lang ? getFenceViewer(lang) : undefined
-        if (Viewer) return <Viewer content={codeText(props.children)} language={lang} />
+        if (Viewer) return createElement(Viewer, { content: codeText(props.children), language: lang })
     }
     const block = 'data-block' in props && !/\blanguage-mermaid\b/.test(props.className ?? '')
     return block ? <CollapsibleCode {...props} /> : <DefaultCode {...props} />
