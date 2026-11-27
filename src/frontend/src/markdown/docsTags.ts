@@ -121,6 +121,8 @@ export const DOCS_TAGS: Record<string, DocsTag> = {
     Panel: { el: 'aiui-panel', attrs: ['kind'], map: () => ({}) },
     // for="humans": only on the page; for="agents": only in the .md and llms files (compiler/agent_markdown.py).
     Visibility: { el: 'aiui-visibility', attrs: ['audience'], map: (a) => ({ audience: a.for === 'agents' ? 'agents' : 'humans' }) },
+    // <ComponentPreview title="Stepper">{ "type": "stepper", ... }</ComponentPreview>: live lazy block preview.
+    ComponentPreview: { el: 'aiui-preview', attrs: ['title', 'spec'], raw: 'spec' },
     // <Update label="2026-11-18" description="v1.2" tags={["API"]}>: a changelog entry (docs/DocsUpdate.tsx).
     Update: {
         el: 'aiui-update', attrs: ['label', 'description', 'tags', 'anchor'],

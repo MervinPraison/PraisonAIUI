@@ -21,7 +21,7 @@ import type { BlockNode } from '../sdk/registry'
 import { BlockList } from './BlockRenderer'
 import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 import { notify } from '@/sdk/notify'
-import { hasBlockTree, isRecord, str, toBlockTree } from './normalize'
+import { hasBlockTree, isRecord, str, toBlockNodes, toBlockTree } from './normalize'
 import { actionBodyWithParams, nextRefreshDelay, paramsFromSearch, refreshSeconds, withQuery, writeParams } from './pageParams'
 
 type PageState =
@@ -352,5 +352,78 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
           ))}
       </div>
     </BlockContext.Provider>
+  )
+}
+
+;(BlockPage as typeof BlockPage & { Preview: typeof ComponentPreview }).Preview = ComponentPreview
+
+/**
+ * Live interactive UI component preview for documentation pages (`<ComponentPreview>`).
+ * Colocated with BlockPage so DocsBlocks.tsx reuses the existing lazy BlockPage chunk
+ * without splitting shell/mount or adding any bytes to first paint (R4, R10).
+ */
+export function ComponentPreview({ title, spec }: { title?: string; spec?: string }): JSX.Element {
+  const [lastAction, setLastAction] = useState<string | null>(null)
+
+  const { nodes, parseError } = useMemo(() => {
+    if (!spec || !spec.trim()) return { nodes: [], parseError: null }
+    try {
+      const parsed: unknown = JSON.parse(spec)
+      return { nodes: toBlockNodes(parsed), parseError: null }
+    } catch (err) {
+      return {
+        nodes: [],
+        parseError: err instanceof Error ? err.message : 'Invalid JSON preview spec',
+      }
+    }
+  }, [spec])
+
+  const ctx = useMemo<BlockContextValue>(
+    () => ({
+      async runAction(req: BlockActionRequest) {
+        const label = req.label ? `${req.label} ` : ''
+        setLastAction(`${label}${JSON.stringify(req.body)}`)
+        return true
+      },
+    }),
+    [],
+  )
+
+  return (
+    <div
+      data-aiui-component-preview=""
+      className="not-prose my-4 min-w-0 overflow-hidden rounded-xl border border-hairline bg-card"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-hairline bg-fill-4 px-3 py-2 text-xs">
+        <span className="font-medium text-tier-1">{title || 'Live Preview'}</span>
+        <span className="text-tier-3">Interactive</span>
+      </div>
+      <div className="flex min-w-0 flex-col gap-3 p-4">
+        {parseError ? (
+          <p className="text-xs text-destructive">Preview error: {parseError}</p>
+        ) : nodes.length === 0 ? (
+          <p className="text-xs text-tier-3">Empty preview.</p>
+        ) : (
+          <BlockContext.Provider value={ctx}>
+            <BlockList nodes={nodes} />
+          </BlockContext.Provider>
+        )}
+      </div>
+      {lastAction && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-2 border-t border-hairline bg-fill-4 px-3 py-1.5 font-mono text-xs text-tier-2"
+        >
+          <span className="truncate">Action: {lastAction}</span>
+          <button
+            type="button"
+            onClick={() => setLastAction(null)}
+            className="shrink-0 font-sans text-tier-3 hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

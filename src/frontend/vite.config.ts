@@ -187,8 +187,40 @@ function lazyRehypeRaw(): Plugin {
   }
 }
 
+// <ComponentPreview> in docs pages (docs/DocsBlocks.tsx) loads the already-built
+// BlockPage chunk at runtime without creating a Rollup static graph edge from
+// legacy-app-entry into shell/mount (which would hoist shared shell modules into
+// extra boot chunks). This plugin fills in the hashed BlockPage filename after
+// Rollup assigns chunk hashes.
+const BLOCK_PAGE_PLACEHOLDER = '__AIUI_BLOCK_PAGE_CHUNK__'
+function blockPagePreviewUrl(): Plugin {
+  return {
+    name: 'aiui-block-page-preview-url',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const blockPage = Object.values(bundle).find(
+        (c) => c.type === 'chunk' && c.name === 'BlockPage',
+      )
+      if (!blockPage || blockPage.type !== 'chunk') {
+        this.error('aiui-block-page-preview-url: BlockPage chunk not found in bundle')
+      }
+      const rel = `./${path.basename(blockPage.fileName)}`
+      let replaced = 0
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk' && chunk.code.includes(BLOCK_PAGE_PLACEHOLDER)) {
+          chunk.code = chunk.code.replaceAll(BLOCK_PAGE_PLACEHOLDER, rel)
+          replaced += 1
+        }
+      }
+      if (replaced === 0) {
+        this.error(`aiui-block-page-preview-url: ${BLOCK_PAGE_PLACEHOLDER} not found in any chunk`)
+      }
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [lazyRehypeRaw(), globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), lucideIcons(__dirname), codeThemes()],
+  plugins: [lazyRehypeRaw(), globalCssOnlyFromEntry(), react(), tailwindcss(), noEntryImports(), layoutChunkNames(), blockPagePreviewUrl(), lucideIcons(__dirname), codeThemes()],
   // Chunks, their preloads and CSS url()s resolve relative to the file that
   // names them (import.meta.url), so one bundle works at the site root and
   // under a base path (`aiui build --base-path /repo`, src/lib/url.ts).

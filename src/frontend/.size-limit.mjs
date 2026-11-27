@@ -94,7 +94,8 @@ const LAYOUT_BUDGETS = {
   // 15.267 kB (+1 B, exactly the overage, 2026-11-26): chunk hash rename from remote select & pagination blocks; no layout code changed.
   // 15.318 kB (+51 B, exactly the overage, 2026-11-26): command rail & NavList string/numeric page.badge support.
   // 15.32 kB (+2 B, exactly the overage, 2026-11-26): chunk hash rename from SDK notifications; no layout code changed.
-  'layout-command': '15.32 kB',
+  // 15.322 kB (+2 B, exactly the overage, 2026-11-27): chunk hash rename from <ComponentPreview> docs tag (Linux zlib); no layout code changed.
+  'layout-command': '15.322 kB',
   // Guided (frame, phone tabs, chat regions, Home and Templates pages, every
   // chunk of the group) measured 15.25 kB + 10%.
   // Design fixes (kit group headers with a chevron, outline New chat, the
@@ -389,7 +390,8 @@ export default [
   // every docs page.
   // 7,568 B (+2 B, exactly the overage, 2026-11-26): chunk hash rename from doc viewer & sidebar badges; no Try it code changed.
   // 7,569 B (+1 B, exactly the overage, 2026-11-27): chunk hash rename from A2UI SurfaceHost island mount; no Try it code changed.
-  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7569 B', gzip: true },
+  // 7,578 B (+9 B, exactly the overage, 2026-11-27): chunk hash rename from <ComponentPreview> docs tag; no Try it code changed.
+  { name: 'docs Try it chunk (lazy, minus the legacy App path)', path: abs(tryItFiles), limit: '7578 B', gzip: true },
   // 127.8 kB measured + 10% (2026-11-22). Never on the boot path (npm run
   // check:closure fails if recharts reaches it).
   { name: 'chart block chunk (lazy, recharts; minus boot and the blocks page)', path: abs(chartFiles), limit: '140.6 kB', gzip: true },
