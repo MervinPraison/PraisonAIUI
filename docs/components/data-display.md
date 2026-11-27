@@ -22,6 +22,8 @@ Turn Python or YAML data into sortable tables, interactive theme-aware charts, K
 | `aiui.key_value_list(items, *, title)` | `key_value_list` | Clean two-column key/value table |
 | `aiui.definition_list(items, *, title)` | `definition_list` | Structured label/value definition list |
 | `aiui.code_block(code, *, language)` | `code_block` | Syntax-highlighted code with copy button |
+| `aiui.diff_viewer(before, after, *, title, before_label, after_label)` | `diff_viewer` | Line-by-line unified diff viewer for prompts, configs and generated code |
+| `aiui.copy_field(value, *, label, secret=False)` | `copy_field` | Copyable command, URL or API key box with optional secret reveal toggle |
 | `aiui.json_view(data, *, title, collapsed)` | `json_view` | Collapsible JSON inspector |
 | `aiui.avatar(*, src, name, fallback, size)` | `avatar` | User or agent avatar image/initials |
 

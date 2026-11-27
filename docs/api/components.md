@@ -4,7 +4,7 @@ nav_title: Components
 
 # Component API Reference
 
-Python functions for building app and dashboard UIs. Each function returns a plain dict that the frontend renders as a real UI block — **70 builders** organized by category. Looking for visual examples in both Python and zero-code YAML? Browse the [UI Components gallery](../components/overview.md).
+Python functions for building app and dashboard UIs. Each function returns a plain dict that the frontend renders as a real UI block — **76 builders** organized by category. Looking for visual examples in both Python and zero-code YAML? Browse the [UI Components gallery](../components/overview.md).
 
 ```python
 import praisonaiui as aiui

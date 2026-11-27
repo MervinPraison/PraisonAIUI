@@ -22,6 +22,9 @@ Organize any page cleanly across desktop and mobile (`390px` responsive stack) w
 | `aiui.expander(title, *, children, expanded, lazy, load)` | `expander` | Single collapsible drawer with optional lazy loading |
 | `aiui.list_detail(items, *, selected, detail)` | `list_detail` | Master-detail split view (selectable list on left, details on right) |
 | `aiui.board(columns=[...])` | `board` | Kanban board with horizontal status columns and cards |
+| `aiui.stepper(steps, *, active=0, orientation="horizontal")` | `stepper` | Multi-step workflow or onboarding progress (`pending`, `active`, `done`, `error`) |
+| `aiui.timeline(items, *, title)` | `timeline` | Chronological vertical activity & audit feed with timestamps and status dots |
+| `aiui.tree_view(nodes, *, title, default_expanded)` | `tree_view` | Collapsible hierarchical tree for RAG sources, files and agent hierarchies |
 | `aiui.header(text, *, level=2)` | `header` | Section heading (`h1`–`h4`) |
 | `aiui.divider(text=None)` / `aiui.separator()` | `divider` / `separator` | Horizontal rule (optionally labeled) |
 | `aiui.breadcrumb(items)` | `breadcrumb` | Navigation trail (`Home / Analytics / Overview`) |

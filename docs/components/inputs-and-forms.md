@@ -30,6 +30,7 @@ Collect user input, filter tables via URL query strings (`method="get"`), or sub
 | `aiui.time_input(label, *, value, name)` | `time_input` | Time picker |
 | `aiui.color_picker_input(label, *, value, name)` | `color_picker_input` | Hex color picker |
 | `aiui.tags_input(label, *, value, name, placeholder)` | `tags_input` | Free-text tag chips |
+| `aiui.rating_input(label, *, value=0, max_stars=5, name, readonly, auto_submit)` | `rating_input` | Accessible star rating widget (read-only display or interactive form/RLHF input) |
 | `aiui.file_download(label, *, href, filename, variant)` | `file_download` | Download trigger button |
 
 ## Instant URL-synced filter bar example

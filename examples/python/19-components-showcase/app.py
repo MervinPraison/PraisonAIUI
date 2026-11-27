@@ -21,7 +21,7 @@ TASKS = [
 ]
 
 
-@aiui.page("components", title="Components", icon="component", group="Showcase", badge="70")
+@aiui.page("components", title="Components", icon="component", group="Showcase", badge="76")
 async def components_page(params):
     area = params.get("area", "All")
     rows = [t for t in TASKS if area == "All" or t["area"] == area]
@@ -81,6 +81,52 @@ async def components_page(params):
                 ],
             },
             {
+                "label": "Workflow & AI Blocks",
+                "children": [
+                    aiui.stepper(
+                        [
+                            {"title": "Plan", "description": "Break down task"},
+                            {"title": "Retrieve", "description": "Query knowledge base"},
+                            {"title": "Verify", "description": "Run tests"},
+                        ],
+                        active=1,
+                    ),
+                    aiui.columns([
+                        aiui.timeline(
+                            [
+                                {"title": "Prompt updated", "timestamp": "09:15", "status": "info", "badge": "v2"},
+                                {"title": "Eval passed (98%)", "timestamp": "09:18", "status": "success"},
+                            ],
+                            title="Recent Activity",
+                        ),
+                        aiui.tree_view(
+                            [
+                                {
+                                    "label": "docs",
+                                    "children": [
+                                        {"label": "overview.md", "badge": "MD"},
+                                        {"label": "quickstart.md", "badge": "MD"},
+                                    ],
+                                }
+                            ],
+                            title="Retrieved Sources",
+                            default_expanded=True,
+                        ),
+                    ]),
+                    aiui.diff_viewer(
+                        "model: gpt-4o-mini\ntemperature: 0.7",
+                        "model: gpt-4o-mini\ntemperature: 0.2\nmax_tokens: 1024",
+                        title="Config Diff",
+                        before_label="v1",
+                        after_label="v2",
+                    ),
+                    aiui.columns([
+                        aiui.copy_field("aiui run app.py", label="Quick Command"),
+                        aiui.copy_field("sk-demo-0000-secret", label="API Token", secret=True),
+                    ]),
+                ],
+            },
+            {
                 "label": "Inputs & Feedback",
                 "children": [
                     aiui.status("Index sync", state="running", detail="Processing 120 docs", progress=72),
@@ -98,6 +144,7 @@ async def components_page(params):
                             ]),
                             aiui.columns([
                                 aiui.slider_input("Priority", name="priority", value=3, min_val=1, max_val=5),
+                                aiui.rating_input("Quality Score", name="rating", value=4, max_stars=5),
                                 aiui.color_picker_input("Accent", name="color", value="#6366f1"),
                             ]),
                             aiui.switch_input("Enable verbose logs", name="verbose", checked=True),

@@ -97,7 +97,7 @@ Turn a folder of Markdown and one `aiui.yaml` into a fast, searchable documentat
 
 <CardGroup cols={3}>
 <Card title="UI Components" icon="component" href="components/overview.md">
-Explore all 70 Python and YAML UI builders — cards, tables, charts, forms, media and live notifications.
+Explore all 76 Python and YAML UI builders — cards, tables, charts, steppers, timelines, diffs, trees, forms and live notifications.
 </Card>
 <Card title="Build a plugin" icon="plug" href="features/plugins.md">
 Extend the app with custom pages, settings sections, nav groups and themes from a Python package.

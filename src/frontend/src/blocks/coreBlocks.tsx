@@ -984,6 +984,8 @@ const TagsInput = templateBlock(() => import('./inputs/FilterInputs').then((m) =
 const DateRangeInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.DateRangeInput })))
 const SegmentedInput = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.SegmentedInput })))
 const FilterBar = templateBlock(() => import('./inputs/FilterInputs').then((m) => ({ default: m.FilterBar })))
+// Rich compound blocks: one lazy dispatcher so coreBlocks / chat-route stays tiny.
+const RichBlock = templateBlock(() => import('./RichBlocks'))
 
 /** Block type → renderer. Aliases share a component. */
 const CORE: Record<string, CoreBlock> = {
@@ -1055,6 +1057,12 @@ const CORE: Record<string, CoreBlock> = {
   code_editor: CodeEditorTemplate,
   chart: ChartBlockLazy,
   status: StatusBlock,
+  stepper: RichBlock,
+  timeline: RichBlock,
+  diff_viewer: RichBlock,
+  tree_view: RichBlock,
+  copy_field: RichBlock,
+  rating_input: RichBlock,
   ...mediaBlocks(),
 }
 

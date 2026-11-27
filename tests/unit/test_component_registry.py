@@ -77,9 +77,23 @@ class TestPythonJSComponentParity:
         # Extract all case 'xxx': patterns from dashboard.js renderComponent switch
         js_cases = set(re.findall(r"case\s+'(\w+)'", dashboard_source))
 
-        # Blocks that render only in the React app shell (blocks/inputs and the
-        # media blocks); the legacy dashboard is frozen and shows them as JSON.
-        app_shell_only = {"tags_input", "date_range_input", "segmented_input", "filter_bar", "card_grid", "list_detail"}
+        # Blocks that render only in the React app shell (blocks/inputs, media
+        # blocks, and lazy rich blocks); the legacy dashboard is frozen and shows
+        # them as JSON.
+        app_shell_only = {
+            "tags_input",
+            "date_range_input",
+            "segmented_input",
+            "filter_bar",
+            "card_grid",
+            "list_detail",
+            "stepper",
+            "timeline",
+            "diff_viewer",
+            "tree_view",
+            "copy_field",
+            "rating_input",
+        }
         missing = py_types - js_cases - app_shell_only
         assert not missing, (
             f"Python component types missing JS renderer: {sorted(missing)}"

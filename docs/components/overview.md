@@ -1,12 +1,12 @@
 ---
 title: UI Components Overview
 nav_title: Overview
-description: Browse all 70 Python and zero-code YAML UI components plus the built-in Notification Center.
+description: Browse all 76 Python and zero-code YAML UI components plus the built-in Notification Center.
 ---
 
 # UI Components Overview
 
-PraisonAIUI ships **70 composable UI component builders** plus a built-in **Notification Center**. Every component returns a plain JSON/YAML dictionary, so you can build rich pages in **Python** (`@aiui.page`) or **zero-code YAML** (`pages:` in `app.yaml`) — and register custom React blocks through `@aiui/sdk`.
+PraisonAIUI ships **76 composable UI component builders** plus a built-in **Notification Center**. Every component returns a plain JSON/YAML dictionary, so you can build rich pages in **Python** (`@aiui.page`) or **zero-code YAML** (`pages:` in `app.yaml`) — and register custom React blocks through `@aiui/sdk`.
 
 ## Same components in Python or YAML
 
