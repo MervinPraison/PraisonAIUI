@@ -240,11 +240,10 @@ export const Markdown = memo(function Markdown({
     // subscribe to theme flips.
     const hasMermaid = MERMAID_FENCE.test(text)
     const themeKey = useThemeKey(hasMermaid)
-    // Chat diagrams have a fullscreen view: give it modal focus handling.
-    const fullscreenDiagram = hasMermaid && !isDocs
+    // Mermaid diagrams have a fullscreen view in both chat and docs: give it modal focus handling.
     useEffect(() => {
-        if (fullscreenDiagram) void import('./mermaidFullscreen').then((m) => m.installMermaidFullscreenFocus(), () => undefined)
-    }, [fullscreenDiagram])
+        if (hasMermaid) void import('./mermaidFullscreen').then((m) => m.installMermaidFullscreenFocus(), () => undefined)
+    }, [hasMermaid])
     const mermaid = useMemo(
         () => (hasMermaid ? { config: mermaidConfigFor(themeKey) } : undefined),
         [hasMermaid, themeKey],

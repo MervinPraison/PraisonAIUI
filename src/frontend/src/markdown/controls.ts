@@ -1,7 +1,7 @@
 /**
- * Streamdown controls per variant (owner decision 9): chat keeps code copy
- * and download, table copy and mermaid pan/zoom/fullscreen; docs keeps code
- * copy and mermaid zoom only.
+ * Streamdown controls per variant: chat keeps code copy and download, table
+ * copy and mermaid pan/zoom/fullscreen; docs keeps code copy and mermaid
+ * pan/zoom/fullscreen.
  *
  * Streamdown reports a failed copy only through `onError` (navigator.clipboard
  * is undefined outside a secure context, e.g. plain http to a LAN address), so
@@ -29,6 +29,6 @@ export const CHAT_CONTROLS: ControlsConfig = {
 export const DOCS_CONTROLS: ControlsConfig = {
     code: { copy: COPY, download: false },
     table: false,
-    mermaid: { panZoom: true, fullscreen: false, download: false, copy: false },
+    mermaid: { panZoom: true, fullscreen: true, download: false, copy: false },
     image: false,
 }
