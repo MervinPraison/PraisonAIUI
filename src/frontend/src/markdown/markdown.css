@@ -105,15 +105,14 @@
 .aiui-markdown table {
   font-variant-numeric: tabular-nums;
 }
-/* Docs tables scroll sideways instead of wrapping cells word by word; only
-   the last column (usually prose) wraps. */
-.aiui-markdown-docs td,
-.aiui-markdown-docs th {
+/* Docs table headers stay on one line; body cells wrap cleanly so prose in
+   earlier columns never pushes later columns off-screen (previews keep their own rules). */
+.aiui-markdown-docs th:not([data-aiui-component-preview] *) {
   white-space: nowrap;
 }
-.aiui-markdown-docs td:last-child {
+.aiui-markdown-docs td:not([data-aiui-component-preview] *) {
   white-space: normal;
-  min-width: 12rem;
+  overflow-wrap: break-word;
 }
 
 /* index.css tints `.prose :not(pre) > code` (the docs marker); inline code

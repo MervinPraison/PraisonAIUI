@@ -79,7 +79,7 @@ class TestDocsContent:
         # unstyled-code flash), at most PAINT_WAIT_MS, and a newer navigation wins.
         source = _read(SRC / "Content.tsx")
         block = source.split("loadDoc(mdUrl, controller.signal, onRetry)")[1].split("show(result, content)")[0]
-        assert "Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content)])" in block
+        assert "Promise.all([preloadMarkdown(), preloadMarkdownPlugins(content), preloadComponentPreview(content)])" in block
         assert "setTimeout(resolve, PAINT_WAIT_MS)" in block
         assert "controller.signal.aborted" in block
 

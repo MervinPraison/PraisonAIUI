@@ -78,7 +78,8 @@ const LAYOUT_BUDGETS = {
   // 12.438 kB (+2 B, exactly the overage, 2026-11-26): chunk hash rename from table/gallery polish; no layout code changed.
   // 12.47 kB (+32 B, exactly the overage, 2026-11-26): NavList renders string/numeric page.badge across selectable layouts.
   // 12.486 kB (+16 B, exactly the overage, 2026-11-26): PhoneTopBar renders header:actions slot for notifications and plugin actions on phone.
-  'layout-chat-canvas': '12.486 kB',
+  // 12.5 kB (+14 B, 2026-11-27): chunk hash rename from docs table CSS fix (+3 B macOS + Linux zlib headroom); no layout code changed.
+  'layout-chat-canvas': '12.5 kB',
   // Integrated (all five frames, kit v2, the shared page-icon table in
   // lib/): 9.42 kB + 10%.
   // +0.1 kB (10.43 kB measured, #418): the kit's ConnectionStatus, now used by
@@ -180,7 +181,8 @@ const defaultLayoutFirstScreen = [
     // 274,091 B (+3,818 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
     // 274,261 B (+170 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
     // 274,301 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
-    limit: '274301 B',
+    // 274,400 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
+    limit: '274400 B',
     gzip: true,
   },
 ]
@@ -373,9 +375,11 @@ export default [
   // 262,141 B (+3,802 B, exactly the overage, 2026-11-26): headless @aiui/sdk notifications store + NotificationBell header trigger + chat background reply alerts.
   // 262,321 B (+180 B, 2026-11-26): Vite preload map + shared icon split from lazy RichBlocks chunk (6 compound UI components).
   // 262,361 B (+40 B, 2026-11-27): single-retry CSS preload recovery in retryableLazy.ts (Linux CI zlib).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262361 B', gzip: true },
+  // 262,460 B (+99 B, 2026-11-27): dynamic runtime import split in LegacyBlockFallback (Linux CI zlib).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '262460 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
-  { name: 'index.css', path: abs(['assets/index.css']), limit: '26 kB', gzip: true },
+  // 26.05 kB (+50 B, 2026-11-27): :not([data-aiui-component-preview] *) isolation on article.prose (Linux CI zlib).
+  { name: 'index.css', path: abs(['assets/index.css']), limit: '26.05 kB', gzip: true },
   // The 145 kB budget was set with `gzip -9` (reference zlib), which gives
   // 144.8 kB for this chunk. size-limit compresses with Node's zlib (Chromium's
   // fork), which gives 146.6 kB for the same bytes: 147 kB was that budget.
