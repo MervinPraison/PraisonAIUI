@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import uuid
@@ -56,14 +57,59 @@ def _sdk_text(record: Dict[str, Any]) -> str:
     """The memory text of an SDK record.
 
     praisonaiagents stores it under ``content`` (``text`` and ``memory`` are
-    older spellings). Falling back to ``str(record)`` would show the dict repr
-    as the memory text.
+    older spellings), and ``FileMemory.search_*`` wraps the item under
+    ``{"type": ..., "item": {"content": ...}, "score": ...}``. Falling back
+    to ``str(record)`` would show the dict repr as the memory text.
     """
+    inner = record.get("item") if isinstance(record.get("item"), dict) else record
     for key in ("text", "content", "memory"):
-        value = record.get(key)
+        value = inner.get(key)
         if isinstance(value, str):
             return value
     return str(record)
+
+
+def _normalize_memory_type(raw_type: Any, default: str = "long") -> str:
+    mtype = str(raw_type or default)
+    if mtype == "short_term":
+        return "short"
+    if mtype == "long_term":
+        return "long"
+    return mtype
+
+
+def _normalize_sdk_record(
+    record: Dict[str, Any],
+    default_type: str = "long",
+    *,
+    fallback_id: str = "",
+    include_score: bool = False,
+) -> Dict[str, Any]:
+    """Normalize a flat ``Memory`` row or wrapped ``FileMemory`` search hit."""
+    inner = record.get("item") if isinstance(record.get("item"), dict) else record
+    raw_type = record.get("type") or inner.get("type") or inner.get("memory_type") or default_type
+    raw_meta = inner.get("metadata")
+    meta: Dict[str, Any] = dict(raw_meta) if isinstance(raw_meta, dict) else {}
+    rec_id = inner.get("id", record.get("id", fallback_id))
+    entry: Dict[str, Any] = {
+        "id": str(rec_id) if rec_id is not None else fallback_id,
+        "text": _sdk_text(record),
+        "memory_type": _normalize_memory_type(raw_type, default_type),
+        "metadata": meta,
+    }
+    session_id = inner.get("session_id") or meta.get("session_id")
+    if session_id is not None:
+        entry["session_id"] = session_id
+    agent_id = inner.get("agent_id") or meta.get("agent_id")
+    if agent_id is not None:
+        entry["agent_id"] = agent_id
+    created_at = inner.get("created_at", record.get("created_at"))
+    if created_at is not None or not include_score:
+        entry["created_at"] = created_at
+    if include_score:
+        raw_score = record.get("score")
+        entry["score"] = float(raw_score) if isinstance(raw_score, (int, float)) else 1.0
+    return entry
 
 class MemoryProtocol(ABC):
     """Protocol interface for memory backends.
@@ -229,6 +275,8 @@ class SDKMemoryManager(MemoryProtocol):
     def __init__(self, **config: Any) -> None:
         self._config = config
         self._sdk_memory = None
+        self._sdk_memory_auto = False
+        self._sdk_memory_data_dir: Optional[Path] = None
         self._sdk_error: Optional[str] = None  # last init failure, for health()
         self._local_index: Dict[str, Dict[str, Any]] = {}
         self._init_lock = threading.Lock()
@@ -250,18 +298,41 @@ class SDKMemoryManager(MemoryProtocol):
 
     def _get_sdk_memory(self) -> Any:
         """Lazy-init SDK Memory."""
-        if self._sdk_memory is not None:
+        current_dir = configured_data_dir()
+        if self._sdk_memory is not None and (
+            not self._sdk_memory_auto or self._sdk_memory_data_dir == current_dir
+        ):
             return self._sdk_memory
         with self._init_lock:  # route handlers call this from worker threads
+            if self._sdk_memory_auto and self._sdk_memory_data_dir != current_dir:
+                self._sdk_memory = None
             return self._init_sdk_memory()
 
     def _init_sdk_memory(self) -> Any:
         if self._sdk_memory is None:
             try:
+                if not self._config:
+                    try:
+                        from praisonaiagents.memory.file_memory import FileMemory
+
+                        base = configured_data_dir()
+                        base_path = str(base / "memory") if base is not None else None
+                        user_id = os.environ.get("PRAISONAI_MEMORY_USER_ID", "").strip() or "default"
+                        self._sdk_memory = FileMemory(user_id=user_id, base_path=base_path)
+                        self._sdk_memory_auto = True
+                        self._sdk_memory_data_dir = base
+                        self._sdk_error = None
+                        logger.info("SDK Memory initialized: FileMemory (user_id=%s)", user_id)
+                        return self._sdk_memory
+                    except ImportError:
+                        pass
+
                 from praisonaiagents.memory import Memory
 
                 # SDK Memory requires config dict (can be empty for defaults)
                 self._sdk_memory = Memory(config=self._sdk_config())
+                self._sdk_memory_auto = True
+                self._sdk_memory_data_dir = configured_data_dir()
                 self._sdk_error = None
                 logger.info("SDK Memory initialized: %s", type(self._sdk_memory).__name__)
             except ImportError:
@@ -284,13 +355,19 @@ class SDKMemoryManager(MemoryProtocol):
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         mem_id = uuid.uuid4().hex[:12]
+        meta = dict(metadata or {})
+        sdk_meta = dict(meta)
+        if session_id is not None:
+            sdk_meta.setdefault("session_id", session_id)
+        if agent_id is not None:
+            sdk_meta.setdefault("agent_id", agent_id)
         entry = {
             "id": mem_id,
             "text": text,
             "memory_type": memory_type,
             "session_id": session_id,
             "agent_id": agent_id,
-            "metadata": metadata or {},
+            "metadata": meta,
             "created_at": time.time(),
         }
 
@@ -318,7 +395,9 @@ class SDKMemoryManager(MemoryProtocol):
                     "entity": "store_entity",
                 }.get(memory_type, "store_long_term")
                 if hasattr(sdk, method):
-                    getattr(sdk, method)(text, metadata=metadata or {})
+                    sdk_id = getattr(sdk, method)(text, metadata=sdk_meta)
+                    if isinstance(sdk_id, str) and sdk_id:
+                        entry["id"] = sdk_id
                     sdk_stored = True
                     entry["sdk_synced"] = True
             except Exception as e:
@@ -326,7 +405,7 @@ class SDKMemoryManager(MemoryProtocol):
 
         # Only add to local index if SDK store failed (SDK entries are read via get_all_memories)
         if not sdk_stored:
-            self._local_index[mem_id] = entry
+            self._local_index[entry["id"]] = entry
         return entry
 
     def search(
@@ -340,9 +419,9 @@ class SDKMemoryManager(MemoryProtocol):
         if sdk is not None:
             try:
                 if memory_type == "all":
-                    # SDK generic search() only covers long-term/vector.
+                    # SDK generic search() only covers long-term/vector on Memory.
                     # Combine short + long results for a full "all" search.
-                    combined = []
+                    combined: List[Dict[str, Any]] = []
                     for mtype, meth in [
                         ("short", "search_short_term"),
                         ("long", "search_long_term"),
@@ -351,18 +430,23 @@ class SDKMemoryManager(MemoryProtocol):
                             try:
                                 hits = getattr(sdk, meth)(query, limit=limit)
                                 if isinstance(hits, list):
-                                    for r in hits:
-                                        combined.append(
-                                            {
-                                                "id": str(r.get("id", "")),
-                                                "text": _sdk_text(r),
-                                                "memory_type": mtype,
-                                                "metadata": r.get("metadata", {}),
-                                                "score": 1.0,
-                                            }
-                                        )
+                                    for i, r in enumerate(hits):
+                                        if isinstance(r, dict):
+                                            combined.append(
+                                                _normalize_sdk_record(
+                                                    r,
+                                                    default_type=mtype,
+                                                    fallback_id=str(i),
+                                                    include_score=True,
+                                                )
+                                            )
                             except Exception:
                                 pass
+                    seen_ids = {c["id"] for c in combined if c.get("id")}
+                    query_lower = query.lower()
+                    for m in self._local_index.values():
+                        if m.get("id") not in seen_ids and query_lower in m.get("text", "").lower():
+                            combined.append(m)
                     return combined[:limit]
                 else:
                     method = {
@@ -372,16 +456,26 @@ class SDKMemoryManager(MemoryProtocol):
                     if hasattr(sdk, method):
                         results = getattr(sdk, method)(query, limit=limit)
                         if isinstance(results, list):
-                            return [
-                                {
-                                    "id": str(r.get("id", i)),
-                                    "text": _sdk_text(r),
-                                    "memory_type": memory_type,
-                                    "metadata": r.get("metadata", {}),
-                                    "score": 1.0,
-                                }
+                            normalized = [
+                                _normalize_sdk_record(
+                                    r,
+                                    default_type=memory_type,
+                                    fallback_id=str(i),
+                                    include_score=True,
+                                )
                                 for i, r in enumerate(results[:limit])
+                                if isinstance(r, dict)
                             ]
+                            seen_ids = {c["id"] for c in normalized if c.get("id")}
+                            query_lower = query.lower()
+                            for m in self._local_index.values():
+                                if (
+                                    m.get("memory_type") == memory_type
+                                    and m.get("id") not in seen_ids
+                                    and query_lower in m.get("text", "").lower()
+                                ):
+                                    normalized.append(m)
+                            return normalized[:limit]
             except Exception as e:
                 logger.warning("SDK search failed: %s; falling back to local", e)
 
@@ -408,23 +502,10 @@ class SDKMemoryManager(MemoryProtocol):
                     for r in all_items:
                         if not isinstance(r, dict):
                             continue
-                        mtype = r.get("type", r.get("memory_type", "long"))
-                        # Map SDK type names to our convention
-                        if mtype == "short_term":
-                            mtype = "short"
-                        elif mtype == "long_term":
-                            mtype = "long"
-                        if memory_type != "all" and mtype != memory_type:
+                        norm = _normalize_sdk_record(r, default_type="long")
+                        if memory_type != "all" and norm["memory_type"] != memory_type:
                             continue
-                        sdk_entries.append(
-                            {
-                                "id": str(r.get("id", "")),
-                                "text": _sdk_text(r),
-                                "memory_type": mtype,
-                                "metadata": r.get("metadata", {}),
-                                "created_at": r.get("created_at"),
-                            }
-                        )
+                        sdk_entries.append(norm)
                     # Merge with local index (local entries may have extra fields)
                     seen_ids = {e["id"] for e in sdk_entries}
                     for entry in self._local_index.values():
@@ -504,19 +585,11 @@ class SDKMemoryManager(MemoryProtocol):
         if sdk is not None and hasattr(sdk, "get_all_memories"):
             try:
                 for m in sdk.get_all_memories():
-                    if str(m.get("id")) == memory_id:
-                        mtype = m.get("type", m.get("memory_type", "long"))
-                        if mtype == "short_term":
-                            mtype = "short"
-                        elif mtype == "long_term":
-                            mtype = "long"
-                        return {
-                            "id": str(m["id"]),
-                            "text": _sdk_text(m),
-                            "memory_type": mtype,
-                            "metadata": m.get("metadata", {}),
-                            "created_at": m.get("created_at"),
-                        }
+                    if not isinstance(m, dict):
+                        continue
+                    norm = _normalize_sdk_record(m, default_type="long")
+                    if norm["id"] == memory_id:
+                        return norm
             except Exception:
                 pass
         return None
@@ -529,15 +602,16 @@ class SDKMemoryManager(MemoryProtocol):
         if sdk is not None:
             try:
                 if hasattr(sdk, "delete_memory"):
-                    sdk.delete_memory(memory_id)
-                    deleted = True
+                    res = sdk.delete_memory(memory_id)
+                    deleted = bool(res) if isinstance(res, bool) else True
                 else:
                     # Try type-specific delete
                     for meth in ["delete_short_term", "delete_long_term"]:
                         if hasattr(sdk, meth):
                             try:
-                                getattr(sdk, meth)(memory_id)
-                                deleted = True
+                                res = getattr(sdk, meth)(memory_id)
+                                if res is not False:
+                                    deleted = True
                             except Exception:
                                 pass
             except Exception as e:
@@ -562,21 +636,34 @@ class SDKMemoryManager(MemoryProtocol):
         sdk = self._get_sdk_memory()
         if sdk is not None:
             try:
-                if memory_type == "all" and hasattr(sdk, "reset_all"):
-                    sdk.reset_all()
-                    logger.info("SDK memory reset_all completed")
+                if memory_type == "all":
+                    if hasattr(sdk, "reset_all"):
+                        sdk.reset_all()
+                        logger.info("SDK memory reset_all completed")
+                    elif hasattr(sdk, "clear_all"):
+                        sdk.clear_all()
+                        logger.info("SDK memory clear_all completed")
+                elif memory_type == "short" and hasattr(sdk, "clear_short_term"):
+                    sdk.clear_short_term()
+                    logger.info("SDK memory clear_short_term completed")
             except Exception as e:
-                logger.warning("SDK reset_all failed: %s", e)
+                logger.warning("SDK clear failed: %s", e)
         return count
 
     def get_context(self, query: str, *, limit: int = 5) -> str:
-        """Use SDK's get_memory_context if available."""
+        """Use SDK's get_memory_context or FileMemory.get_context if available."""
         sdk = self._get_sdk_memory()
-        if sdk is not None and hasattr(sdk, "get_memory_context"):
-            try:
-                return sdk.get_memory_context(query)
-            except Exception:
-                pass
+        if sdk is not None:
+            if hasattr(sdk, "get_memory_context"):
+                try:
+                    return sdk.get_memory_context(query)
+                except Exception:
+                    pass
+            elif hasattr(sdk, "get_context"):
+                try:
+                    return sdk.get_context(query=query)
+                except Exception:
+                    pass
         return super().get_context(query, limit=limit)
 
     def health(self) -> Dict[str, Any]:
@@ -610,6 +697,31 @@ async def _off_loop(fn: Any, *args: Any, **kwargs: Any) -> Any:
             return fn(*args, **kwargs)
 
     return await run_in_threadpool(_call)
+
+
+async def remember_turn(
+    user_message: str,
+    assistant_response: str,
+    *,
+    session_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+) -> None:
+    """Persist a completed user/assistant turn in short-term memory off the loop."""
+
+    def _store_turn() -> None:
+        mgr = get_memory_manager()
+        for text, role in ((user_message, "user"), (assistant_response, "assistant")):
+            if not text or not str(text).strip():
+                continue
+            mgr.store(
+                str(text),
+                memory_type="short",
+                session_id=session_id,
+                agent_id=agent_id,
+                metadata={"role": role},
+            )
+
+    await _off_loop(_store_turn)
 
 
 # ── Manager singleton ────────────────────────────────────────────────
@@ -722,11 +834,12 @@ class MemoryFeature(BaseFeatureProtocol):
     async def _search(self, request: Request) -> JSONResponse:
         mgr = get_memory_manager()
         body = await request.json()
+        limit = body.get("limit") or body.get("top_k") or 10
         results = await _off_loop(
             mgr.search,
             query=body.get("query", ""),
             memory_type=body.get("memory_type", "all"),
-            limit=body.get("limit", 10),
+            limit=limit,
         )
         return JSONResponse({"results": results, "count": len(results)})
 

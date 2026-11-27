@@ -1459,6 +1459,22 @@ async def _run_and_broadcast(
         except Exception:
             logger.warning("datastore persist failed for session %s", session_id, exc_info=True)
 
+        # Auto-store completed conversation turns in platform memory off the
+        # event loop (matching server.run_agent), so WebSocket and
+        # POST /api/chat/send turns are searchable via /api/memory/search.
+        if not cancelled and run_error is None:
+            try:
+                from praisonaiui.features import memory as _memory
+
+                await _memory.remember_turn(
+                    question,
+                    full_response,
+                    session_id=session_id,
+                    agent_id=resolved_agent_name,
+                )
+            except Exception:
+                logger.debug("Memory auto-store skipped for session %s", session_id, exc_info=True)
+
 
 DEFAULT_CONTEXT_LIMIT = 128000
 _TOKENS_PER_CHAR = 0.25
