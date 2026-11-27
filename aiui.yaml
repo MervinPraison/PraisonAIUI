@@ -161,6 +161,8 @@ navigation:
           pages:
             - components/metric
             - components/table
+            - components/sheet
+            - components/whiteboard
             - components/chart
             - components/board
             - components/timeline

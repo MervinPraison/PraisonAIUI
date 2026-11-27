@@ -1,0 +1,41 @@
+# Zero-code YAML companion for Example 35: Sheets + Whiteboard + KPI Dashboard.
+# Run with: aiui run app.yaml --port 8080
+style: app
+branding:
+  title: PraisonAIUI Studio (YAML)
+pages:
+  - chat
+  - id: studio
+    title: Studio Dashboard
+    icon: table
+    group: Workspace
+    components:
+      - type: header
+        text: Zero-Code Studio Dashboard
+      - type: caption
+        text: Interactive spreadsheet formulas and draggable whiteboard defined purely in YAML.
+      - type: columns
+        children:
+          - type: metric
+            label: Q4 Budget
+            value: "$286k"
+            delta: "+4.2%"
+          - type: metric
+            label: Actual Spend
+            value: "$276.2k"
+            delta: "-3.4% under"
+      - type: sheet
+        id: q4-yaml-sheet
+        title: Q4 Budget Plan
+        headers: ["Department", "Budget ($)", "Actual ($)", "Variance ($)", "Status"]
+        rows:
+          - ["Engineering", 140000, 132500, "=B2-C2", '=IF(D2>=0, "Under", "Over")']
+          - ["Infrastructure", 48000, 51200, "=B3-C3", '=IF(D3>=0, "Under", "Over")']
+          - ["Total", "=SUM(B2:B3)", "=SUM(C2:C3)", "=SUM(D2:D3)", '=IF(D4>=0, "On Track", "Review")']
+      - type: whiteboard
+        id: q4-yaml-board
+        title: Launch Flow
+        items:
+          - { id: plan, type: sticky, text: "Plan Q4 Budget", x: 28, y: 36, color: yellow }
+          - { id: ship, type: sticky, text: "Launch Dashboard", x: 256, y: 36, color: green }
+          - { type: arrow, from: plan, to: ship, label: "approved" }
