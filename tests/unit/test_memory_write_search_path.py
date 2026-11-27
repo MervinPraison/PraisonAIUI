@@ -267,6 +267,7 @@ def test_provider_session_agents_share_memory_backend(tmp_path, monkeypatch):
     from praisonaiui.providers import PraisonAIProvider
 
     monkeypatch.setenv("AIUI_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-placeholder")
     mgr = SDKMemoryManager()
     monkeypatch.setattr(memory_mod, "_memory_manager", mgr)
 
