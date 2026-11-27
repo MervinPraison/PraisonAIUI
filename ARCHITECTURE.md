@@ -237,7 +237,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
 | Legacy App path (entry + legacy-app-entry closure) | 250 kB |
-| Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,568 B |
+| Docs Try it chunk (lazy; endpoint pages, minus the legacy App path) | 7,569 B |
 | Chart block chunk (lazy; recharts, minus boot and the blocks page) | 140.6 kB |
 | Each built-in layout `layout-<id>` (closure minus boot, kit included; ADR cap 24 kB, Mission 28 kB): `chat-canvas` / `workbench` / `command` / `guided` / `mission` | 12.486 / 10.5 / 15.32 / 18.6 / 13.304 kB |
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |

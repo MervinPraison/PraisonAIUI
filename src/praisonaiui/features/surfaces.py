@@ -12,7 +12,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from praisonaiui.a2ui_utils import normalise_a2ui_messages
+from praisonaiui.a2ui_utils import a2ui_client_capabilities, normalise_a2ui_messages
 
 from ._base import BaseFeatureProtocol
 
@@ -70,16 +70,38 @@ class SurfaceStore:
                 self._surfaces[surface_id] = SurfaceState(id=surface_id)
             return self._surfaces[surface_id]
 
+    @staticmethod
+    def _extract_metadata(messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+        meta: Dict[str, Any] = {}
+        for msg in messages:
+            create = msg.get("createSurface")
+            if isinstance(create, dict):
+                if create.get("catalogId"):
+                    meta["catalog_id"] = create["catalogId"]
+                if isinstance(create.get("theme"), dict):
+                    meta["theme"] = dict(create["theme"])
+                if "sendDataModel" in create:
+                    meta["send_data_model"] = bool(create["sendDataModel"])
+            if msg.get("version"):
+                meta["version"] = msg["version"]
+        return meta
+
     async def apply_messages(
         self, surface_id: str, messages: List[Dict[str, Any]]
     ) -> SurfaceState:
         normalised = normalise_a2ui_messages({"messages": messages})
         async with self._lock:
             state = self._surfaces.setdefault(surface_id, SurfaceState(id=surface_id))
-            if any(m.get("createSurface") for m in normalised):
+            if any(m.get("deleteSurface") for m in normalised):
+                state.messages = []
+                state.metadata = {**state.metadata, "deleted": True}
+            elif any(m.get("createSurface") for m in normalised):
                 state.messages = list(normalised)
+                state.metadata = self._extract_metadata(normalised)
             else:
                 state.messages.extend(normalised)
+                state.metadata.update(self._extract_metadata(normalised))
+                state.metadata.pop("deleted", None)
             state.updated_at = time.time()
             return state
 
@@ -89,7 +111,12 @@ class SurfaceStore:
         normalised = normalise_a2ui_messages({"messages": messages})
         async with self._lock:
             state = self._surfaces.setdefault(surface_id, SurfaceState(id=surface_id))
-            state.messages = normalised
+            if any(m.get("deleteSurface") for m in normalised):
+                state.messages = []
+                state.metadata = {**state.metadata, "deleted": True}
+            else:
+                state.messages = normalised
+                state.metadata = self._extract_metadata(normalised)
             state.updated_at = time.time()
             return state
 
@@ -177,6 +204,28 @@ def attach_a2ui_to_payload(payload: Dict[str, Any], extra_data: Optional[Dict[st
             payload["surface_id"] = nested.get("surface_id", "main")
 
 
+async def push_surface(
+    surface_id: str,
+    messages: List[Dict[str, Any]],
+    *,
+    replace: bool = False,
+    session_id: Optional[str] = None,
+) -> SurfaceState:
+    """Push A2UI messages into the surface store and broadcast live to connected clients."""
+    store = get_surface_store()
+    state = (
+        await store.set_messages(surface_id, messages)
+        if replace
+        else await store.apply_messages(surface_id, messages)
+    )
+    await broadcast_a2ui_surface(surface_id, state.messages, session_id=session_id)
+    return state
+
+
+async def _get_capabilities(_request: Request) -> JSONResponse:
+    return JSONResponse(a2ui_client_capabilities())
+
+
 async def _list_surfaces(_request: Request) -> JSONResponse:
     store = get_surface_store()
     return JSONResponse({"surfaces": await store.list_surfaces()})
@@ -224,14 +273,36 @@ async def _post_messages(request: Request) -> JSONResponse:
 async def _post_action(request: Request) -> JSONResponse:
     surface_id = request.path_params["surface_id"]
     body = await request.json()
+    # Support PraisonAIUI flat shape, A2UI v0.9 {action: {name, sourceComponentId, context}},
+    # and A2UI v0.8 {userAction: {name, sourceComponentId, context}}.
+    envelope = (
+        body.get("action")
+        if isinstance(body.get("action"), dict)
+        else body.get("userAction")
+        if isinstance(body.get("userAction"), dict)
+        else None
+    )
+    if envelope is not None:
+        action_name = envelope.get("name") or envelope.get("action")
+        component_id = envelope.get("sourceComponentId") or body.get("component_id")
+        action_data = envelope.get("context") if isinstance(envelope.get("context"), dict) else body.get("data", {})
+        timestamp = envelope.get("timestamp") or body.get("timestamp")
+    else:
+        action_name = body.get("action") or body.get("name")
+        component_id = body.get("component_id") or body.get("sourceComponentId")
+        action_data = body.get("data") if isinstance(body.get("data"), dict) else body.get("context", {})
+        timestamp = body.get("timestamp")
+
     action = {
         "type": "a2ui_action",
         "surface_id": surface_id,
-        "component_id": body.get("component_id"),
-        "action": body.get("action"),
-        "data": body.get("data", {}),
+        "component_id": component_id,
+        "action": action_name,
+        "data": action_data if isinstance(action_data, dict) else {},
         "session_id": body.get("session_id"),
     }
+    if timestamp:
+        action["timestamp"] = timestamp
     store = get_surface_store()
     await store.queue_action(action)
 
@@ -291,9 +362,11 @@ class SurfacesFeature(BaseFeatureProtocol):
     def routes(self) -> List[Route]:
         return [
             Route("/api/surfaces", _list_surfaces, methods=["GET"]),
+            Route("/api/surfaces/capabilities", _get_capabilities, methods=["GET"]),
             Route("/api/surfaces/{surface_id}", _get_surface, methods=["GET"]),
             Route("/api/surfaces/{surface_id}/messages", _post_messages, methods=["POST"]),
             Route("/api/surfaces/{surface_id}/action", _post_action, methods=["POST"]),
+            Route("/api/surfaces/{surface_id}/actions", _post_action, methods=["POST"]),
             Route("/api/surfaces/{surface_id}", _delete_surface, methods=["DELETE"]),
         ]
 

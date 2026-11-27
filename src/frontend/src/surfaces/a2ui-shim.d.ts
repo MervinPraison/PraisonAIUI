@@ -8,12 +8,14 @@ declare module '@a2ui/web_core/v0_9' {
                 surfaceId?: string
                 sourceComponentId?: string
                 context?: Record<string, unknown>
+                timestamp?: string
             }) => void,
         )
         processMessages(messages: unknown[]): void
         readonly model: {
             getSurface(id: string): {
                 componentsModel: { entries: Iterable<[string, { type?: string }]> }
+                dataModel: { get(path: string): unknown }
             } | undefined
             readonly surfacesMap: Map<string, unknown>
         }
