@@ -215,3 +215,84 @@ def test_plugin_websocket_with_lifespan_authenticated_in_auth_enforce_mode(
     finally:
         with _auth_lock:
             _auth_config["api_keys"].pop("runner-key", None)
+
+
+def test_plugin_lifespan_closes_unawaited_coroutine_and_ignores_invalid_return():
+    import warnings
+
+    class _BadCoroutinePlugin:
+        name = "bad_coro"
+
+        async def lifespan(self, _app):  # forgot @asynccontextmanager
+            return "not-a-cm"
+
+    class _BadValuePlugin:
+        name = "bad_val"
+
+        def lifespan(self, _app):
+            return 12345
+
+    app = create_shell_app(plugins=[_BadCoroutinePlugin(), _BadValuePlugin()])
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        with TestClient(app) as client:
+            assert client.get("/health").status_code == 200
+    assert not [w for w in caught if "was never awaited" in str(w.message)]
+
+
+def test_plugin_websocket_with_lifespan_authenticated_in_require_auth_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from praisonaiui import auth as auth_mod
+
+    monkeypatch.setattr(auth_mod, "_users", {})
+    static = tmp_path / "static"
+    static.mkdir(parents=True, exist_ok=True)
+    (static / "sess.js").write_text("export default function Sess() { return null; }\n", encoding="utf-8")
+
+    class _SessPlugin:
+        name = "sess_ws"
+
+        def static_dir(self) -> Path:
+            return static
+
+        def pages(self):
+            return [PageSpec(id="sess", title="Sess", kind="react", module="sess.js")]
+
+        def routes(self):
+            async def ws_echo(ws: WebSocket):
+                await ws.accept()
+                await ws.send_json({"ok": True})
+                await ws.close()
+
+            return [WebSocketRoute("/ws/echo", ws_echo)]
+
+    app = create_shell_app(
+        plugins=[_SessPlugin()],
+        config={"auth": {"allowSignup": True}},
+        require_auth=True,
+    )
+    with TestClient(app) as client:
+        # Unauthenticated WS and ticket request are rejected.
+        assert client.post("/api/auth/ws-ticket").status_code == 401
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect("/api/plugins/sess_ws/ws/echo"):
+                pass
+
+        # Register first admin user (bootstrap open) and receive bearer token + cookie.
+        reg_resp = client.post(
+            "/register",
+            json={"username": "admin", "password": "strong-password-123"},
+        )
+        assert reg_resp.status_code == 200
+        tok = reg_resp.json()["token"]
+
+        t_resp = client.post(
+            "/api/auth/ws-ticket", headers={"Authorization": f"Bearer {tok}"}
+        )
+        assert t_resp.status_code == 200
+        ticket = t_resp.json()["ticket"]
+
+        with client.websocket_connect(f"/api/plugins/sess_ws/ws/echo?ticket={ticket}") as ws:
+            assert ws.receive_json() == {"ok": True}
+

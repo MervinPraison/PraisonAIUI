@@ -56,6 +56,36 @@ test('BlockTreeView wires BlockContext.runAction to onAction', async () => {
   ])
 })
 
+test('BlockTreeView handles empty arrays and catches throwing onAction cleanly', async () => {
+  assert.equal(renderToStaticMarkup(<BlockTreeView node={[]} />), '')
+
+  const holder: { runAction: ((req: BlockActionRequest) => Promise<boolean>) | null } = {
+    runAction: null,
+  }
+  registerBlock('bt_throw_probe', () => {
+    const ctx = useBlockContext()
+    holder.runAction = ctx.runAction
+    return <div>throw-probe</div>
+  })
+
+  renderToStaticMarkup(
+    <BlockTreeView
+      node={{ type: 'bt_throw_probe' }}
+      onAction={async () => {
+        throw new Error('handler exploded')
+      }}
+    />,
+  )
+
+  const origWarn = console.warn
+  console.warn = () => {}
+  try {
+    assert.equal(await holder.runAction!({ body: { action: 'boom' } }), false)
+  } finally {
+    console.warn = origWarn
+  }
+})
+
 test('BlockTree renders fallback while lazy BlockRenderer chunk is pending', () => {
   const html = renderToStaticMarkup(
     <BlockTree

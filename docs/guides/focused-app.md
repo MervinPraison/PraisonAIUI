@@ -138,8 +138,8 @@ app = aiui.create_shell_app(
 header; `GET /sessions` and other unmounted routes return `404`. For custom
 hosts that render the HTML themselves, `aiui.render_shell_html(request)`
 returns `(html, script_hashes)` and `aiui.shell_csp_header(html)` formats the
-full header (pass `allow_websockets=True` when plugins open WebSockets via
-`openWebSocket()`).
+full header (`connect-src 'self'` covers same-origin WebSockets; pass `extra=`
+for any external host).
 
 ## Check it before you call it done
 

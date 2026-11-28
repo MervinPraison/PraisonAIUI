@@ -12,15 +12,6 @@ export const TOKEN_STORAGE_KEY = 'aiui_gateway_token'
 
 export const WS_TICKET_URL = '/api/auth/ws-ticket'
 
-export interface OpenWebSocketOptions {
-  /** Optional WebSocket subprotocol(s) passed to `new WebSocket(url, protocols)`. */
-  protocols?: string | string[]
-  /** Optional custom `fetch` implementation (tests). */
-  fetchImpl?: typeof fetch
-  /** Optional custom `WebSocket` constructor (tests). */
-  WebSocketImpl?: new (url: string, protocols?: string | string[]) => WebSocket
-}
-
 function storedToken(): string {
   try {
     return globalThis.sessionStorage?.getItem(TOKEN_STORAGE_KEY) || ''
@@ -34,12 +25,12 @@ function storedToken(): string {
  * ticket (`POST /api/auth/ws-ticket`). Returns `null` when the server does not
  * expose the ticket endpoint or refuses the request.
  */
-export async function getWsTicket(fetchImpl: typeof fetch = globalThis.fetch): Promise<string | null> {
+export async function getWsTicket(): Promise<string | null> {
   const token = storedToken()
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
   try {
-    const res = await fetchImpl(WS_TICKET_URL, {
+    const res = await globalThis.fetch(WS_TICKET_URL, {
       method: 'POST',
       headers,
       credentials: 'same-origin',
@@ -53,9 +44,9 @@ export async function getWsTicket(fetchImpl: typeof fetch = globalThis.fetch): P
 }
 
 /**
- * The query string that authenticates one WebSocket handshake: a single-use
- * ticket bought with the stored token, `?token=` on servers without the ticket
- * endpoint, nothing when no token is stored (cookie or open servers).
+ * Internal chat-transport helper (backwards-compatible with older servers
+ * without `/api/auth/ws-ticket`). Not exported from `@aiui/sdk`: new plugins
+ * use `openWebSocket()`, which sends only single-use tickets (R8).
  */
 export async function wsAuthQuery(fetchImpl: typeof fetch = globalThis.fetch): Promise<string> {
   const token = storedToken()
@@ -82,10 +73,11 @@ function resolveWsTarget(path: string): { url: string; sameOrigin: boolean } {
   const loc = globalThis.location
   const defaultScheme = loc?.protocol === 'https:' ? 'wss:' : 'ws:'
   const defaultHost = loc?.host || '127.0.0.1'
+  const base = `${defaultScheme}//${defaultHost}`
 
-  if (/^wss?:\/\//i.test(path)) {
+  if (/^(?:wss?:)?\/\//i.test(path)) {
     try {
-      const parsed = new URL(path)
+      const parsed = new URL(path, base)
       const sameOrigin = Boolean(loc?.host) && parsed.host === loc.host && parsed.protocol === defaultScheme
       return { url: parsed.toString(), sameOrigin }
     } catch {
@@ -94,7 +86,7 @@ function resolveWsTarget(path: string): { url: string; sameOrigin: boolean } {
   }
 
   const normalized = path.startsWith('/') ? path : `/${path}`
-  return { url: `${defaultScheme}//${defaultHost}${normalized}`, sameOrigin: true }
+  return { url: `${base}${normalized}`, sameOrigin: true }
 }
 
 function appendQuery(url: string, query: string): string {
@@ -106,13 +98,17 @@ function appendQuery(url: string, query: string): string {
 /**
  * Open an authenticated WebSocket to a same-origin path (e.g.
  * `'/api/plugins/my-plugin/ws/events'`). Exchanges any stored gateway token for
- * a single-use ticket before opening; never attaches credentials to a
- * cross-origin WebSocket URL.
+ * a single-use ticket (`?ticket=`) before opening; never places a long-lived
+ * token in the URL and never attaches credentials to a cross-origin URL (R8).
  */
-export async function openWebSocket(path: string, options: OpenWebSocketOptions = {}): Promise<WebSocket> {
+export async function openWebSocket(path: string, protocols?: string | string[]): Promise<WebSocket> {
   const { url, sameOrigin } = resolveWsTarget(path)
-  const auth = sameOrigin ? await wsAuthQuery(options.fetchImpl) : ''
+  let auth = ''
+  if (sameOrigin && storedToken()) {
+    const ticket = await getWsTicket()
+    if (ticket) auth = `?ticket=${encodeURIComponent(ticket)}`
+  }
   const target = appendQuery(url, auth)
-  const Ctor = options.WebSocketImpl ?? globalThis.WebSocket
-  return options.protocols !== undefined ? new Ctor(target, options.protocols) : new Ctor(target)
+  const Ctor = globalThis.WebSocket
+  return protocols !== undefined ? new Ctor(target, protocols) : new Ctor(target)
 }

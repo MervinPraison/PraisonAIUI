@@ -3,10 +3,11 @@
  *
  * Lets React plugins and custom layouts render any built-in or plugin-registered
  * `BlockNode` (or sibling array) without pulling `blocks/` into the shell boot
- * closure (R4, R10).
+ * closure (R4, R10). Isolates chunk load failures behind an error boundary so
+ * a broken or stale lazy chunk never crashes the host page.
  */
-import { Suspense, type ComponentType, type JSX, type ReactNode } from 'react'
-import { retryableLazy } from '@/lib/retryableLazy'
+import { Component, Suspense, type ComponentType, type ErrorInfo, type JSX, type ReactNode } from 'react'
+import { retryableLazy, retryFailedLazies } from '@/lib/retryableLazy'
 import type { ShellPage } from './manifest'
 import type { BlockNode } from './registry'
 
@@ -51,12 +52,38 @@ function loadBlockTree() {
 
 const LazyBlockTree = retryableLazy<InnerProps>(loadBlockTree)
 
+class BlockTreeBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+    super(props)
+    retryFailedLazies()
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    console.error('[aiui sdk] BlockTree renderer failed to load', error, info.componentStack)
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
+}
+
 export function BlockTree({ fallback = null, ...props }: BlockTreeProps): JSX.Element {
   const Ready = Loaded
-  if (Ready) return <Ready {...props} />
   return (
-    <Suspense fallback={fallback}>
-      <LazyBlockTree {...props} />
-    </Suspense>
+    <BlockTreeBoundary fallback={fallback}>
+      {Ready ? (
+        <Ready {...props} />
+      ) : (
+        <Suspense fallback={fallback}>
+          <LazyBlockTree {...props} />
+        </Suspense>
+      )}
+    </BlockTreeBoundary>
   )
 }

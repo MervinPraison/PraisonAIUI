@@ -323,14 +323,16 @@ def test_shell_app_exports_are_lazy_on_root_import():
     assert res.returncode == 0, res.stderr
 
 
-def test_shell_csp_header_allow_websockets_adds_ws_schemes():
+def test_shell_csp_header_keeps_strict_connect_src_and_supports_explicit_extra_ws_host():
     html = "<script>window.__X=1;</script>"
-    without_ws = shell_csp_header(html)
-    with_ws = shell_csp_header(html, allow_websockets=True)
-    connect_without = next(d for d in without_ws.split("; ") if d.startswith("connect-src "))
-    connect_with = next(d for d in with_ws.split("; ") if d.startswith("connect-src "))
-    assert "ws:" not in connect_without and "wss:" not in connect_without
-    assert "'self'" in connect_with and "ws:" in connect_with and "wss:" in connect_with
+    default_csp = shell_csp_header(html)
+    connect_default = next(d for d in default_csp.split("; ") if d.startswith("connect-src "))
+    assert connect_default == "connect-src 'self'"
+    assert "ws:" not in connect_default and "wss:" not in connect_default
+
+    custom_csp = shell_csp_header(html, extra={"connect-src": ["wss://ws.example.com"]})
+    connect_custom = next(d for d in custom_csp.split("; ") if d.startswith("connect-src "))
+    assert "'self'" in connect_custom and "wss://ws.example.com" in connect_custom
 
 
 def test_create_shell_app_ws_ticket_and_authenticated_plugin_websocket(

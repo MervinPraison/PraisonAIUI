@@ -3824,18 +3824,19 @@ async def _lifespan_handler(app: Starlette):
 
     from praisonaiui.plugin_registry import get_plugin_registry
 
-    async with get_plugin_registry().lifespan(app):
-        yield
-
-    # Shutdown
     try:
-        from praisonaiui.features.lifecycle import run_shutdown_hooks
+        async with get_plugin_registry().lifespan(app):
+            yield
+    finally:
+        # Shutdown
+        try:
+            from praisonaiui.features.lifecycle import run_shutdown_hooks
 
-        await run_shutdown_hooks()
-    except ImportError:
-        pass  # Lifecycle feature not loaded
-    except Exception as e:
-        logging.getLogger(__name__).error(f"Shutdown hooks failed: {e}")
+            await run_shutdown_hooks()
+        except ImportError:
+            pass  # Lifecycle feature not loaded
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Shutdown hooks failed: {e}")
 
 
 def create_app(
