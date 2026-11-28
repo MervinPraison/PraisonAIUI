@@ -167,6 +167,7 @@ navigation:
           pages:
             - components/card
             - components/columns
+            - components/chat-panel
             - components/tabs
             - components/accordion
             - components/stepper
@@ -205,6 +206,7 @@ navigation:
             - components/radio-and-segmented
             - components/date-and-time
             - components/color-and-rating
+            - components/file-upload
             - components/button-group
         - group: "Feedback & Overlays"
           icon: bell

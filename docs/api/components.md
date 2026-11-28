@@ -1471,6 +1471,86 @@ aiui.definition_list(
 )
 ```
 
+### `aiui.stepper(steps, *, active=0, orientation="horizontal", title=None)`
+
+Multi-step workflow or onboarding progress bar (`steps` items accept `label`, optional `description`, and `status`: `"pending"` | `"active"` | `"done"` | `"error"`).
+
+```python
+aiui.stepper([
+    {"label": "Connect", "status": "done"},
+    {"label": "Index Docs", "status": "active"},
+    {"label": "Deploy", "status": "pending"},
+], active=1)
+```
+
+### `aiui.timeline(items, *, title=None)`
+
+Chronological vertical activity or audit feed (`items` accept `title`, optional `time`, `description`, `status`).
+
+```python
+aiui.timeline([
+    {"title": "Agent started", "time": "10:01", "status": "done"},
+    {"title": "Tool approved", "time": "10:02", "status": "active"},
+], title="Run Activity")
+```
+
+### `aiui.diff_viewer(before, after, *, title=None, before_label="Before", after_label="After")`
+
+Line-by-line text/code diff viewer highlighting additions and removals.
+
+```python
+aiui.diff_viewer("model = 'gpt-4o-mini'\n", "model = 'gpt-4o'\n", title="Config Diff")
+```
+
+### `aiui.tree_view(nodes, *, title=None, default_expanded=False)`
+
+Collapsible hierarchical tree for files, RAG sources, or nested agent runs (`nodes` accept `label`, optional `meta`, `children`).
+
+```python
+aiui.tree_view([{"label": "docs/", "children": [{"label": "index.md"}]}], default_expanded=True)
+```
+
+### `aiui.copy_field(value, *, label=None, secret=False)`
+
+Read-only copyable value field (API keys, webhook URLs, commands) with optional secret masking (`secret=True`).
+
+```python
+aiui.copy_field("sk-live-example", label="API Key", secret=True)
+```
+
+### `aiui.rating_input(label="", *, value=0, max_stars=5, name=None, readonly=False, auto_submit=False)`
+
+Interactive star rating input (or read-only score display when `readonly=True`).
+
+```python
+aiui.rating_input("Response quality", value=4, max_stars=5, name="rating")
+```
+
+### `aiui.sheet(title="Spreadsheet", *, headers=None, rows=None, tabs=None, id=None, action=None, save_label="Save")`
+
+Interactive multi-tab spreadsheet with live cell editing, zero-`eval` formulas (`=SUM`, `=AVERAGE`, `=IF`), row search, CSV/JSON export, and optional `action=` Save callback to `@aiui.register_page_action`.
+
+```python
+aiui.sheet(
+    "Q4 Budget",
+    headers=["Item", "Cost"],
+    rows=[["Compute", 4200], ["Storage", 1100], ["Total", "=SUM(B2:B3)"]],
+    action="save_budget",
+)
+```
+
+### `aiui.whiteboard(items, *, title="Whiteboard", id=None)`
+
+Interactive whiteboard canvas with draggable stickies, shapes, groups, connected arrows, zoom controls, and SVG/JSON export.
+
+```python
+aiui.whiteboard([
+    {"id": "n1", "type": "sticky", "text": "Plan", "x": 40, "y": 40, "color": "amber"},
+    {"id": "n2", "type": "sticky", "text": "Ship", "x": 260, "y": 40, "color": "emerald"},
+    {"type": "arrow", "from": "n1", "to": "n2"},
+], title="Architecture Board")
+```
+
 ### `aiui.plotly_chart(fig, title="", *, height=None, caption=None)`
 
 Convert a standard Plotly figure (or figure dict) into a native Recharts `chart` block (`bar`, `barh`, `line`, `area`, `scatter`, `pie`, `donut`, `histogram`, `heatmap`) without bundling `plotly.js`. Unsupported trace types degrade cleanly to an alert + `json_view`.
