@@ -287,3 +287,48 @@ test('a React plugin using pageLinkProps stays in-document, supports Back, and k
   await expect(page).toHaveURL(/\/hello$/)
   expect(errors.pageErrors).toEqual([])
 })
+
+test('a React plugin using BlockTree renders built-in blocks lazily and handles onAction', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  const pluginCode = `
+    import { createElement as h, useState } from 'react'
+    import { BlockTree } from '@aiui/sdk'
+    export default function BlockTreePluginPage({ page }) {
+      const [fired, setFired] = useState('none')
+      return h('div', { 'data-testid': 'sdk-blocktree-plugin' },
+        h('span', { 'data-testid': 'bt-fired' }, fired),
+        h(BlockTree, {
+          page,
+          node: [
+            { type: 'metric', props: { label: 'Active agents', value: '7' } },
+            { type: 'button_group', props: { buttons: [{ label: 'Run check', action: 'run_check' }] } },
+          ],
+          onAction: ({ body }) => {
+            setFired(String(body.action || 'unknown'))
+            return true
+          },
+        }),
+      )
+    }
+  `
+  const sri = 'sha384-' + createHash('sha384').update(pluginCode).digest('base64')
+  await page.route('**/_plugins/hello/hello.js*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: pluginCode }),
+  )
+  await page.route('**/hello', async (route) => {
+    if (route.request().resourceType() !== 'document') return route.continue()
+    const res = await route.fetch()
+    let html = await res.text()
+    const match = html.match(/"\/_plugins\/hello\/hello\.js"\s*:\s*"(sha384-[^"]+)"/)
+    if (match) html = html.split(match[1]).join(sri)
+    await route.fulfill({ response: res, body: html })
+  })
+
+  await page.goto('/hello')
+  await expect(page.getByTestId('sdk-blocktree-plugin')).toBeVisible()
+  await expect(page.getByText('Active agents')).toBeVisible()
+  await expect(page.getByText('7', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Run check' }).click()
+  await expect(page.getByTestId('bt-fired')).toHaveText('run_check')
+  expect(errors.pageErrors).toEqual([])
+})

@@ -10,12 +10,23 @@
  * Each block is isolated by an error boundary: one broken block never takes
  * the page down.
  */
-import { Component, createElement, Suspense, type ErrorInfo, type JSX, type ReactNode } from 'react'
+import {
+  Component,
+  createElement,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  type ErrorInfo,
+  type JSX,
+  type ReactNode,
+} from 'react'
 import { CircleX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { retryFailedLazies } from '@/lib/retryableLazy'
 import type { ShellPage } from '@/sdk/manifest'
 import { getBlock, isFallbackBlock, useRegistryVersion, type BlockNode } from '@/sdk/registry'
+import { BlockContext, type BlockActionRequest, type BlockContextValue } from './context'
 // Side effect: registers the core blocks as fallbacks in the SDK registry.
 import './coreBlocks'
 import { hasLegacyCustomComponent, LegacyBlockFallback } from './LegacyBlockFallback'
@@ -110,5 +121,45 @@ export function BlockList({ nodes, page }: { nodes: BlockNode[]; page?: ShellPag
         <BlockRenderer key={i} node={node} page={page} />
       ))}
     </>
+  )
+}
+
+export interface BlockTreeViewProps {
+  node: BlockNode | readonly BlockNode[]
+  page?: ShellPage
+  onAction?: (req: BlockActionRequest) => boolean | void | Promise<boolean | void>
+}
+
+/**
+ * Standalone block tree host for `@aiui/sdk`'s lazy `<BlockTree>` component.
+ * Wraps `BlockRenderer` / `BlockList` with a `BlockContext` wired to `onAction`.
+ */
+export function BlockTreeView({ node, page, onAction }: BlockTreeViewProps): JSX.Element {
+  const onActionRef = useRef(onAction)
+  useEffect(() => {
+    onActionRef.current = onAction
+  }, [onAction])
+
+  const ctx = useMemo<BlockContextValue>(
+    () => ({
+      page,
+      async runAction(req) {
+        const fn = onActionRef.current
+        if (!fn) return false
+        const result = await fn(req)
+        return result !== false
+      },
+    }),
+    [page],
+  )
+
+  return (
+    <BlockContext.Provider value={ctx}>
+      {Array.isArray(node) ? (
+        <BlockList nodes={[...node]} page={page} />
+      ) : (
+        <BlockRenderer node={node as BlockNode} page={page} />
+      )}
+    </BlockContext.Provider>
   )
 }
