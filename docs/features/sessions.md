@@ -111,6 +111,27 @@ Chat thumbs up/down (`POST /api/feedback`, listed with totals by
 The file stores append one JSON line per vote, so a vote never rewrites the
 earlier ones. Turn the buttons off with `aiui.set_feedback_enabled(False)`.
 
+## Thread Sharing
+
+Create read-only share links for any conversation session with opaque 32-byte tokens. Access is **denied by default** until you register an access-control callback with `@aiui.on_shared_view` (alias `@aiui.on_shared_thread_view`):
+
+```python
+import praisonaiui as aiui
+
+@aiui.on_shared_view
+async def allow_shared(thread_id: str, viewer) -> bool:
+    # Return True to allow read-only viewing; viewer is a User or None (anonymous)
+    return viewer is not None
+```
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/api/threads/{thread_id}/share` | `POST` | Bearer token | Generate a share token and return `{"url": "...", "token": "..."}` |
+| `/api/threads/{thread_id}/unshare` | `POST` | Bearer token | Revoke share tokens created by the caller for `thread_id` |
+| `/shared/{token}` | `GET` | Optional | View a shared thread (read-only HTML, or JSON when `Accept: application/json` is sent); gated by `@aiui.on_shared_view` |
+
+Python helpers exported on `praisonaiui`: `create_share_token(thread_id, created_by)`, `get_thread_by_share_token(token)`, `revoke_share_token(thread_id, user_id)`, `list_share_tokens(user_id)`, and `get_share_url(token, base_url="")`.
+
 ## Custom Data Store
 
 Implement `BaseDataStore` for any database (SQLite, PostgreSQL, Redis, MongoDB, etc.):

@@ -51,7 +51,8 @@ aiui.set_pages([
 ```
 
 An id that names no page is reported with a warning at startup. Use
-`aiui pages ids` to see all available page IDs.
+`aiui pages ids` to see all available page IDs, or inspect `aiui.PAGE_PRESETS`
+for the built-in preset definitions (`minimal`, `agent`, `ops`).
 
 `aiui.set_pages("all")` / `aiui.set_pages("ops")` (or `aiui run app.py --preset ops` / `--pages all`) shows every page
 and makes every layout's sidebar list them all, grouped (Agent, Work,
@@ -761,6 +762,20 @@ async def on_surface_action(action: dict):
     # action includes component_id, action name, data, session_id
     return {"status": "ok"}
 ```
+
+---
+
+### `@aiui.on_shared_view` / `@aiui.on_shared_thread_view`
+
+Control read-only access to shared thread links (`GET /shared/{token}`). Returns `True` to allow access, `False` to deny (default: deny when unregistered).
+
+```python
+@aiui.on_shared_view
+async def can_view_shared(thread_id: str, viewer) -> bool:
+    return viewer is not None
+```
+
+Related helpers: `aiui.create_share_token(thread_id, created_by)`, `aiui.get_thread_by_share_token(token)`, `aiui.revoke_share_token(thread_id, user_id)`, `aiui.list_share_tokens(user_id)`, and `aiui.get_share_url(token, base_url="")`. See [Session Management → Thread Sharing](../features/sessions.md#thread-sharing).
 
 ---
 

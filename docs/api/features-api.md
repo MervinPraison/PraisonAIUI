@@ -4,7 +4,7 @@ nav_title: Features REST API
 
 # Features REST API Reference
 
-Complete API reference for all **36** PraisonAIUI feature protocol endpoints.
+Complete API reference for all built-in PraisonAIUI feature protocol endpoints (48 default-enabled feature protocols across the core host, agent operations, and layout data, plus opt-in `builtin.video`).
 
 A running server describes every route it answers, plugins included, at
 `GET /api/openapi.json`, and the app shell's API Reference page lets you try them: see
@@ -152,6 +152,9 @@ Restart a channel bot via the gateway. Returns status of restart attempt.
 {"id": "tg1", "status": "pending", "running": false, "message": "Channel marked for restart (no gateway connected)"}
 ```
 
+### POST /api/channels/{id}/test
+Send a connectivity test to a configured channel.
+
 ---
 
 ## Schedules
@@ -232,6 +235,9 @@ Get executor statistics.
 {"total_jobs": 100, "queued": 2, "running": 1, "succeeded": 90, "failed": 5, "cancelled": 2}
 ```
 
+### GET /api/jobs/board
+Return jobs grouped into status columns for the **Jobs Board** view.
+
 ### GET /api/jobs/{id}
 Get full job details.
 
@@ -282,7 +288,7 @@ data: {"status": "succeeded"}
 ## Usage
 
 ### GET /api/usage
-Usage summary with totals and averages.
+Usage summary with totals and averages (alias: `GET /api/usage/summary`).
 
 ```json
 // Response
@@ -352,6 +358,12 @@ Search memories.
 ### GET /api/memory
 List all memories. Query: `?type=short|long|entity|all`
 
+### GET /api/memory/session/{session_id}
+List memories scoped to a single session.
+
+### GET /api/memory/status
+Get memory backend status and counts.
+
 ### GET /api/memory/{id}
 Get single memory.
 
@@ -381,6 +393,12 @@ Sessions, newest first. Optional paging: `?limit=20&offset=40`. Without
 `limit` every session is returned (as before). `count` is the number in this
 response, `total` the number of sessions. `GET /sessions` takes the same
 parameters and also reports `total`.
+
+### GET /api/sessions/search
+Search sessions by title or message content (`?q=...`).
+
+### POST /api/sessions/{session_id}/fork
+Fork an existing session into a new branch session.
 
 ```json
 {"sessions": [{"id": "...", "title": "...", "message_count": 4, "updated_at": "..."}], "count": 20, "total": 312}
@@ -1204,6 +1222,9 @@ Register a guardrail rule.
 {"id": "gr_abc", "name": "no-pii", "type": "output", "status": "active"}
 ```
 
+### DELETE /api/guardrails/{guardrail_id}
+Remove a registered guardrail rule.
+
 ---
 
 ## Eval
@@ -1395,3 +1416,272 @@ Get security configuration.
 ```json
 // Response
 {"config": {"auth_mode": "none", "rate_limiting": false, "cors_origins": ["*"]}, "recommendations": []}
+```
+
+---
+
+## Chat
+
+Protocol-driven real-time agent chat (`builtin.chat`). See [Gateway Chat](../features/gateway-chat.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/chat/send` | Send a chat message and stream or receive the reply |
+| `GET` | `/api/chat/context-stats` | Context window and token statistics for active sessions |
+| `GET` | `/api/chat/history/{session_id}` | Retrieve message history for a session |
+| `POST` | `/api/chat/abort` | Abort an in-progress reply |
+| `WS` | `/api/chat/ws` | Bidirectional chat WebSocket stream |
+
+---
+
+## Attachments
+
+Safe file uploads for chat and `aiui.file_upload()` (`builtin.chat`). See [Attachments](../features/attachments.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/chat/attachments` | Upload a file (`multipart/form-data`); returns safe metadata (UUID, filename, MIME, size) without server paths |
+| `GET` | `/api/chat/attachments/{session_id}` | List attachments uploaded for a session |
+| `DELETE` | `/api/chat/attachments/{attachment_id}` | Delete an attachment |
+| `GET` | `/api/chat/media/{attachment_id}` | Stream/download an uploaded attachment |
+
+---
+
+## A2UI Surfaces
+
+Agent-driven interactive UI surfaces (`builtin.canvas`). See [A2UI Canvas](../features/a2ui-canvas.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/surfaces` | List active surfaces |
+| `GET` | `/api/surfaces/capabilities` | Supported A2UI catalog capabilities |
+| `GET` | `/api/surfaces/{surface_id}` | Get current component tree and data model for a surface |
+| `POST` | `/api/surfaces/{surface_id}/messages` | Push A2UI surface update messages |
+| `POST` | `/api/surfaces/{surface_id}/action` | Dispatch a user action from a surface (alias: `/api/surfaces/{surface_id}/actions`) |
+| `DELETE` | `/api/surfaces/{surface_id}` | Remove a surface |
+
+---
+
+## Replay
+
+Recorded agent run playback (`builtin.replay`). See [Replay](../features/replay.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/replay/runs` | List recorded runs |
+| `GET` | `/api/replay/runs/{run_id}/events` | Fetch step-by-step events for a run |
+| `GET` | `/api/replay/runs/{run_id}/stream` | Stream live replay events (SSE) |
+| `POST` | `/api/replay/run` | Start a new recorded run |
+
+---
+
+## Kanban
+
+Multi-agent task board (`builtin.work`). See [Work Hub & Kanban](../features/work-hub-and-kanban.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/kanban/board` | Columns and cards (`?board=default&tenant=...&archived=false`) |
+| `GET` | `/api/kanban/boards` | List available boards |
+| `POST` | `/api/kanban/tasks` | Create a task (`201`) |
+| `POST` | `/api/kanban/tasks/bulk` | Bulk move `task_ids` to a `status` |
+| `GET` / `PATCH` / `DELETE` | `/api/kanban/tasks/{task_id}` | Read, update, or delete a task |
+| `POST` | `/api/kanban/tasks/{task_id}/move` | Move a task to another column |
+| `POST` | `/api/kanban/tasks/{task_id}/comments` | Append a comment to a task |
+| `GET` | `/api/kanban/events` | SSE stream of board events |
+| `GET` | `/api/kanban/health` | Kanban store health and task counts |
+
+---
+
+## Subagents
+
+Subagent hierarchy and delegation tree (`builtin.agents`). See [Subagent Tree](../features/subagent-tree.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/subagents` | List all recorded subagent runs |
+| `GET` | `/api/subagents/{session_id}` | Get subagent delegation tree for a session |
+
+---
+
+## Knowledge
+
+Knowledge base and RAG store (`builtin.knowledge`). See [Knowledge & Embeddings](../features/knowledge-embeddings.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/knowledge` | List knowledge entries |
+| `POST` | `/api/knowledge` | Add a text entry |
+| `POST` | `/api/knowledge/search` | Semantic or keyword search |
+| `POST` | `/api/knowledge/add-file` | Upload and ingest a file |
+| `GET` | `/api/knowledge/status` | Backend status and entry count |
+| `DELETE` | `/api/knowledge` | Clear all entries |
+| `GET` / `DELETE` | `/api/knowledge/{entry_id}` | Fetch or delete a single entry |
+
+---
+
+## Nodes & Instances
+
+Execution node registry and presence (`builtin.nodes`). See [Execution Nodes](../features/nodes.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` / `POST` | `/api/nodes` | List or register execution nodes |
+| `GET` / `PUT` / `DELETE` | `/api/nodes/{node_id}` | Read, update, or remove a node |
+| `GET` | `/api/nodes/{node_id}/status` | Node online status and last heartbeat |
+| `GET` / `PUT` | `/api/nodes/{node_id}/agents` | List or assign agents on a node |
+| `GET` | `/api/nodes/instances` | List connected instances (alias: `GET /api/instances`) |
+| `POST` | `/api/instances/heartbeat` | Report instance presence heartbeat |
+
+---
+
+## MCP Servers & Connect
+
+Model Context Protocol server registry (`builtin.mcp`) and editor setup (`builtin.connect`). See [MCP](../features/mcp.md) and [Connect](../features/connect.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/mcp/servers` | List configured MCP servers and connection status |
+| `POST` | `/api/mcp/connect` | Connect an MCP server |
+| `POST` | `/api/mcp/disconnect/{server_id}` | Disconnect an MCP server |
+| `GET` | `/api/connect` | Editor client setup snippets (Cursor, VS Code, Claude, Codex) |
+| `GET` | `/api/connect/tools` | Tools exposed by this server's MCP endpoint |
+
+---
+
+## Config Hot-Reload
+
+File watcher for live config reloads (`builtin.config`). See [Config Hot-Reload](../features/config-hot-reload.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/config/watcher` | Current watcher status and watched files |
+| `POST` | `/api/config/watcher/start` | Start watching config files |
+| `POST` | `/api/config/watcher/stop` | Stop watching config files |
+| `POST` | `/api/config/reload` | Force an immediate config reload |
+
+---
+
+## Training Lab
+
+Inspect `praisonai-train` sessions and apply training profiles (`builtin.training`). See [Training Lab](../features/training.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/training/status` | Package status, storage directory, and session count |
+| `GET` | `/api/training/sessions` | List session summaries (`?limit=50&agent_id=...`) |
+| `GET` | `/api/training/sessions/{session_id}` | Full report, iterations, and best iteration |
+| `POST` | `/api/training/sessions/{session_id}/apply` | Apply training profile to `agent_id` |
+
+---
+
+## OpenAPI Specification
+
+Self-describing OpenAPI document (`builtin.api-reference`). See [API Reference](../features/api-reference.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/openapi.json` | Generated OpenAPI 3.x document for all mounted routes |
+
+---
+
+## Theme
+
+Live theme presets and custom palettes (`builtin.theme-picker`). See [Theme System](../features/theme-system.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` / `PUT` | `/api/theme` | Read or update active theme preset, dark mode, and radius |
+| `GET` | `/api/theme/presets` | List built-in and custom theme presets |
+| `POST` | `/api/theme/register` | Register a custom theme preset |
+| `DELETE` | `/api/theme/{name}` | Delete a custom theme preset |
+
+---
+
+## AG-UI
+
+CopilotKit-compatible SSE endpoint (`builtin.agui`). See [AG-UI Protocol](../features/agui.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/agui` | Stream an AG-UI run (`text/event-stream`) |
+| `OPTIONS` | `/agui` | CORS preflight |
+| `GET` | `/agui/status` | Availability check (`available` \| `unavailable`) |
+
+---
+
+## Browser Automation
+
+Playwright/CDP browser agent control (`builtin.browser-automation`). See [Browser Automation](../features/browser-automation.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/browser/status` | Browser runtime availability |
+| `POST` | `/api/browser/run` | Run a browser automation task |
+
+---
+
+## Model Fallback
+
+LiteLLM routing and fallback chains (`builtin.model-fallback`). See [Model Fallback](../features/model-fallback.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/models` | List configured models and fallback chain |
+| `PUT` | `/api/models/fallback` | Update model fallback order |
+
+---
+
+## Protocol Versioning
+
+WebSocket protocol version negotiation (`builtin.protocol`). See [Protocol Versioning](../features/protocol-versioning.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/protocol` | Server protocol version and capabilities |
+| `POST` | `/api/protocol/negotiate` | Negotiate a compatible client/server protocol version |
+
+---
+
+## Realtime Voice
+
+Speech-to-text transcription and realtime voice sessions (`builtin.realtime`). See [Voice Input](../features/realtime-voice-input.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/realtime/voice` | Voice input availability, max duration, and max bytes |
+| `POST` | `/api/realtime/transcribe` | Transcribe raw audio body (`Content-Type: audio/*`) to `{"text": "..."}` |
+| `POST` | `/api/realtime/session` | Create a realtime voice session |
+| `DELETE` | `/api/realtime/session/{session_id}` | Close a realtime session |
+| `WS` | `/ws/realtime/{session_id}` | Bidirectional realtime voice WebSocket |
+
+---
+
+## Notifications
+
+In-app bell inbox and live notification feed (`builtin.notifications`). See [Notifications](../features/notifications.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` / `POST` / `DELETE` | `/api/notifications` | List, push, or clear notifications |
+| `POST` | `/api/notifications/read-all` | Mark all notifications read |
+| `GET` | `/api/notifications/stream` | SSE stream of live notifications |
+| `POST` | `/api/notifications/{notification_id}/read` | Mark one notification read |
+| `DELETE` | `/api/notifications/{notification_id}` | Delete one notification |
+
+---
+
+## Layout Data (Artifacts & Run Ledger)
+
+Mounted automatically when the owning layout is offered (`chat-canvas` for `builtin.artifacts`; `command` or `mission` for `builtin.run-ledger`). See [Layout Data](../features/layout-data.md).
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/artifacts` | Index of artifacts produced across chat sessions |
+| `GET` / `DELETE` | `/api/artifacts/{session_id}` | List or delete all artifacts for a session |
+| `PUT` / `DELETE` | `/api/artifacts/{session_id}/{key:path}` | Save an edited version or delete a single artifact |
+| `GET` | `/api/runs` | List recorded chat runs |
+| `GET` | `/api/runs/kpis` | Aggregate run KPIs (runs, spend, error rate) |
+| `GET` | `/api/runs/agents` | Per-agent status and run totals |
+| `GET` | `/api/runs/{run_id}` | Detailed steps, tokens, and cost for one run |
+
