@@ -36,7 +36,7 @@ Building an AI product in Python usually forces you to glue together a data-app 
 | **Execution model** | Full-script reruns or single-widget demos | Native WebSocket + SSE streaming, async `yield` actions, zero reruns |
 | **Agent UX out of the box** | Hand-rolled spinners and markdown dumps | Streaming tokens, reasoning steps, tool cards, inline approvals & prompts, versioned artifacts canvas |
 | **Rich UI blocks** | Separate chat vs. dashboard widgets | **81 Python UI builders** — render the exact same blocks inline inside chat *and* on `@aiui.page` dashboards |
-| **Data & studio primitives** | Basic tables only | Native pandas/Polars `dataframe`, `plotly_chart`, formula-backed editable `sheet`, `whiteboard`, `file_upload`, split-pane `chat_panel` |
+| **Data & studio primitives** | Basic tables only | Native pandas/Polars DataFrames via `table(df)`, `plotly_chart`, formula-backed editable `sheet`, `whiteboard`, `file_upload`, split-pane `chat_panel` |
 | **5-line interactive demos** | Separate library needed | Built-in `aiui.interface(fn, inputs=..., outputs=...)` with live `yield` streaming |
 | **Production readiness** | Bolt-on auth and separate ops tools | **48 built-in feature protocols**, opt-in presets (`minimal` → `agent` → `ops`), deny-by-default auth, A2UI, AG-UI, MCP Connect |
 
@@ -100,9 +100,7 @@ import praisonaiui as aiui
 async def workspace():
     return aiui.layout([
         aiui.columns([
-            aiui.card("Q4 Forecast", children=[
-                aiui.sheet(columns=["Month", "Revenue", "Target"], rows=[["Oct", 42000, 40000], ["Nov", 48500, 45000]]),
-            ]),
+            aiui.sheet("Q4 Forecast", headers=["Month", "Revenue", "Target"], rows=[["Oct", 42000, 40000], ["Nov", 48500, 45000]]),
             aiui.chat_panel(title="Ask the Analyst", height="520px"),
         ])
     ])
@@ -124,9 +122,9 @@ Every component works in `@aiui.page(...)`, `aiui.interface(...)`, and inline in
 | Category | Highlights |
 |---|---|
 | **Layout & Navigation** | `layout`, `card`, `columns`, `chat_panel`, `tabs`, `accordion`, `stepper`, `header`, `divider`, `breadcrumb`, `pagination`, `link`, `button_group` |
-| **Data Display** | `metric`, `table`, `dataframe` (pandas/Polars), `plotly_chart`, `chart`, `sheet` (interactive formulas & `on_save`), `whiteboard`, `board` (Kanban), `timeline`, `diff_viewer`, `tree_view`, `list_detail`, `definition_list`, `badge`, `avatar`, `gallery` |
-| **Inputs & Forms** | `form`, `filter_bar`, `file_upload` (safe UUID attachments), `text_input`, `textarea`, `number_input`, `select_input`, `multiselect_input`, `tag_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `segmented_control`, `date_input`, `time_input`, `color_picker`, `rating_input` |
-| **Feedback & Overlays** | `alert`, `callout`, `progress_bar`, `spinner`, `skeleton`, `empty_state`, `dialog`, `popover`, `tooltip` |
+| **Data Display** | `metric`, `table`, `table` (accepts pandas/Polars DataFrames), `plotly_chart`, `chart`, `sheet` (interactive formulas, saves via `action`), `whiteboard`, `board` (Kanban), `timeline`, `diff_viewer`, `tree_view`, `list_detail`, `definition_list`, `badge`, `avatar`, `gallery` |
+| **Inputs & Forms** | `form`, `filter_bar`, `file_upload` (safe UUID attachments), `text_input`, `textarea_input`, `number_input`, `select_input`, `multiselect_input`, `tags_input`, `slider_input`, `checkbox_input`, `switch_input`, `radio_input`, `segmented_input`, `date_input`, `time_input`, `color_picker_input`, `rating_input` |
+| **Feedback & Overlays** | `alert`, `callout`, `progress_bar`, `spinner`, `skeleton`, `empty`, `dialog`, `popover`, `tooltip` |
 | **Media & Content** | `text`, `markdown_text`, `doc_viewer`, `code_block`, `json_view`, `copy_field`, `image_display`, `audio_player`, `video_player` |
 
 Explore interactive live previews for every component at **[ui.praison.ai/docs/components/overview](https://ui.praison.ai/docs/components/overview)** and the complete **[Component API Reference](https://ui.praison.ai/docs/api/components)**.
