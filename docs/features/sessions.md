@@ -130,7 +130,7 @@ async def allow_shared(thread_id: str, viewer) -> bool:
 | `/api/threads/{thread_id}/unshare` | `POST` | Bearer token | Revoke share tokens created by the caller for `thread_id` |
 | `/shared/{token}` | `GET` | Optional | View a shared thread (read-only HTML, or JSON when `Accept: application/json` is sent); gated by `@aiui.on_shared_view` |
 
-Python helpers exported on `praisonaiui`: `create_share_token(thread_id, created_by)`, `get_thread_by_share_token(token)`, `revoke_share_token(thread_id, user_id)`, `list_share_tokens(user_id)`, and `get_share_url(token, base_url="")`.
+Python helpers in `praisonaiui.features.sharing`: `create_share_token(thread_id, created_by)`, `get_thread_by_share_token(token)`, `revoke_share_token(thread_id, user_id)`, `list_share_tokens(user_id)`, and `get_share_url(token, base_url="")`.
 
 ## Custom Data Store
 

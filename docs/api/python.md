@@ -52,7 +52,7 @@ aiui.set_pages([
 
 An id that names no page is reported with a warning at startup. Use
 `aiui pages ids` to see all available page IDs, or inspect `aiui.PAGE_PRESETS`
-for the built-in preset definitions (`minimal`, `agent`, `ops`).
+for the built-in preset definitions (`minimal`, `agent`, `ops`, `all`).
 
 `aiui.set_pages("all")` / `aiui.set_pages("ops")` (or `aiui run app.py --preset ops` / `--pages all`) shows every page
 and makes every layout's sidebar list them all, grouped (Agent, Work,
@@ -775,7 +775,7 @@ async def can_view_shared(thread_id: str, viewer) -> bool:
     return viewer is not None
 ```
 
-Related helpers: `aiui.create_share_token(thread_id, created_by)`, `aiui.get_thread_by_share_token(token)`, `aiui.revoke_share_token(thread_id, user_id)`, `aiui.list_share_tokens(user_id)`, and `aiui.get_share_url(token, base_url="")`. See [Session Management → Thread Sharing](../features/sessions.md#thread-sharing).
+Related helpers in `praisonaiui.features.sharing`: `create_share_token(thread_id, created_by)`, `get_thread_by_share_token(token)`, `revoke_share_token(thread_id, user_id)`, `list_share_tokens(user_id)`, and `get_share_url(token, base_url="")`. See [Session Management → Thread Sharing](../features/sessions.md#thread-sharing).
 
 ---
 

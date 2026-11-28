@@ -1471,7 +1471,7 @@ Recorded agent run playback (`builtin.replay`). See [Replay](../features/replay.
 | `GET` | `/api/replay/runs` | List recorded runs |
 | `GET` | `/api/replay/runs/{run_id}/events` | Fetch step-by-step events for a run |
 | `GET` | `/api/replay/runs/{run_id}/stream` | Stream live replay events (SSE) |
-| `POST` | `/api/replay/run` | Start a new recorded run |
+| `POST` | `/api/replay/run` | Start a new recorded run (only in a standalone `create_replay_app(run=...)` mount, relative to its mount path; not on the default server) |
 
 ---
 
@@ -1653,7 +1653,6 @@ Speech-to-text transcription and realtime voice sessions (`builtin.realtime`). S
 | `POST` | `/api/realtime/transcribe` | Transcribe raw audio body (`Content-Type: audio/*`) to `{"text": "..."}` |
 | `POST` | `/api/realtime/session` | Create a realtime voice session |
 | `DELETE` | `/api/realtime/session/{session_id}` | Close a realtime session |
-| `WS` | `/ws/realtime/{session_id}` | Bidirectional realtime voice WebSocket |
 
 ---
 

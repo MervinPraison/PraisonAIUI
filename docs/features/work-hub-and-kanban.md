@@ -54,7 +54,13 @@ curl -X POST http://127.0.0.1:8000/api/kanban/tasks/<task_id>/move \
 
 ## Custom Storage Backends
 
-By default `KanbanFeature` uses `SimpleKanbanStore` (in-memory, zero dependencies). Subclass `KanbanStoreProtocol` from `praisonaiui.features.kanban` to persist boards in SQL, Redis, or an external issue tracker, and register a factory via `praisonaiui.backends.set_kanban_store_factory(...)`.
+By default `KanbanFeature` uses `SimpleKanbanStore` (in-memory, zero dependencies). To persist boards in SQL, Redis, or an external issue tracker, implement the `KanbanStoreProtocol` methods (from `praisonaiui.features.kanban`) and register a zero-argument factory before the first request:
+
+```python
+from praisonaiui.backends import set_backend
+
+set_backend("kanban_store", lambda: MyKanbanStore())
+```
 
 ## Disabling
 
