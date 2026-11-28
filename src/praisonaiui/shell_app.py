@@ -454,5 +454,6 @@ def create_shell_app(
     return Starlette(
         routes=app_routes,
         middleware=middleware,
+        lifespan=registry.lifespan,
         exception_handlers=json_exception_handlers(),
     )
