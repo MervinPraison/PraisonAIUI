@@ -12,15 +12,6 @@ export const TOKEN_STORAGE_KEY = 'aiui_gateway_token'
 
 export const WS_TICKET_URL = '/api/auth/ws-ticket'
 
-export interface OpenWebSocketOptions {
-  /** Optional WebSocket subprotocol(s) passed to `new WebSocket(url, protocols)`. */
-  protocols?: string | string[]
-  /** Optional custom `fetch` implementation (tests). */
-  fetchImpl?: typeof fetch
-  /** Optional custom `WebSocket` constructor (tests). */
-  WebSocketImpl?: new (url: string, protocols?: string | string[]) => WebSocket
-}
-
 function storedToken(): string {
   try {
     return globalThis.sessionStorage?.getItem(TOKEN_STORAGE_KEY) || ''
@@ -34,12 +25,12 @@ function storedToken(): string {
  * ticket (`POST /api/auth/ws-ticket`). Returns `null` when the server does not
  * expose the ticket endpoint or refuses the request.
  */
-export async function getWsTicket(fetchImpl: typeof fetch = globalThis.fetch): Promise<string | null> {
+export async function getWsTicket(): Promise<string | null> {
   const token = storedToken()
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
   try {
-    const res = await fetchImpl(WS_TICKET_URL, {
+    const res = await globalThis.fetch(WS_TICKET_URL, {
       method: 'POST',
       headers,
       credentials: 'same-origin',
@@ -98,21 +89,17 @@ function resolveWsTarget(path: string): { url: string; sameOrigin: boolean } {
 }
 
 function appendQuery(url: string, query: string): string {
-  if (!query) return url
-  const raw = query.startsWith('?') ? query.slice(1) : query
-  return `${url}${url.includes('?') ? '&' : '?'}${raw}`
+  return `${url}${url.includes('?') ? '&' : '?'}${query}`
 }
 
 /**
  * Open an authenticated WebSocket to a same-origin path (e.g.
- * `'/api/plugins/my-plugin/ws/events'`). Exchanges any stored gateway token for
- * a single-use ticket before opening; never attaches credentials to a
- * cross-origin WebSocket URL.
+ * `'/api/plugins/my-plugin/ws/events'`) with a single-use ticket (R8: never a
+ * long-lived key in a URL). Never attaches credentials to a cross-origin URL.
  */
-export async function openWebSocket(path: string, options: OpenWebSocketOptions = {}): Promise<WebSocket> {
+export async function openWebSocket(path: string, protocols?: string | string[]): Promise<WebSocket> {
   const { url, sameOrigin } = resolveWsTarget(path)
-  const auth = sameOrigin ? await wsAuthQuery(options.fetchImpl) : ''
-  const target = appendQuery(url, auth)
-  const Ctor = options.WebSocketImpl ?? globalThis.WebSocket
-  return options.protocols !== undefined ? new Ctor(target, options.protocols) : new Ctor(target)
+  const ticket = sameOrigin ? await getWsTicket() : null
+  const target = ticket ? appendQuery(url, `ticket=${encodeURIComponent(ticket)}`) : url
+  return new WebSocket(target, protocols)
 }

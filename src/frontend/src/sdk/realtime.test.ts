@@ -6,6 +6,15 @@ const g = globalThis as unknown as Record<string, unknown>
 
 const savedLocation = g.location
 const savedStorage = g.sessionStorage
+const savedFetch = g.fetch
+const savedWebSocket = g.WebSocket
+
+const opened: { url: string; protocols?: string | string[] }[] = []
+class FakeWebSocket {
+  constructor(url: string, protocols?: string | string[]) {
+    opened.push(protocols === undefined ? { url } : { url, protocols })
+  }
+}
 
 function setToken(token: string | null) {
   const store = new Map<string, string>()
@@ -20,11 +29,15 @@ function setToken(token: string | null) {
 beforeEach(() => {
   g.location = { protocol: 'http:', host: 'app.test:8080', href: 'http://app.test:8080/' }
   setToken(null)
+  opened.length = 0
+  g.WebSocket = FakeWebSocket
 })
 
 afterEach(() => {
   g.location = savedLocation
   g.sessionStorage = savedStorage
+  g.fetch = savedFetch
+  g.WebSocket = savedWebSocket
 })
 
 test('getWsTicket exchanges credentials for a single-use ticket and sends Bearer when stored', async () => {
@@ -38,7 +51,8 @@ test('getWsTicket exchanges credentials for a single-use ticket and sends Bearer
       headers: { 'Content-Type': 'application/json' },
     })
   }
-  const ticket = await getWsTicket(fakeFetch)
+  g.fetch = fakeFetch
+  const ticket = await getWsTicket()
   assert.equal(ticket, 'tkt-123')
   assert.deepEqual(calls, [{ url: WS_TICKET_URL, method: 'POST', auth: 'Bearer tok-secret', creds: 'same-origin' }])
 })
@@ -50,10 +64,12 @@ test('getWsTicket works with cookie credentials when no bearer token is stored a
     assert.equal(init.credentials, 'same-origin')
     return new Response(JSON.stringify({ ticket: 'cookie-tkt' }), { status: 200 })
   }
-  assert.equal(await getWsTicket(okFetch), 'cookie-tkt')
+  g.fetch = okFetch
+  assert.equal(await getWsTicket(), 'cookie-tkt')
 
   const deniedFetch: typeof fetch = async () => new Response('unauthorized', { status: 401 })
-  assert.equal(await getWsTicket(deniedFetch), null)
+  g.fetch = deniedFetch
+  assert.equal(await getWsTicket(), null)
 })
 
 test('wsAuthQuery returns empty without token, ticket on 200, empty on 401, and token fallback on 404', async () => {
@@ -73,49 +89,32 @@ test('wsAuthQuery returns empty without token, ticket on 200, empty on 401, and 
 test('openWebSocket resolves relative paths, preserves existing query params, and attaches single-use ticket', async () => {
   g.location = { protocol: 'https:', host: 'studio.example', href: 'https://studio.example/code' }
   setToken('tok-abc')
-  const opened: { url: string; protocols?: string | string[] }[] = []
-
-  class FakeWebSocket {
-    url: string
-    constructor(url: string, protocols?: string | string[]) {
-      this.url = url
-      opened.push({ url, protocols })
-    }
-  }
-
-  const okFetch: typeof fetch = async () => new Response(JSON.stringify({ ticket: 'ws-tkt-1' }), { status: 200 })
-  await openWebSocket('/api/plugins/code/ws/events?run=42', {
-    protocols: ['v1'],
-    fetchImpl: okFetch,
-    WebSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
-  })
-
+  g.fetch = (async () => new Response(JSON.stringify({ ticket: 'ws-tkt-1' }), { status: 200 })) as typeof fetch
+  await openWebSocket('/api/plugins/code/ws/events?run=42', ['v1'])
   assert.deepEqual(opened, [
     { url: 'wss://studio.example/api/plugins/code/ws/events?run=42&ticket=ws-tkt-1', protocols: ['v1'] },
   ])
 })
 
+test('openWebSocket never puts the long-lived token in the URL (R8), even when no ticket is issued', async () => {
+  setToken('long-lived-key')
+  g.fetch = (async () => new Response('not found', { status: 404 })) as typeof fetch
+  await openWebSocket('/api/plugins/code/ws')
+  g.fetch = (async () => {
+    throw new TypeError('network down')
+  }) as typeof fetch
+  await openWebSocket('/api/plugins/code/ws')
+  assert.deepEqual(opened, [{ url: 'ws://app.test:8080/api/plugins/code/ws' }, { url: 'ws://app.test:8080/api/plugins/code/ws' }])
+})
+
 test('openWebSocket never attaches credentials to cross-origin WebSocket URLs', async () => {
   setToken('super-secret')
   let fetchCalled = false
-  const opened: string[] = []
-
-  class FakeWebSocket {
-    constructor(url: string) {
-      opened.push(url)
-    }
-  }
-
-  const fakeFetch: typeof fetch = async () => {
+  g.fetch = (async () => {
     fetchCalled = true
     return new Response(JSON.stringify({ ticket: 'should-not-leak' }), { status: 200 })
-  }
-
-  await openWebSocket('wss://other.example/stream', {
-    fetchImpl: fakeFetch,
-    WebSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
-  })
-
+  }) as typeof fetch
+  await openWebSocket('wss://other.example/stream')
   assert.equal(fetchCalled, false)
-  assert.deepEqual(opened, ['wss://other.example/stream'])
+  assert.deepEqual(opened, [{ url: 'wss://other.example/stream' }])
 })

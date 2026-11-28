@@ -70,15 +70,12 @@ def shell_csp_header(
     *,
     base: Mapping[str, Sequence[str]] | None = None,
     extra: Mapping[str, Sequence[str]] | None = None,
-    allow_websockets: bool = False,
 ) -> str:
     """Build a ``Content-Security-Policy`` header value for rendered shell ``html``.
 
     Starts from :data:`STRICT_SHELL_CSP` (or ``base`` when provided), appends the
     exact ``'sha256-…'`` hashes of the shell's executable inline scripts to
     ``script-src``, merges any ``extra`` directives, and renders the header.
-    Pass ``allow_websockets=True`` to include ``ws:`` and ``wss:`` in
-    ``connect-src`` for plugins that open WebSockets.
     """
     policy: dict[str, list[str]] = {
         d: list(v) for d, v in (base if base is not None else STRICT_SHELL_CSP).items()
@@ -87,8 +84,6 @@ def shell_csp_header(
     additions: list[tuple[str, Sequence[str]]] = []
     if hashes:
         additions.append(("script-src", hashes))
-    if allow_websockets:
-        additions.append(("connect-src", ("ws:", "wss:")))
     if extra:
         additions.extend(extra.items())
     for directive, raw_values in additions:

@@ -323,16 +323,6 @@ def test_shell_app_exports_are_lazy_on_root_import():
     assert res.returncode == 0, res.stderr
 
 
-def test_shell_csp_header_allow_websockets_adds_ws_schemes():
-    html = "<script>window.__X=1;</script>"
-    without_ws = shell_csp_header(html)
-    with_ws = shell_csp_header(html, allow_websockets=True)
-    connect_without = next(d for d in without_ws.split("; ") if d.startswith("connect-src "))
-    connect_with = next(d for d in with_ws.split("; ") if d.startswith("connect-src "))
-    assert "ws:" not in connect_without and "wss:" not in connect_without
-    assert "'self'" in connect_with and "ws:" in connect_with and "wss:" in connect_with
-
-
 def test_create_shell_app_ws_ticket_and_authenticated_plugin_websocket(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
