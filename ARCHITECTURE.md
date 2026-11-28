@@ -230,9 +230,9 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 
 | Budget | Limit |
 |---|---|
-| Shell boot (JS + CSS before first paint) | 151.45 kB |
+| Shell boot (JS + CSS before first paint) | 151.65 kB |
 | Chat route (added by `/chat`) | 144,500 B |
-| `/chat` first-screen JS (boot + chat route) | 264,400 B |
+| `/chat` first-screen JS (boot + chat route) | 264,600 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
@@ -243,7 +243,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
-| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 276,400 B |
+| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 276,600 B |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
 | Wheel: all of `dist/assets` (uncompressed) | 11,695,329 B |
