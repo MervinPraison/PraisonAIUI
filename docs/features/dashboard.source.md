@@ -1,0 +1,429 @@
+# Dashboard
+
+!!! note "Legacy UI"
+    `style: dashboard` is the legacy vanilla UI. New apps use the React app
+    shell, the default style, with the same `@aiui.page` pages: see
+    [Build a focused app](../guides/focused-app.md). This page documents the
+    legacy style, which keeps working when you ask for it.
+
+Build rich admin panels with **zero HTML/CSS/JS**. Register pages from Python, compose UIs with the component API, and the SDK renders everything.
+
+## Quick Start
+
+```python
+import praisonaiui as aiui
+from praisonaiui.server import create_app
+
+aiui.set_style("dashboard")
+
+@aiui.page("analytics", title="Analytics", icon="📊")
+async def analytics():
+    return aiui.layout([
+        aiui.columns([
+            aiui.card("Users", value=142, footer="+12% this week"),
+            aiui.card("Revenue", value="$1,500"),
+        ]),
+        aiui.table(
+            headers=["Agent", "Tasks", "Status"],
+            rows=[["Researcher", 15, "Active"]],
+        ),
+    ])
+
+app = create_app()
+```
+
+```bash
+aiui run app.py
+# → Dashboard with sidebar, "Analytics" page with cards + table
+```
+
+## How It Works
+
+```mermaid
+graph LR
+    A["@aiui.page()"] --> B["/api/pages"]
+    B --> C["dashboard.js"]
+    C --> D["Sidebar + Pages"]
+    E["aiui.layout()"] --> F["/api/pages/{id}/data"]
+    F --> C
+    C --> G["Cards / Tables / Charts"]
+```
+
+1. **`@aiui.page()`** registers a page with the server
+2. **`dashboard.js`** fetches `/api/pages` and `/ui-config.json` once each on load, builds the sidebar automatically
+3. When a page is selected, it fetches `/api/pages/{id}/data`
+4. If the data contains `_components`, they render as real UI elements (cards, tables, etc.)
+
+The Chat page highlights code with highlight.js, which it loads from
+`cdnjs.cloudflare.com` the first time a reply contains a code block. A chat
+with no code never contacts the CDN; without internet access, code shows
+unhighlighted.
+
+## Registering Pages
+
+### Basic Page
+
+```python
+@aiui.page("status", title="Status", icon="🟢")
+async def status_page():
+    return {"status": "healthy", "uptime": "99.9%"}
+```
+
+Pages without component layouts render as formatted JSON.
+
+### Page with Components
+
+```python
+@aiui.page("metrics", title="Metrics", icon="📈", group="Monitoring")
+async def metrics_page():
+    return aiui.layout([
+        aiui.columns([
+            aiui.card("CPU", value="12%"),
+            aiui.card("Memory", value="324 MB"),
+            aiui.card("Disk", value="45 GB free"),
+        ]),
+        aiui.text("Last updated: 30 seconds ago"),
+    ])
+```
+
+### Page Groups
+
+Pages are grouped in the sidebar by the `group` parameter:
+
+```python
+@aiui.page("agents", title="Agents", icon="🤖", group="Agent")
+@aiui.page("config", title="Config", icon="⚙️", group="Settings")
+@aiui.page("logs",   title="Logs",   icon="📜", group="Settings")
+```
+
+In the app shell, `icon` can also name any lucide icon, or point at an image.
+Every layout's sidebar draws it; a lucide icon outside the shell's small built-in
+set loads on demand, so it does not add to the first page load:
+
+```python
+@aiui.page("people", title="People", icon="users", group="Team")
+@aiui.page("brand",  title="Brand",  icon="/static/logo.svg", group="Team")
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | `str` | ✅ | Unique identifier (URL-safe) |
+| `title` | `str` | ✅ | Display name in sidebar |
+| `icon` | `str` | ❌ | Sidebar icon: a [lucide](https://lucide.dev/icons) name (`"users"`, `"film"`), an emoji, or an image URL (`https://…` or a root path `/…`). Default `📄` means none chosen: the app shell shows a placeholder (the title's first letter in layouts) |
+| `group` | `str` | ❌ | Sidebar group name |
+| `description` | `str` | ❌ | Subtitle below the title |
+
+## Component API
+
+Build dashboard UIs entirely from Python — no HTML needed. **81 component builders** are available across layout, data display, inputs, feedback, overlays, and media.
+
+> See the full [Component API Reference](../api/components.md) for all components and parameters.
+
+### Cards & Metrics
+
+```python
+# Simple cards
+aiui.card("Total Users", value=142, footer="+12% this week")
+
+# Metric cards with delta indicators
+aiui.metric("Requests", value="12.3k", delta="+15%")
+aiui.metric("Errors", value=23, delta="+3", delta_color="inverse")
+```
+
+### Columns
+
+Arrange components side-by-side in a responsive grid:
+
+```python
+aiui.columns([
+    aiui.card("Users", value=42),
+    aiui.card("Tasks", value=18),
+    aiui.card("Uptime", value="99.9%"),
+])
+```
+
+### Tables
+
+Data tables with headers and rows:
+
+```python
+aiui.table(
+    headers=["Name", "Role", "Status"],
+    rows=[
+        ["Alice", "Engineer", "Active"],
+        ["Bob", "Designer", "Idle"],
+    ],
+)
+```
+
+### Tabs & Accordion
+
+Organize content in tabs or collapsible sections:
+
+```python
+aiui.tabs([
+    {"label": "Overview", "children": [aiui.text("Tab 1")]},
+    {"label": "Details",  "children": [aiui.table(headers=["K","V"], rows=[["a","b"]])]},
+])
+
+aiui.accordion([
+    {"title": "FAQ", "content": "Answer here"},
+])
+```
+
+### Alerts & Badges
+
+```python
+aiui.alert("Deploy complete!", variant="success", title="Done")
+aiui.badge("New")
+aiui.progress_bar("Upload", value=73)
+```
+
+### Text & Code
+
+```python
+aiui.text("Simple text block.")
+aiui.markdown_text("**Bold** and `code`.")
+aiui.code_block("print('hello')", language="python")
+aiui.json_view({"key": "value"})
+```
+
+### Form Inputs
+
+```python
+aiui.text_input("Name", placeholder="Enter name")
+aiui.select_input("Country", options=["USA", "UK", "Canada"])
+aiui.slider_input("Volume", value=65, min_val=0, max_val=100)
+aiui.checkbox_input("I agree", checked=True)
+aiui.switch_input("Enable notifications")
+aiui.radio_input("Language", options=["Python", "JS", "Go"])
+```
+
+### Charts
+
+```python
+aiui.chart("Revenue Over Time", data=[
+    {"month": "Jan", "value": 1200},
+    {"month": "Feb", "value": 1800},
+], chart_type="line")
+```
+
+Kinds, reference lines, value formats and every option: `aiui.chart` in the [Component API Reference](../api/components.md).
+
+### Layout
+
+Wrap all components in a layout container:
+
+```python
+aiui.layout([
+    aiui.columns([...]),
+    aiui.table(...),
+    aiui.text("Footer note"),
+])
+```
+
+The `layout()` function adds the `_components` key that tells the frontend to render structured components instead of raw JSON.
+
+
+## Built-in Pages
+
+Built-in plugins (`src/praisonaiui/builtin/catalog.py`) auto-register pages across four sidebar groups (`Agent`, `Work`, `Control`, and `Settings`). Use `aiui.set_pages("minimal" | "agent" | "ops")` or `aiui.set_pages([...])` to show only what your app needs (`aiui pages ids` prints every active ID):
+
+| Group | Built-in Pages |
+|-------|----------------|
+| **Agent** | `chat` (Chat), `chat-canvas` (Chat + Canvas), `canvas` (Canvas), `channels` (Channels), `inbox` (Channel Inbox), `agents` (Agents), `skills` (Skills), `marketplace` (Marketplace), `memory` (Memory), `knowledge` (Knowledge), `mcp` (MCP), `guardrails` (Guardrails), `cron` (Cron). In `style: app`, `connect`, `artifacts` (Chat + Canvas), and `start`/`templates` (Guided) also appear. |
+| **Work** | `work` (Work Hub), `kanban` (Kanban), `jobs-board` (Jobs Board) |
+| **Control** | `overview` (Overview), `nodes` (Nodes), `sessions` (Sessions), `replay` (Replay), `runs` (Runs), `feedback` (Feedback), `usage` (Usage), `eval` (Eval), `training` (Training), `jobs` (Jobs), `approvals` (Approvals), `code-studio` (Code Studio), `api` (API), `inspector` (Inspector). In `style: app`, `api-reference` (API Reference) also appears. |
+| **Settings** | `config` (Config), `security` (Security), `auth` (Auth), `logs` (Logs), `telemetry` (Telemetry), `traces` (Traces), `debug` (Debug), `theme-picker` (Theme) |
+
+Custom pages added via `@aiui.page()` appear alongside built-in pages.
+
+## Agent Run Button
+
+Each agent card on the **Agents** page includes a **▶ Run** button. Clicking it navigates to the **Chat** page with that agent automatically pre-selected in the agent dropdown.
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Agents View
+    participant D as Dashboard
+    participant C as Chat View
+
+    U->>A: Click "▶ Run" on agent card
+    A->>D: pushState('/chat?agent=X')
+    A->>D: dispatch popstate
+    D->>C: selectPage('chat') → render()
+    C->>C: loadAgents() → populate dropdown
+    C->>C: Read ?agent=X → pre-select agent
+    C->>C: replaceState('/chat') → clean URL
+```
+
+1. The Run button reads the agent name from its `data-id` attribute
+2. It pushes `/chat?agent=<name>` to browser history and dispatches `popstate`
+3. The dashboard's `popstate` listener calls `selectPage('chat')`, loading the Chat view
+4. Chat's `render()` calls `loadAgents()`, then checks `URLSearchParams` for `?agent=`
+5. If found, it sets the dropdown value and `currentAgentName`, then cleans the URL
+
+## Test Panel
+
+Every dashboard includes a **Test All Features** link at the bottom of the sidebar. It auto-discovers all registered features from `/api/features` and tests each endpoint, showing pass/fail results in a grid.
+
+## Full Example
+
+```python
+import praisonaiui as aiui
+from praisonaiui.server import create_app
+
+aiui.set_style("dashboard")
+
+@aiui.page("analytics", title="Analytics", icon="📊", group="Custom")
+async def analytics():
+    return aiui.layout([
+        aiui.columns([
+            aiui.card("Total Users", value=142, footer="+12% this week"),
+            aiui.card("API Calls", value="3,847", footer="Last 24h"),
+            aiui.card("Avg Latency", value="47ms", footer="-5ms"),
+            aiui.card("Success Rate", value="99.2%", footer="✓ Healthy"),
+        ]),
+        aiui.table(
+            headers=["Agent", "Tasks Completed", "Status"],
+            rows=[
+                ["Researcher", 15, "Active"],
+                ["Code Writer", 8, "Idle"],
+                ["Reviewer", 12, "Active"],
+            ],
+        ),
+    ])
+
+@aiui.page("metrics", title="Metrics", icon="📈", group="Custom")
+async def metrics():
+    return aiui.layout([
+        aiui.columns([
+            aiui.card("Uptime", value="99.97%"),
+            aiui.card("Memory", value="324 MB"),
+            aiui.card("CPU", value="12%"),
+        ]),
+        aiui.text("System metrics are refreshed every 30 seconds."),
+    ])
+
+app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8082)
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/pages` | GET | List all registered pages |
+| `/api/pages/{id}/data` | GET | Get page handler response |
+| `/api/features` | GET | List all registered features |
+| `/plugins/plugins.json` | GET | Style-aware frontend plugin list |
+
+---
+
+## Client-Side Extension API
+
+The dashboard provides a JavaScript API for registering custom views from the client side.
+
+### `window.aiui.registerView(pageId, renderFn, cleanupFn)`
+
+Register a custom view renderer for a page ID.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pageId` | `string` | Page ID to handle (e.g. `"my-custom-page"`) |
+| `renderFn` | `async (container: HTMLElement) => void` | Async function that renders into the container |
+| `cleanupFn` | `() => void` | Optional cleanup function called when navigating away |
+
+```javascript
+// Register a custom view
+window.aiui.registerView('my-analytics', async (container) => {
+    const data = await fetch('/api/my-data').then(r => r.json());
+    container.innerHTML = `
+        <div class="db-card">
+            <div class="db-card-title">Custom Analytics</div>
+            <div class="db-card-value">${data.total}</div>
+        </div>
+    `;
+}, () => {
+    // Cleanup (optional) — called when user navigates away
+    console.log('Cleaning up my-analytics view');
+});
+```
+
+### View Resolution Priority
+
+When a page is selected, the dashboard resolves views in this order:
+
+1. **Custom registered views** — `window.aiui.registerView()` (highest priority)
+2. **Built-in view modules** — `views/<page id>.js` for built-in pages, from
+   `/api/shell/manifest`: a page whose `source` is `builtin` (kind `legacy` or
+   `native`) loads `<legacy.viewsBase><page id>.js`. A page an app
+   (`register_page` / `@aiui.page`), a plugin or a dashboard-plugin folder
+   provides never gets a built-in view, even under a built-in id: it renders its
+   own content, in the dashboard style too. When the manifest cannot be read,
+   every page `/api/pages` lists is tried by the same file name.
+3. **Generic JSON viewer** — Falls back to rendering `_components` or raw JSON
+
+### `window.aiui.views`
+
+Access the view registry directly:
+
+```javascript
+// Check if a view is registered
+if (window.aiui.views['my-page']) {
+    console.log('my-page view is registered');
+}
+
+// List all registered views
+console.log(Object.keys(window.aiui.views));
+```
+
+### Built-in Views
+
+A built-in page's view is the file named after its page id
+(`views/<page id>.js`); there is no list in `dashboard.js`. Some of them:
+
+| Page ID | View Module | Description |
+|---------|-------------|-------------|
+| `chat` | `chat.js` | Chat interface |
+| `overview` | `overview.js` | Dashboard overview |
+| `agents` | `agents.js` | Agent management |
+| `sessions` | `sessions.js` | Session management |
+| `memory` | `memory.js` | Memory viewer |
+| `knowledge` | `knowledge.js` | Knowledge base |
+| `logs` | `logs.js` | Real-time logs |
+| `cron` | `cron.js` (re-exports `schedules.js`) | Scheduled jobs |
+| `config` | `config.js` | Runtime config |
+| `approvals` | `approvals.js` | Tool approvals |
+| `usage` | `usage.js` | Token usage |
+| `channels` | `channels.js` | Messaging channels |
+| `skills` | `skills.js` | Agent skills |
+| `nodes` | `nodes.js` | Execution nodes |
+| `guardrails` | `guardrails.js` | Safety guardrails |
+| `eval` | `eval.js` | Agent evaluation |
+| `telemetry` | `telemetry.js` | Performance metrics |
+| `traces` | `traces.js` | Distributed tracing |
+| `security` | `security.js` | Security monitoring |
+
+`runs`, `cron`, `work` and `training` are one-line modules that re-export
+`run-recorder.js`, `schedules.js`, `work-hub.js` and `training-lab.js` under the
+page id.
+
+### Light and dark mode
+
+The dashboard picks its colour mode in this order:
+
+1. the viewer's choice, stored under `aiui-theme-preference` (`light`, `dark` or
+   `system`; the Theme page and the app shell write the same key);
+2. the app's default: `aiui.set_theme(dark_mode=True|False)`, else YAML
+   `site.theme.mode` (`light`, `dark`, `system`) or `site.theme.darkMode`;
+3. the OS (`prefers-color-scheme`), when neither chose a mode
+   (`/ui-config.json` then sends `site.themeDefault: "system"`).
+
+A change of the OS scheme or of the stored choice in another tab applies at once.

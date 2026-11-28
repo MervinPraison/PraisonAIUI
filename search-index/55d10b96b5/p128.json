@@ -1,0 +1,1 @@
+["empty() provides a centered, muted placeholder message when a list, table, or run history has no items to display. { \"type\": \"empty\", \"text\": \"No agent runs yet. Send a prompt in Chat or trigger a scheduled job to see activity here.\" }","Parameter Type Description text str Helpful message guiding the user on what to do next."]

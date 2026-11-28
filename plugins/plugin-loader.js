@@ -1,0 +1,187 @@
+console.debug('[AIUI Loader] Starting...');
+
+/**
+ * AIUI Plugin Loader
+ *
+ * Loads frontend plugins and notifies them only on explicit content events.
+ * Avoids MutationObserver during React reconciliation (prevents removeChild crashes).
+ */
+(function () {
+  'use strict';
+
+  // This script's own folder, so a site under a base path (aiui build
+  // --base-path /repo) loads /repo/plugins/... Path only: no ?v= or origin.
+  const PLUGINS_BASE = (function () {
+    try {
+      const src = document.currentScript && document.currentScript.src;
+      return src ? new URL('./', src).pathname : '/plugins/';
+    } catch (_) {
+      return '/plugins/';
+    }
+  })();
+  const PLUGINS_CONFIG = `${PLUGINS_BASE}plugins.json`;
+  const ROOT_SELECTOR = '#root';
+
+  // Plugin modules are imported with this script's own ?v= (the server's
+  // build stamp, or the static build's hash of the plugin files), else the
+  // `version` in plugins.json. A fixed URL per build lets the browser and the
+  // CDN cache them; a new build changes it.
+  const LOADER_VERSION = (function () {
+    try {
+      const src = document.currentScript && document.currentScript.src;
+      return src ? new URL(src).searchParams.get('v') || '' : '';
+    } catch (_) {
+      return '';
+    }
+  })();
+  let pluginVersion = LOADER_VERSION;
+  // `aiui build` names the plugins on this tag (data-plugins="a,b"), which
+  // saves the plugins.json request; without it (a server, an older build)
+  // the list comes from plugins.json.
+  const INLINE_PLUGINS = (function () {
+    try {
+      const list = document.currentScript && document.currentScript.getAttribute('data-plugins');
+      return typeof list === 'string' ? list.split(',').map((s) => s.trim()).filter(Boolean) : null;
+    } catch (_) {
+      return null;
+    }
+  })();
+
+  /** @type {Array<{name: string, init?: Function, onContentChange?: Function}>} */
+  const loadedPlugins = [];
+  let spaNavigating = false;
+
+  function isReactDocsActive() {
+    return Boolean(document.querySelector('#main-content article.prose'));
+  }
+
+  function isReactDocsRoot(root) {
+    if (!root) return isReactDocsActive();
+    if (root.matches && root.matches('#main-content article.prose')) return true;
+    if (root.closest && root.closest('#main-content article.prose')) return true;
+    return isReactDocsActive();
+  }
+
+  async function loadPlugin(name) {
+    try {
+      const query = pluginVersion ? `?v=${encodeURIComponent(pluginVersion)}` : '';
+      const url = `${PLUGINS_BASE}${name}.js${query}`;
+      const mod = await import(url);
+      const raw = mod.default || mod;
+      const plugin = { ...raw, name: raw.name || name };
+
+      if (typeof plugin.init === 'function') {
+        await plugin.init();
+      }
+
+      loadedPlugins.push(plugin);
+      console.debug(`[AIUI] Plugin loaded: ${name}`);
+    } catch (err) {
+      console.warn(`[AIUI] Failed to load plugin "${name}":`, err);
+    }
+  }
+
+  function teardownPluginDom(root) {
+    if (!root || isReactDocsActive()) return;
+    root.querySelectorAll('[data-aiui-plugin]').forEach(function (el) { el.remove(); });
+    root.querySelectorAll('[data-mermaid-processed]').forEach(function (el) {
+      el.classList.remove('aiui-mermaid-hidden');
+      delete el.dataset.mermaidProcessed;
+    });
+    root.querySelectorAll('.aiui-code-wrapper').forEach(function (wrapper) {
+      const pre = wrapper.querySelector('pre');
+      if (pre && wrapper.parentNode) {
+        wrapper.parentNode.insertBefore(pre, wrapper);
+        wrapper.remove();
+      }
+    });
+    root.querySelectorAll('pre.aiui-code-has-copy > .aiui-copy-btn').forEach(function (btn) {
+      btn.remove();
+    });
+    root.querySelectorAll('pre[data-copy-processed]').forEach(function (pre) {
+      pre.classList.remove('aiui-code-has-copy');
+      delete pre.dataset.copyProcessed;
+    });
+  }
+
+  function notifyContentChange(root) {
+    if (spaNavigating || isReactDocsRoot(root)) return;
+    const target = root || document.querySelector(ROOT_SELECTOR);
+    if (!target) return;
+
+    for (const plugin of loadedPlugins) {
+      if (typeof plugin.onContentChange === 'function') {
+        try {
+          plugin.onContentChange(target);
+        } catch (err) {
+          console.warn(`[AIUI] Plugin "${plugin.name}" error in onContentChange:`, err);
+        }
+      }
+    }
+  }
+
+  function bindContentEvents() {
+    window.addEventListener('aiui:navigate', function () {
+      spaNavigating = true;
+      teardownPluginDom(document.querySelector(ROOT_SELECTOR));
+      window.setTimeout(function () {
+        if (isReactDocsActive()) spaNavigating = false;
+      }, 0);
+    });
+
+    window.addEventListener('aiui:content-loaded', function (event) {
+      spaNavigating = false;
+      const root = event.detail && event.detail.root;
+      if (isReactDocsRoot(root)) return;
+      window.requestAnimationFrame(function () {
+        notifyContentChange(root || document.querySelector(ROOT_SELECTOR));
+      });
+    });
+  }
+
+  function removeAntiFlicker() {
+    const el = document.getElementById('aiui-anti-flicker');
+    if (el) el.remove();
+  }
+
+  async function pluginList() {
+    if (INLINE_PLUGINS) return INLINE_PLUGINS;
+    const res = await fetch(PLUGINS_CONFIG);
+    if (!res.ok) {
+      console.debug('[AIUI] No plugins.json found, skipping plugins.');
+      return [];
+    }
+    const config = await res.json();
+    if (!pluginVersion && config.version) pluginVersion = String(config.version);
+    return config.plugins || [];
+  }
+
+  async function main() {
+    try {
+      const pluginNames = await pluginList();
+
+      if (pluginNames.length === 0) {
+        removeAntiFlicker();
+        return;
+      }
+
+      bindContentEvents();
+      await Promise.allSettled(pluginNames.map(loadPlugin));
+      if (!isReactDocsActive()) {
+        notifyContentChange(document.querySelector(ROOT_SELECTOR));
+      }
+      removeAntiFlicker();
+
+      console.debug(`[AIUI] ${loadedPlugins.length} plugin(s) active.`);
+    } catch (err) {
+      console.warn('[AIUI] Plugin loader error:', err);
+      removeAntiFlicker();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', main);
+  } else {
+    main();
+  }
+})();

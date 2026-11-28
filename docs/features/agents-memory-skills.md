@@ -1,0 +1,29 @@
+# Agents, Memory & Skills Management
+
+> Create and run agents from the UI, inspect agent memory stores and manage agent skills via built-in pages and REST APIs.
+
+When running in multi-agent or dashboard mode (`aiui.set_pages("all")` or explicit page IDs), PraisonAIUI provides built-in pages and REST APIs for managing your agent fleet without restarting the server.
+
+## Built-in plugins & endpoints
+
+| Plugin | Page ID | Capabilities & Endpoints |
+|---|---|---|
+| **Agents (`builtin.agents`)** | `agents` | Create, edit, duplicate, delete and run agent definitions (`GET`/`POST /api/agents/definitions`, `PUT`/`DELETE /api/agents/definitions/{id}`, `POST /api/agents/duplicate/{id}`, `POST /api/agents/run/{id}`, `GET /api/agents/models`). |
+| **Memory (`builtin.memory`)** | `memory` | Browse, search and manage short-term, long-term and entity memory entries (`GET`/`POST /api/memory`, `GET /api/memory/search`, `DELETE /api/memory/{id}`). Install `pip install "aiui[memory]"` for vector backends. |
+| **Skills (`builtin.skills`)** | `skills` | Discover, register, configure and toggle reusable agent skills (`GET`/`POST /api/skills`, `GET /api/skills/categories`, `POST /api/skills/{id}/toggle`, `PUT /api/skills/{id}/config`). |
+
+## Enable selectively in your app
+
+```python
+import praisonaiui as aiui
+
+aiui.set_pages(["chat", "agents", "memory", "skills", "knowledge"])
+```
+
+Or register agents directly from Python with `aiui.register_agent("researcher", agent)` (see [Python API](https://ui.praison.ai/docs/api/python.md#aiuiregister_agentname-agent)) and manage knowledge bases in [Knowledge & embeddings](https://ui.praison.ai/docs/features/knowledge-embeddings.md).
+
+## Related pages
+
+- [Sessions API Reference](https://ui.praison.ai/docs/api/sessions.md)
+- [Feature Protocols](https://ui.praison.ai/docs/features/protocols.md)
+- [Plugin Marketplace](https://ui.praison.ai/docs/features/marketplace.md)
