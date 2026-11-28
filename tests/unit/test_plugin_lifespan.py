@@ -28,7 +28,18 @@ def _clean_registry(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     orig_policy = reg.policy
     reg._manual.clear()
     reg.set_policy(ExtensionPolicy(), explicit=False)
+    # create_shell_app() mutates server globals; restore them so later suites
+    # (e.g. test_http_guard) do not see this file's pages/style.
+    containers = ("_pages", "_custom_page_ids", "_builtin_page_ids", "_callbacks", "_page_actions")
+    scalars = ("_enabled_pages", "_style", "_effective_style", "_auth_required_by_app")
+    saved = {n: getattr(srv, n).copy() for n in containers}
+    saved.update({n: getattr(srv, n) for n in scalars})
     yield
+    for n in containers:
+        getattr(srv, n).clear()
+        getattr(srv, n).update(saved[n])
+    for n in scalars:
+        setattr(srv, n, saved[n])
     reg._manual.clear()
     reg._manual.extend(orig_manual)
     reg.set_policy(orig_policy, explicit=False)
