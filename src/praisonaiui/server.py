@@ -1314,7 +1314,8 @@ _FALLBACK_EXTERNALS: dict[str, list[str]] = {
         "registerCommand", "onActivate", "getPageId", "usePageId", "useThemeMode",
         "dismiss", "registerSettingsSection", "registerNavGroup", "registerThemePreset",
         "registerLayout", "getLayouts", "useLayout", "setLayout", "provideLayoutData",
-        "useLayoutData", "notifications", "useNotifications",
+        "useLayoutData", "notifications", "useNotifications", "pageHref", "pageLinkProps",
+        "useLiveData",
     ],
 }
 

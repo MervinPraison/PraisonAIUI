@@ -36,7 +36,19 @@ import {
 import { SDK_FEATURES, SDK_VERSION, type SdkExportName, type ShellExternal } from './manifest'
 import { dismiss, notify } from './notify'
 import { notifications, useNotifications } from './notifications'
-import { fetchJson, getPageId, navigate, onActivate, registerCommand, useManifest, usePageId, useThemeMode } from './services'
+import {
+  fetchJson,
+  getPageId,
+  navigate,
+  onActivate,
+  pageHref,
+  pageLinkProps,
+  registerCommand,
+  useManifest,
+  usePageId,
+  useThemeMode,
+} from './services'
+import { useLiveData } from './liveData'
 import { registerNavGroup, registerSettingsSection, registerThemePreset } from './contributions'
 import { getLayouts, provideLayoutData, registerLayout, setLayout, useLayout, useLayoutData } from './layouts'
 
@@ -117,6 +129,9 @@ export const sdkApi = Object.freeze({
   useLayoutData,
   notifications,
   useNotifications,
+  pageHref,
+  pageLinkProps,
+  useLiveData,
 } satisfies { [K in SdkExportName]: unknown })
 
 // Compile-time check that the published typings (./aiui-sdk.d.ts, the types a

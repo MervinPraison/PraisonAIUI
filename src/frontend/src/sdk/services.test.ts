@@ -18,6 +18,8 @@ import {
   getThemeMode,
   navigate,
   onActivate,
+  pageHref,
+  pageLinkProps,
   provideShellHost,
   registerCommand,
   resetServicesForTests,
@@ -373,4 +375,73 @@ test('notify lives in the SDK and asks the host for its toaster', () => {
   assert.equal(typeof useToasterRequested, 'function')
   requestToaster()
   requestToaster() // idempotent
+})
+
+// ── pageHref + pageLinkProps ─────────────────────────────────────────
+
+test('pageHref formats encoded paths and query params, and validates pageId', () => {
+  assert.equal(pageHref('revenue'), '/revenue')
+  assert.equal(pageHref('my page'), '/my%20page')
+  assert.equal(pageHref('revenue', { range: '30d', tag: ['a', 'b'], empty: '', _internal: 'x' }), '/revenue?range=30d&tag=a&tag=b')
+  assert.throws(() => pageHref(''), TypeError)
+  assert.throws(() => pageLinkProps(''), TypeError)
+})
+
+test('pageLinkProps stays in-app on plain left click and keeps native behaviour for modified clicks', () => {
+  const calls: Array<{ pageId: string; opts?: unknown }> = []
+  provideShellHost({
+    navigate(pageId, opts) {
+      calls.push({ pageId, opts })
+    },
+  })
+
+  const link = pageLinkProps('revenue', { range: '90d' })
+  assert.equal(link.href, '/revenue?range=90d')
+
+  const makeEvent = (over: Record<string, unknown> = {}) => {
+    let prevented = false
+    const ev = {
+      button: 0,
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      defaultPrevented: false,
+      currentTarget: { target: '' },
+      preventDefault: () => {
+        prevented = true
+      },
+      ...over,
+    }
+    return { ev: ev as unknown as Parameters<typeof link.onClick>[0], prevented: () => prevented }
+  }
+
+  // Plain left click: prevents default and navigates inside the shell.
+  const plain = makeEvent()
+  link.onClick(plain.ev)
+  assert.equal(plain.prevented(), true)
+  assert.deepEqual(calls, [{ pageId: 'revenue', opts: { params: { range: '90d' } } }])
+
+  // Modified clicks, middle click, already-prevented, and target="_blank" stay native.
+  for (const mod of [
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+    { defaultPrevented: true },
+    { currentTarget: { target: '_blank' } },
+  ]) {
+    const m = makeEvent(mod)
+    link.onClick(m.ev)
+    assert.equal(m.prevented(), false, `should not intercept ${JSON.stringify(mod)}`)
+  }
+  assert.equal(calls.length, 1, 'none of the modified clicks triggered in-app navigate')
+
+  // Explicit replace option forwards through.
+  const replaced = pageLinkProps('focus', undefined, { replace: true })
+  const e2 = makeEvent()
+  replaced.onClick(e2.ev)
+  assert.equal(e2.prevented(), true)
+  assert.deepEqual(calls[1], { pageId: 'focus', opts: { replace: true } })
 })

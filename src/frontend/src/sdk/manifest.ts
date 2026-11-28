@@ -74,6 +74,10 @@ export const SDK_EXPORTS = [
   // Headless Notification Center store & hook (feature notifications).
   'notifications',
   'useNotifications',
+  // In-app page links and shared live-data refresh hook (features page-links, live-data).
+  'pageHref',
+  'pageLinkProps',
+  'useLiveData',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -130,6 +134,10 @@ export const SDK_FEATURES = [
   'page.badge',
   // Headless Notification Center (notifications, useNotifications, header bell)
   'notifications',
+  // pageHref() / pageLinkProps(): SPA anchor props for in-app page links
+  'page-links',
+  // useLiveData(): keyed, visibility-aware live data hook with retry backoff
+  'live-data',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

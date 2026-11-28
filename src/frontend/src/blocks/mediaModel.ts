@@ -3,33 +3,10 @@
  * in-app page links and avatar initials.
  */
 import type { MouseEvent } from 'react'
-import { getManifest, navigate } from '@/sdk/services'
-import { mergeSearch, paramsFromSearch, type PageParams } from './pageParams'
+import { getManifest, navigate, pageHref, pageLinkProps } from '@/sdk/services'
+import { paramsFromSearch, type PageParams } from './pageParams'
 
-/** URL path of an app page (`page_link("sync", params={"q": "x"})` → `/sync?q=x`). */
-export function pageHref(pageId: string, params?: Record<string, unknown>): string {
-  const search = params ? mergeSearch('', params) : ''
-  return `/${encodeURIComponent(pageId)}${search}`
-}
-
-/**
- * `href` + `onClick` for a link to an app page: a plain left click moves
- * inside the shell without a reload; modified clicks (new tab, ...) and
- * middle clicks keep the browser's behaviour.
- */
-export function pageLinkProps(
-  pageId: string,
-  params?: Record<string, unknown>,
-): { href: string; onClick: (e: MouseEvent<HTMLAnchorElement>) => void } {
-  return {
-    href: pageHref(pageId, params),
-    onClick: (e) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.defaultPrevented) return
-      e.preventDefault()
-      navigate(pageId, params ? { params } : undefined)
-    },
-  }
-}
+export { pageHref, pageLinkProps }
 
 /**
  * Parse a relative or same-origin URL targeting a registered app page

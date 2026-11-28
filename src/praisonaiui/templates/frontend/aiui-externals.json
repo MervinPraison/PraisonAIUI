@@ -27,7 +27,9 @@
     "slots.dispose",
     "navigate.params",
     "page.badge",
-    "notifications"
+    "notifications",
+    "page-links",
+    "live-data"
   ],
   "react": "19.2.4",
   "modules": {
@@ -138,7 +140,10 @@
       "provideLayoutData",
       "useLayoutData",
       "notifications",
-      "useNotifications"
+      "useNotifications",
+      "pageHref",
+      "pageLinkProps",
+      "useLiveData"
     ]
   }
 }
