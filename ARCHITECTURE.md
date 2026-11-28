@@ -142,7 +142,7 @@ built-in commands never import plugins.
 each in a fresh interpreter), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 35 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 38 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
@@ -230,9 +230,9 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 
 | Budget | Limit |
 |---|---|
-| Shell boot (JS + CSS before first paint) | 150 kB |
+| Shell boot (JS + CSS before first paint) | 151.3 kB |
 | Chat route (added by `/chat`) | 144,500 B |
-| `/chat` first-screen JS (boot + chat route) | 262,850 B |
+| `/chat` first-screen JS (boot + chat route) | 264,400 B |
 | `index.css` | 26 kB |
 | Streamdown renderer chunk (collapsible chat code blocks included; the HTML parser is a chunk of its own) | 100 kB |
 | shikiPlugin chunk | 55 kB |
@@ -243,7 +243,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 | Layout kit `layout-kit` (ADR cap 10 kB) | 8.3 kB |
 | Layout features `lf-run-inspector` / `lf-command-bar` / `lf-step-tracker` / `lf-mission-board` (ADR caps 14 / 6 / 6 / 22 kB) | 9.2 / 1.6 / 5.6 / 11.8 kB |
 | Layout feature `lf-artifacts` (track A) | 30 kB |
-| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 274,800 B |
+| `/chat` first-screen JS with the default layout (boot + `layout-chat-canvas` + kit + chat route) | 276,400 B |
 | Pro fonts: Geist + Geist Mono latin woff2 (as served; fetched only by Pro pages) | 58 kB |
 | Paper fonts: Newsreader + Source Sans 3 + JetBrains Mono latin woff2 (as served; fetched only while the Paper look is on) | 140 kB |
 | Wheel: all of `dist/assets` (uncompressed) | 11,695,329 B |

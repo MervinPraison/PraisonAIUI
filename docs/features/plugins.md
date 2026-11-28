@@ -357,7 +357,10 @@ Shell services and components:
 
 | Export | Use |
 |---|---|
-| `navigate(pageId, { replace }?)` | Go to a page of the app: `navigate('logs')` |
+| `navigate(pageId, { replace, params }?)` | Go to a page of the app: `navigate('logs')` |
+| `pageHref(pageId, params?)` | Format an in-app page URL path (`pageHref('revenue', { range: '30d' })` → `/revenue?range=30d`) |
+| `pageLinkProps(pageId, params?, { replace }?)` | Return `{ href, onClick }` for an in-app `<a>` link: plain left click navigates inside the shell with no full document reload (Back/Forward work), while Cmd/Ctrl/Shift/Alt/middle-click keeps native new-tab behaviour |
+| `useLiveData(key, fetcher, options?)` | Keyed, visibility-aware live data hook shared with built-in block pages: aborts in-flight reads on key change (never flashing stale page data), retains the last result on refresh failure alongside `error`, skips hidden tabs, backs off on failures, and refreshes once when returning to an overdue tab |
 | `notify(message, options?)` | Show a toast. Options: `type` (`info`, `success`, `warning`, `error`), `description`, `duration`, `id`, `action: { label, onClick }` |
 | `fetchJson(url, options?)` | `fetch` for JSON APIs. It sends the session's gateway token to same-origin URLs only, JSON-encodes a plain-object `body` (the method then defaults to `POST`), decodes the response, and rejects with an error carrying `status`, `url` and `body` on a non-2xx status |
 | `useManifest()` | React hook returning the shell manifest (`pages`, `plugins`, `site`, `layout`) |
@@ -415,6 +418,42 @@ onActivate(({ manifest }) => {
 
 A command that throws, or whose promise rejects, is reported as a toast. An
 `onActivate` hook that throws is logged and does not stop the other hooks.
+
+#### In-page tabs and live-refreshing data
+
+Use `pageLinkProps()` for in-page navigation links or tabs so ordinary clicks
+stay in the SPA shell (0 document reloads, Back works) while Cmd/Ctrl-click
+still opens a new tab. Pair it with `useLiveData()` to share the framework's
+abort-on-navigation, hidden-tab pause, retry backoff, and retain-last-result logic:
+
+```js
+import { createElement as h } from 'react'
+import { fetchJson, pageLinkProps, useLiveData, useManifest } from '@aiui/sdk'
+
+export default function OperatingPage({ page }) {
+  const manifest = useManifest()
+  const { data, error, refreshing, refresh } = useLiveData(
+    page.id,
+    (signal) => fetchJson(`/api/operations?page=${encodeURIComponent(page.id)}`, { signal }),
+    { intervalMs: 120_000 },
+  )
+  const tabs = (manifest?.pages ?? []).filter((p) => p.group === 'Operating')
+  return h('article', null,
+    h('nav', { 'aria-label': 'Operating pages' },
+      ...tabs.map((tab) =>
+        h('a', {
+          key: tab.id,
+          ...pageLinkProps(tab.id),
+          'aria-current': tab.id === page.id ? 'page' : undefined,
+        }, tab.title),
+      ),
+    ),
+    error && h('p', { role: 'alert' }, data ? 'Refresh failed; showing last result.' : error.message),
+    h('button', { type: 'button', onClick: refresh, disabled: refreshing }, refreshing ? 'Refreshing…' : 'Refresh'),
+    data && h('pre', null, JSON.stringify(data, null, 2)),
+  )
+}
+```
 
 ### Slots
 

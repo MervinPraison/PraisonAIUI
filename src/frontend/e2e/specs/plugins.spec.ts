@@ -3,6 +3,7 @@
  * a React page, a server-driven blocks page, a block type and a chat tool
  * renderer, all loaded from the plugin's own files through the import map.
  */
+import { createHash } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { collectPageErrors, sidebarLink } from './support'
 
@@ -209,3 +210,80 @@ for (const layout of ['chat', 'chat-canvas', 'workbench', 'command', 'mission', 
     expect(errors.pageErrors).toEqual([])
   })
 }
+
+test('a React plugin using pageLinkProps stays in-document, supports Back, and keeps Cmd/Ctrl-click native; useLiveData retains data on refresh error', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  let reads = 0
+  let failNext = false
+  await page.route('**/api/test-live-data*', (route) => {
+    reads += 1
+    if (failNext) return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'temporary outage' }) })
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ reading: reads }) })
+  })
+  const pluginCode = `
+    import { createElement as h } from 'react'
+    import { fetchJson, pageLinkProps, useLiveData } from '@aiui/sdk'
+    export default function LiveTabPage({ page }) {
+      const { data, error, refreshing, refresh } = useLiveData(
+        page.id,
+        (signal) => fetchJson('/api/test-live-data?page=' + encodeURIComponent(page.id), { signal }),
+      )
+      return h('div', { 'data-testid': 'sdk-live-plugin' },
+        h('a', { ...pageLinkProps('hello-blocks'), 'data-testid': 'tab-blocks' }, 'Blocks tab'),
+        h('button', { type: 'button', onClick: () => void refresh(), disabled: refreshing, 'data-testid': 'live-refresh' }, 'Refresh'),
+        data && h('span', { 'data-testid': 'live-value' }, 'reading=' + data.reading),
+        error && h('p', { role: 'alert', 'data-testid': 'live-error' }, error.message),
+      )
+    }
+  `
+  const sri = 'sha384-' + createHash('sha384').update(pluginCode).digest('base64')
+  await page.route('**/_plugins/hello/hello.js*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: pluginCode }),
+  )
+
+  // Substitute the test module's real SRI hash into the HTML (both importmap
+  // integrity and #aiui-boot) so the browser verifies and loads it cleanly.
+  await page.route('**/hello', async (route) => {
+    if (route.request().resourceType() !== 'document') return route.continue()
+    const res = await route.fetch()
+    let html = await res.text()
+    const match = html.match(/"\/_plugins\/hello\/hello\.js"\s*:\s*"(sha384-[^"]+)"/)
+    if (match) html = html.split(match[1]).join(sri)
+    await route.fulfill({ response: res, body: html })
+  })
+
+  await page.goto('/hello')
+  await expect(page.getByTestId('live-value')).toHaveText('reading=1')
+
+  // Refresh fails -> last successful reading stays visible alongside the error.
+  failNext = true
+  await page.getByTestId('live-refresh').click()
+  await expect(page.getByTestId('live-error')).toContainText('temporary outage')
+  await expect(page.getByTestId('live-value')).toHaveText('reading=1')
+
+  // Ordinary click stays in the current document (0 document requests) and Back works.
+  let docRequests = 0
+  page.on('request', (req) => {
+    if (req.resourceType() === 'document') docRequests += 1
+  })
+  await page.getByTestId('tab-blocks').click()
+  await expect(page).toHaveURL(/\/hello-blocks$/)
+  await expect(page.locator('[data-aiui-page="hello-blocks"] .aiui-block-page[data-status="ready"]')).toBeVisible()
+  expect(docRequests).toBe(0)
+
+  await page.goBack()
+  await expect(page).toHaveURL(/\/hello$/)
+  await expect(page.getByTestId('sdk-live-plugin')).toBeVisible()
+  expect(docRequests).toBe(0)
+
+  // Cmd/Ctrl-click is not intercepted by pageLinkProps and opens a real new tab.
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+  const [newTab] = await Promise.all([
+    page.context().waitForEvent('page'),
+    page.getByTestId('tab-blocks').click({ modifiers: [mod] }),
+  ])
+  await expect(newTab).toHaveURL(/\/hello-blocks$/)
+  await newTab.close()
+  await expect(page).toHaveURL(/\/hello$/)
+  expect(errors.pageErrors).toEqual([])
+})

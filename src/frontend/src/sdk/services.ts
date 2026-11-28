@@ -14,7 +14,7 @@
  *
  * Everything reads `window` at call time, never at import.
  */
-import { useSyncExternalStore, type ComponentType } from 'react'
+import { useSyncExternalStore, type ComponentType, type MouseEvent } from 'react'
 import type { ShellManifest } from './manifest'
 
 // ── host (provided by the shell) ─────────────────────────────────────
@@ -102,6 +102,50 @@ export function navigate(pageId: string, opts: NavigateOptions = {}): void {
     throw new TypeError(`[aiui sdk] navigate: expected a non-empty page id, got ${String(pageId)}`)
   }
   host.navigate(pageId, opts)
+}
+
+/** URL path of an app page (`pageHref('sync', { q: 'x' })` → `/sync?q=x`). */
+export function pageHref(pageId: string, params?: Record<string, unknown>): string {
+  if (typeof pageId !== 'string' || !pageId) {
+    throw new TypeError(`[aiui sdk] pageHref: expected a non-empty page id, got ${String(pageId)}`)
+  }
+  return `/${encodeURIComponent(pageId)}${queryForParams(params)}`
+}
+
+export interface PageLinkOptions {
+  /** Replace the current history entry instead of pushing a new one. */
+  replace?: boolean
+}
+
+export interface PageLinkProps {
+  readonly href: string
+  readonly onClick: (e: MouseEvent<HTMLAnchorElement>) => void
+}
+
+/**
+ * `href` + `onClick` for an in-app `<a ...>` link to another page.
+ *
+ * A plain left click navigates inside the shell without a full document reload
+ * (browser Back/Forward keep working); Cmd/Ctrl/Shift/Alt clicks, middle
+ * clicks, already-prevented events and non-`_self` targets keep the browser's
+ * native behaviour (e.g. open in a new tab).
+ */
+export function pageLinkProps(
+  pageId: string,
+  params?: Record<string, unknown>,
+  opts?: PageLinkOptions,
+): PageLinkProps {
+  const href = pageHref(pageId, params)
+  return {
+    href,
+    onClick: (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.defaultPrevented) return
+      const target = e.currentTarget?.target
+      if (target && target !== '_self') return
+      e.preventDefault()
+      navigate(pageId, params !== undefined ? { ...opts, params } : opts)
+    },
+  }
 }
 
 // ── current page + colour mode ───────────────────────────────────────

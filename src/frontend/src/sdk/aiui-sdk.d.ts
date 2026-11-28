@@ -16,6 +16,7 @@
  */
 declare module '@aiui/sdk' {
   type ComponentType<P = Record<string, never>> = import('react').ComponentType<P>
+  type MouseEvent<T = Element> = import('react').MouseEvent<T>
 
   // ── manifest ───────────────────────────────────────────────────────
 
@@ -772,6 +773,69 @@ declare module '@aiui/sdk' {
   }
   /** React hook subscribing to the headless Notification Center store. */
   export function useNotifications(filter?: NotificationFilter): UseNotificationsResult
+
+  // ── page links & live data ─────────────────────────────────────────
+
+  export interface PageLinkOptions {
+    /** Replace the current history entry instead of pushing a new one. */
+    replace?: boolean
+  }
+  export interface PageLinkProps {
+    readonly href: string
+    readonly onClick: (e: MouseEvent<HTMLAnchorElement>) => void
+  }
+  /** URL path of an app page (`pageHref('sales', { region: 'eu' })` → `/sales?region=eu`). */
+  export function pageHref(pageId: string, params?: Record<string, unknown>): string
+  /**
+   * `href` + `onClick` props for an in-app `<a ...>` link. Plain left click
+   * stays in the SPA shell; Cmd/Ctrl/Shift/Alt/middle-click keeps native new-tab
+   * behaviour.
+   */
+  export function pageLinkProps(
+    pageId: string,
+    params?: Record<string, unknown>,
+    opts?: PageLinkOptions,
+  ): PageLinkProps
+
+  export type LiveDataLoadMode = 'initial' | 'refresh' | 'auto'
+  export interface LiveDataErrorInfo {
+    readonly mode: LiveDataLoadMode
+    readonly failures: number
+    readonly retained: boolean
+  }
+  export interface LiveDataSuccessInfo {
+    readonly mode: LiveDataLoadMode
+  }
+  export interface UseLiveDataOptions<T> {
+    /** Auto-refresh period in ms, or a function reading it from data (0 disables; min 1000 ms). */
+    intervalMs?: number | ((data: T | undefined) => number)
+    /** Cap for exponential backoff after repeated auto-refresh failures (default 300 000 ms). */
+    maxBackoffMs?: number
+    /** Set false to pause loading and auto-refresh (default true). */
+    enabled?: boolean
+    /** Called when a non-aborted load fails. */
+    onError?: (error: Error, info: LiveDataErrorInfo) => void
+    /** Called when a load succeeds. */
+    onSuccess?: (data: T, info: LiveDataSuccessInfo) => void
+  }
+  export interface UseLiveDataResult<T> {
+    readonly data: T | undefined
+    readonly error: Error | null
+    readonly loading: boolean
+    readonly refreshing: boolean
+    readonly updatedAt: number | null
+    readonly refresh: () => Promise<void>
+    readonly setData: (next: T) => void
+  }
+  /**
+   * Keyed, visibility-aware live data hook with abort on navigation, retained
+   * last value on refresh failure, and exponential retry backoff.
+   */
+  export function useLiveData<T>(
+    key: string,
+    fetcher: (signal: AbortSignal) => Promise<T>,
+    options?: UseLiveDataOptions<T>,
+  ): UseLiveDataResult<T>
 
   // ── default export ─────────────────────────────────────────────────
 
