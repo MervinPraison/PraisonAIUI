@@ -423,7 +423,6 @@ def __getattr__(name: str):
     if name in (
         "create_shell_app",
         "render_shell_html",
-        "shell_inline_script_hashes",
         "shell_csp_header",
     ):
         from praisonaiui import shell_app
@@ -910,6 +909,5 @@ __all__ = [
     # Shell-only app factory & CSP script hash helpers
     "create_shell_app",
     "render_shell_html",
-    "shell_inline_script_hashes",
     "shell_csp_header",
 ]

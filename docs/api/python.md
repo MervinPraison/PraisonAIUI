@@ -71,7 +71,7 @@ app's own pages, `aiui.only_my_pages("chat")` adds Chat.
 
 ---
 
-### `aiui.create_shell_app(*, config=None, pages=None, plugins=None, routes=None, csp=None, require_auth=False, config_path=None)`
+### `aiui.create_shell_app(*, config=None, plugins=None, routes=None, csp=None, require_auth=False)`
 
 Build a minimal Starlette ASGI app that mounts **only** the React app shell,
 selected pages, plugin assets/routes, and caller-supplied `routes` — without
@@ -80,10 +80,11 @@ mounting agent server endpoints (`/sessions`, `/run`, `/agents`, `/teams`,
 
 Pass `csp="strict"` (a directive dict, or `(html, hashes) -> str`) to attach a
 strict `Content-Security-Policy` header with exact `'sha256-…'` hashes for the
-shell's executable inline scripts. Related helpers:
+shell's executable inline scripts. Only the app's own pages and plugin pages
+are listed unless `aiui.set_pages()` / `aiui.only_my_pages(...)` was called
+first. Related helpers:
 
 - `aiui.render_shell_html(request=None, *, style="app")` → `(html, inline_script_hashes)`
-- `aiui.shell_inline_script_hashes(html)` → sorted `'sha256-…'` tuple (skips `type="application/json"` and `src="…"`)
 - `aiui.shell_csp_header(html, *, base=None, extra=None)` → rendered `Content-Security-Policy` header value
 
 See [Build a focused app → Mount only the shell](../guides/focused-app.md#mount-only-the-shell-no-agent-endpoints).

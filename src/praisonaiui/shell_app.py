@@ -124,11 +124,17 @@ def _resolve_csp(csp: CspOption, html: str, hashes: tuple[str, ...]) -> Optional
     raise TypeError(f"Unsupported csp option of type {type(csp).__name__}")
 
 
-def _build_shell_middleware(
+def build_security_middleware(
     config: Optional[dict[str, Any]],
     require_auth: bool,
-) -> tuple[list[Middleware], bool]:
-    """Construct the same security and auth middleware stack used by create_app (R8)."""
+) -> tuple[list[Middleware], bool, bool]:
+    """The security and auth middleware stack shared by ``create_app`` and
+    :func:`create_shell_app` (R8), so the two factories cannot drift.
+
+    Returns ``(middleware, require_auth, auth_required)``: ``require_auth`` is
+    the flag after YAML ``auth.requireAuth`` is applied; ``auth_required`` is
+    true when session or URL-token auth is active.
+    """
     from praisonaiui import server as srv
     from praisonaiui.auth import (
         AuthMiddleware,
@@ -152,11 +158,20 @@ def _build_shell_middleware(
             require_auth = True
         if auth_config.get("requireToken") or auth_config.get("require_token"):
             config_requires_token = True
-    configure_sessions(config)
+    configure_sessions(config)  # auth.sessionLifetime, auth.cookie
 
+    # Cross-origin access is opt-in: AIUI_ALLOWED_ORIGINS lists the origins
+    # (``*`` restores the old allow-everything behaviour). By default a page
+    # on another site can neither read responses (no CORS headers) nor
+    # drive the server (OriginGuardMiddleware refuses cross-site WebSocket
+    # handshakes and state-changing requests, text/plain CSRF included).
     allowed_origins = configured_origins()
     middleware: list[Middleware] = [
+        # Outermost: a DNS-rebound page passes the Origin check (it looks
+        # same-origin), but its Host header still names the attacker's site.
         Middleware(HostGuardMiddleware),
+        # Before anything reads a body: 413 over AIUI_MAX_BODY_MB, 64 KiB on
+        # the paths that need no credentials.
         Middleware(BodySizeLimitMiddleware),
         Middleware(
             CORSMiddleware,
@@ -166,9 +181,15 @@ def _build_shell_middleware(
         ),
         Middleware(OriginGuardMiddleware, allowed_origins=allowed_origins),
     ]
+    # Older clients pass credentials as ?token=; keep them out of the logs.
     install_secret_redaction()
+
+    # Optional AUTH_ENFORCE middleware (env var driven).
     middleware.append(Middleware(srv.AuthEnforcementMiddleware))
 
+    # URL-token auth is opt-in. A bare GATEWAY_AUTH_TOKEN leaking into a
+    # developer shell must NOT force auth (#238, #251): it needs
+    # AIUI_REQUIRE_TOKEN=1, YAML auth.requireToken, or require_auth.
     tok = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
     token_auth_opt_in = (
         os.environ.get("AIUI_REQUIRE_TOKEN", "").lower() in ("true", "1", "yes")
@@ -179,6 +200,10 @@ def _build_shell_middleware(
         middleware.append(Middleware(TokenQueryMiddleware, expected_token=tok))
 
     if require_auth:
+        # Exclusions are exact paths; the rest of the public surface (the
+        # HTML shell, static code) comes from http_guard.is_public_http.
+        # /register is listed so AuthMiddleware can apply the signup policy
+        # (first user, signed-in user, or auth.allowSignup) itself.
         middleware.append(
             Middleware(
                 AuthMiddleware,
@@ -188,9 +213,11 @@ def _build_shell_middleware(
             )
         )
 
+    # Innermost: a JSON body that is an array or scalar gets 400 instead of
+    # crashing the handler (which reads it as a dict) with a 500.
     middleware.append(Middleware(JSONObjectBodyMiddleware))
     auth_required = bool(require_auth or (tok and token_auth_opt_in))
-    return middleware, auth_required
+    return middleware, require_auth, auth_required
 
 
 def _shell_ui_config_payload() -> dict[str, Any]:
@@ -230,12 +257,10 @@ def _shell_ui_config_payload() -> dict[str, Any]:
 def create_shell_app(
     *,
     config: Optional[dict[str, Any]] = None,
-    pages: Optional[Iterable[str]] = None,
     plugins: Optional[Iterable[Any]] = None,
     routes: Optional[Sequence[BaseRoute]] = None,
     csp: CspOption = None,
     require_auth: bool = False,
-    config_path: Optional[Path] = None,
 ) -> Starlette:
     """Create a minimal Starlette app mounting only the React app shell, selected
     pages, plugin assets/routes, and caller-supplied ``routes``.
@@ -247,9 +272,6 @@ def create_shell_app(
 
     Args:
         config: Optional configuration dictionary (same shape as ``create_app``).
-        pages: Built-in page IDs to keep alongside the app's own ``@aiui.page``
-            and plugin pages. Defaults to ``[]`` (only your own + plugin pages)
-            when neither ``pages`` nor :func:`praisonaiui.set_pages` was set.
         plugins: Optional in-process plugin objects to register before building
             the route table (via :func:`praisonaiui.register_plugin`).
         routes: Optional extra Starlette routes (e.g. host ``/api/*`` endpoints)
@@ -259,8 +281,11 @@ def create_shell_app(
             a directive mapping merged onto :data:`STRICT_SHELL_CSP`, or a
             callable ``(html, hashes) -> header_value``.
         require_auth: Enable session/bearer auth on every non-public route (R8).
-        config_path: Optional YAML config file path (loaded when ``config`` is
-            ``None``).
+
+    Built-in pages: only the app's own ``@aiui.page`` pages and plugin pages
+    are listed unless :func:`praisonaiui.set_pages` / ``only_my_pages(...)``
+    was called first (this calls ``set_pages([])`` otherwise; page scoping is
+    process-wide, as for ``create_app``).
     """
     from praisonaiui import server as srv
     from praisonaiui.auth import login_handler, logout_handler, me_handler, register_handler
@@ -268,16 +293,15 @@ def create_shell_app(
     from praisonaiui.http_guard import json_exception_handlers, mark_public
     from praisonaiui.plugin_registry import get_plugin_registry, register_plugin
 
-    if config_path and config is None:
-        config = srv.load_config_from_yaml(config_path)
+    # Fail at construction, not with a 500 on every page request.
+    if isinstance(csp, str) or not (csp is None or callable(csp) or isinstance(csp, Mapping)):
+        _resolve_csp(csp, "", ())  # raises for anything but "strict"
 
-    middleware, auth_required = _build_shell_middleware(config, require_auth)
+    middleware, _require_auth, auth_required = build_security_middleware(config, require_auth)
     srv._auth_required_by_app = auth_required
     srv._effective_style = "app"
     if config:
         srv._config_cache = config
-    if config_path is not None:
-        srv._config_path = config_path
 
     # Register any explicitly supplied in-process plugins.
     registry = get_plugin_registry()
@@ -290,10 +314,8 @@ def create_shell_app(
     register_builtin_plugins(registry)
     srv._sync_yaml_theme_for_shell(config)
 
-    # Apply page scoping: default to only the app's own + plugin pages ([]).
-    if pages is not None:
-        srv.set_pages(list(pages))
-    elif srv._enabled_pages is None:
+    # Page scoping: default to only the app's own + plugin pages ([]).
+    if srv._enabled_pages is None:
         srv.set_pages([])
 
     # Sync built-in pages against the whitelist without touching app pages.
@@ -367,8 +389,8 @@ def create_shell_app(
             headers["Content-Security-Policy"] = csp_val
         return HTMLResponse(html, headers=headers)
 
-    mark_public(_serve_shell_page, when=lambda scope: scope.get("method") in ("GET", "HEAD"))
-    mark_public(_serve_icon, when=lambda scope: scope.get("method") in ("GET", "HEAD"))
+    mark_public(_serve_shell_page, when=lambda request: request.method in ("GET", "HEAD"))
+    mark_public(_serve_icon, when=lambda request: request.method in ("GET", "HEAD"))
 
     app_routes: list[BaseRoute] = []
     # 1. Caller-supplied host routes first.

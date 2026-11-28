@@ -15,8 +15,6 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Dict, Optional
 
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import (
     HTMLResponse,
@@ -3854,9 +3852,6 @@ def create_app(
     gateway run) no longer forces 401 on standalone ``/api/*`` (#238, #251).
     """
     from praisonaiui.auth import (
-        AuthMiddleware,
-        allow_signup_from_config,
-        configure_sessions,
         login_handler,
         logout_handler,
         me_handler,
@@ -3867,94 +3862,18 @@ def create_app(
     if config_path and config is None:
         config = load_config_from_yaml(config_path)
 
-    # Extract auth settings from config
-    _config_requires_token = False
-    if config:
-        auth_config = config.get("auth", {})
-        if auth_config.get("requireAuth") or auth_config.get("require_auth"):
-            require_auth = True
-        if auth_config.get("requireToken") or auth_config.get("require_token"):
-            _config_requires_token = True
-    configure_sessions(config)  # auth.sessionLifetime, auth.cookie
+    # Security and auth middleware (R8). Shared with create_shell_app() so the
+    # two factories can never drift; see shell_app.build_security_middleware.
+    from praisonaiui.shell_app import build_security_middleware
 
-    from praisonaiui.http_guard import (
-        BodySizeLimitMiddleware,
-        HostGuardMiddleware,
-        OriginGuardMiddleware,
-        configured_origins,
-        install_secret_redaction,
+    middleware, require_auth, _app_auth_required = build_security_middleware(
+        config, require_auth
     )
-
-    # Cross-origin access is opt-in: AIUI_ALLOWED_ORIGINS lists the origins
-    # (``*`` restores the old allow-everything behaviour). By default a page
-    # on another site can neither read responses (no CORS headers) nor
-    # drive the server (OriginGuardMiddleware refuses cross-site WebSocket
-    # handshakes and state-changing requests, text/plain CSRF included).
-    _allowed_origins = configured_origins()
-    middleware = [
-        # Outermost: a DNS-rebound page passes the Origin check (it looks
-        # same-origin), but its Host header still names the attacker's site.
-        Middleware(HostGuardMiddleware),
-        # Before anything reads a body: 413 over AIUI_MAX_BODY_MB, 64 KiB on
-        # the paths that need no credentials.
-        Middleware(BodySizeLimitMiddleware),
-        Middleware(
-            CORSMiddleware,
-            allow_origins=_allowed_origins,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        ),
-        Middleware(OriginGuardMiddleware, allowed_origins=_allowed_origins),
-    ]
-    # Older clients pass credentials as ?token=; keep them out of the logs.
-    install_secret_redaction()
-
-    # Add optional AUTH_ENFORCE middleware (env var driven)
-    middleware.append(Middleware(AuthEnforcementMiddleware))
-
-    # URL-token auth — opt-in. Enables query-param / cookie auth so dashboards
-    # can be shared by URL (Jupyter model). The mere presence of a token env
-    # var (e.g. GATEWAY_AUTH_TOKEN leaking into a developer shell after a
-    # gateway run) must NOT force auth on standalone create_app() — that broke
-    # ad-hoc TestClient scripts (#238, #251). Activation now requires an
-    # explicit opt-in: AIUI_REQUIRE_TOKEN=1, YAML auth.requireToken, or the
-    # require_auth flag.
-    _tok = os.environ.get("AIUI_URL_TOKEN") or os.environ.get("GATEWAY_AUTH_TOKEN")
-    _token_auth_opt_in = (
-        os.environ.get("AIUI_REQUIRE_TOKEN", "").lower() in ("true", "1", "yes")
-        or _config_requires_token
-        or require_auth
-    )
-    if _tok and _token_auth_opt_in:
-        from praisonaiui.auth import TokenQueryMiddleware
-        middleware.append(
-            Middleware(TokenQueryMiddleware, expected_token=_tok)
-        )
-
-    if require_auth:
-        # Exclusions are exact paths; the rest of the public surface (the
-        # HTML shell, static code) comes from http_guard.is_public_http.
-        # /register is listed so AuthMiddleware can apply the signup policy
-        # (first user, signed-in user, or auth.allowSignup) itself.
-        middleware.append(
-            Middleware(
-                AuthMiddleware,
-                require_auth=True,
-                exclude_paths=["/health", "/login", "/register"],
-                allow_signup=allow_signup_from_config(config),
-            )
-        )
-
-    # Innermost: a JSON body that is an array or scalar gets 400 instead of
-    # crashing the handler (which reads it as a dict) with a 500.
-    from praisonaiui.http_guard import JSONObjectBodyMiddleware
-
-    middleware.append(Middleware(JSONObjectBodyMiddleware))
 
     # Shell boot (style "app") inlines only {sdk, version, style} and plugin
     # browser surfaces become default-deny whenever the app requires auth.
     global _auth_required_by_app
-    _auth_required_by_app = bool(require_auth or (_tok and _token_auth_opt_in))
+    _auth_required_by_app = _app_auth_required
 
     # Store config path globally for the config endpoint
     global _config_path, _config_cache

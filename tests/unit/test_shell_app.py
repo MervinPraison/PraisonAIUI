@@ -314,9 +314,16 @@ def test_shell_app_exports_are_lazy_on_root_import():
     code = (
         "import sys, praisonaiui as a\n"
         "assert 'praisonaiui.shell_app' not in sys.modules\n"
-        "for name in ('create_shell_app', 'render_shell_html', 'shell_inline_script_hashes', 'shell_csp_header'):\n"
+        "for name in ('create_shell_app', 'render_shell_html', 'shell_csp_header'):\n"
         "    assert name in a.__all__, name\n"
         "    assert callable(getattr(a, name)), name\n"
     )
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
+
+
+def test_create_shell_app_rejects_unknown_csp_preset_at_construction():
+    with pytest.raises(ValueError):
+        create_shell_app(csp="lax")
+    with pytest.raises(TypeError):
+        create_shell_app(csp=42)  # type: ignore[arg-type]
