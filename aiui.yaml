@@ -87,6 +87,7 @@ navigation:
           pages:
             - features/gateway-chat
             - features/approvals
+            - features/hooks
             - features/subagent-tree
             - features/code-execution
             - features/model-fallback
@@ -101,6 +102,7 @@ navigation:
             - features/standalone-vs-integrated
             - features/backend-integration
             - features/workflows-and-openai-api
+            - features/agui
     - tab: "App & Dashboard"
       groups:
         - group: "App Shell & Pages"
@@ -126,7 +128,10 @@ navigation:
             - features/dashboard
             - features/agents-memory-skills
             - features/schedules-and-jobs
+            - features/work-hub-and-kanban
             - features/observability-and-guardrails
+            - features/training
+            - features/nodes
             - features/agent-ui-host
             - features/replay
             - features/browser-automation

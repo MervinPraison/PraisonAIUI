@@ -115,7 +115,7 @@ set loads on demand, so it does not add to the first page load:
 
 ## Component API
 
-Build dashboard UIs entirely from Python — no HTML needed. **54 components** are available across 7 categories.
+Build dashboard UIs entirely from Python — no HTML needed. **81 component builders** are available across layout, data display, inputs, feedback, overlays, and media.
 
 > See the full [Component API Reference](../api/components.md) for all components and parameters.
 
@@ -227,26 +227,14 @@ The `layout()` function adds the `_components` key that tells the frontend to re
 
 ## Built-in Pages
 
-When style is set to `dashboard`, **16 built-in pages** are auto-registered from the feature system:
+Built-in plugins (`src/praisonaiui/builtin/catalog.py`) auto-register pages across four sidebar groups (`Agent`, `Work`, `Control`, and `Settings`). Use `aiui.set_pages("minimal" | "agent" | "ops")` or `aiui.set_pages([...])` to show only what your app needs (`aiui pages ids` prints every active ID):
 
-| Page | Group | Description |
-|------|-------|-------------|
-| 🤖 Agents | Agent | Configured AI agents |
-| ⚡ Skills | Agent | Agent tools and skills |
-| 🖥️ Nodes | Agent | Execution nodes |
-| 📊 Overview | Control | System overview |
-| 📡 Channels | Control | Messaging channels |
-| 📋 Sessions | Control | Active sessions |
-| 📻 Instances | Control | Connected instances |
-| 📈 Usage | Control | Token usage analytics |
-| ⏰ Cron | Control | Scheduled jobs |
-| 📋 Jobs | Control | Async job queue |
-| ✅ Approvals | Control | Pending approvals |
-| 🔌 API | Control | API documentation |
-| ⚙️ Config | Settings | Runtime configuration |
-| 🔐 Auth | Settings | Authentication |
-| 📜 Logs | Settings | Real-time log viewer |
-| 🐛 Debug | Settings | Debug information |
+| Group | Built-in Pages |
+|-------|----------------|
+| **Agent** | `chat` (Chat), `chat-canvas` (Chat + Canvas), `canvas` (Canvas), `channels` (Channels), `inbox` (Channel Inbox), `agents` (Agents), `skills` (Skills), `marketplace` (Marketplace), `memory` (Memory), `knowledge` (Knowledge), `mcp` (MCP), `guardrails` (Guardrails), `cron` (Cron). In `style: app`, `connect`, `artifacts` (Chat + Canvas), and `start`/`templates` (Guided) also appear. |
+| **Work** | `work` (Work Hub), `kanban` (Kanban), `jobs-board` (Jobs Board) |
+| **Control** | `overview` (Overview), `nodes` (Nodes), `sessions` (Sessions), `replay` (Replay), `runs` (Runs), `feedback` (Feedback), `usage` (Usage), `eval` (Eval), `training` (Training), `jobs` (Jobs), `approvals` (Approvals), `code-studio` (Code Studio), `api` (API), `inspector` (Inspector). In `style: app`, `api-reference` (API Reference) also appears. |
+| **Settings** | `config` (Config), `security` (Security), `auth` (Auth), `logs` (Logs), `telemetry` (Telemetry), `traces` (Traces), `debug` (Debug), `theme-picker` (Theme) |
 
 Custom pages added via `@aiui.page()` appear alongside built-in pages.
 
