@@ -110,6 +110,36 @@ there is one and otherwise the legacy view inside the new shell, with every
 group (Agent, Work, Control, ...) listed in the sidebar of whatever layout is
 on. Your own pages still show in their group.
 
+## Mount only the shell (no agent endpoints)
+
+When you embed PraisonAIUI as a dedicated dashboard host and do not want
+agent/chat endpoints (`/sessions`, `/run`, `/agents`, `/teams`, `/api/chat/*`)
+mounted on the port, use `aiui.create_shell_app()` instead of `create_app()`.
+Pass `csp="strict"` (or a directive mapping / callable) to attach a strict
+`Content-Security-Policy` with the exact `'sha256-…'` hashes of the shell's
+inline scripts — no HTML buffering middleware or manual route allowlists needed:
+
+```python
+import praisonaiui as aiui
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+async def api_operations(request):
+    return JSONResponse({"status": "ok"})
+
+app = aiui.create_shell_app(
+    plugins=[MyDashboardPlugin()],
+    routes=[Route("/api/operations", api_operations, methods=["GET"])],
+    csp="strict",
+)
+```
+
+`GET /focus` serves the plugin page under a strict `script-src 'self' 'sha256-…'`
+header; `GET /sessions` and other unmounted routes return `404`. For custom
+hosts that render the HTML themselves, `aiui.render_shell_html(request)`
+returns `(html, script_hashes)` and `aiui.shell_csp_header(html)` formats the
+full header.
+
 ## Check it before you call it done
 
 ```bash
