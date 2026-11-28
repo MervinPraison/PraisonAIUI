@@ -142,7 +142,7 @@ built-in commands never import plugins.
 each in a fresh interpreter), `e2e/specs/plugins.spec.ts`.
 
 **R5. The SDK surface is `SDK_EXPORTS`.** The `@aiui/sdk` module exports exactly
-the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 38 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
+the names in `SDK_EXPORTS` (`src/frontend/src/sdk/manifest.ts`, 40 names today; `tests/unit/test_architecture_counts.py` keeps these counts true).
 Changes are additive under `SDK_VERSION = 1` / `SDK_API_VERSION = 1`: append a
 name and a capability string to `SDK_FEATURES` (append-only). Removing or
 changing a name, a signature or the manifest shape (`ShellManifest`, "FROZEN
@@ -230,7 +230,7 @@ for `innerHTML`, `dangerouslySetInnerHTML`, new rehype lists.
 
 | Budget | Limit |
 |---|---|
-| Shell boot (JS + CSS before first paint) | 151.3 kB |
+| Shell boot (JS + CSS before first paint) | 151.45 kB |
 | Chat route (added by `/chat`) | 144,500 B |
 | `/chat` first-screen JS (boot + chat route) | 264,400 B |
 | `index.css` | 26 kB |

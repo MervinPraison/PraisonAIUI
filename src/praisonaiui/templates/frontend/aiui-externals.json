@@ -29,7 +29,8 @@
     "page.badge",
     "notifications",
     "page-links",
-    "live-data"
+    "live-data",
+    "ws-transport"
   ],
   "react": "19.2.4",
   "modules": {
@@ -143,7 +144,9 @@
       "useNotifications",
       "pageHref",
       "pageLinkProps",
-      "useLiveData"
+      "useLiveData",
+      "getWsTicket",
+      "openWebSocket"
     ]
   }
 }

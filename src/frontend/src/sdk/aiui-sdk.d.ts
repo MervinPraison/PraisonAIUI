@@ -837,6 +837,28 @@ declare module '@aiui/sdk' {
     options?: UseLiveDataOptions<T>,
   ): UseLiveDataResult<T>
 
+  // ── realtime transport (feature 'ws-transport') ────────────────────
+
+  export interface OpenWebSocketOptions {
+    /** Optional WebSocket subprotocol(s) passed to `new WebSocket(url, protocols)`. */
+    protocols?: string | string[]
+    /** Optional custom `fetch` implementation (tests). */
+    fetchImpl?: typeof fetch
+    /** Optional custom `WebSocket` constructor (tests). */
+    WebSocketImpl?: new (url: string, protocols?: string | string[]) => WebSocket
+  }
+  /**
+   * Exchange the active session's credentials for a single-use 60 s WebSocket
+   * ticket (`POST /api/auth/ws-ticket`). Returns `null` when unavailable.
+   */
+  export function getWsTicket(fetchImpl?: typeof fetch): Promise<string | null>
+  /**
+   * Open an authenticated WebSocket to a same-origin path (e.g.
+   * `'/api/plugins/my-plugin/ws/events'`). Never attaches credentials to a
+   * cross-origin WebSocket URL.
+   */
+  export function openWebSocket(path: string, options?: OpenWebSocketOptions): Promise<WebSocket>
+
   // ── default export ─────────────────────────────────────────────────
 
   /** The whole module as one object, for feature detection: `sdk.SDK_FEATURES?.includes(...)`. */

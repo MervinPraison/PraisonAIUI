@@ -240,7 +240,8 @@ const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, with
 
 export default [
   // 151.3 kB (+1.3 kB, 2026-11-28): @aiui/sdk pageHref, pageLinkProps, and shared useLiveData hook (+Linux zlib headroom).
-  { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '151.3 kB', gzip: true },
+  // 151.45 kB (+150 B, 2026-11-28): @aiui/sdk getWsTicket and openWebSocket extracted from chat-engine/transports.ts (-228 B on /chat first-screen; +Linux zlib headroom).
+  { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '151.45 kB', gzip: true },
   // +0.5 kB / +1 kB: the app pages (src/app-pages, lazy) share icon modules
   // with the chat's lazy children, so Rollup splits two of them (x, pause)
   // into chunks of their own: 140.15 kB and 250.4 kB measured. The chat's

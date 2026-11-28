@@ -49,6 +49,7 @@ import {
   useThemeMode,
 } from './services'
 import { useLiveData } from './liveData'
+import { getWsTicket, openWebSocket } from './realtime'
 import { registerNavGroup, registerSettingsSection, registerThemePreset } from './contributions'
 import { getLayouts, provideLayoutData, registerLayout, setLayout, useLayout, useLayoutData } from './layouts'
 
@@ -132,6 +133,8 @@ export const sdkApi = Object.freeze({
   pageHref,
   pageLinkProps,
   useLiveData,
+  getWsTicket,
+  openWebSocket,
 } satisfies { [K in SdkExportName]: unknown })
 
 // Compile-time check that the published typings (./aiui-sdk.d.ts, the types a
