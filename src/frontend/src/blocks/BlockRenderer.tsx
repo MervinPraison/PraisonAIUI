@@ -146,12 +146,19 @@ export function BlockTreeView({ node, page, onAction }: BlockTreeViewProps): JSX
       async runAction(req) {
         const fn = onActionRef.current
         if (!fn) return false
-        const result = await fn(req)
-        return result !== false
+        try {
+          const result = await fn(req)
+          return result !== false
+        } catch (err) {
+          console.warn('[aiui blocks] BlockTree onAction threw', err)
+          return false
+        }
       },
     }),
     [page],
   )
+
+  if (!node) return <></>
 
   return (
     <BlockContext.Provider value={ctx}>

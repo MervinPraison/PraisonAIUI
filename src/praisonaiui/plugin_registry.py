@@ -50,6 +50,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import hashlib
+import inspect
 import logging
 import os
 import re
@@ -1086,6 +1087,8 @@ async def _isolated_plugin_cm(name: str, cm: Any):
         elif hasattr(cm, "__enter__") and hasattr(cm, "__exit__"):
             cm.__enter__()
         else:
+            if inspect.iscoroutine(cm):
+                cm.close()
             logger.warning("aiui plugin %s.lifespan() did not return a context manager", name)
             yield
             return
