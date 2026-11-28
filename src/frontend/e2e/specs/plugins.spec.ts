@@ -261,15 +261,6 @@ test('a React plugin using pageLinkProps stays in-document, supports Back, and k
   await expect(page.getByTestId('live-error')).toContainText('temporary outage')
   await expect(page.getByTestId('live-value')).toHaveText('reading=1')
 
-  // Modified click (Ctrl/Meta) is not intercepted by pageLinkProps (keeps native new-tab behaviour).
-  const modPrevented = await page.getByTestId('tab-blocks').evaluate((el) => {
-    const ev = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, metaKey: true })
-    el.dispatchEvent(ev)
-    return ev.defaultPrevented
-  })
-  expect(modPrevented).toBe(false)
-  await expect(page).toHaveURL(/\/hello$/)
-
   // Ordinary click stays in the current document (0 document requests) and Back works.
   let docRequests = 0
   page.on('request', (req) => {
@@ -284,5 +275,15 @@ test('a React plugin using pageLinkProps stays in-document, supports Back, and k
   await expect(page).toHaveURL(/\/hello$/)
   await expect(page.getByTestId('sdk-live-plugin')).toBeVisible()
   expect(docRequests).toBe(0)
+
+  // Cmd/Ctrl-click is not intercepted by pageLinkProps and opens a real new tab.
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+  const [newTab] = await Promise.all([
+    page.context().waitForEvent('page'),
+    page.getByTestId('tab-blocks').click({ modifiers: [mod] }),
+  ])
+  await expect(newTab).toHaveURL(/\/hello-blocks$/)
+  await newTab.close()
+  await expect(page).toHaveURL(/\/hello$/)
   expect(errors.pageErrors).toEqual([])
 })
