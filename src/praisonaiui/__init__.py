@@ -420,6 +420,15 @@ def __getattr__(name: str):
         from praisonaiui import plugin_registry
 
         return getattr(plugin_registry, name)
+    if name in (
+        "create_shell_app",
+        "render_shell_html",
+        "shell_inline_script_hashes",
+        "shell_csp_header",
+    ):
+        from praisonaiui import shell_app
+
+        return getattr(shell_app, name)
     if name in _instrumentation_attrs:
         from praisonaiui import instrumentation
 
@@ -898,4 +907,9 @@ __all__ = [
     "parse_a2ui_jsonl",
     "A2UI_BASIC_COMPONENTS",
     "A2UI_BASIC_FUNCTIONS",
+    # Shell-only app factory & CSP script hash helpers
+    "create_shell_app",
+    "render_shell_html",
+    "shell_inline_script_hashes",
+    "shell_csp_header",
 ]
