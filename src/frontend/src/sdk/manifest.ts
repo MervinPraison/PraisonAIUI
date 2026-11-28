@@ -81,6 +81,8 @@ export const SDK_EXPORTS = [
   // Authenticated WebSocket transport helpers (feature ws-transport).
   'getWsTicket',
   'openWebSocket',
+  // Lazy block tree renderer for React plugins (feature block-tree).
+  'BlockTree',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -143,6 +145,8 @@ export const SDK_FEATURES = [
   'live-data',
   // getWsTicket() / openWebSocket(): authenticated same-origin WebSocket helpers
   'ws-transport',
+  // BlockTree: lazy renderer for built-in and plugin blocks inside React plugins
+  'block-tree',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

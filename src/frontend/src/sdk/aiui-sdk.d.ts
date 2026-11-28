@@ -17,6 +17,7 @@
 declare module '@aiui/sdk' {
   type ComponentType<P = Record<string, never>> = import('react').ComponentType<P>
   type MouseEvent<T = Element> = import('react').MouseEvent<T>
+  type ReactNode = import('react').ReactNode
 
   // ── manifest ───────────────────────────────────────────────────────
 
@@ -858,6 +859,27 @@ declare module '@aiui/sdk' {
    * cross-origin WebSocket URL.
    */
   export function openWebSocket(path: string, options?: OpenWebSocketOptions): Promise<WebSocket>
+
+  // ── block tree renderer (feature 'block-tree') ─────────────────────
+
+  export interface BlockTreeAction {
+    readonly body: Record<string, unknown>
+    readonly label?: string
+    readonly method?: 'get' | 'post'
+    readonly updateUrl?: boolean
+  }
+  export interface BlockTreeProps {
+    /** A single block node or an array of sibling block nodes to render. */
+    node: BlockNode | readonly BlockNode[]
+    /** Optional page descriptor passed to block renderers. */
+    page?: ShellPage
+    /** Handler for interactive block actions (buttons, forms, row actions). */
+    onAction?: (req: BlockTreeAction) => boolean | void | Promise<boolean | void>
+    /** Optional placeholder rendered while the lazy blocks engine loads. */
+    fallback?: ReactNode
+  }
+  /** Lazy renderer for built-in and plugin-registered blocks inside React plugins. */
+  export const BlockTree: ComponentType<BlockTreeProps>
 
   // ── default export ─────────────────────────────────────────────────
 

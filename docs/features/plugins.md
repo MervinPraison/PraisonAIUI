@@ -637,8 +637,9 @@ the `settings()` hook), `nav-groups` (`registerNavGroup`, `nav_groups()`),
 (`registerLayout`, `getLayouts`, `useLayout`, `setLayout`, manifest
 `layouts`), `layout-data` (`provideLayoutData`, `useLayoutData`),
 `slots.dispose` (`registerSlot` returns a remover), `page-links`
-(`pageHref`, `pageLinkProps`), `live-data` (`useLiveData`) and
-`ws-transport` (`getWsTicket`, `openWebSocket`). A shell older than the
+(`pageHref`, `pageLinkProps`), `live-data` (`useLiveData`),
+`ws-transport` (`getWsTicket`, `openWebSocket`) and `block-tree`
+(`BlockTree`). A shell older than the
 services has no `SDK_FEATURES`.
 
 ### Authenticated WebSockets (`openWebSocket`, `getWsTicket`)
@@ -657,6 +658,33 @@ ws.addEventListener('message', (ev) => console.log(JSON.parse(ev.data)))
 ```
 
 Call `getWsTicket()` directly if you construct a custom WebSocket URL yourself.
+
+### Reusing built-in blocks in React pages (`BlockTree`)
+
+Custom `kind="react"` pages and plugin layouts can compose any built-in block
+(`metric`, `table`, `diff_viewer`, `tree_view`, `timeline`, `status`,
+`button_group`, …) or plugin-registered block via `<BlockTree>` from
+`@aiui/sdk` (feature `block-tree`). The blocks engine loads lazily on first
+use, so shell boot size stays unchanged:
+
+```js
+import { jsx } from 'react/jsx-runtime'
+import { BlockTree, notify } from '@aiui/sdk'
+
+export default function MyPage({ page }) {
+  return jsx(BlockTree, {
+    page,
+    node: [
+      { type: 'metric', props: { label: 'Active runs', value: '4' } },
+      { type: 'button_group', props: { buttons: [{ label: 'Refresh', action: 'refresh' }] } },
+    ],
+    onAction: ({ body }) => {
+      notify(`Triggered ${body.action}`)
+      return true
+    },
+  })
+}
+```
 
 ### Types
 

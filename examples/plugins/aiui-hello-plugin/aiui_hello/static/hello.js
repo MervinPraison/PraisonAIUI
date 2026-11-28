@@ -7,7 +7,7 @@
 // 'react/jsx-runtime', 'react-dom', 'react-dom/client' and '@aiui/sdk'.
 import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { Markdown, navigate, notify, registerBlock, registerSlot, registerToolRenderer } from '@aiui/sdk'
+import { BlockTree, Markdown, navigate, notify, registerBlock, registerSlot, registerToolRenderer } from '@aiui/sdk'
 
 // Style with the theme's CSS variables: the shell's Tailwind build only
 // contains the classes the shell itself uses.
@@ -88,6 +88,13 @@ export default function HelloPage({ page }) {
           }),
           jsx('span', { style: S.meta, children: `State lives in the shell’s React · page id “${page ? page.id : '?'}”` }),
         ],
+      }),
+      jsx(BlockTree, {
+        page,
+        node: {
+          type: 'metric',
+          props: { label: 'Plugin clicks', value: String(count), delta: 'via <BlockTree>' },
+        },
       }),
       jsx('p', { style: S.text, children: 'Open “Hello blocks” for the server-driven version.' }),
     ],
