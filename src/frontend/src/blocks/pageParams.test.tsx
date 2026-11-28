@@ -7,10 +7,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import '@/blocks/coreBlocks'
 import { getCoreBlock } from '@/blocks/coreBlocks'
 import {
-  MAX_BACKOFF_MS,
   actionBodyWithParams,
   mergeSearch,
-  nextRefreshDelay,
   paramsFromSearch,
   refreshSeconds,
   withQuery,
@@ -73,12 +71,6 @@ test('auto refresh: seconds parsing and back-off', () => {
   assert.equal(refreshSeconds(0.2), 1)
   assert.equal(refreshSeconds(undefined), 0)
   assert.equal(refreshSeconds(-3), 0)
-  assert.equal(nextRefreshDelay(5, 0), 5000)
-  assert.equal(nextRefreshDelay(5, 1), 10000)
-  assert.equal(nextRefreshDelay(5, 3), 40000)
-  assert.equal(nextRefreshDelay(5, 50), MAX_BACKOFF_MS)
-  // a period longer than the cap is never shortened by failures
-  assert.equal(nextRefreshDelay(600, 2), 600_000)
 })
 
 const node = (type: string, props: Record<string, unknown>): BlockNode => ({ type, props })

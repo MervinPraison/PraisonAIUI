@@ -21,23 +21,15 @@ export interface LiveDataErrorInfo {
   readonly retained: boolean
 }
 
-export interface LiveDataSuccessInfo {
-  readonly mode: LiveDataLoadMode
-}
-
 export type LiveIntervalOption<T> = number | ((data: T | undefined) => number)
 
 export interface UseLiveDataOptions<T> {
   /** Auto-refresh period in ms, or a function reading it from data (0 disables; min 1000 ms). */
   intervalMs?: LiveIntervalOption<T>
-  /** Cap for exponential backoff after consecutive auto-refresh failures (default 300 000 ms). */
-  maxBackoffMs?: number
   /** Set false to pause loading and auto-refresh (default true). */
   enabled?: boolean
   /** Called when a non-aborted load fails. */
   onError?: (error: Error, info: LiveDataErrorInfo) => void
-  /** Called when a load succeeds. */
-  onSuccess?: (data: T, info: LiveDataSuccessInfo) => void
 }
 
 export interface UseLiveDataResult<T> {
@@ -112,7 +104,6 @@ export interface LiveDataControllerConfig<T> {
   maxBackoffMs: number
   enabled: boolean
   onError?: (error: Error, info: LiveDataErrorInfo) => void
-  onSuccess?: (data: T, info: LiveDataSuccessInfo) => void
 }
 
 export interface LiveDataController<T> {
@@ -212,7 +203,6 @@ export function createLiveDataController<T>(
         refreshing: false,
       })
       if (normalizedInterval() !== activeInterval) syncPolling()
-      cfg.onSuccess?.(data, { mode })
     } catch (rawErr) {
       if (disposed || ac.signal.aborted || reqGen !== gen || cfg.key !== reqKey) return
       const err = toError(rawErr)
@@ -370,7 +360,7 @@ export function useLiveData<T>(
   options: UseLiveDataOptions<T> = {},
 ): UseLiveDataResult<T> {
   const intervalMs = options.intervalMs ?? 0
-  const maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS
+  const maxBackoffMs = DEFAULT_MAX_BACKOFF_MS
   const enabled = options.enabled ?? true
 
   const [ctrl] = useState<LiveDataController<T>>(() =>
@@ -381,7 +371,6 @@ export function useLiveData<T>(
       maxBackoffMs,
       enabled,
       onError: options.onError,
-      onSuccess: options.onSuccess,
     }),
   )
   const [snap, setSnap] = useState<LiveDataSnapshot<T>>(() => ctrl.getSnapshot())
@@ -403,9 +392,8 @@ export function useLiveData<T>(
       maxBackoffMs,
       enabled,
       onError: options.onError,
-      onSuccess: options.onSuccess,
     })
-  }, [ctrl, key, fetcher, intervalMs, maxBackoffMs, enabled, options.onError, options.onSuccess])
+  }, [ctrl, key, fetcher, intervalMs, maxBackoffMs, enabled, options.onError])
 
   const refresh = useCallback(() => ctrl.refresh(), [ctrl])
   const setData = useCallback((next: T) => ctrl.setData(next), [ctrl])

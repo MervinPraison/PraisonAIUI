@@ -359,7 +359,7 @@ Shell services and components:
 |---|---|
 | `navigate(pageId, { replace, params }?)` | Go to a page of the app: `navigate('logs')` |
 | `pageHref(pageId, params?)` | Format an in-app page URL path (`pageHref('revenue', { range: '30d' })` → `/revenue?range=30d`) |
-| `pageLinkProps(pageId, params?, { replace }?)` | Return `{ href, onClick }` for an in-app `<a>` link: plain left click navigates inside the shell with no full document reload (Back/Forward work), while Cmd/Ctrl/Shift/Alt/middle-click keeps native new-tab behaviour |
+| `pageLinkProps(pageId, params?)` | Return `{ href, onClick }` for an in-app `<a>` link: plain left click navigates inside the shell with no full document reload (Back/Forward work), while Cmd/Ctrl/Shift/Alt/middle-click keeps native new-tab behaviour |
 | `useLiveData(key, fetcher, options?)` | Keyed, visibility-aware live data hook shared with built-in block pages: aborts in-flight reads on key change (never flashing stale page data), retains the last result on refresh failure alongside `error`, skips hidden tabs, backs off on failures, and refreshes once when returning to an overdue tab |
 | `notify(message, options?)` | Show a toast. Options: `type` (`info`, `success`, `warning`, `error`), `description`, `duration`, `id`, `action: { label, onClick }` |
 | `fetchJson(url, options?)` | `fetch` for JSON APIs. It sends the session's gateway token to same-origin URLs only, JSON-encodes a plain-object `body` (the method then defaults to `POST`), decodes the response, and rejects with an error carrying `status`, `url` and `body` on a non-2xx status |

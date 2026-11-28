@@ -776,10 +776,6 @@ declare module '@aiui/sdk' {
 
   // ── page links & live data ─────────────────────────────────────────
 
-  export interface PageLinkOptions {
-    /** Replace the current history entry instead of pushing a new one. */
-    replace?: boolean
-  }
   export interface PageLinkProps {
     readonly href: string
     readonly onClick: (e: MouseEvent<HTMLAnchorElement>) => void
@@ -794,7 +790,6 @@ declare module '@aiui/sdk' {
   export function pageLinkProps(
     pageId: string,
     params?: Record<string, unknown>,
-    opts?: PageLinkOptions,
   ): PageLinkProps
 
   export type LiveDataLoadMode = 'initial' | 'refresh' | 'auto'
@@ -803,20 +798,13 @@ declare module '@aiui/sdk' {
     readonly failures: number
     readonly retained: boolean
   }
-  export interface LiveDataSuccessInfo {
-    readonly mode: LiveDataLoadMode
-  }
   export interface UseLiveDataOptions<T> {
     /** Auto-refresh period in ms, or a function reading it from data (0 disables; min 1000 ms). */
     intervalMs?: number | ((data: T | undefined) => number)
-    /** Cap for exponential backoff after repeated auto-refresh failures (default 300 000 ms). */
-    maxBackoffMs?: number
     /** Set false to pause loading and auto-refresh (default true). */
     enabled?: boolean
     /** Called when a non-aborted load fails. */
     onError?: (error: Error, info: LiveDataErrorInfo) => void
-    /** Called when a load succeeds. */
-    onSuccess?: (data: T, info: LiveDataSuccessInfo) => void
   }
   export interface UseLiveDataResult<T> {
     readonly data: T | undefined

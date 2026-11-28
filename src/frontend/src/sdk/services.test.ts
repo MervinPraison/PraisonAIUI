@@ -437,11 +437,4 @@ test('pageLinkProps stays in-app on plain left click and keeps native behaviour 
     assert.equal(m.prevented(), false, `should not intercept ${JSON.stringify(mod)}`)
   }
   assert.equal(calls.length, 1, 'none of the modified clicks triggered in-app navigate')
-
-  // Explicit replace option forwards through.
-  const replaced = pageLinkProps('focus', undefined, { replace: true })
-  const e2 = makeEvent()
-  replaced.onClick(e2.ev)
-  assert.equal(e2.prevented(), true)
-  assert.deepEqual(calls[1], { pageId: 'focus', opts: { replace: true } })
 })

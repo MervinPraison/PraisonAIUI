@@ -112,11 +112,6 @@ export function pageHref(pageId: string, params?: Record<string, unknown>): stri
   return `/${encodeURIComponent(pageId)}${queryForParams(params)}`
 }
 
-export interface PageLinkOptions {
-  /** Replace the current history entry instead of pushing a new one. */
-  replace?: boolean
-}
-
 export interface PageLinkProps {
   readonly href: string
   readonly onClick: (e: MouseEvent<HTMLAnchorElement>) => void
@@ -133,7 +128,6 @@ export interface PageLinkProps {
 export function pageLinkProps(
   pageId: string,
   params?: Record<string, unknown>,
-  opts?: PageLinkOptions,
 ): PageLinkProps {
   const href = pageHref(pageId, params)
   return {
@@ -143,7 +137,7 @@ export function pageLinkProps(
       const target = e.currentTarget?.target
       if (target && target !== '_self') return
       e.preventDefault()
-      navigate(pageId, params !== undefined ? { ...opts, params } : opts)
+      navigate(pageId, params !== undefined ? { params } : undefined)
     },
   }
 }

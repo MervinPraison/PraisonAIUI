@@ -153,10 +153,11 @@ export default function BlockPage({ page }: { page: ShellPage }): JSX.Element {
   )
 
   const handleLoadError = useCallback(
-    (err: Error, { mode, failures }: LiveDataErrorInfo) => {
+    (err: Error, { mode, failures, retained }: LiveDataErrorInfo) => {
       // A failed refresh keeps the content on screen and reports via toast
       // (an auto refresh only on its first failure, then backs off quietly).
-      if (mode === 'refresh' || (mode === 'auto' && failures === 1)) {
+      // Without content the inline error card already says it: no toast.
+      if (retained && (mode === 'refresh' || (mode === 'auto' && failures === 1))) {
         void notify(`Couldn't refresh ${page.title}`, { type: 'error', description: describe(err) })
       }
     },

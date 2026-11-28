@@ -72,8 +72,6 @@ export function writeParams(values: Record<string, unknown>): void {
 
 /** Shortest auto refresh period the client accepts, in seconds. */
 export const MIN_REFRESH_SECONDS = 1
-/** Longest back-off after repeated failures, in ms. */
-export const MAX_BACKOFF_MS = 5 * 60_000
 
 /** `_refresh_every` from a payload → seconds, or 0 when absent/invalid. */
 export function refreshSeconds(v: unknown): number {
@@ -81,9 +79,3 @@ export function refreshSeconds(v: unknown): number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.max(MIN_REFRESH_SECONDS, n) : 0
 }
 
-/** Delay before the next auto refresh: doubles per consecutive failure, capped. */
-export function nextRefreshDelay(seconds: number, failures: number): number {
-  const base = Math.max(MIN_REFRESH_SECONDS, seconds) * 1000
-  if (failures <= 0) return base
-  return Math.min(Math.max(MAX_BACKOFF_MS, base), base * 2 ** Math.min(failures, 16))
-}
