@@ -241,8 +241,11 @@ def test_plugin_lifespan_closes_unawaited_coroutine_and_ignores_invalid_return()
 
 
 def test_plugin_websocket_with_lifespan_authenticated_in_require_auth_mode(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
+    from praisonaiui import auth as auth_mod
+
+    monkeypatch.setattr(auth_mod, "_users", {})
     static = tmp_path / "static"
     static.mkdir(parents=True, exist_ok=True)
     (static / "sess.js").write_text("export default function Sess() { return null; }\n", encoding="utf-8")
@@ -264,7 +267,11 @@ def test_plugin_websocket_with_lifespan_authenticated_in_require_auth_mode(
 
             return [WebSocketRoute("/ws/echo", ws_echo)]
 
-    app = create_shell_app(plugins=[_SessPlugin()], require_auth=True)
+    app = create_shell_app(
+        plugins=[_SessPlugin()],
+        config={"auth": {"allowSignup": True}},
+        require_auth=True,
+    )
     with TestClient(app) as client:
         # Unauthenticated WS and ticket request are rejected.
         assert client.post("/api/auth/ws-ticket").status_code == 401
