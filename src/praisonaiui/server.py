@@ -3822,7 +3822,10 @@ async def _lifespan_handler(app: Starlette):
     except Exception as e:
         logging.getLogger(__name__).error(f"Startup hooks failed: {e}")
 
-    yield
+    from praisonaiui.plugin_registry import get_plugin_registry
+
+    async with get_plugin_registry().lifespan(app):
+        yield
 
     # Shutdown
     try:

@@ -332,3 +332,60 @@ test('a React plugin using BlockTree renders built-in blocks lazily and handles 
   await expect(page.getByTestId('bt-fired')).toHaveText('run_check')
   expect(errors.pageErrors).toEqual([])
 })
+
+test('a React plugin using openWebSocket exchanges a single-use ticket and receives messages', async ({ page }) => {
+  const errors = collectPageErrors(page)
+  const seenUrls: string[] = []
+  await page.route('**/api/auth/ws-ticket', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ticket: 'e2e-ticket-99', expires_in: 60 }),
+    }),
+  )
+  await page.routeWebSocket(/\/api\/plugins\/hello\/ws\/live/, (ws) => {
+    seenUrls.push(ws.url())
+    ws.send(JSON.stringify({ msg: 'live-ok' }))
+  })
+  const pluginCode = `
+    import { createElement as h, useEffect, useState } from 'react'
+    import { openWebSocket } from '@aiui/sdk'
+    export default function WsPluginPage() {
+      const [status, setStatus] = useState('connecting')
+      useEffect(() => {
+        let sock
+        let closed = false
+        void openWebSocket('/api/plugins/hello/ws/live?run=7').then((ws) => {
+          if (closed) { ws.close(); return }
+          sock = ws
+          ws.addEventListener('message', (ev) => {
+            const d = JSON.parse(ev.data)
+            setStatus(String(d.msg || 'empty'))
+          })
+        })
+        return () => { closed = true; sock?.close() }
+      }, [])
+      return h('div', { 'data-testid': 'sdk-ws-plugin' }, status)
+    }
+  `
+  const sri = 'sha384-' + createHash('sha384').update(pluginCode).digest('base64')
+  await page.route('**/_plugins/hello/hello.js*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: pluginCode }),
+  )
+  await page.route('**/hello', async (route) => {
+    if (route.request().resourceType() !== 'document') return route.continue()
+    const res = await route.fetch()
+    let html = await res.text()
+    const match = html.match(/"\/_plugins\/hello\/hello\.js"\s*:\s*"(sha384-[^"]+)"/)
+    if (match) html = html.split(match[1]).join(sri)
+    await route.fulfill({ response: res, body: html })
+  })
+
+  await page.addInitScript(() => {
+    sessionStorage.setItem('aiui_gateway_token', 'e2e-tok')
+  })
+  await page.goto('/hello')
+  await expect(page.getByTestId('sdk-ws-plugin')).toHaveText('live-ok')
+  expect(seenUrls.some((u) => u.includes('run=7&ticket=e2e-ticket-99'))).toBe(true)
+  expect(errors.pageErrors).toEqual([])
+})

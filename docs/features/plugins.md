@@ -95,6 +95,7 @@ Every member except `name` is optional:
 | `features()` | feature protocols | Registered like built-in features (an enabled built-in's names win) |
 | `cli_commands()` | `typer.Typer` or click command | `aiui <name> …` and `aiui plugins <name> …` |
 | `setup(ctx)` | `None` | Called once per `create_app()` with `{"style", "config"}` |
+| `lifespan(app)` | async/sync context manager | Entered on ASGI startup and exited LIFO on shutdown (in both `create_app()` and `create_shell_app()`); failures are isolated per plugin |
 | `settings()` | `SettingsSectionSpec` or dicts | Sections of the shell's settings dialog ([below](#settings-nav-groups-and-theme-presets)) |
 | `nav_groups()` | `NavGroupSpec` or dicts | The sidebar groups your pages use, with their position |
 | `themes()` | `ThemeSpec` or dicts | Theme presets made of seed tokens |

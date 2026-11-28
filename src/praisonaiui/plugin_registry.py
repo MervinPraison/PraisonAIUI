@@ -48,6 +48,7 @@ This module is distinct from :mod:`praisonaiui.plugins` (docs compiler hooks).
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import logging
 import os
@@ -399,6 +400,7 @@ class AiuiPlugin(Protocol):
     #   def features(self) -> Iterable[BaseFeatureProtocol]
     #   def cli_commands(self) -> typer.Typer | None
     #   def setup(self, ctx: dict) -> None                      (called once per create_app)
+    #   def lifespan(self, app) -> AbstractAsyncContextManager  (optional ASGI startup/shutdown)
     # Added under SDK 1 (feature names "settings", "nav-groups", "theme-presets"):
     #   def settings(self) -> Iterable[SettingsSectionSpec | dict]
     #   def nav_groups(self) -> Iterable[NavGroupSpec | dict]
@@ -1048,6 +1050,59 @@ class PluginRegistry:
             if app is not None:
                 out.append((rec.name, app))
         return out
+
+    @contextlib.asynccontextmanager
+    async def lifespan(self, app: Any):
+        """Enter and exit every active plugin's optional ``lifespan(app)`` hook.
+
+        Failures are isolated per plugin (R4): one plugin failing during
+        startup or shutdown logs a warning and never prevents the remaining
+        plugins from starting or tearing down cleanly.
+        """
+        async with contextlib.AsyncExitStack() as stack:
+            for rec in self.active():
+                fn = getattr(rec.plugin, "lifespan", None)
+                if not callable(fn):
+                    continue
+                try:
+                    cm = fn(app)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("aiui plugin %s.lifespan() failed: %s", rec.name, exc)
+                    continue
+                if cm is None:
+                    continue
+                await stack.enter_async_context(_isolated_plugin_cm(rec.name, cm))
+            yield
+
+
+@contextlib.asynccontextmanager
+async def _isolated_plugin_cm(name: str, cm: Any):
+    """Wrap one plugin's sync or async context manager so startup/teardown errors stay isolated."""
+    entered = False
+    is_async = hasattr(cm, "__aenter__") and hasattr(cm, "__aexit__")
+    try:
+        if is_async:
+            await cm.__aenter__()
+        elif hasattr(cm, "__enter__") and hasattr(cm, "__exit__"):
+            cm.__enter__()
+        else:
+            logger.warning("aiui plugin %s.lifespan() did not return a context manager", name)
+            yield
+            return
+        entered = True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("aiui plugin %s.lifespan startup failed: %s", name, exc)
+    try:
+        yield
+    finally:
+        if entered:
+            try:
+                if is_async:
+                    await cm.__aexit__(None, None, None)
+                else:
+                    cm.__exit__(None, None, None)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("aiui plugin %s.lifespan shutdown failed: %s", name, exc)
 
 
 class _GatedStatic:
