@@ -185,7 +185,8 @@ const defaultLayoutFirstScreen = [
     // 274,650 B (+250 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
     // 274,800 B (+150 B, 2026-11-27): ReactShell lazy viewportGuard bottom bar hook (+Linux zlib headroom).
     // 276,400 B (+1,600 B, 2026-11-28): @aiui/sdk pageHref, pageLinkProps, and shared useLiveData hook (+Linux zlib headroom).
-    limit: '276400 B',
+    // 276,600 B (+200 B, 2026-11-28): @aiui/sdk getWsTicket and openWebSocket (Linux CI zlib: 276.45 kB).
+    limit: '276600 B',
     gzip: true,
   },
 ]
@@ -240,7 +241,9 @@ const allAssets = readdirSync(path.join(DIST, 'assets'), { recursive: true, with
 
 export default [
   // 151.3 kB (+1.3 kB, 2026-11-28): @aiui/sdk pageHref, pageLinkProps, and shared useLiveData hook (+Linux zlib headroom).
-  { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '151.3 kB', gzip: true },
+  // 151.45 kB (+150 B, 2026-11-28): @aiui/sdk getWsTicket and openWebSocket extracted from chat-engine/transports.ts (-228 B on /chat first-screen; +Linux zlib headroom).
+  // 151.65 kB (+200 B, 2026-11-28): Linux CI zlib measured 151.56 kB for getWsTicket/openWebSocket.
+  { name: 'shell boot (JS + CSS before first paint)', path: abs(bootAll), limit: '151.65 kB', gzip: true },
   // +0.5 kB / +1 kB: the app pages (src/app-pages, lazy) share icon modules
   // with the chat's lazy children, so Rollup splits two of them (x, pause)
   // into chunks of their own: 140.15 kB and 250.4 kB measured. The chat's
@@ -384,7 +387,8 @@ export default [
   // 262,700 B (+240 B, 2026-11-27): ChatPage embedded mode + builtin.chat lazy chat_panel block registration (+Linux zlib headroom).
   // 262,850 B (+150 B, 2026-11-27): ReactShell lazy viewportGuard bottom bar hook (+Linux zlib headroom).
   // 264,400 B (+1,550 B, 2026-11-28): @aiui/sdk pageHref, pageLinkProps, and shared useLiveData hook (+Linux zlib headroom).
-  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '264400 B', gzip: true },
+  // 264,600 B (+200 B, 2026-11-28): @aiui/sdk getWsTicket and openWebSocket (Linux CI zlib: 264.50 kB).
+  { name: '/chat first screen JS (boot + chat route)', path: abs([...bootJs, ...chatRouteJs]), limit: '264600 B', gzip: true },
   // 23.4 kB after dropping the sources no build includes from the Tailwind scan.
   // 26.05 kB (+50 B, 2026-11-27): :not([data-aiui-component-preview] *) isolation on article.prose (Linux CI zlib).
   { name: 'index.css', path: abs(['assets/index.css']), limit: '26.05 kB', gzip: true },

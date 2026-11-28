@@ -635,9 +635,28 @@ Feature names: `pages`, `blocks`, `tool-renderers`, `slots`, `views`,
 the `settings()` hook), `nav-groups` (`registerNavGroup`, `nav_groups()`),
 `theme-presets` (`registerThemePreset`, `themes()`), `layouts`
 (`registerLayout`, `getLayouts`, `useLayout`, `setLayout`, manifest
-`layouts`), `layout-data` (`provideLayoutData`, `useLayoutData`) and
-`slots.dispose` (`registerSlot` returns a remover). A shell older than the
+`layouts`), `layout-data` (`provideLayoutData`, `useLayoutData`),
+`slots.dispose` (`registerSlot` returns a remover), `page-links`
+(`pageHref`, `pageLinkProps`), `live-data` (`useLiveData`) and
+`ws-transport` (`getWsTicket`, `openWebSocket`). A shell older than the
 services has no `SDK_FEATURES`.
+
+### Authenticated WebSockets (`openWebSocket`, `getWsTicket`)
+
+A plugin's `routes()` may include Starlette `WebSocketRoute` endpoints under
+`/api/plugins/<name>/*`. In the browser, open them with `openWebSocket(path)`
+from `@aiui/sdk` (feature `ws-transport`) so stored gateway tokens are
+automatically exchanged for a single-use 60-second ticket via
+`POST /api/auth/ws-ticket` (credentials are never attached to cross-origin URLs):
+
+```js
+import { openWebSocket } from '@aiui/sdk'
+
+const ws = await openWebSocket('/api/plugins/my-plugin/ws/events')
+ws.addEventListener('message', (ev) => console.log(JSON.parse(ev.data)))
+```
+
+Call `getWsTicket()` directly if you construct a custom WebSocket URL yourself.
 
 ### Types
 

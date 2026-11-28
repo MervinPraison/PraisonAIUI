@@ -78,6 +78,9 @@ export const SDK_EXPORTS = [
   'pageHref',
   'pageLinkProps',
   'useLiveData',
+  // Authenticated WebSocket transport helpers (feature ws-transport).
+  'getWsTicket',
+  'openWebSocket',
 ] as const
 export type SdkExportName = (typeof SDK_EXPORTS)[number]
 
@@ -138,6 +141,8 @@ export const SDK_FEATURES = [
   'page-links',
   // useLiveData(): keyed, visibility-aware live data hook with retry backoff
   'live-data',
+  // getWsTicket() / openWebSocket(): authenticated same-origin WebSocket helpers
+  'ws-transport',
 ] as const
 export type SdkFeature = (typeof SDK_FEATURES)[number]
 

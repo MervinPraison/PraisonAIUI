@@ -39,7 +39,10 @@
  *  - `{type:'run_status', run_id}` asks whether a run is still alive (after a
  *    reconnect); older servers do not answer, which reads as "unknown".
  */
+import { TOKEN_STORAGE_KEY, WS_TICKET_URL, wsAuthQuery } from '@/sdk/realtime'
 import { TERMINAL, type ConnectionStatus, type WireEvent } from './protocol'
+
+export { TOKEN_STORAGE_KEY, WS_TICKET_URL, wsAuthQuery }
 
 export type { ConnectionStatus }
 
@@ -255,45 +258,6 @@ export interface WsTransport extends AiuiTransport {
   connect(timeoutMs?: number): Promise<void>
   /** Close the socket for good and stop reconnecting (tests, teardown). */
   close(): void
-}
-
-/** Same key as dashboard.js ONBOARD_TOKEN_KEY and the shell's auth fetch. */
-export const TOKEN_STORAGE_KEY = 'aiui_gateway_token'
-
-function storedToken(): string {
-  try {
-    return globalThis.sessionStorage?.getItem(TOKEN_STORAGE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-export const WS_TICKET_URL = '/api/auth/ws-ticket'
-
-/**
- * The query string that authenticates one WebSocket handshake: a single-use
- * ticket bought with the stored token, `?token=` on servers without the ticket
- * endpoint, nothing when no token is stored (cookie or open servers).
- */
-export async function wsAuthQuery(fetchImpl: typeof fetch = globalThis.fetch): Promise<string> {
-  const token = storedToken()
-  if (!token) return ''
-  try {
-    const res = await fetchImpl(WS_TICKET_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: 'same-origin',
-    })
-    if (res.ok) {
-      const data = (await res.json()) as { ticket?: unknown }
-      if (typeof data.ticket === 'string' && data.ticket) return `?ticket=${encodeURIComponent(data.ticket)}`
-    } else if (res.status !== 404 && res.status !== 405) {
-      return '' // the token was refused: the handshake fails the same way
-    }
-  } catch {
-    /* network trouble: the handshake will fail and retry */
-  }
-  return `?token=${encodeURIComponent(token)}`
 }
 
 export async function defaultWsUrl(): Promise<string> {

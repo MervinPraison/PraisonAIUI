@@ -12,8 +12,9 @@ from pathlib import Path
 import pytest
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 import praisonaiui as aiui
 from praisonaiui import server as srv
@@ -320,3 +321,73 @@ def test_shell_app_exports_are_lazy_on_root_import():
     )
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
+
+
+def test_shell_csp_header_allow_websockets_adds_ws_schemes():
+    html = "<script>window.__X=1;</script>"
+    without_ws = shell_csp_header(html)
+    with_ws = shell_csp_header(html, allow_websockets=True)
+    connect_without = next(d for d in without_ws.split("; ") if d.startswith("connect-src "))
+    connect_with = next(d for d in with_ws.split("; ") if d.startswith("connect-src "))
+    assert "ws:" not in connect_without and "wss:" not in connect_without
+    assert "'self'" in connect_with and "ws:" in connect_with and "wss:" in connect_with
+
+
+def test_create_shell_app_ws_ticket_and_authenticated_plugin_websocket(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    static = tmp_path / "static"
+    static.mkdir(parents=True, exist_ok=True)
+    (static / "live.js").write_text("export default function Live() { return null; }\n", encoding="utf-8")
+
+    class _WsPlugin:
+        name = "live_demo"
+
+        def static_dir(self) -> Path:
+            return static
+
+        def pages(self):
+            return [PageSpec(id="live", title="Live", kind="react", module="live.js")]
+
+        def routes(self):
+            async def echo_ws(ws: WebSocket):
+                await ws.accept()
+                msg = await ws.receive_text()
+                await ws.send_text(f"echo:{msg}")
+                await ws.close()
+
+            return [WebSocketRoute("/ws/echo", echo_ws)]
+
+    # Open loopback server still exposes POST /api/auth/ws-ticket.
+    open_app = create_shell_app(plugins=[_WsPlugin()])
+    open_client = TestClient(open_app)
+    t_res = open_client.post("/api/auth/ws-ticket")
+    assert t_res.status_code == 200
+    assert t_res.json()["ticket"]
+
+    # Token-authenticated server refuses unauthenticated WS and accepts single-use ticket.
+    monkeypatch.setenv("AIUI_REQUIRE_TOKEN", "1")
+    monkeypatch.setenv("AIUI_URL_TOKEN", "ws-secret")
+    auth_app = create_shell_app(plugins=[_WsPlugin()])
+    auth_client = TestClient(auth_app)
+
+    assert auth_client.post("/api/auth/ws-ticket").status_code == 401
+    with pytest.raises(WebSocketDisconnect):
+        with auth_client.websocket_connect("/api/plugins/live_demo/ws/echo"):
+            pass
+
+    ticket_resp = auth_client.post(
+        "/api/auth/ws-ticket", headers={"Authorization": "Bearer ws-secret"}
+    )
+    assert ticket_resp.status_code == 200
+    ticket = ticket_resp.json()["ticket"]
+
+    with auth_client.websocket_connect(f"/api/plugins/live_demo/ws/echo?ticket={ticket}") as ws:
+        ws.send_text("ping")
+        assert ws.receive_text() == "echo:ping"
+
+    # Reusing the single-use ticket must be refused.
+    with pytest.raises(WebSocketDisconnect):
+        with auth_client.websocket_connect(f"/api/plugins/live_demo/ws/echo?ticket={ticket}"):
+            pass
+
